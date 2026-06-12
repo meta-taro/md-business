@@ -1,0 +1,39 @@
+{
+  "name": "md-business",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Markdown-first business document templates with specialized viewers across Docs Add-on, Chrome, VS Code, PWA, LIFF, GitHub Action.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/meta-taro/md-business.git"
+  },
+  "homepage": "https://github.com/meta-taro/md-business",
+  "bugs": {
+    "url": "https://github.com/meta-taro/md-business/issues"
+  },
+  "packageManager": "pnpm@9.12.0",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "test:run": "turbo run test:run",
+    "changeset": "changeset",
+    "version": "changeset version",
+    "release": "turbo run build && changeset publish"
+  },
+  "devDependencies": {
+    "@changesets/cli": "^2.27.9",
+    "turbo": "^2.2.3",
+    "typescript": "^5.6.3"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [],
+    "minimumReleaseAge": 1440
+  }
+}
