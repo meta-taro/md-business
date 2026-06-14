@@ -42,3 +42,13 @@ pnpm-debug.log*
 # Changesets
 # (.changeset itself is committed; pre-release status files are not)
 .changeset/pre.json
+
+# Per-company real data (must not land in OSS upstream)
+# 各社の実データ（請求先名・登録番号・金額・印影など）は本家にコミットしない
+/private/
+/.local/
+*.private.md
+*.local.md
+**/seal-*.png
+**/seal-*.jpg
+**/.kingdom/
