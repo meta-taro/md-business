@@ -21,10 +21,12 @@ Phase 0 骨格は完了見込み。Phase 1 を MVP に縮約し、2026-06-30 ま
 - 2026-06-15 `packages/schema-invoice` 適格請求書 v1 スキーマ実装（#3）
 - 2026-06-15 `packages/renderer-pdf` 請求書 HTML レンダラ実装（#5、32 tests、Paged.js 連携）
 - 2026-06-15 `apps/chrome-extension` MVP 実装（#8、MV3 + popup + viewer + content script + SchemaPlugin）
+- 2026-06-15 MV3 CSP 違反の根治: gray-matter → js-yaml 置換、Ajv standalone code-gen 導入、`@md-business/core` を browser-safe / `./runtime` に分割
+- 2026-06-15 baseline 項目5 補完: Husky 9 + `.husky/pre-commit`（lint/typecheck/test:run）+ `.husky/pre-push`（build + bundle 走査）+ Vite `EVAL` warning の error 化
 
 ## 進行中
 
-- #8 のローカル動作確認（unpacked load → templates/invoice/standard.md → PDF DL）— 人間検証待ち
+- #8 のローカル動作確認（unpacked load → templates/invoice/standard.md → PDF DL）— 人間検証待ち（CSP 修正後の再ビルド版で再テスト）
 - #9 `templates/invoice.example.md` の Issue 仕様（単一ファイル）への寄せ
 - #10 Chrome Web Store 申請パッケージ準備
 

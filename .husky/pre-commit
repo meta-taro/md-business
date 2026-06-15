@@ -1,0 +1,15 @@
+#!/usr/bin/env sh
+# baseline 項目5（pre-commit）— format / lint / typecheck / unit test
+# turbo がキャッシュするので変更パッケージのみ再実行される。
+set -e
+
+echo "[pre-commit] lint..."
+pnpm -w run lint
+
+echo "[pre-commit] typecheck..."
+pnpm -w run typecheck
+
+echo "[pre-commit] tests..."
+pnpm -w run test:run
+
+echo "[pre-commit] OK"

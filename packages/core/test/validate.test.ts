@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { validateWith } from '../src/validate.js';
+import { validateWith } from '../src/validate-runtime.js';
 
 const sampleSchema = {
   type: 'object',

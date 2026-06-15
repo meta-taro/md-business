@@ -10,6 +10,7 @@ function dummyPlugin(id: string): SchemaPlugin {
     label: id,
     schema: { type: 'object' },
     stylesHref: `styles/${id}.css`,
+    validate: (frontmatter) => ({ ok: true, data: frontmatter }),
     render: () => `<div data-id="${id}"></div>`,
   };
 }

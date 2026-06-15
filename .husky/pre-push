@@ -1,0 +1,13 @@
+#!/usr/bin/env sh
+# baseline 項目5（pre-push）— build + bundle scan
+# Vite/Rollup の EVAL warning を error 化し、bundle 内の eval / new Function を
+# 静的検出することで、依存パッケージ由来の CSP 違反コードを push 前に弾く。
+set -e
+
+echo "[pre-push] build..."
+pnpm -w run build
+
+echo "[pre-push] bundle scan (CSP-unsafe constructs)..."
+pnpm -w run scan-bundle
+
+echo "[pre-push] OK"

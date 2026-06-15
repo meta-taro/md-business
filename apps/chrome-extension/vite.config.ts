@@ -16,6 +16,17 @@ export default defineConfig({
     target: 'chrome120',
     sourcemap: true,
     rollupOptions: {
+      onwarn(warning, defaultHandler) {
+        // baseline 項目5 と合わせ、依存パッケージ由来の eval を build 段階で
+        // エラー扱いにする（MV3 CSP は unsafe-eval を拒否するため）。
+        if (warning.code === 'EVAL') {
+          throw new Error(
+            `Bundle contains eval: ${warning.id ?? ''}\n${warning.message}\n` +
+              `CSP-safe な代替に置き換えてください（packages/core では gray-matter 廃止済み）。`,
+          );
+        }
+        defaultHandler(warning);
+      },
       input: {
         popup: resolve(root, 'src/popup/index.html'),
         viewer: resolve(root, 'src/viewer/index.html'),

@@ -1,5 +1,5 @@
 import { parseMarkdown } from './parse.js';
-import { validateWith } from './validate.js';
+import { validateWith } from './validate-runtime.js';
 import type { ParseAndValidateResult } from './types.js';
 
 export function parseAndValidate<T>(

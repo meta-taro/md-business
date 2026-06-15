@@ -16,6 +16,10 @@
       "types": "./dist/schema.d.ts",
       "import": "./dist/schema.js"
     },
+    "./validate": {
+      "types": "./dist/validate.compiled.d.ts",
+      "import": "./dist/validate.compiled.js"
+    },
     "./schema.json": "./src/invoice.schema.json"
   },
   "files": [
@@ -24,7 +28,7 @@
     "README.md"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.build.json",
+    "build": "tsc -p tsconfig.build.json && node scripts/build-validate.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest",
     "test:run": "vitest run --coverage",
@@ -36,6 +40,8 @@
   "devDependencies": {
     "@types/node": "^22.10.0",
     "@vitest/coverage-v8": "^2.1.8",
+    "ajv": "^8.17.1",
+    "ajv-formats": "^3.0.1",
     "typescript": "^5.6.3",
     "vitest": "^2.1.8"
   }

@@ -27,3 +27,8 @@
 | 2026-06-14 | Chrome 拡張の動作イメージ: ローカル md をブラウザで開いた瞬間に拡張が自動レンダリング → PDF DL | PdM 指示。`simov/markdown-viewer` の挙動を踏襲（明示的なインポートボタンに依存しない） |
 | 2026-06-14 | test-spec スキーマの想定フィールド: 名前 / 日次チェック OK/NG / 備考欄（表形式） | PdM 指示。Phase 3 で実装 |
 | 2026-06-14 | 将来構想（決定ではない）: ローカル単独編集 → 複数人同時編集への拡張余地を残す | PdM 指示。Phase 1b 以降で技術選定（候補: Yjs / Automerge / CRDT ベースの共同編集レイヤを PWA に組み込み） |
+| 2026-06-15 | frontmatter パーサを `gray-matter` から `js-yaml` 直接呼び出しへ置換（`@md-business/core/splitFrontmatter`） | gray-matter は `lib/engines.js` に `eval(str)` を含み、未使用でもバンドルされる。Chrome MV3 の CSP `script-src 'self'` が `unsafe-eval` を拒否するため拡張が起動できなかった |
+| 2026-06-15 | スキーマ検証は **Ajv standalone code generation** で各 schema パッケージが事前コンパイル（`@md-business/schema-invoice/validate`） | Ajv のランタイム `compile()` は `new Function()` を使い MV3 CSP 違反。standalone なら build 時に検証関数を ESM として吐き、ブラウザは関数を呼ぶだけ |
+| 2026-06-15 | `@md-business/core` を browser-safe（`main`）/ node-only（`./runtime`）に分割 | runtime Ajv を引きずらないと chrome-extension のバンドルから `new Function()` を tree-shake で落とせない。`validateWithCompiled` のみ main から export。`validateWith`/`parseAndValidate` は `@md-business/core/runtime` に隔離 |
+| 2026-06-15 | baseline 項目5 の Git hooks（pre-commit / pre-push）を Phase 0 で実装漏れしていたため Phase 1-MVP 中に補完。Husky 9 + `scripts/scan-bundle.mjs` 導入。pre-push 時にバンドルを走査し `eval` / `new Function` / `Function("...")` を検出 | Phase 0 で baseline 項目5 が書かれていたが実装されておらず、Chrome 拡張ビルドが MV3 CSP 違反を含むまま push されかけた。事前検知の不在が直接の原因。再発防止として静的検査ゲートを追加 |
+| 2026-06-15 | Vite ビルドの rollupOptions.onwarn で `EVAL` warning を error 化 | 依存パッケージが将来 eval を持ち込んだ瞬間にビルドが落ちる。bundle scan より早く失敗するため二重防御 |

@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
-import { parseAndValidate } from '@md-business/core';
+import { parseAndValidate } from '@md-business/core/runtime';
 import { invoiceSchema, SCHEMA_VERSION } from '../src/index.js';
 import type { Invoice } from '../src/index.js';
 

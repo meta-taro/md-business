@@ -1,6 +1,10 @@
 export { parseMarkdown } from './parse.js';
-export { validateWith } from './validate.js';
-export { parseAndValidate } from './pipeline.js';
+export { splitFrontmatter } from './frontmatter.js';
+// `validateWithCompiled` is tree-shake-safe for browser bundles (no Ajv runtime).
+// `validateWith` and `parseAndValidate` live in `./runtime` and pull in Ajv's
+// code-generation runtime, which uses `new Function()` and is MV3-CSP-unsafe.
+export { validateWithCompiled } from './validate.js';
+export type { CompiledValidator } from './validate.js';
 export type {
   ParsedMarkdown,
   ValidationError,
