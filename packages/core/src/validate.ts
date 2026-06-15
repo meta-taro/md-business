@@ -1,14 +1,14 @@
-import Ajv from 'ajv';
+import Ajv2020 from 'ajv/dist/2020.js';
 import addFormats from 'ajv-formats';
 import type { ValidationError, ValidationResult } from './types.js';
 
-const defaultAjv = new Ajv({ allErrors: true, useDefaults: true });
+const defaultAjv = new Ajv2020({ allErrors: true, useDefaults: true });
 addFormats(defaultAjv);
 
 export function validateWith<T>(
   data: unknown,
   schema: object,
-  ajv: Ajv = defaultAjv,
+  ajv: Ajv2020 = defaultAjv,
 ): ValidationResult<T> {
   const validate = ajv.compile(schema);
   if (validate(data)) {

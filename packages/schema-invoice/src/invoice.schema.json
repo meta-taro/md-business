@@ -1,0 +1,205 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://md-business.dev/schema/invoice/v1.json",
+  "title": "Invoice (適格請求書)",
+  "description": "JSON Schema for Japanese qualified invoices conforming to the 2023-10-01 invoice regulation (適格請求書等保存方式).",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "invoiceNumber",
+    "issueDate",
+    "issuer",
+    "recipient",
+    "items",
+    "taxSummary",
+    "totals"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "const": "invoice/v1",
+      "description": "Schema version discriminator for forward compatibility."
+    },
+    "invoiceNumber": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Invoice number (請求書番号). Issuer-defined identifier."
+    },
+    "issueDate": {
+      "type": "string",
+      "format": "date",
+      "description": "Issue date (取引年月日 / 発行日) in ISO 8601 YYYY-MM-DD."
+    },
+    "dueDate": {
+      "type": "string",
+      "format": "date",
+      "description": "Payment due date (支払期限) in ISO 8601 YYYY-MM-DD."
+    },
+    "issuer": {
+      "type": "object",
+      "required": ["name", "registrationNumber"],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Issuer name (適格請求書発行事業者の氏名又は名称)."
+        },
+        "registrationNumber": {
+          "type": "string",
+          "pattern": "^T\\d{13}$",
+          "description": "Qualified invoice issuer registration number (T + 13 桁の登録番号)."
+        },
+        "postalCode": {
+          "type": "string",
+          "pattern": "^\\d{3}-?\\d{4}$",
+          "description": "Postal code (郵便番号)."
+        },
+        "address": { "type": "string" },
+        "tel": { "type": "string" },
+        "email": { "type": "string", "format": "email" }
+      }
+    },
+    "recipient": {
+      "type": "object",
+      "required": ["name"],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Recipient name (書類の交付を受ける事業者の氏名又は名称)."
+        },
+        "honorific": {
+          "type": "string",
+          "description": "Honorific suffix (例: 御中 / 様)."
+        },
+        "postalCode": {
+          "type": "string",
+          "pattern": "^\\d{3}-?\\d{4}$"
+        },
+        "address": { "type": "string" }
+      }
+    },
+    "items": {
+      "type": "array",
+      "minItems": 1,
+      "description": "Line items (取引内容). At least one item is required.",
+      "items": {
+        "type": "object",
+        "required": ["name", "quantity", "unitPrice", "taxRate"],
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Item description."
+          },
+          "quantity": {
+            "type": "number",
+            "minimum": 0,
+            "description": "Quantity (数量)."
+          },
+          "unit": {
+            "type": "string",
+            "description": "Unit label (例: 個 / 時間 / 式)."
+          },
+          "unitPrice": {
+            "type": "number",
+            "minimum": 0,
+            "description": "Unit price (単価) — tax-exclusive."
+          },
+          "taxRate": {
+            "type": "number",
+            "enum": [0, 8, 10],
+            "description": "Tax rate (%) — 0 / 8 (軽減税率) / 10 (標準税率)."
+          },
+          "isReducedRate": {
+            "type": "boolean",
+            "description": "Whether this item is subject to the reduced tax rate (軽減税率対象品目). Required to be true when taxRate is 8."
+          },
+          "note": {
+            "type": "string",
+            "description": "Optional per-item note."
+          }
+        }
+      }
+    },
+    "taxSummary": {
+      "type": "object",
+      "description": "Per-rate tax summary (税率ごとに区分した小計と消費税額). Required by 適格請求書 regulation.",
+      "additionalProperties": false,
+      "required": ["standard", "reduced", "exempt"],
+      "properties": {
+        "standard": { "$ref": "#/$defs/taxBucket" },
+        "reduced": { "$ref": "#/$defs/taxBucket" },
+        "exempt": { "$ref": "#/$defs/taxBucket" }
+      }
+    },
+    "totals": {
+      "type": "object",
+      "required": ["subtotal", "tax", "total"],
+      "additionalProperties": false,
+      "properties": {
+        "subtotal": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Total tax-exclusive subtotal (税抜合計)."
+        },
+        "tax": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Total consumption tax (消費税合計)."
+        },
+        "total": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Total tax-inclusive amount (税込合計)."
+        }
+      }
+    },
+    "paymentInfo": {
+      "type": "object",
+      "description": "Bank transfer destination (振込先).",
+      "additionalProperties": false,
+      "properties": {
+        "bankName": { "type": "string" },
+        "branchName": { "type": "string" },
+        "accountType": {
+          "type": "string",
+          "enum": ["普通", "当座", "貯蓄"]
+        },
+        "accountNumber": { "type": "string" },
+        "accountHolder": { "type": "string" }
+      }
+    },
+    "notes": {
+      "type": "string",
+      "description": "Free-form notes (備考)."
+    }
+  },
+  "$defs": {
+    "taxBucket": {
+      "type": "object",
+      "required": ["rate", "subtotal", "tax"],
+      "additionalProperties": false,
+      "properties": {
+        "rate": {
+          "type": "number",
+          "enum": [0, 8, 10]
+        },
+        "subtotal": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Tax-exclusive subtotal for this rate bucket."
+        },
+        "tax": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Consumption tax for this rate bucket."
+        }
+      }
+    }
+  }
+}
