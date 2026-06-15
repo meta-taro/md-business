@@ -16,7 +16,8 @@
   "dependencies": {
     "@md-business/core": "workspace:*",
     "@md-business/renderer-pdf": "workspace:*",
-    "@md-business/schema-invoice": "workspace:*"
+    "@md-business/schema-invoice": "workspace:*",
+    "buffer": "^6.0.3"
   },
   "devDependencies": {
     "@types/chrome": "^0.0.287",

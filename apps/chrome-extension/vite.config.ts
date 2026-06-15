@@ -6,6 +6,10 @@ const root = resolve(__dirname);
 export default defineConfig({
   root,
   publicDir: resolve(root, 'public'),
+  define: {
+    // gray-matter / js-yaml occasionally probe for the Node global identifier.
+    global: 'globalThis',
+  },
   build: {
     outDir: resolve(root, 'dist'),
     emptyOutDir: true,

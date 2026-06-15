@@ -1,3 +1,4 @@
+import '../shared/polyfills.js';
 import { createDefaultRegistry } from '../plugins/index.js';
 import { STORAGE_KEY, type ViewerPayload } from '../shared/storage.js';
 

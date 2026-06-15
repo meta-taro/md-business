@@ -1,3 +1,4 @@
+import '../shared/polyfills.js';
 import { loadMarkdown } from '../shared/loadMarkdown.js';
 import { STORAGE_KEY } from '../shared/storage.js';
 
