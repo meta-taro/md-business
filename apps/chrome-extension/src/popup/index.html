@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>md-business</title>
+    <link rel="stylesheet" href="./popup.css" />
+  </head>
+  <body>
+    <header class="mdb-popup__header">
+      <div class="mdb-popup__title">md-business</div>
+      <div class="mdb-popup__subtitle">Markdown ファースト × 業務文書ビューワー</div>
+    </header>
+
+    <main class="mdb-popup__body">
+      <div class="mdb-field">
+        <label for="mdb-schema" class="mdb-field__label">スキーマ</label>
+        <select id="mdb-schema" class="mdb-field__select"></select>
+      </div>
+
+      <label id="mdb-dropzone" class="mdb-dropzone" for="mdb-file">
+        <div class="mdb-dropzone__icon">📄</div>
+        <div class="mdb-dropzone__title">.md ファイルをドロップ</div>
+        <div class="mdb-dropzone__hint">またはクリックで選択</div>
+      </label>
+      <input id="mdb-file" type="file" accept=".md,.markdown,text/markdown" hidden />
+
+      <div id="mdb-error" class="mdb-error" hidden></div>
+    </main>
+
+    <footer class="mdb-popup__footer">
+      <a href="https://github.com/meta-taro/md-business" target="_blank" rel="noopener noreferrer">GitHub</a>
+      <span> · MIT License</span>
+    </footer>
+
+    <script type="module" src="./index.ts"></script>
+  </body>
+</html>

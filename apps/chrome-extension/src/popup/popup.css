@@ -1,0 +1,133 @@
+:root {
+  color-scheme: light;
+  --bg: #ffffff;
+  --fg: #111827;
+  --muted: #6b7280;
+  --accent: #2563eb;
+  --accent-hover: #1d4ed8;
+  --border: #d1d5db;
+  --danger: #b91c1c;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  width: 320px;
+  min-height: 360px;
+  font-family: 'Hiragino Sans', 'Yu Gothic', 'Meiryo', system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--fg);
+  font-size: 13px;
+}
+
+.mdb-popup__header {
+  padding: 12px 16px 8px;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.mdb-popup__title {
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.mdb-popup__subtitle {
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+.mdb-popup__body {
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.mdb-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.mdb-field__label {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.mdb-field__select {
+  appearance: none;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 8px;
+  font-size: 13px;
+  background: white;
+}
+
+.mdb-dropzone {
+  border: 2px dashed var(--border);
+  border-radius: 8px;
+  padding: 18px 12px;
+  text-align: center;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  transition: border-color 120ms ease, background 120ms ease;
+}
+
+.mdb-dropzone:hover,
+.mdb-dropzone[data-active='true'] {
+  border-color: var(--accent);
+  background: #eff6ff;
+}
+
+.mdb-dropzone__icon {
+  font-size: 28px;
+  line-height: 1;
+}
+
+.mdb-dropzone__title {
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.mdb-dropzone__hint {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.mdb-error {
+  background: #fef2f2;
+  color: var(--danger);
+  border: 1px solid #fecaca;
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-size: 12px;
+  white-space: pre-wrap;
+}
+
+.mdb-popup__footer {
+  padding: 8px 16px 10px;
+  border-top: 1px solid #f3f4f6;
+  font-size: 11px;
+  color: var(--muted);
+  text-align: center;
+}
+
+.mdb-popup__footer a {
+  color: var(--accent);
+  text-decoration: none;
+}
+.mdb-popup__footer a:hover {
+  text-decoration: underline;
+}

@@ -1,6 +1,6 @@
 # Project Status — md-business
 
-最終更新: 2026-06-14
+最終更新: 2026-06-15
 
 ## 現在のフェーズ
 
@@ -18,11 +18,15 @@ Phase 0 骨格は完了見込み。Phase 1 を MVP に縮約し、2026-06-30 ま
 - 2026-06-14 印影なし方針確定（法的義務なし、CSS で署名欄余白のみ）
 - 2026-06-14 各社実データ `.gitignore` 排除運用確定（`/private/` `*.private.md` 等）
 - 2026-06-14 Chrome 拡張をスキーマプラグイン構造にし、後の schema 追加で継続アップデート方針
+- 2026-06-15 `packages/schema-invoice` 適格請求書 v1 スキーマ実装（#3）
+- 2026-06-15 `packages/renderer-pdf` 請求書 HTML レンダラ実装（#5、32 tests、Paged.js 連携）
+- 2026-06-15 `apps/chrome-extension` MVP 実装（#8、MV3 + popup + viewer + content script + SchemaPlugin）
 
 ## 進行中
 
-- Phase 0 完了条件確認（`pnpm install` 成功 + CI green）
-- Phase 1-MVP 着手準備（Issue 再構成）
+- #8 のローカル動作確認（unpacked load → templates/invoice/standard.md → PDF DL）— 人間検証待ち
+- #9 `templates/invoice.example.md` の Issue 仕様（単一ファイル）への寄せ
+- #10 Chrome Web Store 申請パッケージ準備
 
 ## 次タスク（Phase 1-MVP）
 
