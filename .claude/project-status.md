@@ -27,9 +27,15 @@ Phase 0 骨格は完了見込み。Phase 1 を MVP に縮約し、2026-06-30 ま
 
 ## 進行中
 
-- #8 のローカル動作確認（unpacked load → templates/invoice/standard.md → PDF DL）— 人間検証待ち（CSP 修正後の再ビルド版で再テスト）
+- #10 Chrome Web Store 申請パッケージ準備（**PdM 方針 2026-06-15: 最優先**。理想は審査通った Web Store 版を PdM 業務利用）
+- #8 ローカル動作確認: 適格請求書レンダリングまで OK（PdM スクリーンショット確認済 2026-06-15 21:58）。PDF DL ボタン経由の実 DL は未確認（#10 と合わせて検証）
 - #9 `templates/invoice.example.md` の Issue 仕様（単一ファイル）への寄せ
-- #10 Chrome Web Store 申請パッケージ準備
+
+## 明日の予定（2026-06-16）
+
+1. #10 PRIVACY.md 作成 / 掲載アセット（アイコン・スクリーンショット・説明文）整備 / Web Store 申請 zip
+2. ハンコ要否確認: 現状 decisions.md は印影なし方針（2026-06-14）。PdM から「ハンコいる？」の問いあり → 改めて確認
+3. PDF DL の最終動作確認
 
 ## 次タスク（Phase 1-MVP）
 
