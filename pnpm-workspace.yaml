@@ -1,3 +1,10 @@
 packages:
   - "packages/*"
   - "apps/*"
+
+# Supply-chain defense (baseline 項目1)
+# Block all install scripts by default. Add specific packages here if they need to run scripts.
+onlyBuiltDependencies: []
+
+# Quarantine packages released within the last 24h to mitigate compromised-version attacks.
+minimumReleaseAge: 1440
