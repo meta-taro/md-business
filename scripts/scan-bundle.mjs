@@ -27,6 +27,11 @@ const UNSAFE_PATTERNS = [
   // Naked Function() with at least one string-literal argument — heuristic for
   // dynamic code construction. Static `Function.prototype` references are fine.
   { name: 'Function("...")', re: /\bFunction\s*\(\s*['"`]/g },
+  // Raw CommonJS `require("...")` surviving into a browser bundle — Ajv
+  // standalone codegen leaks these for ucs2length / ajv-formats helpers even
+  // with esm:true, and the browser has no `require` global so it throws at
+  // load time. Caught here so the standalone post-process is enforced.
+  { name: 'require("...")', re: /\brequire\s*\(\s*['"`]/g },
 ];
 
 function listJsFiles(dir, acc = []) {
@@ -63,6 +68,22 @@ if (files.length === 0) {
   process.exit(2);
 }
 
+/**
+ * Skip matches that obviously cannot execute: line comments, block-comment
+ * continuation lines, and matches sitting immediately after a string-literal
+ * quote (e.g. `someProp.code = 'require(...)'`). Heuristic — not a tokenizer —
+ * but sufficient for the bundles we ship: any real call site has whitespace or
+ * an operator before the keyword, never a quote.
+ */
+function isInsideStringOrComment(src, matchIndex) {
+  const lineStart = src.lastIndexOf('\n', matchIndex - 1) + 1;
+  const linePrefix = src.slice(lineStart, matchIndex);
+  if (/^\s*(\/\/|\*)/.test(linePrefix)) return true;
+  const prev = src[matchIndex - 1];
+  if (prev === "'" || prev === '"' || prev === '`') return true;
+  return false;
+}
+
 const findings = [];
 for (const file of files) {
   const src = readFileSync(file, 'utf8');
@@ -70,6 +91,7 @@ for (const file of files) {
     re.lastIndex = 0;
     let match;
     while ((match = re.exec(src)) !== null) {
+      if (isInsideStringOrComment(src, match.index)) continue;
       const before = src.slice(0, match.index);
       const line = before.split('\n').length;
       findings.push({ file, line, name, snippet: src.slice(match.index, match.index + 60) });

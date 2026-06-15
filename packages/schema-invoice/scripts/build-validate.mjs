@@ -27,7 +27,27 @@ const ajv = new Ajv2020.default({
 addFormats.default(ajv);
 
 const validate = ajv.compile(schema);
-const code = standaloneCode.default(ajv, validate);
+const rawCode = standaloneCode.default(ajv, validate);
+
+// Ajv standalone with esm:true still emits raw CommonJS `require("...")` calls
+// for the ucs2length runtime helper and ajv-formats. Those `require` references
+// have no meaning in the browser and explode at runtime under MV3 CSP
+// (`Uncaught ReferenceError: require is not defined`). Hoist every require()
+// to a top-level `import * as` so Vite/Rollup can resolve and inline them.
+const requireMap = new Map(); // module path -> generated import binding name
+let cjsCounter = 0;
+const rewritten = rawCode.replace(/require\(\s*"([^"]+)"\s*\)/g, (_, modulePath) => {
+  let binding = requireMap.get(modulePath);
+  if (!binding) {
+    binding = `__cjs_${cjsCounter++}`;
+    requireMap.set(modulePath, binding);
+  }
+  return binding;
+});
+const importHeader = Array.from(requireMap.entries())
+  .map(([modulePath, binding]) => `import * as ${binding} from "${modulePath}";`)
+  .join('\n');
+const code = importHeader ? `${importHeader}\n${rewritten}` : rewritten;
 
 fs.mkdirSync(distDir, { recursive: true });
 fs.writeFileSync(outJs, code);

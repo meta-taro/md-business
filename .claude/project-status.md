@@ -23,6 +23,7 @@ Phase 0 骨格は完了見込み。Phase 1 を MVP に縮約し、2026-06-30 ま
 - 2026-06-15 `apps/chrome-extension` MVP 実装（#8、MV3 + popup + viewer + content script + SchemaPlugin）
 - 2026-06-15 MV3 CSP 違反の根治: gray-matter → js-yaml 置換、Ajv standalone code-gen 導入、`@md-business/core` を browser-safe / `./runtime` に分割
 - 2026-06-15 baseline 項目5 補完: Husky 9 + `.husky/pre-commit`（lint/typecheck/test:run）+ `.husky/pre-push`（build + bundle 走査）+ Vite `EVAL` warning の error 化
+- 2026-06-15 Ajv standalone の `require()` 残置（ucs2length / ajv-formats）を build-validate.mjs の後処理で top-level `import * as` に持ち上げ、ブラウザの `ReferenceError: require is not defined` を根治。scan-bundle に `require("...")` 検出（文字列/コメント除外つき）も追加
 
 ## 進行中
 
