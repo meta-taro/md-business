@@ -113,7 +113,7 @@ const DEFAULT_FONT =
   '"MdBusiness Stamp", "Noto Serif JP", "Yu Mincho", "Hiragino Mincho ProN", serif';
 
 export function renderStampSvg(options: RenderStampOptions): StampSvg | null {
-  const { text, shape: shapeReq = 'auto', font, sizeMm = 24 } = options;
+  const { text, shape: shapeReq = 'auto', font, sizeMm = 22 } = options;
   if (shapeReq === 'off') return null;
   const chars = extractStampChars(text);
   if (chars.length === 0) return null;

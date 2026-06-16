@@ -6,13 +6,12 @@
 @page {
   size: A4 portrait;
   margin: 18mm 16mm 22mm 16mm;
-
-  @bottom-center {
-    content: counter(page) " / " counter(pages);
-    font-size: 9pt;
-    color: #666;
-  }
 }
+
+/* Multi-page invoices are unusual; suppress the page counter on first/last
+   pages of single-sheet output. When a layout truly needs counters back,
+   downstream CSS can override `@page` with a `@bottom-center { content: ... }`
+   rule again. */
 
 :root {
   --mdb-color-fg: #111;
@@ -102,6 +101,10 @@ body {
   font-size: 13pt;
   font-weight: 700;
   margin-bottom: 2mm;
+  display: flex;
+  align-items: center;
+  gap: 3mm;
+  flex-wrap: wrap;
 }
 
 .mdb-invoice__registration {
@@ -202,15 +205,20 @@ body {
   padding-bottom: 1mm;
 }
 
+/* Payment block is compact by design: a 3-item invoice should still fit on
+   a single A4 sheet alongside header / parties / items / tax-summary / notes.
+   Smaller type + tighter padding keeps the section under ~20mm tall. */
 .mdb-invoice__payment {
   border-top: 1px solid var(--mdb-color-border);
-  padding-top: 4mm;
-  margin-bottom: 6mm;
+  padding-top: 2.5mm;
+  margin-bottom: 4mm;
+  font-size: 9pt;
+  color: var(--mdb-color-muted);
 }
 
 .mdb-invoice__payment h3 {
-  margin: 0 0 2mm;
-  font-size: 10pt;
+  margin: 0 0 1mm;
+  font-size: 9pt;
   color: var(--mdb-color-muted);
   letter-spacing: 0.08em;
 }
@@ -218,7 +226,16 @@ body {
 .mdb-invoice__payment dl {
   display: grid;
   grid-template-columns: auto 1fr;
-  gap: 1mm 4mm;
+  gap: 0.5mm 3mm;
+  margin: 0;
+  line-height: 1.4;
+}
+
+.mdb-invoice__payment dt {
+  font-weight: 600;
+}
+
+.mdb-invoice__payment dd {
   margin: 0;
 }
 
@@ -229,12 +246,6 @@ body {
   border-top: 1px dashed var(--mdb-color-border);
   padding-top: 3mm;
   margin-bottom: 6mm;
-}
-
-.mdb-invoice__signature {
-  display: flex;
-  justify-content: flex-end;
-  margin-top: 10mm;
 }
 
 .mdb-invoice__signature .seal-area {
@@ -249,14 +260,22 @@ body {
   color: var(--mdb-color-muted);
 }
 
-/* Auto-generated stamp (印影). The SVG carries width="Xmm" inline; this
-   wrapper just normalises line-height so it doesn't collapse text underneath. */
-.mdb-invoice__signature .mdb-stamp-frame {
-  display: inline-block;
+/* Auto-generated stamp (印影). Sits inline with the issuer name so that the
+   seal always travels with that line — no risk of page-break orphaning.
+   The SVG carries width="Xmm" inline; the wrapper just normalises line-height. */
+.mdb-stamp-frame {
+  display: inline-flex;
+  align-items: center;
   line-height: 0;
 }
 
 .mdb-stamp {
   display: block;
+}
+
+.mdb-invoice__signature {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 6mm;
 }
 

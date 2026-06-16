@@ -15,7 +15,7 @@ function renderParty(label: string, party: {
   registrationNumber?: string;
   tel?: string;
   email?: string;
-}): string {
+}, extras: { stampSvg?: string } = {}): string {
   const honorific = party.honorific ? ` ${escapeHtml(party.honorific)}` : '';
   const lines: string[] = [];
   if (party.postalCode) {
@@ -33,10 +33,16 @@ function renderParty(label: string, party: {
   const registration = party.registrationNumber
     ? `<div class="mdb-invoice__registration">登録番号: ${escapeHtml(party.registrationNumber)}</div>`
     : '';
+  // The stamp rides inline alongside the issuer name so it always flows with
+  // the name on the same page. Inline placement avoids Paged.js's absolute-
+  // positioning edge cases that previously pushed the seal to page 2.
+  const stampMarkup = extras.stampSvg
+    ? `<span class="mdb-stamp-frame">${extras.stampSvg}</span>`
+    : '';
   return `
     <section class="mdb-invoice__party">
       <h2>${escapeHtml(label)}</h2>
-      <div class="name">${escapeHtml(party.name)}${honorific}</div>
+      <div class="name">${escapeHtml(party.name)}${honorific}${stampMarkup}</div>
       ${lines.join('\n      ')}
       ${registration}
     </section>
@@ -115,11 +121,15 @@ export function renderInvoiceBody(invoice: Invoice, options: RenderInvoiceBodyOp
     ? `<section class="mdb-invoice__notes">${escapeHtml(invoice.notes)}</section>`
     : '';
   const stamp = renderStampForInvoice(invoice);
-  const signature = stamp
-    ? `<section class="mdb-invoice__signature"><div class="mdb-stamp-frame">${stamp.svg}</div></section>`
-    : signatureArea
-    ? `<section class="mdb-invoice__signature"><div class="seal-area">印</div></section>`
-    : '';
+  // Stamp is overlaid on the 発行元 party box (top-right corner) — the
+  // conventional Japanese-invoice layout where the seal partially overlaps
+  // the issuer's address. This keeps a single-page invoice on one page
+  // instead of pushing a trailing signature block onto page 2.
+  const issuerExtras = stamp ? { stampSvg: stamp.svg } : {};
+  const fallbackSignature =
+    !stamp && signatureArea
+      ? `<section class="mdb-invoice__signature"><div class="seal-area">印</div></section>`
+      : '';
 
   return `
     <article class="mdb-invoice" data-schema-version="${escapeHtml(invoice.schemaVersion)}">
@@ -139,7 +149,7 @@ export function renderInvoiceBody(invoice: Invoice, options: RenderInvoiceBodyOp
 
       <section class="mdb-invoice__parties">
         ${renderParty('請求先', invoice.recipient)}
-        ${renderParty('発行元', { ...invoice.issuer })}
+        ${renderParty('発行元', { ...invoice.issuer }, issuerExtras)}
       </section>
 
       <table class="mdb-invoice__items">
@@ -180,7 +190,7 @@ export function renderInvoiceBody(invoice: Invoice, options: RenderInvoiceBodyOp
 
       ${renderPayment(invoice)}
       ${notes}
-      ${signature}
+      ${fallbackSignature}
     </article>
   `;
 }

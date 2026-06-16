@@ -18,9 +18,51 @@ body {
   font-family: 'Noto Sans JP', 'Hiragino Sans', 'Yu Gothic', 'Meiryo', system-ui, sans-serif;
 }
 
+/* Leave room for the fixed toolbar at the very top of the viewport.
+   `.mdb-stage` is moved into `<template>` by Paged.js, so padding it does not
+   reach the rendered `.pagedjs_pages` container — push body instead. */
+body {
+  padding-top: 56px;
+}
+
+/* Paged.js renders each page as a `.pagedjs_page` wrapper whose VISIBLE area
+   is `.pagedjs_sheet` (even/odd pages alternate `.pagedjs_left_page` vs
+   `.pagedjs_right_page` with different grid sizing, so backgrounding the
+   page wrapper only works on page 1). Style the sheet itself so every page
+   shows up as a uniform white rectangle on the gray desk. */
+.pagedjs_pages {
+  /* Force vertical stacking — Paged.js's default flex layout otherwise
+     leaves uneven gutters around pages 2+ when the viewport is wider than
+     a single sheet. */
+  display: block;
+  /* Generous top padding lets users see the top edge of the page below the
+     fixed toolbar — reinforces the "sheet of paper" mental model. */
+  padding: 48px 0 48px;
+}
+
+#mdb-file-picker {
+  /* `hidden` already removes it from layout, but explicit display:none guards
+     against any future :not([hidden]) rule from a downstream stylesheet. */
+  display: none;
+}
+
+.pagedjs_page {
+  margin: 16px auto !important;
+}
+
+.pagedjs_sheet {
+  background: white;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
+}
+
 .mdb-toolbar {
-  position: sticky;
+  /* fixed (not sticky) — Paged.js rewrites <body> into a pagination container,
+     which collapses sticky elements out of the visible area. fixed keeps the
+     toolbar pinned to the viewport regardless of how Paged.js paginates. */
+  position: fixed;
   top: 0;
+  left: 0;
+  right: 0;
   display: flex;
   align-items: center;
   gap: 12px;
@@ -28,8 +70,9 @@ body {
   background: var(--mdb-toolbar-bg);
   color: var(--mdb-toolbar-fg);
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
-  z-index: 100;
+  z-index: 1000;
 }
+
 
 .mdb-toolbar__title {
   font-weight: 600;
@@ -62,7 +105,7 @@ body {
 }
 
 .mdb-stage {
-  padding: 24px 16px 80px;
+  padding: 16px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -87,8 +130,9 @@ body {
 }
 
 .mdb-document {
-  background: white;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  /* Paged.js relocates the body content into its own `.pagedjs_page` boxes,
+     where the page-level shadow and background live. Leaving this container
+     unstyled prevents a second "paper" rectangle from leaking through. */
   width: 100%;
   max-width: 210mm;
 }
@@ -179,10 +223,18 @@ body {
     padding: 0;
   }
   .mdb-document {
-    box-shadow: none;
     max-width: none;
+  }
+  .pagedjs_pages {
+    padding: 0;
+  }
+  .pagedjs_page {
+    background: transparent;
+    box-shadow: none;
+    margin: 0 !important;
   }
   body {
     background: white;
+    padding-top: 0;
   }
 }

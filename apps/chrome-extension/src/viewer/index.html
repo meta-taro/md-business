@@ -4,7 +4,10 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>md-business viewer</title>
-    <link rel="stylesheet" href="./viewer.css" />
+    <!-- data-pagedjs-ignore: Paged.js treats @media print rules as canonical
+         and re-applies them on screen. Keeping the viewer chrome's CSS out of
+         its parsing pass prevents the toolbar from being hidden post-paginate. -->
+    <link rel="stylesheet" href="./viewer.css" data-pagedjs-ignore />
   </head>
   <body>
     <header id="mdb-toolbar" class="mdb-toolbar">
@@ -12,6 +15,7 @@
       <div class="mdb-toolbar__spacer"></div>
       <button id="mdb-print" class="mdb-toolbar__action" type="button">PDF をダウンロード</button>
       <button id="mdb-reload" class="mdb-toolbar__action mdb-toolbar__action--ghost" type="button">別ファイルを開く</button>
+      <input id="mdb-file-picker" type="file" accept=".md,.markdown,text/markdown" hidden />
     </header>
     <main id="mdb-stage" class="mdb-stage">
       <div id="mdb-status" class="mdb-status">読み込み中…</div>
