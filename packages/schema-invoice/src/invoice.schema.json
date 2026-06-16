@@ -180,6 +180,14 @@
       "type": "string",
       "description": "Optional PDF save filename template (ファイル名). Tokens like {請求先}, {敬称}, {発行元}, {請求書番号}, {発行日}, {YMD} are substituted at render time. When omitted, falls back to `請求書_{請求書番号}`."
     },
+    "theme": {
+      "type": "string",
+      "description": "Accent color (テーマ). Preset names: blue / red / yellow / orange / purple / black / gray, OR an explicit hex like `#2a4d7a`. Unknown values silently fall back to the default blue."
+    },
+    "logo": {
+      "type": "string",
+      "description": "Company logo (ロゴ). Accepts `data:image/png;base64,...` (or jpeg/gif/webp) and `https://...` URLs. Other schemes — including svg+xml — are rejected for safety."
+    },
     "stamp": {
       "type": "object",
       "description": "Issuer seal (社印 / 印影). Optional and purely visual — Japanese qualified invoices do not require a stamp by law.",

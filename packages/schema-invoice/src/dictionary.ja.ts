@@ -71,6 +71,14 @@ export const INVOICE_JA_DICTIONARY: Dictionary = {
     ファイル名: 'fileName',
     fileName: 'fileName',
     保存名: 'fileName',
+    テーマ: 'theme',
+    theme: 'theme',
+    テーマカラー: 'theme',
+    カラー: 'theme',
+    色: 'theme',
+    ロゴ: 'logo',
+    logo: 'logo',
+    ロゴ画像: 'logo',
   },
   party: {
     名前: 'name',
@@ -186,6 +194,40 @@ export const TAX_ROUNDING_TRANSLATIONS: Record<string, string> = {
  * Translate account-type values. Source schema enum is Japanese-only,
  * so this is a no-op for the canonical values but normalizes English aliases.
  */
+/**
+ * Translate theme color values written in Japanese to canonical English
+ * preset names. Hex codes (e.g. `#2a4d7a`) are passed through verbatim;
+ * unknown strings are also passed through and silently ignored by the
+ * renderer.
+ */
+export const THEME_VALUE_TRANSLATIONS: Record<string, string> = {
+  青: 'blue',
+  ブルー: 'blue',
+  blue: 'blue',
+  赤: 'red',
+  レッド: 'red',
+  red: 'red',
+  黄: 'yellow',
+  黄色: 'yellow',
+  イエロー: 'yellow',
+  yellow: 'yellow',
+  橙: 'orange',
+  オレンジ: 'orange',
+  orange: 'orange',
+  紫: 'purple',
+  パープル: 'purple',
+  purple: 'purple',
+  黒: 'black',
+  ブラック: 'black',
+  black: 'black',
+  灰: 'gray',
+  灰色: 'gray',
+  グレー: 'gray',
+  グレイ: 'gray',
+  gray: 'gray',
+  grey: 'gray',
+};
+
 export const ACCOUNT_TYPE_TRANSLATIONS: Record<string, string> = {
   普通: '普通',
   当座: '当座',

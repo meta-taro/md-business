@@ -82,4 +82,16 @@ export interface Invoice {
    * via the company's template.
    */
   fileName?: string;
+  /**
+   * Accent color preset name (blue / red / yellow / orange / purple / black /
+   * gray) or an explicit `#rrggbb` hex. Unknown values fall back to the
+   * default blue at render time.
+   */
+  theme?: string;
+  /**
+   * Company logo. Accepts `data:image/{png,jpeg,gif,webp};base64,...` and
+   * `https://...` URLs. Other schemes (including svg+xml) are rejected at
+   * render time for safety.
+   */
+  logo?: string;
 }

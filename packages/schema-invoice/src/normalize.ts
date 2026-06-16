@@ -2,6 +2,7 @@ import {
   INVOICE_JA_DICTIONARY,
   TAX_ROUNDING_TRANSLATIONS,
   ACCOUNT_TYPE_TRANSLATIONS,
+  THEME_VALUE_TRANSLATIONS,
   type DictionaryScope,
 } from './dictionary.ja.js';
 
@@ -76,6 +77,9 @@ function translateLeaf(
   }
   if (key === 'accountType' && typeof value === 'string') {
     return ACCOUNT_TYPE_TRANSLATIONS[value] ?? value;
+  }
+  if (key === 'theme' && typeof value === 'string') {
+    return THEME_VALUE_TRANSLATIONS[value.trim()] ?? value.trim();
   }
   if (childScope) {
     return translateScope(value, childScope, path, warnings);

@@ -88,6 +88,22 @@ describe('normalizeInvoiceFrontmatter', () => {
     expect(data['taxRounding']).toBe('banker');
   });
 
+  it('translates theme color names from Japanese to English presets', () => {
+    expect(normalizeInvoiceFrontmatter({ テーマ: '赤' }).data['theme']).toBe('red');
+    expect(normalizeInvoiceFrontmatter({ テーマカラー: '青' }).data['theme']).toBe('blue');
+    expect(normalizeInvoiceFrontmatter({ カラー: 'オレンジ' }).data['theme']).toBe('orange');
+    expect(normalizeInvoiceFrontmatter({ 色: 'グレー' }).data['theme']).toBe('gray');
+  });
+
+  it('passes hex theme values through verbatim (renderer validates them)', () => {
+    expect(normalizeInvoiceFrontmatter({ テーマ: '#2a4d7a' }).data['theme']).toBe('#2a4d7a');
+  });
+
+  it('accepts the logo key as a top-level passthrough', () => {
+    const dataUrl = 'data:image/png;base64,iVBORw0KGgo=';
+    expect(normalizeInvoiceFrontmatter({ ロゴ: dataUrl }).data['logo']).toBe(dataUrl);
+  });
+
   it('passes English-only frontmatter through unchanged (backwards compat)', () => {
     const input = {
       invoiceNumber: 'INV-1',

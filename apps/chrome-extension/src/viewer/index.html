@@ -59,6 +59,19 @@
           <dt><code>fileName: "御請求書_{請求先}{敬称}_{発行元}_{YMD}"</code></dt>
           <dd>PDF 保存時のファイル名テンプレート。<code>{請求先}</code> <code>{発行元}</code> <code>{YMD}</code> <code>{YM}</code> <code>{敬称}</code> が展開されます。</dd>
 
+          <dt><code>テーマ: "青"</code> （または <code>theme:</code>）</dt>
+          <dd>
+            アクセントカラーをプリセットから選択。<code>青 / 赤 / 黄 / オレンジ / 紫 / 黒 / グレー</code>
+            のいずれか、または <code>#2a4d7a</code> のような Hex を直接指定できます。
+          </dd>
+
+          <dt><code>ロゴ: "data:image/png;base64,..."</code> （または <code>logo:</code>）</dt>
+          <dd>
+            会社ロゴを発行元欄に表示。PNG / JPEG / GIF / WebP の <code>data:</code> URL、
+            または <code>https://</code> の URL を指定できます。SVG・<code>javascript:</code>・
+            <code>http://</code> は安全のため拒否されます。
+          </dd>
+
           <dt>品目名サフィックス <code>|12px</code></dt>
           <dd>
             品目名末尾に <code>|12px</code> / <code>|9pt</code> / <code>|0.8em</code> を付けるとその品目だけ縮小表示します。<br />

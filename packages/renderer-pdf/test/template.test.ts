@@ -141,6 +141,93 @@ describe('renderInvoiceBody — item name |<size> suffix', () => {
   });
 });
 
+describe('renderInvoiceBody — theme color', () => {
+  it('emits no inline style attribute when no theme is set', () => {
+    const html = renderInvoiceBody(standardInvoice());
+    expect(html).not.toContain('--mdb-color-accent');
+  });
+
+  it('translates a preset name to a hex on the article element', () => {
+    const html = renderInvoiceBody({ ...standardInvoice(), theme: 'red' });
+    expect(html).toContain('style="--mdb-color-accent:#b91c1c"');
+  });
+
+  it('accepts each named preset', () => {
+    const presets = ['blue', 'red', 'yellow', 'orange', 'purple', 'black', 'gray'];
+    for (const name of presets) {
+      const html = renderInvoiceBody({ ...standardInvoice(), theme: name });
+      expect(html).toMatch(/--mdb-color-accent:#[0-9a-fA-F]{6}/);
+    }
+  });
+
+  it('passes a literal #rrggbb through verbatim', () => {
+    const html = renderInvoiceBody({ ...standardInvoice(), theme: '#ff8800' });
+    expect(html).toContain('style="--mdb-color-accent:#ff8800"');
+  });
+
+  it('ignores unknown theme values rather than failing render', () => {
+    const html = renderInvoiceBody({ ...standardInvoice(), theme: 'invalid-color' });
+    expect(html).not.toContain('--mdb-color-accent');
+  });
+
+  it('refuses CSS injection via the theme field', () => {
+    const html = renderInvoiceBody({
+      ...standardInvoice(),
+      theme: 'red; background:url(javascript:alert(1))',
+    });
+    expect(html).not.toContain('javascript:');
+    expect(html).not.toContain('--mdb-color-accent');
+  });
+});
+
+describe('renderInvoiceBody — logo', () => {
+  const PNG_DATA_URL = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABAQMAAAAl21bKAAAAA1BMVEUAAACnej3aAAAAAXRSTlMAQObYZgAAAApJREFUCNdjYAAAAAIAAeIhvDMAAAAASUVORK5CYII=';
+
+  it('renders an <img> tag for an accepted data URL', () => {
+    const html = renderInvoiceBody({ ...standardInvoice(), logo: PNG_DATA_URL });
+    expect(html).toContain('class="mdb-invoice__logo"');
+    expect(html).toContain(`src="${PNG_DATA_URL}"`);
+  });
+
+  it('renders an <img> tag for an https URL', () => {
+    const html = renderInvoiceBody({
+      ...standardInvoice(),
+      logo: 'https://example.com/logo.png',
+    });
+    expect(html).toContain('src="https://example.com/logo.png"');
+  });
+
+  it('rejects javascript: URLs', () => {
+    const html = renderInvoiceBody({
+      ...standardInvoice(),
+      logo: 'javascript:alert(1)',
+    });
+    expect(html).not.toContain('javascript:');
+    expect(html).not.toContain('mdb-invoice__logo');
+  });
+
+  it('rejects data:image/svg+xml because it can carry script', () => {
+    const html = renderInvoiceBody({
+      ...standardInvoice(),
+      logo: 'data:image/svg+xml;base64,PHN2Zy8+',
+    });
+    expect(html).not.toContain('mdb-invoice__logo');
+  });
+
+  it('rejects plain http URLs', () => {
+    const html = renderInvoiceBody({
+      ...standardInvoice(),
+      logo: 'http://example.com/logo.png',
+    });
+    expect(html).not.toContain('mdb-invoice__logo');
+  });
+
+  it('omits the logo block when the field is absent', () => {
+    const html = renderInvoiceBody(standardInvoice());
+    expect(html).not.toContain('mdb-invoice__logo');
+  });
+});
+
 describe('renderInvoiceBody — XSS safety', () => {
   const html = renderInvoiceBody(xssInvoice());
 

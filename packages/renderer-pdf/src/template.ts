@@ -15,7 +15,7 @@ function renderParty(label: string, party: {
   registrationNumber?: string;
   tel?: string;
   email?: string;
-}, extras: { stampSvg?: string } = {}): string {
+}, extras: { stampSvg?: string; logoUrl?: string } = {}): string {
   const honorific = party.honorific ? ` ${escapeHtml(party.honorific)}` : '';
   const lines: string[] = [];
   if (party.postalCode) {
@@ -39,14 +39,62 @@ function renderParty(label: string, party: {
   const stampMarkup = extras.stampSvg
     ? `<span class="mdb-stamp-frame">${extras.stampSvg}</span>`
     : '';
+  const logoMarkup = extras.logoUrl
+    ? `<div class="mdb-invoice__logo"><img src="${escapeHtml(extras.logoUrl)}" alt=""></div>`
+    : '';
   return `
     <section class="mdb-invoice__party">
       <h2>${escapeHtml(label)}</h2>
+      ${logoMarkup}
       <div class="name">${escapeHtml(party.name)}${honorific}${stampMarkup}</div>
       ${lines.join('\n      ')}
       ${registration}
     </section>
   `;
+}
+
+/**
+ * Accent color presets. Hex values picked to be visually distinct yet
+ * print-safe (≥40% darkness so 2px borders remain legible). Authors who
+ * need a brand-specific color can pass an explicit `#rrggbb` instead.
+ */
+const THEME_PRESETS: Record<string, string> = {
+  blue: '#2a4d7a',
+  red: '#b91c1c',
+  yellow: '#b8860b',
+  orange: '#c2410c',
+  purple: '#6d28d9',
+  black: '#1f1f1f',
+  gray: '#4b5563',
+};
+
+const HEX_COLOR = /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/;
+
+function resolveThemeColor(theme: string | undefined): string | null {
+  if (!theme) return null;
+  const trimmed = theme.trim();
+  if (!trimmed) return null;
+  const preset = THEME_PRESETS[trimmed.toLowerCase()];
+  if (preset) return preset;
+  if (HEX_COLOR.test(trimmed)) return trimmed;
+  return null;
+}
+
+// Logo URL whitelist. Inline data URIs are allowed for the four raster
+// formats every browser renders natively (and that Chrome's print pipeline
+// keeps in the PDF). SVG is excluded because data:image/svg+xml can carry
+// <script> and external references; plain https is allowed for hosted logos
+// but http:// is rejected to keep mixed-content out of the preview frame.
+const LOGO_DATA_URL = /^data:image\/(png|jpe?g|gif|webp);base64,[A-Za-z0-9+/=]+$/;
+const LOGO_HTTPS_URL = /^https:\/\/[^\s<>"']+$/;
+
+function sanitizeLogoUrl(raw: string | undefined): string | null {
+  if (!raw) return null;
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
+  if (LOGO_DATA_URL.test(trimmed)) return trimmed;
+  if (LOGO_HTTPS_URL.test(trimmed)) return trimmed;
+  return null;
 }
 
 /**
@@ -176,18 +224,23 @@ export function renderInvoiceBody(invoice: Invoice, options: RenderInvoiceBodyOp
     ? `<section class="mdb-invoice__notes">${escapeHtml(invoice.notes)}</section>`
     : '';
   const stamp = renderStampForInvoice(invoice);
+  const logoUrl = sanitizeLogoUrl(invoice.logo);
   // Stamp is overlaid on the 発行元 party box (top-right corner) — the
   // conventional Japanese-invoice layout where the seal partially overlaps
   // the issuer's address. This keeps a single-page invoice on one page
   // instead of pushing a trailing signature block onto page 2.
-  const issuerExtras = stamp ? { stampSvg: stamp.svg } : {};
+  const issuerExtras: { stampSvg?: string; logoUrl?: string } = {};
+  if (stamp) issuerExtras.stampSvg = stamp.svg;
+  if (logoUrl) issuerExtras.logoUrl = logoUrl;
   const fallbackSignature =
     !stamp && signatureArea
       ? `<section class="mdb-invoice__signature"><div class="seal-area">印</div></section>`
       : '';
+  const themeColor = resolveThemeColor(invoice.theme);
+  const themeStyle = themeColor ? ` style="--mdb-color-accent:${themeColor}"` : '';
 
   return `
-    <article class="mdb-invoice" data-schema-version="${escapeHtml(invoice.schemaVersion)}">
+    <article class="mdb-invoice" data-schema-version="${escapeHtml(invoice.schemaVersion)}"${themeStyle}>
       <header class="mdb-invoice__header">
         <div>
           <h1 class="mdb-invoice__title">請求書</h1>

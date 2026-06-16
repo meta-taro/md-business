@@ -114,6 +114,20 @@ body {
   margin-top: 1mm;
 }
 
+/* Company logo sits above the issuer name. Constrained to a print-safe size:
+   max 14mm tall keeps it from competing with the 12pt name; max 50mm wide
+   leaves room for tall portrait logos without overflowing the party box. */
+.mdb-invoice__logo {
+  margin-bottom: 1.5mm;
+}
+
+.mdb-invoice__logo img {
+  display: block;
+  max-height: 14mm;
+  max-width: 50mm;
+  object-fit: contain;
+}
+
 .mdb-invoice__items {
   width: 100%;
   border-collapse: collapse;
