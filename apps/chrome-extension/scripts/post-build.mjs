@@ -123,7 +123,54 @@ async function copyFonts() {
   console.log(`[post-build] copied ${FONT_FILES.length} font files and wrote styles/fonts.css`);
 }
 
+// Built-in starter templates — copied into `dist/templates/<schema>/` so the
+// popup can offer "Start from a template" without needing the user to bring
+// their own .md. Listed explicitly (not glob) so each entry is reviewable in
+// diff before being shipped to the Web Store.
+const STARTER_TEMPLATES = [
+  {
+    schema: 'invoice',
+    file: 'standard-ja.md',
+    label: '日本語フィールド名・適格請求書（推奨）',
+    description: '日本語キー（請求書番号 / 発行元 / 品目 …）の最新スタイル。3 品目 + 振込先 + 印影。',
+  },
+  {
+    schema: 'invoice',
+    file: 'standard.md',
+    label: '英語フィールド名・標準請求書',
+    description: '英語キー（invoiceNumber / issuer / items …）の標準スタイル。',
+  },
+  {
+    schema: 'invoice',
+    file: 'inbound-eligible.md',
+    label: '英語フィールド名・軽減税率（8%）込み',
+    description: '8% 軽減税率対象品目を含む適格請求書サンプル。',
+  },
+];
+
+async function copyStarterTemplates() {
+  const repoRoot = resolve(ROOT, '..', '..');
+  const manifest = [];
+  for (const t of STARTER_TEMPLATES) {
+    const src = resolve(repoRoot, 'templates', t.schema, t.file);
+    const destDir = resolve(DIST, 'templates', t.schema);
+    await ensureDir(destDir);
+    await copyFile(src, resolve(destDir, t.file));
+    manifest.push({
+      schema: t.schema,
+      file: t.file,
+      label: t.label,
+      description: t.description,
+      path: `templates/${t.schema}/${t.file}`,
+    });
+  }
+  const manifestPath = resolve(DIST, 'templates', 'manifest.json');
+  await writeFile(manifestPath, JSON.stringify({ templates: manifest }, null, 2) + '\n', 'utf8');
+  console.log(`[post-build] copied ${STARTER_TEMPLATES.length} starter templates and wrote templates/manifest.json`);
+}
+
 await copyInvoiceCss();
 await copyPagedJs();
 await copyFonts();
+await copyStarterTemplates();
 console.log('[post-build] done.');

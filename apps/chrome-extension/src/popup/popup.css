@@ -106,6 +106,58 @@ body {
   color: var(--muted);
 }
 
+.mdb-starter {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.mdb-starter__label {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.mdb-starter__list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.mdb-starter__item {
+  appearance: none;
+  border: 1px solid var(--border);
+  background: white;
+  border-radius: 6px;
+  padding: 7px 9px;
+  font-size: 12px;
+  text-align: left;
+  color: var(--fg);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-family: inherit;
+  transition: border-color 120ms ease, background 120ms ease;
+}
+
+.mdb-starter__item:hover,
+.mdb-starter__item:focus-visible {
+  border-color: var(--accent);
+  background: #eff6ff;
+  outline: none;
+}
+
+.mdb-starter__item-title {
+  font-weight: 600;
+  font-size: 12px;
+}
+
+.mdb-starter__item-desc {
+  font-size: 11px;
+  color: var(--muted);
+  line-height: 1.4;
+}
+
 .mdb-error {
   background: #fef2f2;
   color: var(--danger);

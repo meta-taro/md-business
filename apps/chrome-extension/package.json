@@ -1,6 +1,6 @@
 {
   "name": "@md-business/chrome-extension",
-  "version": "0.0.0",
+  "version": "0.1.1",
   "private": true,
   "description": "Markdown-first business document viewer for Chrome — open a Markdown file, preview as 適格請求書, save as PDF.",
   "license": "MIT",
@@ -8,6 +8,9 @@
   "scripts": {
     "build": "vite build && node scripts/post-build.mjs",
     "release": "pnpm build && node scripts/make-release.mjs",
+    "release:patch": "node scripts/bump-version.mjs patch && pnpm release",
+    "release:minor": "node scripts/bump-version.mjs minor && pnpm release",
+    "release:major": "node scripts/bump-version.mjs major && pnpm release",
     "dev": "vite build --watch",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "tsc -p tsconfig.json --noEmit",
