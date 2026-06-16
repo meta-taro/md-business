@@ -90,6 +90,25 @@ body {
   flex: 1;
 }
 
+.mdb-toolbar__icon {
+  appearance: none;
+  cursor: pointer;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  background: transparent;
+  color: var(--mdb-toolbar-fg);
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1;
+  padding: 0;
+}
+
+.mdb-toolbar__icon:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
 .mdb-toolbar__action {
   appearance: none;
   border: none;
@@ -290,6 +309,64 @@ body[data-mode='preview'] .mdb-split {
   padding: 24px 28px;
   max-width: 460px;
   width: calc(100% - 32px);
+  color: #1f2937;
+}
+
+.mdb-modal__panel--wide {
+  max-width: 640px;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+.mdb-modal__close {
+  appearance: none;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  position: absolute;
+  top: 12px;
+  right: 14px;
+  font-size: 22px;
+  line-height: 1;
+  color: #6b7280;
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
+.mdb-modal__close:hover {
+  background: #f3f4f6;
+  color: #1f2937;
+}
+
+.mdb-help__list {
+  margin: 12px 0 16px;
+  padding: 0;
+}
+
+.mdb-help__list dt {
+  font-weight: 600;
+  color: #111827;
+  margin-top: 12px;
+  font-size: 13px;
+}
+
+.mdb-help__list dt:first-child {
+  margin-top: 0;
+}
+
+.mdb-help__list dd {
+  margin: 4px 0 0;
+  font-size: 13px;
+  line-height: 1.7;
+  color: #374151;
+}
+
+.mdb-help__list code {
+  background: #f3f4f6;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-family: 'JetBrains Mono', 'Menlo', 'Consolas', monospace;
   color: #1f2937;
 }
 

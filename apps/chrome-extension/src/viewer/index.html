@@ -17,6 +17,7 @@
         <button id="mdb-mode-preview" class="mdb-toolbar__tab" type="button" role="tab" aria-selected="true" data-mode="preview">プレビュー</button>
       </div>
       <div class="mdb-toolbar__spacer"></div>
+      <button id="mdb-help" class="mdb-toolbar__icon" type="button" aria-label="frontmatter で指定できる項目を見る" title="frontmatter で指定できる項目">?</button>
       <button id="mdb-print" class="mdb-toolbar__action" type="button">PDF をダウンロード</button>
       <button id="mdb-reload" class="mdb-toolbar__action mdb-toolbar__action--ghost" type="button">別ファイルを開く</button>
       <input id="mdb-file-picker" type="file" accept=".md,.markdown,text/markdown" hidden />
@@ -45,6 +46,49 @@
         </section>
       </div>
     </main>
+    <div id="mdb-help-modal" class="mdb-modal" hidden>
+      <div class="mdb-modal__backdrop" data-close></div>
+      <div class="mdb-modal__panel mdb-modal__panel--wide" role="dialog" aria-labelledby="mdb-help-title" aria-modal="true">
+        <button class="mdb-modal__close" type="button" data-close aria-label="閉じる">×</button>
+        <h2 id="mdb-help-title" class="mdb-modal__title">md-business で指定できる項目</h2>
+        <p class="mdb-modal__body">
+          Markdown 先頭の <code>---</code> 〜 <code>---</code>（frontmatter）と品目名に
+          以下が書けます。
+        </p>
+        <dl class="mdb-help__list">
+          <dt><code>fileName: "御請求書_{請求先}{敬称}_{発行元}_{YMD}"</code></dt>
+          <dd>PDF 保存時のファイル名テンプレート。<code>{請求先}</code> <code>{発行元}</code> <code>{YMD}</code> <code>{YM}</code> <code>{敬称}</code> が展開されます。</dd>
+
+          <dt>品目名サフィックス <code>|12px</code></dt>
+          <dd>
+            品目名末尾に <code>|12px</code> / <code>|9pt</code> / <code>|0.8em</code> を付けるとその品目だけ縮小表示します。<br />
+            例: <code>name: "高車点検改修人員配置|12px"</code><br />
+            ※ 名前に <code>|</code> をそのまま含めたいときは <code>\|</code> でエスケープ。
+          </dd>
+
+          <dt><code>stamp.shape: "auto" | "round" | "square"</code></dt>
+          <dd><code>auto</code>（既定）は法人名（株式会社等）が含まれていれば角印、それ以外は丸印を自動判定します。</dd>
+
+          <dt><code>stamp.text: "サンプル"</code></dt>
+          <dd>印影の文字列を上書き（既定は発行元名）。</dd>
+
+          <dt><code>振込先:</code> （または <code>paymentInfo:</code>）</dt>
+          <dd>銀行 / 支店 / 種別 / 口座番号 / 名義 を任意で指定。空項目は自動的に省略されます。</dd>
+
+          <dt><code>軽減税率対象: true</code> （品目内）</dt>
+          <dd>8% 対象品目に「※」マークを付けます。<code>税率: 8</code> でも同等扱い。</dd>
+
+          <dt>小計 / 税額 / 合計の自動計算</dt>
+          <dd><code>taxSummary</code> や <code>totals</code> を書かなくても、items[] から自動計算されます。手入力した場合に差分があれば警告バナーで通知します。</dd>
+        </dl>
+        <p class="mdb-modal__hint">
+          詳細はリポジトリの <code>templates/invoice/standard-ja.md</code> を参照してください。
+        </p>
+        <div class="mdb-modal__actions">
+          <button id="mdb-help-close" class="mdb-toolbar__action" type="button">閉じる</button>
+        </div>
+      </div>
+    </div>
     <div id="mdb-pdf-guide" class="mdb-modal" hidden>
       <div class="mdb-modal__backdrop"></div>
       <div class="mdb-modal__panel" role="dialog" aria-labelledby="mdb-pdf-guide-title" aria-modal="true">

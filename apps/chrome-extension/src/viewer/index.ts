@@ -452,6 +452,24 @@ function hidePdfGuide(): void {
   document.getElementById('mdb-pdf-guide')?.setAttribute('hidden', '');
 }
 
+function wireHelpModal(): void {
+  const modal = document.getElementById('mdb-help-modal');
+  if (!modal) return;
+  const open = (): void => modal.removeAttribute('hidden');
+  const close = (): void => modal.setAttribute('hidden', '');
+
+  document.getElementById('mdb-help')?.addEventListener('click', open);
+  document.getElementById('mdb-help-close')?.addEventListener('click', close);
+  // Both the backdrop and the explicit close button carry data-close so a
+  // single delegated handler covers click-to-dismiss on either.
+  modal.querySelectorAll<HTMLElement>('[data-close]').forEach((el) => {
+    el.addEventListener('click', close);
+  });
+  document.addEventListener('keydown', (e: KeyboardEvent) => {
+    if (e.key === 'Escape' && !modal.hasAttribute('hidden')) close();
+  });
+}
+
 async function main(): Promise<void> {
   const payload = await readPayload();
   if (!payload) {
@@ -494,6 +512,7 @@ async function main(): Promise<void> {
   }
 
   wirePdfGuideModal();
+  wireHelpModal();
 }
 
 main().catch((err: unknown) => {

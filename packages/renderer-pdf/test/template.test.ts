@@ -101,6 +101,46 @@ describe('renderInvoiceBody — empty row padding', () => {
   });
 });
 
+describe('renderInvoiceBody — item name |<size> suffix', () => {
+  function makeWithName(name: string): Parameters<typeof renderInvoiceBody>[0] {
+    const base = standardInvoice();
+    return {
+      ...base,
+      items: [{ ...base.items[0]!, name }],
+    };
+  }
+
+  it('strips a trailing |<px> suffix and inlines font-size on the name cell', () => {
+    const html = renderInvoiceBody(makeWithName('高車点検改修人員配置|12px'));
+    expect(html).toContain('style="font-size:12px"');
+    expect(html).toContain('高車点検改修人員配置');
+    expect(html).not.toContain('|12px');
+  });
+
+  it('supports pt and em suffixes', () => {
+    expect(renderInvoiceBody(makeWithName('品目A|9pt'))).toContain('style="font-size:9pt"');
+    expect(renderInvoiceBody(makeWithName('品目B|0.8em'))).toContain('style="font-size:0.8em"');
+  });
+
+  it('leaves the name untouched when the trailing token is not a size', () => {
+    // Free-form "|" in a name (e.g., "前|後") must not be misread as a size.
+    const html = renderInvoiceBody(makeWithName('前|後'));
+    expect(html).toContain('前|後');
+    expect(html).not.toContain('font-size:');
+  });
+
+  it('honors a backslash escape to keep a literal | next to a size-looking suffix', () => {
+    const html = renderInvoiceBody(makeWithName('品目C\\|12px'));
+    expect(html).toContain('品目C|12px');
+    expect(html).not.toContain('font-size:');
+  });
+
+  it('emits no font-size attribute when no suffix is present', () => {
+    const html = renderInvoiceBody(makeWithName('業務委託費'));
+    expect(html).not.toContain('font-size:');
+  });
+});
+
 describe('renderInvoiceBody — XSS safety', () => {
   const html = renderInvoiceBody(xssInvoice());
 

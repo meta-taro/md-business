@@ -49,6 +49,27 @@ function renderParty(label: string, party: {
   `;
 }
 
+/**
+ * Split an item name of the form `"テキスト|12px"` into its visible name and
+ * an optional inline font size. Authors use this to shrink long product names
+ * so they fit a single row without forcing every other row down.
+ *
+ * Rules:
+ *   - Only the LAST `|<num><unit>` suffix is treated as a size, so names that
+ *     legitimately contain `|` remain unaffected as long as the trailing token
+ *     does not match the size pattern.
+ *   - Supported units: px, pt, em (CSS lengths the print stylesheet honors).
+ *   - `\|` escapes a literal pipe in the visible name.
+ */
+function parseItemName(raw: string): { name: string; fontSize?: string } {
+  const m = raw.match(/^(.*?)(?<!\\)\|(\d+(?:\.\d+)?(?:px|pt|em))$/);
+  if (!m) return { name: raw.replace(/\\\|/g, '|') };
+  return {
+    name: (m[1] ?? '').replace(/\\\|/g, '|'),
+    fontSize: m[2] ?? '',
+  };
+}
+
 function renderItemRow(item: InvoiceItem): string {
   const subtotal = item.quantity * item.unitPrice;
   const reducedMark =
@@ -56,9 +77,14 @@ function renderItemRow(item: InvoiceItem): string {
       ? '<span class="reduced-mark" aria-label="軽減税率対象">※</span>'
       : '';
   const unit = item.unit ? escapeHtml(item.unit) : '';
+  const { name, fontSize } = parseItemName(item.name);
+  // Inline style is the right tool here: per-row font-size overrides have no
+  // good CSS-class proxy, and we already trust `fontSize` because it matches
+  // a strict numeric+unit regex above.
+  const nameStyle = fontSize ? ` style="font-size:${fontSize}"` : '';
   return `
     <tr>
-      <td>${reducedMark}${escapeHtml(item.name)}</td>
+      <td${nameStyle}>${reducedMark}${escapeHtml(name)}</td>
       <td class="numeric">${formatNumber(item.quantity)}</td>
       <td class="center">${unit}</td>
       <td class="numeric">${formatJpy(item.unitPrice)}</td>
