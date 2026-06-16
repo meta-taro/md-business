@@ -25,34 +25,10 @@ body {
   padding-top: 56px;
 }
 
-/* Paged.js renders each page as a `.pagedjs_page` wrapper whose VISIBLE area
-   is `.pagedjs_sheet` (even/odd pages alternate `.pagedjs_left_page` vs
-   `.pagedjs_right_page` with different grid sizing, so backgrounding the
-   page wrapper only works on page 1). Style the sheet itself so every page
-   shows up as a uniform white rectangle on the gray desk. */
-.pagedjs_pages {
-  /* Force vertical stacking — Paged.js's default flex layout otherwise
-     leaves uneven gutters around pages 2+ when the viewport is wider than
-     a single sheet. */
-  display: block;
-  /* Generous top padding lets users see the top edge of the page below the
-     fixed toolbar — reinforces the "sheet of paper" mental model. */
-  padding: 48px 0 48px;
-}
-
 #mdb-file-picker {
   /* `hidden` already removes it from layout, but explicit display:none guards
      against any future :not([hidden]) rule from a downstream stylesheet. */
   display: none;
-}
-
-.pagedjs_page {
-  margin: 16px auto !important;
-}
-
-.pagedjs_sheet {
-  background: white;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
 }
 
 .mdb-toolbar {
@@ -77,6 +53,37 @@ body {
 .mdb-toolbar__title {
   font-weight: 600;
   letter-spacing: 0.04em;
+}
+
+.mdb-toolbar__mode {
+  display: inline-flex;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  padding: 2px;
+  gap: 2px;
+}
+
+.mdb-toolbar__tab {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: var(--mdb-toolbar-fg);
+  cursor: pointer;
+  padding: 6px 14px;
+  border-radius: 4px;
+  font-size: 13px;
+  font-weight: 500;
+  opacity: 0.7;
+}
+
+.mdb-toolbar__tab[aria-selected='true'] {
+  background: var(--mdb-toolbar-fg);
+  color: var(--mdb-toolbar-bg);
+  opacity: 1;
+}
+
+.mdb-toolbar__tab:hover:not([aria-selected='true']) {
+  opacity: 1;
 }
 
 .mdb-toolbar__spacer {
@@ -165,17 +172,95 @@ body {
   }
 }
 
-.mdb-document {
-  /* Paged.js relocates the body content into its own `.pagedjs_page` boxes,
-     where the page-level shadow and background live. Leaving this container
-     unstyled prevents a second "paper" rectangle from leaking through. */
+
+/* Split-pane layout — left editor, right live preview iframe. The iframe is
+   always visible; the editor pane shows only in `body[data-mode='edit']`. */
+.mdb-split {
+  display: grid;
   width: 100%;
-  max-width: 210mm;
+  height: calc(100vh - 56px - 32px); /* viewport - toolbar - stage padding */
+  gap: 12px;
+  grid-template-columns: minmax(320px, 1fr) minmax(320px, 1fr);
 }
 
-.mdb-document:empty {
+body[data-mode='preview'] .mdb-editor-pane {
   display: none;
 }
+
+body[data-mode='preview'] .mdb-split {
+  grid-template-columns: 1fr;
+}
+
+.mdb-editor-pane,
+.mdb-preview-pane {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+.mdb-pane-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  background: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
+  border-radius: 8px 8px 0 0;
+  font-size: 12px;
+  color: #475569;
+  flex: 0 0 auto;
+}
+
+.mdb-pane-head__title {
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+.mdb-pane-head__hint {
+  font-size: 11px;
+  color: #ea580c;
+}
+
+.mdb-pane-head__badge {
+  margin-left: auto;
+  background: #fef3c7;
+  color: #92400e;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.mdb-editor {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  font-family: 'JetBrains Mono', 'Menlo', 'Consolas', monospace;
+  font-size: 13px;
+}
+
+/* CodeMirror 6 fills its container via the .cm-editor wrapper — make sure
+   it stretches to the available height. */
+.mdb-editor .cm-editor {
+  height: 100%;
+}
+
+.mdb-editor .cm-scroller {
+  font-family: inherit;
+}
+
+.mdb-preview {
+  flex: 1 1 auto;
+  min-height: 0;
+  border: none;
+  width: 100%;
+  background: #e5e7eb;
+}
+
 
 /* PDF download guide modal — explains the Chrome print dialog destination. */
 .mdb-modal[hidden] {
@@ -250,27 +335,7 @@ body {
   color: #1f2937;
 }
 
-@media print {
-  .mdb-toolbar,
-  .mdb-modal {
-    display: none !important;
-  }
-  .mdb-stage {
-    padding: 0;
-  }
-  .mdb-document {
-    max-width: none;
-  }
-  .pagedjs_pages {
-    padding: 0;
-  }
-  .pagedjs_page {
-    background: transparent;
-    box-shadow: none;
-    margin: 0 !important;
-  }
-  body {
-    background: white;
-    padding-top: 0;
-  }
-}
+/* @media print on the host page is intentionally NOT used — printing is
+   delegated to the iframe via `iframe.contentWindow.print()`, so the
+   host-page chrome (toolbar / modal / editor) never enters the printed
+   output. The iframe carries its own invoice.css with the @page rules. */

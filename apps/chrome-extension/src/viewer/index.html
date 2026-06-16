@@ -9,9 +9,13 @@
          its parsing pass prevents the toolbar from being hidden post-paginate. -->
     <link rel="stylesheet" href="./viewer.css" data-pagedjs-ignore />
   </head>
-  <body>
+  <body data-mode="preview">
     <header id="mdb-toolbar" class="mdb-toolbar">
       <div class="mdb-toolbar__title">md-business</div>
+      <div class="mdb-toolbar__mode" role="tablist" aria-label="表示モード">
+        <button id="mdb-mode-edit" class="mdb-toolbar__tab" type="button" role="tab" aria-selected="false" data-mode="edit">編集</button>
+        <button id="mdb-mode-preview" class="mdb-toolbar__tab" type="button" role="tab" aria-selected="true" data-mode="preview">プレビュー</button>
+      </div>
       <div class="mdb-toolbar__spacer"></div>
       <button id="mdb-print" class="mdb-toolbar__action" type="button">PDF をダウンロード</button>
       <button id="mdb-reload" class="mdb-toolbar__action mdb-toolbar__action--ghost" type="button">別ファイルを開く</button>
@@ -19,7 +23,27 @@
     </header>
     <main id="mdb-stage" class="mdb-stage">
       <div id="mdb-status" class="mdb-status">読み込み中…</div>
-      <div id="mdb-document" class="mdb-document"></div>
+      <!-- Edit mode: split pane (editor + live preview iframe).
+           Preview mode: only #mdb-document is visible (CSS toggles via [data-mode]). -->
+      <div id="mdb-split" class="mdb-split">
+        <section id="mdb-editor-pane" class="mdb-editor-pane">
+          <header class="mdb-pane-head">
+            <span class="mdb-pane-head__title">Markdown</span>
+            <span id="mdb-editor-dirty" class="mdb-pane-head__hint" hidden>未保存</span>
+          </header>
+          <div id="mdb-editor" class="mdb-editor"></div>
+        </section>
+        <section id="mdb-preview-pane" class="mdb-preview-pane">
+          <header class="mdb-pane-head">
+            <span class="mdb-pane-head__title">プレビュー</span>
+            <span id="mdb-preview-errors-badge" class="mdb-pane-head__badge" hidden>0 件の不備</span>
+          </header>
+          <!-- The preview iframe isolates the invoice CSS / Paged.js from the
+               surrounding viewer chrome — without isolation, @page rules and
+               Paged.js's body mutations would clobber the toolbar. -->
+          <iframe id="mdb-preview" class="mdb-preview" title="プレビュー"></iframe>
+        </section>
+      </div>
     </main>
     <div id="mdb-pdf-guide" class="mdb-modal" hidden>
       <div class="mdb-modal__backdrop"></div>

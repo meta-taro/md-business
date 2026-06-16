@@ -1,14 +1,41 @@
 import '../shared/polyfills.js';
-import { loadMarkdown } from '../shared/loadMarkdown.js';
+import { EditorState } from '@codemirror/state';
+import { markdown } from '@codemirror/lang-markdown';
+import { EditorView, basicSetup } from 'codemirror';
+import {
+  loadMarkdown,
+  previewMarkdown,
+  type LoadMarkdownResult,
+  type PreviewMarkdownResult,
+} from '../shared/loadMarkdown.js';
 import { STORAGE_KEY } from '../shared/storage.js';
 
 const PDF_GUIDE_SKIP_KEY = 'mdb:pdf-guide-skip';
+const PREVIEW_DEBOUNCE_MS = 200;
+
+type Mode = 'edit' | 'preview';
 
 interface ViewerPayload {
   source: string;
   filename?: string;
   pluginId?: string;
 }
+
+interface ViewerState {
+  source: string;
+  pluginId?: string;
+  mode: Mode;
+  editor?: EditorView;
+  /** Last successful permissive render — kept so PDF DL can reuse the styles href. */
+  lastStylesHref?: string;
+}
+
+const state: ViewerState = {
+  source: '',
+  mode: 'preview',
+};
+
+let previewTimer: ReturnType<typeof setTimeout> | null = null;
 
 async function readPayload(): Promise<ViewerPayload | null> {
   const params = new URLSearchParams(globalThis.location.search);
@@ -20,15 +47,15 @@ async function readPayload(): Promise<ViewerPayload | null> {
 type StatusPayload = string | { title: string; items?: string[] };
 type StatusState = 'info' | 'error' | 'warning' | 'hidden';
 
-function setStatus(message: StatusPayload, state: StatusState): void {
+function setStatus(message: StatusPayload, statusState: StatusState): void {
   const el = document.getElementById('mdb-status');
   if (!el) return;
-  if (state === 'hidden') {
+  if (statusState === 'hidden') {
     el.style.display = 'none';
     el.replaceChildren();
     return;
   }
-  el.dataset['state'] = state;
+  el.dataset['state'] = statusState;
   el.style.display = '';
   el.replaceChildren();
 
@@ -55,18 +82,21 @@ function setStatus(message: StatusPayload, state: StatusState): void {
 }
 
 function showWarnings(items: string[]): void {
-  // Render warnings as a yellow banner separate from the status element so
-  // they remain visible even after the document successfully renders.
   let el = document.getElementById('mdb-warnings');
   if (!el) {
     el = document.createElement('aside');
     el.id = 'mdb-warnings';
     el.className = 'mdb-status';
     el.dataset['state'] = 'warning';
-    const stage = document.getElementById('mdb-document');
-    stage?.parentElement?.insertBefore(el, stage);
+    const stage = document.getElementById('mdb-stage');
+    stage?.appendChild(el);
   }
   el.replaceChildren();
+  if (items.length === 0) {
+    el.style.display = 'none';
+    return;
+  }
+  el.style.display = '';
   const title = document.createElement('div');
   title.className = 'mdb-status__title';
   title.textContent = '次の点を確認してください（描画は続行しています）';
@@ -81,137 +111,137 @@ function showWarnings(items: string[]): void {
   el.appendChild(list);
 }
 
-function injectStylesheet(href: string): void {
-  // Resolve relative to the extension's dist/ root, not the viewer dir.
+function updateErrorBadge(errorCount: number): void {
+  const badge = document.getElementById('mdb-preview-errors-badge');
+  if (!badge) return;
+  if (errorCount === 0) {
+    badge.setAttribute('hidden', '');
+    return;
+  }
+  badge.removeAttribute('hidden');
+  badge.textContent = `${errorCount} 件の不備`;
+}
+
+/**
+ * Initialize the preview iframe with a minimal HTML document that imports the
+ * fonts + schema stylesheet. The body content is replaced on each render.
+ */
+function bootstrapIframe(stylesHref: string): void {
+  const iframe = document.getElementById('mdb-preview') as HTMLIFrameElement | null;
+  if (!iframe) return;
+  const doc = iframe.contentDocument;
+  if (!doc) return;
+  const fontsUrl = chrome.runtime.getURL('styles/fonts.css');
+  const stylesUrl = chrome.runtime.getURL(stylesHref);
+  const html = `<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="${fontsUrl}">
+<link rel="stylesheet" href="${stylesUrl}" data-mdb="schema">
+<style>
+  /* Surrounding "paper desk" for the live preview only — Paged.js takes over
+     and replaces this once printing is requested. */
+  html, body { margin: 0; background: #e5e7eb; }
+  body { padding: 20px; }
+  .mdb-preview-host { background: white; box-shadow: 0 2px 12px rgba(0,0,0,0.15); padding: 18mm 16mm; max-width: 178mm; margin: 0 auto; }
+</style>
+</head>
+<body>
+<div class="mdb-preview-host" id="mdb-preview-host"></div>
+</body>
+</html>`;
+  doc.open();
+  doc.write(html);
+  doc.close();
+}
+
+/**
+ * Update the preview iframe body with the rendered HTML. Cheap — no script
+ * execution, no Paged.js. Called on every debounced editor edit.
+ */
+function updateIframeBody(html: string): void {
+  const iframe = document.getElementById('mdb-preview') as HTMLIFrameElement | null;
+  const host = iframe?.contentDocument?.getElementById('mdb-preview-host');
+  if (host) host.innerHTML = html;
+}
+
+function renderPreviewFromSource(): void {
+  const result: PreviewMarkdownResult = previewMarkdown(
+    state.source,
+    state.pluginId ? { pluginId: state.pluginId } : {},
+  );
+  if (!result.ok) {
+    setStatus({ title: result.reason, items: result.details ?? [] }, 'error');
+    updateErrorBadge(0);
+    return;
+  }
+  setStatus('', 'hidden');
+  state.lastStylesHref = result.stylesHref;
+  // Ensure the iframe has the right stylesheet loaded; cheap idempotent check.
+  ensureIframeStylesheet(result.stylesHref);
+  updateIframeBody(result.bodyHtml);
+  updateErrorBadge(result.errors.length);
+  showWarnings(result.warnings);
+}
+
+function ensureIframeStylesheet(href: string): void {
+  const iframe = document.getElementById('mdb-preview') as HTMLIFrameElement | null;
+  const doc = iframe?.contentDocument;
+  if (!doc) return;
+  const existing = doc.querySelector<HTMLLinkElement>('link[data-mdb="schema"]');
   const resolved = chrome.runtime.getURL(href);
-  const existing = document.head.querySelector(`link[data-mdb="schema"]`);
+  if (existing?.href === resolved) return;
+  if (!doc.body) {
+    bootstrapIframe(href);
+    return;
+  }
   if (existing) existing.remove();
-  const link = document.createElement('link');
+  const link = doc.createElement('link');
   link.rel = 'stylesheet';
   link.href = resolved;
   link.dataset['mdb'] = 'schema';
-  document.head.appendChild(link);
+  doc.head.appendChild(link);
 }
 
-function injectFonts(): void {
-  // styles/fonts.css is emitted by scripts/post-build.mjs alongside the
-  // woff2 files in vendor/fonts/. Loading it at runtime avoids Vite trying
-  // to bundle a file that doesn't exist until after vite build completes.
-  if (document.head.querySelector('link[data-mdb="fonts"]')) return;
-  const link = document.createElement('link');
-  link.rel = 'stylesheet';
-  link.href = chrome.runtime.getURL('styles/fonts.css');
-  link.dataset['mdb'] = 'fonts';
-  document.head.appendChild(link);
-}
-
-function injectPagedJs(): void {
-  // Paged.js scoops the ENTIRE <body> into a `<template data-ref="pagedjs-content">`
-  // and re-renders it inside `<div class="pagedjs_pages">`. That removes our
-  // toolbar and modal from the live DOM. Detach them first, then re-attach
-  // them as siblings of `.pagedjs_pages` once pagination has rendered.
-  const toolbar = document.getElementById('mdb-toolbar');
-  const modal = document.getElementById('mdb-pdf-guide');
-  toolbar?.remove();
-  modal?.remove();
-
-  const reattach = (): void => {
-    if (toolbar && !toolbar.isConnected) document.body.appendChild(toolbar);
-    if (modal && !modal.isConnected) document.body.appendChild(modal);
-  };
-
-  if (toolbar || modal) {
-    const observer = new MutationObserver(() => {
-      if (document.querySelector('.pagedjs_pages')) {
-        reattach();
-        observer.disconnect();
-      }
-    });
-    observer.observe(document.body, { childList: true, subtree: true });
-    // Safety net: if Paged.js fails to load or never renders, still restore
-    // the UI within a few seconds so the user is not left stranded.
-    globalThis.setTimeout(reattach, 4000);
-  }
-
-  // Paged.js is vendored locally to satisfy MV3 CSP.
-  const url = chrome.runtime.getURL('vendor/paged.polyfill.js');
-  const script = document.createElement('script');
-  script.src = url;
-  script.async = false;
-  document.body.appendChild(script);
-}
-
-function markStaticStylesheetsAsPagedIgnore(): void {
-  // Vite rewrites the `<link rel="stylesheet" href="./viewer.css">` we author
-  // in index.html into a bundled href and strips any extra attributes we put
-  // on the tag — so we cannot annotate it at author time. Tag it from JS
-  // before Paged.js mounts so that Paged.js skips it during CSS parsing.
-  // (Without this Paged.js treats `@media print` rules as canonical and the
-  // toolbar's `display: none` leaks onto the screen.) Stylesheets we inject
-  // ourselves carry a `data-mdb` marker and are left untouched.
-  for (const el of document.head.querySelectorAll<HTMLLinkElement>('link[rel="stylesheet"]')) {
-    if (!el.dataset['mdb']) el.setAttribute('data-pagedjs-ignore', '');
-  }
-}
-
-async function main(): Promise<void> {
-  markStaticStylesheetsAsPagedIgnore();
-  const payload = await readPayload();
-  if (!payload) {
-    setStatus(
-      'ドキュメントが見つかりません。ポップアップから .md ファイルを開き直してください。',
-      'error',
-    );
-    return;
-  }
-
-  const result = loadMarkdown(payload.source, payload.pluginId ? { pluginId: payload.pluginId } : {});
-  if (!result.ok) {
-    const items = [...(result.details ?? []), ...(result.warnings ?? [])];
-    setStatus({ title: result.reason, items }, 'error');
-    return;
-  }
-
-  document.title = result.documentTitle;
-  // Stash on globalThis so `triggerPrint` can swap `document.title` to the
-  // PDF filename right before `window.print()` opens — Chrome reads the
-  // current `document.title` as the suggested "Save as PDF" filename.
-  (globalThis as unknown as { __mdbPdfFileName?: string }).__mdbPdfFileName = result.pdfFileName;
-  (globalThis as unknown as { __mdbViewerTitle?: string }).__mdbViewerTitle = result.documentTitle;
-  injectFonts();
-  injectStylesheet(result.stylesHref);
-
-  const stage = document.getElementById('mdb-document');
-  if (stage) stage.innerHTML = result.bodyHtml;
-  setStatus('', 'hidden');
-  if (result.warnings.length > 0) showWarnings(result.warnings);
-
-  // Wire toolbar + modal handlers BEFORE Paged.js, because injectPagedJs
-  // detaches those nodes from <body> mid-flight. DOM event listeners survive
-  // the detach -> re-append cycle, but getElementById would not find them
-  // during the detached window.
-  const printBtn = document.getElementById('mdb-print');
-  printBtn?.addEventListener('click', handlePdfDownloadClick);
-
-  // "別ファイルを開く" opens a hidden <input type="file"> so the user can swap
-  // the rendered document in-place. We deliberately do NOT message a service
-  // worker — MV3's `chrome.action.openPopup()` requires a user gesture and is
-  // brittle across platforms; an inline file picker is the reliable path.
-  const reloadBtn = document.getElementById('mdb-reload');
-  const filePicker = document.getElementById('mdb-file-picker') as HTMLInputElement | null;
-  reloadBtn?.addEventListener('click', () => filePicker?.click());
-  filePicker?.addEventListener('change', () => {
-    const file = filePicker.files?.[0];
-    if (!file) return;
-    void swapDocument(file).finally(() => {
-      filePicker.value = '';
-    });
+function initEditor(source: string): void {
+  const editorEl = document.getElementById('mdb-editor');
+  if (!editorEl) return;
+  const startState = EditorState.create({
+    doc: source,
+    extensions: [
+      basicSetup,
+      markdown(),
+      EditorView.theme({
+        '&': { height: '100%' },
+        '.cm-scroller': { fontFamily: 'inherit' },
+      }),
+      EditorView.updateListener.of((update) => {
+        if (!update.docChanged) return;
+        state.source = update.state.doc.toString();
+        scheduleRerender();
+      }),
+    ],
   });
+  state.editor = new EditorView({ state: startState, parent: editorEl });
+}
 
-  wirePdfGuideModal();
+function scheduleRerender(): void {
+  if (previewTimer !== null) {
+    globalThis.clearTimeout(previewTimer);
+  }
+  previewTimer = globalThis.setTimeout(() => {
+    previewTimer = null;
+    renderPreviewFromSource();
+  }, PREVIEW_DEBOUNCE_MS);
+}
 
-  // Paged.js paginates the document for crisp print preview.
-  injectPagedJs();
+function setMode(next: Mode): void {
+  state.mode = next;
+  document.body.setAttribute('data-mode', next);
+  for (const btn of document.querySelectorAll<HTMLButtonElement>('.mdb-toolbar__tab')) {
+    btn.setAttribute('aria-selected', btn.dataset['mode'] === next ? 'true' : 'false');
+  }
 }
 
 async function swapDocument(file: File): Promise<void> {
@@ -221,22 +251,134 @@ async function swapDocument(file: File): Promise<void> {
   }
   const source = await file.text();
   const payload: ViewerPayload = { source, filename: file.name };
-  // Persist so a manual refresh re-renders the new doc rather than the old one.
   await chrome.storage.session.set({ [STORAGE_KEY]: payload });
-  // Easiest way to fully reset Paged.js state is a full reload — the existing
-  // bootstrap path (storage → loadMarkdown → Paged.js) then runs cleanly.
   globalThis.location.reload();
 }
 
+/**
+ * Run the strict validation path used by PDF DL. Returns a rendered
+ * `LoadMarkdownResult` when valid, or an error structure for the banner.
+ */
+function strictValidate(): LoadMarkdownResult {
+  return loadMarkdown(state.source, state.pluginId ? { pluginId: state.pluginId } : {});
+}
+
 function handlePdfDownloadClick(): void {
-  // Once the user has confirmed they understand the print-dialog flow, jump
-  // straight to window.print() on subsequent downloads.
-  const skip = readSkipFlag();
-  if (skip) {
-    triggerPrint();
+  const result = strictValidate();
+  if (!result.ok) {
+    const items = [...(result.details ?? []), ...(result.warnings ?? [])];
+    setStatus({ title: result.reason, items }, 'error');
+    // Bounce the user to preview mode so they can see the banner above the
+    // (still-rendered) preview. Errors live in the host page DOM.
+    setMode('preview');
     return;
   }
+  setStatus('', 'hidden');
+  // Once the user has confirmed they understand the print-dialog flow, skip
+  // straight to the iframe paginate + print.
+  if (readSkipFlag()) {
+    void runPrintFlow(result);
+    return;
+  }
+  pendingPrint = result;
   showPdfGuide();
+}
+
+let pendingPrint: LoadMarkdownResult & { ok: true } | null = null;
+
+/**
+ * Re-render the iframe with the strictly-validated HTML, inject Paged.js,
+ * wait for pagination, then invoke `iframe.contentWindow.print()`.
+ *
+ * Paged.js is sandboxed inside the iframe — it never touches the host page,
+ * so the editor / toolbar / modal all survive the print.
+ */
+async function runPrintFlow(result: LoadMarkdownResult & { ok: true }): Promise<void> {
+  const iframe = document.getElementById('mdb-preview') as HTMLIFrameElement | null;
+  const doc = iframe?.contentDocument;
+  const win = iframe?.contentWindow;
+  if (!iframe || !doc || !win) return;
+
+  // Rebuild the iframe document for print: drop the preview "paper desk"
+  // wrapper so Paged.js paginates a clean body, swap title for Chrome's
+  // "Save as PDF" suggested filename.
+  const fontsUrl = chrome.runtime.getURL('styles/fonts.css');
+  const stylesUrl = chrome.runtime.getURL(result.stylesHref);
+  const pagedUrl = chrome.runtime.getURL('vendor/paged.polyfill.js');
+  const printHtml = `<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>${escapeHtmlText(result.pdfFileName)}</title>
+<link rel="stylesheet" href="${fontsUrl}">
+<link rel="stylesheet" href="${stylesUrl}">
+<style>
+  html, body { margin: 0; }
+  .pagedjs_pages { display: block; padding: 0; }
+  .pagedjs_sheet { background: white; box-shadow: 0 2px 12px rgba(0,0,0,0.15); }
+  .pagedjs_page { margin: 0 auto !important; }
+  @media print {
+    .pagedjs_page { box-shadow: none; background: transparent; }
+  }
+</style>
+</head>
+<body>
+${result.bodyHtml}
+<script src="${pagedUrl}"></script>
+</body>
+</html>`;
+  doc.open();
+  doc.write(printHtml);
+  doc.close();
+
+  await waitForPagedJsRender(doc);
+  // requestAnimationFrame inside the iframe so layout is flushed before print.
+  await new Promise<void>((resolve) => {
+    win.requestAnimationFrame(() => resolve());
+  });
+  try {
+    win.focus();
+    win.print();
+  } finally {
+    // Restore the editable preview after the print dialog closes so the user
+    // can keep editing. window.print() blocks until the dialog is dismissed.
+    if (state.lastStylesHref) bootstrapIframe(state.lastStylesHref);
+    renderPreviewFromSource();
+  }
+}
+
+function waitForPagedJsRender(doc: Document): Promise<void> {
+  // Paged.js mounts `<div class="pagedjs_pages">` once layout is complete.
+  // 4s safety net so a broken Paged.js load does not hang the user forever.
+  return new Promise((resolve) => {
+    if (doc.querySelector('.pagedjs_pages')) {
+      resolve();
+      return;
+    }
+    const observer = new MutationObserver(() => {
+      if (doc.querySelector('.pagedjs_pages')) {
+        observer.disconnect();
+        resolve();
+      }
+    });
+    observer.observe(doc.body, { childList: true, subtree: true });
+    globalThis.setTimeout(() => {
+      observer.disconnect();
+      resolve();
+    }, 4000);
+  });
+}
+
+function escapeHtmlText(value: string): string {
+  return value.replace(/[&<>"']/g, (c) => {
+    switch (c) {
+      case '&': return '&amp;';
+      case '<': return '&lt;';
+      case '>': return '&gt;';
+      case '"': return '&quot;';
+      default: return '&#39;';
+    }
+  });
 }
 
 function readSkipFlag(): boolean {
@@ -263,12 +405,22 @@ function wirePdfGuideModal(): void {
   const goBtn = document.getElementById('mdb-pdf-guide-go');
   const skipCheckbox = document.getElementById('mdb-pdf-guide-skip') as HTMLInputElement | null;
 
-  cancelBtn?.addEventListener('click', hidePdfGuide);
-  backdrop?.addEventListener('click', hidePdfGuide);
+  cancelBtn?.addEventListener('click', () => {
+    pendingPrint = null;
+    hidePdfGuide();
+  });
+  backdrop?.addEventListener('click', () => {
+    pendingPrint = null;
+    hidePdfGuide();
+  });
   goBtn?.addEventListener('click', () => {
     writeSkipFlag(Boolean(skipCheckbox?.checked));
     hidePdfGuide();
-    triggerPrint();
+    if (pendingPrint) {
+      const p = pendingPrint;
+      pendingPrint = null;
+      void runPrintFlow(p);
+    }
   });
 }
 
@@ -284,26 +436,48 @@ function hidePdfGuide(): void {
   document.getElementById('mdb-pdf-guide')?.setAttribute('hidden', '');
 }
 
-function triggerPrint(): void {
-  // Defer one frame so the modal is fully torn down before the (modal) print
-  // dialog opens — otherwise some browsers leave the backdrop visible in the
-  // printed output preview.
-  globalThis.requestAnimationFrame(() => {
-    // Chrome's "Save as PDF" reads `document.title` at the moment print()
-    // runs to populate the suggested filename. Swap to the PDF name, print,
-    // restore the tab title afterwards. window.print() blocks the main
-    // thread until the dialog closes, so a straight-line save/restore is
-    // sufficient — no afterprint listener needed.
-    const stash = globalThis as unknown as { __mdbPdfFileName?: string; __mdbViewerTitle?: string };
-    const pdfName = stash.__mdbPdfFileName;
-    const tabTitle = stash.__mdbViewerTitle ?? document.title;
-    if (pdfName) document.title = pdfName;
-    try {
-      globalThis.print();
-    } finally {
-      document.title = tabTitle;
-    }
+async function main(): Promise<void> {
+  const payload = await readPayload();
+  if (!payload) {
+    setStatus(
+      'ドキュメントが見つかりません。ポップアップから .md ファイルを開き直してください。',
+      'error',
+    );
+    return;
+  }
+  state.source = payload.source;
+  if (payload.pluginId) state.pluginId = payload.pluginId;
+
+  // Boot the iframe with a placeholder schema href; the real one is set on
+  // first render. This avoids a flash of unstyled content.
+  bootstrapIframe('styles/invoice.css');
+  initEditor(payload.source);
+  renderPreviewFromSource();
+
+  setMode('preview');
+
+  const printBtn = document.getElementById('mdb-print');
+  printBtn?.addEventListener('click', handlePdfDownloadClick);
+
+  const reloadBtn = document.getElementById('mdb-reload');
+  const filePicker = document.getElementById('mdb-file-picker') as HTMLInputElement | null;
+  reloadBtn?.addEventListener('click', () => filePicker?.click());
+  filePicker?.addEventListener('change', () => {
+    const file = filePicker.files?.[0];
+    if (!file) return;
+    void swapDocument(file).finally(() => {
+      filePicker.value = '';
+    });
   });
+
+  for (const btn of document.querySelectorAll<HTMLButtonElement>('.mdb-toolbar__tab')) {
+    btn.addEventListener('click', () => {
+      const next = btn.dataset['mode'] as Mode | undefined;
+      if (next === 'edit' || next === 'preview') setMode(next);
+    });
+  }
+
+  wirePdfGuideModal();
 }
 
 main().catch((err: unknown) => {

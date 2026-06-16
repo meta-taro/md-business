@@ -1,4 +1,25 @@
-import type { ValidationResult } from '@md-business/core';
+import type { ValidationError, ValidationResult } from '@md-business/core';
+
+/**
+ * Result of a permissive preview render — used by the live editor so that the
+ * user can see something useful while typing, even before the document is
+ * fully valid. Errors and warnings are surfaced as side channels rather than
+ * blocking the render.
+ */
+export interface PreviewRenderResult {
+  /** Rendered HTML fragment (best-effort). Empty string if the renderer threw. */
+  html: string;
+  /** Non-fatal warnings already translated to user-facing Japanese. */
+  warnings: string[];
+  /**
+   * Validation errors collected from the strict pass — surfaced to the editor
+   * UI so the user can see what is still missing, without preventing the
+   * preview from rendering.
+   */
+  errors: ValidationError[];
+  /** Last-resort fatal error message when the renderer itself threw. */
+  fatal?: string;
+}
 
 /**
  * SchemaPlugin — extensibility point for future schemas (test-spec / design-doc / etc.).
@@ -30,6 +51,14 @@ export interface SchemaPlugin<TFrontmatter = unknown> {
    */
   detect?(frontmatter: Record<string, unknown>): boolean;
   render(frontmatter: TFrontmatter): string;
+  /**
+   * Permissive render used by the live editor preview pane. Unlike `validate()`
+   * + `render()`, this path never throws and never blocks — it returns the
+   * best-effort HTML even if required fields are missing, and surfaces the
+   * validation errors as a side channel. The viewer can show them as a
+   * non-blocking warning list while still keeping the preview pane filled.
+   */
+  previewRender?(frontmatter: unknown): PreviewRenderResult;
   /** Override the <title> of the generated viewer page. */
   documentTitle?(frontmatter: TFrontmatter): string;
   /**

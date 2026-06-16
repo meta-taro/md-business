@@ -149,4 +149,13 @@ body
     const result = loadMarkdown(VALID_INVOICE_MD, { pluginId: 'design-doc' });
     expect(result.ok).toBe(true); // falls back to schemaVersion auto-detect
   });
+
+  it('reports a clear error when the frontmatter YAML cannot be parsed', () => {
+    // Tab-indented mapping — js-yaml rejects this.
+    const broken = '---\n\tnot: valid\n---\nbody';
+    const result = loadMarkdown(broken);
+    if (result.ok) throw new Error('expected failure');
+    expect(result.reason).toMatch(/frontmatter/);
+    expect(result.details?.length ?? 0).toBeGreaterThan(0);
+  });
 });
