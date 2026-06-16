@@ -47,6 +47,18 @@ describe('extractStampChars', () => {
   it('respects a custom cap', () => {
     expect(extractStampChars('株式会社キングダム', 2)).toEqual(['キ', 'ン']);
   });
+
+  it('strips half-width space between family and given name', () => {
+    expect(extractStampChars('山田 太郎')).toEqual(['山', '田', '太', '郎']);
+  });
+
+  it('strips full-width space (U+3000) between family and given name', () => {
+    expect(extractStampChars('山田　太郎')).toEqual(['山', '田', '太', '郎']);
+  });
+
+  it('strips multiple internal spaces and tabs', () => {
+    expect(extractStampChars('佐 藤\t翔')).toEqual(['佐', '藤', '翔']);
+  });
 });
 
 describe('renderStampSvg', () => {

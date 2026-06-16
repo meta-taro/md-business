@@ -50,6 +50,7 @@ export function extractStampChars(name: string, max = 4): string[] {
   cleaned = cleaned
     .replace(CORPORATE_PAREN_RE, '')
     .replace(CORPORATE_GLYPH_RE, '')
+    .replace(/\s+/g, '')
     .trim();
   // Array.from handles surrogate pairs correctly.
   return Array.from(cleaned).slice(0, max);
