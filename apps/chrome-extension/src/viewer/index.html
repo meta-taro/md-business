@@ -10,13 +10,34 @@
     <header id="mdb-toolbar" class="mdb-toolbar">
       <div class="mdb-toolbar__title">md-business</div>
       <div class="mdb-toolbar__spacer"></div>
-      <button id="mdb-print" class="mdb-toolbar__action" type="button">PDF として保存</button>
+      <button id="mdb-print" class="mdb-toolbar__action" type="button">PDF をダウンロード</button>
       <button id="mdb-reload" class="mdb-toolbar__action mdb-toolbar__action--ghost" type="button">別ファイルを開く</button>
     </header>
     <main id="mdb-stage" class="mdb-stage">
       <div id="mdb-status" class="mdb-status">読み込み中…</div>
       <div id="mdb-document" class="mdb-document"></div>
     </main>
+    <div id="mdb-pdf-guide" class="mdb-modal" hidden>
+      <div class="mdb-modal__backdrop"></div>
+      <div class="mdb-modal__panel" role="dialog" aria-labelledby="mdb-pdf-guide-title" aria-modal="true">
+        <h2 id="mdb-pdf-guide-title" class="mdb-modal__title">PDF をダウンロード</h2>
+        <p class="mdb-modal__body">
+          Chrome の印刷ダイアログが開きます。<br />
+          <strong>「送信先」を「PDF として保存」</strong> に切り替えて「保存」を押してください。
+        </p>
+        <div class="mdb-modal__hint">
+          ※ Mac の場合は「PDF として保存」または「PDF に書き出す」と表示されます。
+        </div>
+        <label class="mdb-modal__remember">
+          <input id="mdb-pdf-guide-skip" type="checkbox" />
+          <span>次回から表示しない</span>
+        </label>
+        <div class="mdb-modal__actions">
+          <button id="mdb-pdf-guide-cancel" class="mdb-toolbar__action mdb-toolbar__action--ghost" type="button">キャンセル</button>
+          <button id="mdb-pdf-guide-go" class="mdb-toolbar__action" type="button">印刷ダイアログを開く</button>
+        </div>
+      </div>
+    </div>
     <script type="module" src="./index.ts"></script>
   </body>
 </html>

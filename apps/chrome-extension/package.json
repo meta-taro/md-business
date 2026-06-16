@@ -20,6 +20,8 @@
     "buffer": "^6.0.3"
   },
   "devDependencies": {
+    "@fontsource/noto-sans-jp": "^5.2.9",
+    "@fontsource/noto-serif-jp": "^5.2.8",
     "@types/chrome": "^0.0.287",
     "@types/node": "^22.10.0",
     "@vitest/coverage-v8": "^2.1.8",
