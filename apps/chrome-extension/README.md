@@ -36,14 +36,18 @@ pnpm --filter @md-business/chrome-extension build
 
 ## 動作確認
 
-```bash
-# サンプル md
-templates/invoice/standard.md
-templates/invoice/inbound-eligible.md
-```
+サンプル `.md` はリポジトリ同梱の `templates/invoice/` から取得できます。
+ローカルクローンしている場合は相対パス、ブラウザで直接ダウンロードする場合は
+以下の GitHub Raw URL から保存してください（Chrome Web Store 審査者向け）:
+
+| テンプレ | 内容 | Raw URL |
+|---|---|---|
+| `standard-ja.md` | 日本語フィールド名・適格請求書（推奨） | <https://raw.githubusercontent.com/meta-taro/md-business/main/templates/invoice/standard-ja.md> |
+| `standard.md` | 英語フィールド名・標準請求書 | <https://raw.githubusercontent.com/meta-taro/md-business/main/templates/invoice/standard.md> |
+| `inbound-eligible.md` | 英語フィールド名・軽減税率（8%）込み | <https://raw.githubusercontent.com/meta-taro/md-business/main/templates/invoice/inbound-eligible.md> |
 
 1. 拡張のアイコンをクリック → ポップアップが出る
-2. `templates/invoice/standard.md` をドロップ
+2. 上記いずれかの `.md` をドロップ（または v0.1.1 以降は popup の「テンプレートから始める」ボタンを 1 クリック）
 3. 新しいタブに請求書が描画される
 4. 「PDF として保存」ボタン → 印刷ダイアログ → 「PDF に保存」
 
