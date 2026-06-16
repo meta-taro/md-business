@@ -1,6 +1,6 @@
 # Project Status — md-business
 
-最終更新: 2026-06-15
+最終更新: 2026-06-16
 
 ## 現在のフェーズ
 
@@ -24,18 +24,23 @@ Phase 0 骨格は完了見込み。Phase 1 を MVP に縮約し、2026-06-30 ま
 - 2026-06-15 MV3 CSP 違反の根治: gray-matter → js-yaml 置換、Ajv standalone code-gen 導入、`@md-business/core` を browser-safe / `./runtime` に分割
 - 2026-06-15 baseline 項目5 補完: Husky 9 + `.husky/pre-commit`（lint/typecheck/test:run）+ `.husky/pre-push`（build + bundle 走査）+ Vite `EVAL` warning の error 化
 - 2026-06-15 Ajv standalone の `require()` 残置（ucs2length / ajv-formats）を build-validate.mjs の後処理で top-level `import * as` に持ち上げ、ブラウザの `ReferenceError: require is not defined` を根治。scan-bundle に `require("...")` 検出（文字列/コメント除外つき）も追加
+- 2026-06-16 PDF DL ガイドモーダル実装（A 方針: Chrome 印刷ダイアログ自動起動 + 「送信先=PDFとして保存」案内 + `mdb:pdf-guide-skip` localStorage フラグでスキップ可）
+- 2026-06-16 Noto Sans JP / Noto Serif JP を `@fontsource/*` 経由で 9 ファイル同梱。`scripts/post-build.mjs` で `dist/vendor/fonts/` にコピー + `dist/styles/fonts.css` 自動生成。viewer 起動時に `chrome.runtime.getURL` で動的読み込み。`MdBusiness Body` / `MdBusiness Stamp` alias を追加し fork での篆書差し替えに対応
+- 2026-06-16 篆書系 OSS フォント調査: 青柳衡山フォント T はカスタムライセンスで再配布不可、JFZSKSealScript は OFL だが日本語非対応 → Noto Serif JP Bold で代替、Phase 1.1 で再評価
+- 2026-06-16 ハンコ SVG ジェネレータ実装（`packages/renderer-pdf/src/stamp.ts`）。`stamp.shape: auto` は法人キーワード（株式会社/有限会社/合同会社/合名会社/合資会社 / `(株)` / `㈱` 系）で角印、それ以外は丸印を自動判定。1/2/3/4 字レイアウト分岐、ASCII は横書き 1 行、CJK は縦書き / 田の字。朱色 `#c8161d`、フォントは `MdBusiness Stamp` alias 経由
+- 2026-06-16 schema-invoice に `stamp?: { enabled?, shape?, text?, font? }` フィールド追加。Ajv standalone 再ビルド、20 件のハンコテスト追加（renderer-pdf 全 52 tests pass、stamp.ts 98% カバレッジ）
 
 ## 進行中
 
 - #10 Chrome Web Store 申請パッケージ準備（**PdM 方針 2026-06-15: 最優先**。理想は審査通った Web Store 版を PdM 業務利用）
-- #8 ローカル動作確認: 適格請求書レンダリングまで OK（PdM スクリーンショット確認済 2026-06-15 21:58）。PDF DL ボタン経由の実 DL は未確認（#10 と合わせて検証）
+- #8 ローカル動作確認: 適格請求書レンダリングまで OK（PdM スクリーンショット確認済 2026-06-15 21:58）。PDF DL ボタン + ハンコ表示の最終確認は PdM 側リロード後待ち（2026-06-16）
 - #9 `templates/invoice.example.md` の Issue 仕様（単一ファイル）への寄せ
 
-## 明日の予定（2026-06-16）
+## 次回 PdM 確認待ち
 
-1. #10 PRIVACY.md 作成 / 掲載アセット（アイコン・スクリーンショット・説明文）整備 / Web Store 申請 zip
-2. ハンコ要否確認: 現状 decisions.md は印影なし方針（2026-06-14）。PdM から「ハンコいる？」の問いあり → 改めて確認
-3. PDF DL の最終動作確認
+1. 拡張をリロードしてテンプレ `templates/invoice/standard.md` を開き、ハンコ（株式会社サンプル発行元 → 角印）が朱色で印刷ダイアログプレビュー上に出るか
+2. 「PDF をダウンロード」クリック → 案内モーダル → 印刷ダイアログ → 「PDF として保存」で保存できるか
+3. 「次回から表示しない」チェック後、2 回目以降モーダルが出ずに直接ダイアログが開くか
 
 ## 次タスク（Phase 1-MVP）
 
