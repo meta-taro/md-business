@@ -287,15 +287,16 @@ function handlePdfDownloadClick(): void {
 let pendingPrint: LoadMarkdownResult & { ok: true } | null = null;
 
 /**
- * Re-use the on-screen preview iframe for printing: rewrite it with a fresh
- * Paged.js-paginated document, fire `print()`, and restore the live preview
- * ONLY after `afterprint` (not in a `finally`). The early-restore version
- * sent a blanked-out document to Chrome's async print pipeline.
+ * Re-use the on-screen preview iframe for printing: rewrite it with a print
+ * document, swap the parent's `document.title` (Chrome uses the TOP frame's
+ * title for "Save as PDF" filename — not the iframe's), fire `print()`, and
+ * restore both on `afterprint`.
  *
- * Why the preview iframe (not a disposable off-screen one): Chrome's print
- * pipeline reliably captures on-screen iframes; an off-screen iframe at
- * `left: -10000px` produced a blank dialog in practice. Reusing the visible
- * preview also means Paged.js measures real layout boxes, not a detached node.
+ * Why no Paged.js in this path: in practice, Paged.js inside an iframe that
+ * is then printed via `iframe.contentWindow.print()` produced a blank Chrome
+ * print dialog. The invoice template is single-page A4 and its stylesheet
+ * already declares `@page size: A4 portrait` + margins, so native browser
+ * pagination is sufficient and avoids the iframe + Paged.js interaction bug.
  */
 async function runPrintFlow(result: LoadMarkdownResult & { ok: true }): Promise<void> {
   const iframe = document.getElementById('mdb-preview') as HTMLIFrameElement | null;
@@ -305,7 +306,6 @@ async function runPrintFlow(result: LoadMarkdownResult & { ok: true }): Promise<
 
   const fontsUrl = chrome.runtime.getURL('styles/fonts.css');
   const stylesUrl = chrome.runtime.getURL(result.stylesHref);
-  const pagedUrl = chrome.runtime.getURL('vendor/paged.polyfill.js');
   const printHtml = `<!doctype html>
 <html lang="ja">
 <head>
@@ -315,14 +315,10 @@ async function runPrintFlow(result: LoadMarkdownResult & { ok: true }): Promise<
 <link rel="stylesheet" href="${stylesUrl}">
 <style>
   html, body { margin: 0; background: white; }
-  @media print {
-    .pagedjs_sheet { box-shadow: none; background: transparent; }
-  }
 </style>
 </head>
 <body>
 ${result.bodyHtml}
-<script src="${pagedUrl}"></script>
 </body>
 </html>`;
 
@@ -330,15 +326,23 @@ ${result.bodyHtml}
   doc.write(printHtml);
   doc.close();
 
-  await waitForPagedJsRender(doc);
+  await waitForStylesheetsLoaded(doc);
   await new Promise<void>((resolve) => {
     win.requestAnimationFrame(() => resolve());
   });
 
-  // Restore the live preview AFTER the dialog closes — `window.print()` is
-  // async in Chrome (the dialog opens on the next tick). Putting the restore
-  // in a `finally` after `print()` blanks the dialog before it opens.
+  // Chrome's "Save as PDF" uses the TOP-LEVEL frame's document.title as the
+  // default filename, even when `print()` is called on a sub-frame. Swap it
+  // temporarily so the user gets the schema-derived filename, not
+  // "md-business viewer.pdf".
+  const previousTitle = document.title;
+  document.title = result.pdfFileName;
+
+  // Restore preview + title AFTER the dialog closes — `window.print()` is
+  // async in Chrome (the dialog opens on the next tick), so a `finally`
+  // restore would blank the dialog before it opens.
   const restore = (): void => {
+    document.title = previousTitle;
     if (state.lastStylesHref) bootstrapIframe(state.lastStylesHref);
     renderPreviewFromSource();
   };
@@ -351,26 +355,30 @@ ${result.bodyHtml}
   win.print();
 }
 
-function waitForPagedJsRender(doc: Document): Promise<void> {
-  // Paged.js mounts `<div class="pagedjs_pages">` once layout is complete.
-  // 4s safety net so a broken Paged.js load does not hang the user forever.
-  return new Promise((resolve) => {
-    if (doc.querySelector('.pagedjs_pages')) {
-      resolve();
-      return;
-    }
-    const observer = new MutationObserver(() => {
-      if (doc.querySelector('.pagedjs_pages')) {
-        observer.disconnect();
-        resolve();
-      }
-    });
-    observer.observe(doc.body, { childList: true, subtree: true });
-    globalThis.setTimeout(() => {
-      observer.disconnect();
-      resolve();
-    }, 4000);
-  });
+/**
+ * Resolve once every `<link rel="stylesheet">` in the given document has
+ * finished loading (success OR error — we proceed either way so a missing
+ * stylesheet does not hang the print flow). Without this, Chrome will print
+ * the document before invoice.css applies @page rules, producing a blank or
+ * unstyled output.
+ */
+function waitForStylesheetsLoaded(doc: Document): Promise<void> {
+  const links = Array.from(doc.querySelectorAll<HTMLLinkElement>('link[rel="stylesheet"]'));
+  if (links.length === 0) return Promise.resolve();
+  return Promise.all(
+    links.map(
+      (link) =>
+        new Promise<void>((resolve) => {
+          if (link.sheet) {
+            resolve();
+            return;
+          }
+          link.addEventListener('load', () => resolve(), { once: true });
+          link.addEventListener('error', () => resolve(), { once: true });
+          globalThis.setTimeout(resolve, 4000);
+        }),
+    ),
+  ).then(() => undefined);
 }
 
 function escapeHtmlText(value: string): string {
