@@ -287,21 +287,17 @@ function handlePdfDownloadClick(): void {
 let pendingPrint: LoadMarkdownResult & { ok: true } | null = null;
 
 /**
- * Re-render the iframe with the strictly-validated HTML, inject Paged.js,
- * wait for pagination, then invoke `iframe.contentWindow.print()`.
+ * Spawn a disposable hidden iframe, paginate the strictly-validated HTML with
+ * Paged.js inside it, then invoke `printFrame.contentWindow.print()` and tear
+ * the iframe down once the print dialog is dismissed.
  *
- * Paged.js is sandboxed inside the iframe — it never touches the host page,
- * so the editor / toolbar / modal all survive the print.
+ * Why a separate iframe (not the preview one): `window.print()` returns
+ * asynchronously in Chrome — the dialog opens on the next event-loop tick.
+ * If we restore the preview iframe immediately after `print()`, the dialog
+ * captures a blanked-out document instead of the rendered invoice. A
+ * disposable print frame sidesteps the race entirely.
  */
 async function runPrintFlow(result: LoadMarkdownResult & { ok: true }): Promise<void> {
-  const iframe = document.getElementById('mdb-preview') as HTMLIFrameElement | null;
-  const doc = iframe?.contentDocument;
-  const win = iframe?.contentWindow;
-  if (!iframe || !doc || !win) return;
-
-  // Rebuild the iframe document for print: drop the preview "paper desk"
-  // wrapper so Paged.js paginates a clean body, swap title for Chrome's
-  // "Save as PDF" suggested filename.
   const fontsUrl = chrome.runtime.getURL('styles/fonts.css');
   const stylesUrl = chrome.runtime.getURL(result.stylesHref);
   const pagedUrl = chrome.runtime.getURL('vendor/paged.polyfill.js');
@@ -313,12 +309,9 @@ async function runPrintFlow(result: LoadMarkdownResult & { ok: true }): Promise<
 <link rel="stylesheet" href="${fontsUrl}">
 <link rel="stylesheet" href="${stylesUrl}">
 <style>
-  html, body { margin: 0; }
-  .pagedjs_pages { display: block; padding: 0; }
-  .pagedjs_sheet { background: white; box-shadow: 0 2px 12px rgba(0,0,0,0.15); }
-  .pagedjs_page { margin: 0 auto !important; }
+  html, body { margin: 0; background: white; }
   @media print {
-    .pagedjs_page { box-shadow: none; background: transparent; }
+    .pagedjs_sheet { box-shadow: none; background: transparent; }
   }
 </style>
 </head>
@@ -327,24 +320,47 @@ ${result.bodyHtml}
 <script src="${pagedUrl}"></script>
 </body>
 </html>`;
+
+  const printFrame = document.createElement('iframe');
+  // Off-screen but still rendered — display:none would prevent Paged.js from
+  // measuring page boxes correctly.
+  printFrame.style.position = 'fixed';
+  printFrame.style.left = '-10000px';
+  printFrame.style.top = '0';
+  printFrame.style.width = '210mm';
+  printFrame.style.height = '297mm';
+  printFrame.style.border = '0';
+  printFrame.setAttribute('aria-hidden', 'true');
+  document.body.appendChild(printFrame);
+
+  const doc = printFrame.contentDocument;
+  const win = printFrame.contentWindow;
+  if (!doc || !win) {
+    printFrame.remove();
+    return;
+  }
+
   doc.open();
   doc.write(printHtml);
   doc.close();
 
   await waitForPagedJsRender(doc);
-  // requestAnimationFrame inside the iframe so layout is flushed before print.
   await new Promise<void>((resolve) => {
     win.requestAnimationFrame(() => resolve());
   });
-  try {
-    win.focus();
-    win.print();
-  } finally {
-    // Restore the editable preview after the print dialog closes so the user
-    // can keep editing. window.print() blocks until the dialog is dismissed.
-    if (state.lastStylesHref) bootstrapIframe(state.lastStylesHref);
-    renderPreviewFromSource();
-  }
+
+  // Tear down the print frame once the user dismisses the dialog. `afterprint`
+  // fires on cancel and save; fall back to a generous timeout in case the
+  // browser does not deliver the event (very rare, but observed in extension
+  // sandboxes on older Chrome builds).
+  const cleanup = (): void => {
+    if (printFrame.isConnected) printFrame.remove();
+  };
+  win.addEventListener('afterprint', cleanup, { once: true });
+  globalThis.setTimeout(cleanup, 120_000);
+
+  win.focus();
+  win.print();
 }
 
 function waitForPagedJsRender(doc: Document): Promise<void> {
