@@ -10,6 +10,11 @@ build/
 .turbo/
 *.tsbuildinfo
 
+# Release artifacts (Chrome Web Store uploads / GitHub release zips / signed crx)
+release/
+*.zip
+*.crx
+
 # Test
 coverage/
 .nyc_output/
