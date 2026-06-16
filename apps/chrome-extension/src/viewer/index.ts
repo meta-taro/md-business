@@ -287,17 +287,22 @@ function handlePdfDownloadClick(): void {
 let pendingPrint: LoadMarkdownResult & { ok: true } | null = null;
 
 /**
- * Spawn a disposable hidden iframe, paginate the strictly-validated HTML with
- * Paged.js inside it, then invoke `printFrame.contentWindow.print()` and tear
- * the iframe down once the print dialog is dismissed.
+ * Re-use the on-screen preview iframe for printing: rewrite it with a fresh
+ * Paged.js-paginated document, fire `print()`, and restore the live preview
+ * ONLY after `afterprint` (not in a `finally`). The early-restore version
+ * sent a blanked-out document to Chrome's async print pipeline.
  *
- * Why a separate iframe (not the preview one): `window.print()` returns
- * asynchronously in Chrome — the dialog opens on the next event-loop tick.
- * If we restore the preview iframe immediately after `print()`, the dialog
- * captures a blanked-out document instead of the rendered invoice. A
- * disposable print frame sidesteps the race entirely.
+ * Why the preview iframe (not a disposable off-screen one): Chrome's print
+ * pipeline reliably captures on-screen iframes; an off-screen iframe at
+ * `left: -10000px` produced a blank dialog in practice. Reusing the visible
+ * preview also means Paged.js measures real layout boxes, not a detached node.
  */
 async function runPrintFlow(result: LoadMarkdownResult & { ok: true }): Promise<void> {
+  const iframe = document.getElementById('mdb-preview') as HTMLIFrameElement | null;
+  const doc = iframe?.contentDocument;
+  const win = iframe?.contentWindow;
+  if (!iframe || !doc || !win) return;
+
   const fontsUrl = chrome.runtime.getURL('styles/fonts.css');
   const stylesUrl = chrome.runtime.getURL(result.stylesHref);
   const pagedUrl = chrome.runtime.getURL('vendor/paged.polyfill.js');
@@ -321,25 +326,6 @@ ${result.bodyHtml}
 </body>
 </html>`;
 
-  const printFrame = document.createElement('iframe');
-  // Off-screen but still rendered — display:none would prevent Paged.js from
-  // measuring page boxes correctly.
-  printFrame.style.position = 'fixed';
-  printFrame.style.left = '-10000px';
-  printFrame.style.top = '0';
-  printFrame.style.width = '210mm';
-  printFrame.style.height = '297mm';
-  printFrame.style.border = '0';
-  printFrame.setAttribute('aria-hidden', 'true');
-  document.body.appendChild(printFrame);
-
-  const doc = printFrame.contentDocument;
-  const win = printFrame.contentWindow;
-  if (!doc || !win) {
-    printFrame.remove();
-    return;
-  }
-
   doc.open();
   doc.write(printHtml);
   doc.close();
@@ -349,15 +335,17 @@ ${result.bodyHtml}
     win.requestAnimationFrame(() => resolve());
   });
 
-  // Tear down the print frame once the user dismisses the dialog. `afterprint`
-  // fires on cancel and save; fall back to a generous timeout in case the
-  // browser does not deliver the event (very rare, but observed in extension
-  // sandboxes on older Chrome builds).
-  const cleanup = (): void => {
-    if (printFrame.isConnected) printFrame.remove();
+  // Restore the live preview AFTER the dialog closes — `window.print()` is
+  // async in Chrome (the dialog opens on the next tick). Putting the restore
+  // in a `finally` after `print()` blanks the dialog before it opens.
+  const restore = (): void => {
+    if (state.lastStylesHref) bootstrapIframe(state.lastStylesHref);
+    renderPreviewFromSource();
   };
-  win.addEventListener('afterprint', cleanup, { once: true });
-  globalThis.setTimeout(cleanup, 120_000);
+  win.addEventListener('afterprint', restore, { once: true });
+  // Safety net: `afterprint` is reliable on desktop Chrome but we keep a
+  // generous timeout in case a future build drops the event silently.
+  globalThis.setTimeout(restore, 120_000);
 
   win.focus();
   win.print();
