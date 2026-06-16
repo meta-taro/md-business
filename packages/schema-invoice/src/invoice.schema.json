@@ -177,6 +177,30 @@
     "notes": {
       "type": "string",
       "description": "Free-form notes (備考)."
+    },
+    "stamp": {
+      "type": "object",
+      "description": "Issuer seal (社印 / 印影). Optional and purely visual — Japanese qualified invoices do not require a stamp by law.",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "Whether to render the stamp. Defaults to true when the `stamp` object is present."
+        },
+        "shape": {
+          "type": "string",
+          "enum": ["auto", "round", "square", "off"],
+          "description": "Stamp shape. `auto` infers from text (法人 keywords -> square / individual -> round). `off` is equivalent to `enabled: false`."
+        },
+        "text": {
+          "type": "string",
+          "description": "Override text rendered inside the stamp. When omitted, derived from `issuer.name`."
+        },
+        "font": {
+          "type": "string",
+          "description": "Font-family for the stamp glyphs. Swap-point for forks that bundle a tensho / kaisho font (default: `MdBusiness Stamp`)."
+        }
+      }
     }
   },
   "$defs": {

@@ -45,6 +45,8 @@ paymentInfo:
   accountNumber: "1234567"
   accountHolder: カ）サンプルハッコウモト
 notes: お振込手数料は貴社にてご負担をお願いいたします。
+stamp:
+  shape: auto
 ---
 
 # 請求書

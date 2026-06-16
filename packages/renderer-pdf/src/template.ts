@@ -5,6 +5,7 @@ import type {
 } from '@md-business/schema-invoice';
 import { escapeHtml } from './escape.js';
 import { formatJpy, formatNumber, formatDateIso } from './format.js';
+import { renderStampSvg } from './stamp.js';
 
 function renderParty(label: string, party: {
   name: string;
@@ -94,6 +95,17 @@ export interface RenderInvoiceBodyOptions {
   signatureArea?: boolean;
 }
 
+function renderStampForInvoice(invoice: Invoice) {
+  const s = invoice.stamp;
+  if (!s) return null;
+  if (s.enabled === false) return null;
+  return renderStampSvg({
+    text: s.text ?? invoice.issuer.name,
+    shape: s.shape ?? 'auto',
+    ...(s.font ? { font: s.font } : {}),
+  });
+}
+
 export function renderInvoiceBody(invoice: Invoice, options: RenderInvoiceBodyOptions = {}): string {
   const { signatureArea = true } = options;
   const dueLine = invoice.dueDate
@@ -102,7 +114,10 @@ export function renderInvoiceBody(invoice: Invoice, options: RenderInvoiceBodyOp
   const notes = invoice.notes
     ? `<section class="mdb-invoice__notes">${escapeHtml(invoice.notes)}</section>`
     : '';
-  const signature = signatureArea
+  const stamp = renderStampForInvoice(invoice);
+  const signature = stamp
+    ? `<section class="mdb-invoice__signature"><div class="mdb-stamp-frame">${stamp.svg}</div></section>`
+    : signatureArea
     ? `<section class="mdb-invoice__signature"><div class="seal-area">印</div></section>`
     : '';
 

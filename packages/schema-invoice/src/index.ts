@@ -8,6 +8,8 @@ export type {
   InvoiceTaxSummary,
   InvoiceTotals,
   InvoicePaymentInfo,
+  InvoiceStamp,
+  StampShape,
   TaxRate,
   AccountType,
 } from './types.js';

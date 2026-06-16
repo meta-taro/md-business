@@ -248,3 +248,15 @@ body {
   font-size: 8pt;
   color: var(--mdb-color-muted);
 }
+
+/* Auto-generated stamp (印影). The SVG carries width="Xmm" inline; this
+   wrapper just normalises line-height so it doesn't collapse text underneath. */
+.mdb-invoice__signature .mdb-stamp-frame {
+  display: inline-block;
+  line-height: 0;
+}
+
+.mdb-stamp {
+  display: block;
+}
+

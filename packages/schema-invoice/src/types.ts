@@ -53,6 +53,15 @@ export interface InvoicePaymentInfo {
   accountHolder?: string;
 }
 
+export type StampShape = 'auto' | 'round' | 'square' | 'off';
+
+export interface InvoiceStamp {
+  enabled?: boolean;
+  shape?: StampShape;
+  text?: string;
+  font?: string;
+}
+
 export interface Invoice {
   schemaVersion: 'invoice/v1';
   invoiceNumber: string;
@@ -65,4 +74,5 @@ export interface Invoice {
   totals: InvoiceTotals;
   paymentInfo?: InvoicePaymentInfo;
   notes?: string;
+  stamp?: InvoiceStamp;
 }
