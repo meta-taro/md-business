@@ -142,7 +142,7 @@ body
 `;
     const result = loadMarkdown(md);
     if (result.ok) throw new Error('expected failure');
-    expect(result.reason).toMatch(/No matching schema plugin/);
+    expect(result.reason).toMatch(/対応するスキーマ/);
   });
 
   it('rejects an unknown explicit pluginId by leaving auto-detection in charge', () => {

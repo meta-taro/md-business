@@ -56,6 +56,34 @@ describe('PluginRegistry', () => {
       r.resolve({ schema: 'design-doc', schemaVersion: 'invoice/v1' })?.id,
     ).toBe('design-doc');
   });
+
+  it('falls back to plugin.detect() when no schema field is present', () => {
+    const r = new PluginRegistry();
+    const detectingPlugin: SchemaPlugin = {
+      ...dummyPlugin('marker-schema'),
+      detect: (fm) => '請求書番号' in fm,
+    };
+    r.register(detectingPlugin);
+    expect(r.resolve({ 請求書番号: 'INV-1' })?.id).toBe('marker-schema');
+    expect(r.resolve({ unrelated: 'no' })).toBeUndefined();
+  });
+});
+
+describe('invoicePlugin.detect', () => {
+  it('claims documents with Japanese marker keys', () => {
+    expect(invoicePlugin.detect?.({ 請求書番号: 'INV-1' })).toBe(true);
+    expect(invoicePlugin.detect?.({ 品目: [] })).toBe(true);
+    expect(invoicePlugin.detect?.({ 発行元: {} })).toBe(true);
+  });
+
+  it('claims documents with English marker keys', () => {
+    expect(invoicePlugin.detect?.({ invoiceNumber: 'X' })).toBe(true);
+    expect(invoicePlugin.detect?.({ items: [] })).toBe(true);
+  });
+
+  it('does not claim unrelated documents', () => {
+    expect(invoicePlugin.detect?.({ title: 'just a note' })).toBe(false);
+  });
 });
 
 describe('createDefaultRegistry', () => {

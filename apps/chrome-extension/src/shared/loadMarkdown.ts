@@ -64,7 +64,7 @@ export function loadMarkdown(source: string, options: LoadMarkdownOptions = {}):
   } catch (error: unknown) {
     return {
       ok: false,
-      reason: 'Markdown frontmatter could not be parsed.',
+      reason: 'Markdown の frontmatter を解析できませんでした。',
       details: [error instanceof Error ? error.message : String(error)],
     };
   }
@@ -74,9 +74,10 @@ export function loadMarkdown(source: string, options: LoadMarkdownOptions = {}):
   if (!plugin) {
     return {
       ok: false,
-      reason: 'No matching schema plugin found.',
+      reason: '対応するスキーマが見つかりませんでした。',
       details: [
-        'Add `schema: invoice` (or another registered id) to the frontmatter, or set `schemaVersion: "invoice/v1"`.',
+        'frontmatter の先頭に `schemaVersion: "invoice/v1"` または `schema: invoice` を追加してください。',
+        '請求書テンプレートを参考にする場合は templates/invoice/standard-ja.md を参照してください。',
       ],
     };
   }

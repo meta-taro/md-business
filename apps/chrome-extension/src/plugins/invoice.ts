@@ -17,6 +17,12 @@ export const invoicePlugin: SchemaPlugin<Invoice> = {
   label: '請求書（適格請求書）',
   schema: invoiceSchema,
   stylesHref: 'styles/invoice.css',
+  detect(frontmatter) {
+    // Marker keys unique to invoice frontmatter — both English and the
+    // Japanese aliases that normalize would translate. Any one is enough.
+    const markers = ['invoiceNumber', '請求書番号', 'items', '品目', 'issuer', '発行元'];
+    return markers.some((k) => k in frontmatter);
+  },
   validate(frontmatter) {
     // Two transforms run before validation so authors can write a minimal
     // Japanese-keyed frontmatter and have the canonical English shape

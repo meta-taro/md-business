@@ -36,6 +36,12 @@ export class PluginRegistry {
       const id = schemaVersion.split('/')[0];
       if (id && this.plugins.has(id)) return this.plugins.get(id);
     }
+    // Fall back to plugin-defined heuristics — lets authors write a pure
+    // Japanese frontmatter (no schemaVersion / schema field) and still get
+    // auto-routed to the right schema plugin.
+    for (const plugin of this.plugins.values()) {
+      if (plugin.detect?.(frontmatter)) return plugin;
+    }
     return undefined;
   }
 }

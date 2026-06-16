@@ -21,6 +21,14 @@ export interface SchemaPlugin<TFrontmatter = unknown> {
   readonly schema: object;
   readonly stylesHref: string;
   validate(frontmatter: unknown): ValidationResult<TFrontmatter>;
+  /**
+   * Optional heuristic detector used when neither `schema:` nor
+   * `schemaVersion:` is present in the frontmatter. Lets a plugin claim a
+   * document based on schema-specific marker keys (e.g. the invoice plugin
+   * recognizes `請求書番号` / `品目` Japanese aliases) so authors writing
+   * pure Japanese frontmatter still get auto-detected.
+   */
+  detect?(frontmatter: Record<string, unknown>): boolean;
   render(frontmatter: TFrontmatter): string;
   /** Override the <title> of the generated viewer page. */
   documentTitle?(frontmatter: TFrontmatter): string;
