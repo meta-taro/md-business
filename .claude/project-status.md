@@ -4,9 +4,9 @@
 
 ## 現在のフェーズ
 
-**Phase 1-MVP: 請求書 md + Chrome 拡張（凝縮スコープ）**
+**Phase 1-MVP リリース完了 → Chrome Web Store 審査中**
 
-Phase 0 骨格は完了見込み。Phase 1 を MVP に縮約し、2026-06-30 までに Chrome Web Store 申請まで到達することを目標とする。
+2026-06-16 にドコカデ Inc. アカウントで v0.1.0 を submit（後で公開モード、審査通過後 30 日以内に手動公開）。審査結果待ちと並行して、UX 改善 patch（v0.1.1）と基本設計書スキーマ minor（v0.2.0）の設計を進める。
 
 ## 完了
 
@@ -34,42 +34,56 @@ Phase 0 骨格は完了見込み。Phase 1 を MVP に縮約し、2026-06-30 ま
 - 2026-06-16 バリデーションエラーの日本語化・可視化。`packages/schema-invoice/src/translateError.ts` で path × keyword を日本語ラベル（「請求先の名前は必須項目です」「発行元の登録番号: T で始まる 13 桁の数字…」等）に翻訳。Chrome 拡張 viewer に warning バナー（黄）/ error 構造化リスト（赤）を追加。`@md-business/core` の `ValidationResult` に warnings を任意プロパティとして拡張。`schema-invoice` 全 69 tests + chrome-extension 全 14 tests pass
 - 2026-06-16 請求書レイアウト圧縮 + 空行パディング。CSS の余白 / フォントを 15〜25% 圧縮、`renderInvoiceBody` に `minItemRows`（既定 5）を追加し品目が少ない場合は空行で埋める。3 項目で 2 ページ目に溢れていた問題を解消。renderer-pdf 全 57 tests pass
 - 2026-06-16 viewer を split-pane 化（左 CodeMirror 6 エディタ / 右ライブプレビュー iframe）。`previewMarkdown()` を新設し validation 失敗時も `withPreviewDefaults` で構造を補って描画継続、エラーは右パネルバッジ + 入力中はブロックしない。PDF DL ボタン押下時のみ strict 検証 → 失敗ならエラーバナー、合格なら iframe で Paged.js を読み込んで `iframe.contentWindow.print()`。Paged.js を iframe に隔離してツールバー / モーダルを破壊しない構造。chrome-extension 全 27 tests pass、branch カバレッジ 84.33%
+- 2026-06-16 frontmatter に `theme`（青/赤/黄/橙/紫/黒/灰 のプリセット or `#RRGGBB`）と `logo`（`data:image/{png,jpeg,gif,webp};base64,...` or `https://...`）対応。CSS 変数 `--mdb-color-accent` を `.mdb-invoice` の inline style で上書き、ロゴは発行元当事者ブロック上部に `max-height:14mm` で表示。テーマ色は `resolveThemeColor` で preset/hex のみ受け付け、ロゴは regex 厳格ホワイトリスト（XSS / CSS injection 防御）
+- 2026-06-16 印影で姓名間の空白を除去する fix（`extractStampChars` で `\s+` 除去）。「山田 太郎」が `['山','田',' ','太']` になり 4 文字目「郎」が落ちていた事象を修正。renderer-pdf 全 77 tests pass、stamp.ts 98% カバレッジ
+- 2026-06-16 Chrome 拡張 release zip 生成スクリプト（`apps/chrome-extension/scripts/make-release.mjs`）。Pure Node zlib + 自前 CRC32 + ZIP local header / central directory / EOCD 実装。source-map / OS junk / `.zip` / `.crx` を除外、`dist/` の中身を archive root に展開。`pnpm release` で `release/md-business-v<version>.zip` を出力
+- 2026-06-16 Web Store 用スクリーンショット 3 枚を 1280x800 / 24bit PNG (アルファなし) に letterbox 変換（Pillow、横 1280 fit + 上下白帯、Lanczos resampling）。`release/screenshots/webstore-1280x800-{1,2,3}.png`
+- 2026-06-16 Chrome 拡張 manifest 権限を実使用に合わせて最小化（`storage` のみ）。`activeTab` / `scripting` は実コードで未使用のため削除、申請フォームの理由欄削減 + 最小権限原則準拠
+- 2026-06-16 `PRIVACY.md` 追加（ゼロデータ収集宣言、`chrome.storage.session` 使用範囲明記、リモートコード不使用宣言）。Web Store の Privacy Policy URL は GitHub blob 直リンクを登録
+- 2026-06-16 Chrome Web Store 申請完了（v0.1.0、ドコカデ Inc. アカウント、後で公開モード）。審査結果待ち
+- 2026-06-16 サンプル md（`private/sample-contractor-invoice.md`、業務委託エンジニア → ドコカデ宛、4 品目 ¥616,000、テーマ青、丸印）を Web Store スクリーンショット用に生成
 
 ## 進行中
 
-- #10 Chrome Web Store 申請パッケージ準備（**PdM 方針 2026-06-15: 最優先**。理想は審査通った Web Store 版を PdM 業務利用）
-- #8 ローカル動作確認: 適格請求書レンダリングまで OK（PdM スクリーンショット確認済 2026-06-15 21:58）。PDF DL ボタン + ハンコ表示の最終確認は PdM 側リロード後待ち（2026-06-16）
-- #9 `templates/invoice.example.md` の Issue 仕様（単一ファイル）への寄せ
+- Chrome Web Store 審査結果待ち（通常 1〜7 日、初回は 2〜3 週かかる場合あり）
+- v0.1.1 patch の設計（テンプレ始動 UX）
+- v0.2.0 minor の設計（基本設計書スキーマ + 画像 / SVG / Mermaid 対応）
 
-## 次回 PdM 確認待ち
+## 次タスク
 
-1. 拡張をリロードしてテンプレ `templates/invoice/standard.md` を開き、ハンコ（株式会社サンプル発行元 → 角印）が朱色で印刷ダイアログプレビュー上に出るか
-2. 「PDF をダウンロード」クリック → 案内モーダル → 印刷ダイアログ → 「PDF として保存」で保存できるか
-3. 「次回から表示しない」チェック後、2 回目以降モーダルが出ずに直接ダイアログが開くか
+### v0.1.1 patch（審査結果待ち中に仕込み、通過直後に提出）
 
-## 次タスク（Phase 1-MVP）
+1. popup に「テンプレートから始める」ボタン追加（`templates/invoice/standard-ja.md` 等を `dist/templates/` に同梱、クリックで untitled として viewer を開く）
+2. viewer に「ファイル名で保存」UI（untitled 状態でも保存可能に）
+3. 書き方ガイドモーダルに frontmatter 早見表を追加
+4. バージョン bump 自動化スクリプト（`pnpm release:patch / release:minor / release:major` で `package.json` + `manifest.json` 同時更新 → rebuild → zip）
+5. `post-build.mjs` に `templates/` コピーを追加
 
-1. `packages/core/` 最小実装（frontmatter パーサ + Ajv 検証）
-2. `packages/schema-invoice/` 適格請求書 JSON Schema（mkpoli/typst-inboisu 参照）
-3. `packages/renderer-pdf/` Paged.js + 日本語フォント埋め込み + A4 縦 + 署名欄余白
-4. `apps/chrome-extension/` — `simov/markdown-viewer` fork ベース
-   - **スキーマプラグイン構造**（最初は invoice のみ組み込み、後で test-spec / design-doc を追加できる）
-   - ポップアップでスキーマ選択（v1 は invoice のみ表示） + md インポート UI + プレビュー + PDF DL
-5. `templates/invoice.example.md` 汎用ダミー
-6. `private/kingdom-2026-06.md` キングダム社実データ（ignore 対象）で PDF 出力検証
-7. `PRIVACY.md` + Chrome Web Store 申請パッケージ
-8. ドコカデアカウントから submit（人間操作）
+### v0.2.0 minor（Phase 2 = 基本設計書スキーマ）
 
-## Chrome 拡張の拡張性方針（重要）
+1. `packages/schema-spec/` 新設（基本設計書スキーマ・章立て / ER / シーケンス / 画面遷移 / 用語集 等）
+2. viewer: ローカル相対パス画像 (`file:///`) リゾルバ + blob URL 差し替え
+3. viewer: HTTPS 外部画像 + manifest の `host_permissions` 拡張 + CSP 調整
+4. viewer: インライン `<svg>...</svg>` 受け入れ（DOMPurify サニタイズ）
+5. viewer: ` ```mermaid ` コードブロックを動的 import レンダリング（mermaid.js ~200KB を遅延ロード、初期バンドルへの影響ゼロ）
+6. `templates/spec/` 配下に基本設計書サンプル + draw.io SVG エクスポート例 + Mermaid サンプル
+7. PDF 化時は Mermaid 描画完了を待ってから印刷
 
-Chrome 拡張は単発リリースで終わらず、md-business シリーズ全体の受け皿として継続アップデートする。
+## Chrome 拡張の拡張性方針（SemVer 運用）
 
-- スキーマレジストリ型: 拡張内で `schema-invoice` `schema-test-spec` `schema-design-doc` 等を切替可能
+Chrome 拡張は単発リリースで終わらず、md-business シリーズ全体の受け皿として継続アップデートする。バージョンは SemVer に従い、0.x のうちは MINOR で破壊変更余地を残し、schema API 安定後に v1.0 を打つ。
+
+- スキーマレジストリ型: 拡張内で `schema-invoice` `schema-spec` `schema-test-spec` 等を切替可能
 - ビューワー / レンダラもスキーマごとにプラグインとして差し替え可能
-- 新スキーマ追加時は拡張のマイナーアップデートで Chrome Web Store に再 submit
-- v1.0.0 (Phase 1-MVP): invoice のみ
-- v1.1.0 (Phase 3): test-spec（名前 / 日次チェック OK/NG / 備考欄）/ design-doc 追加
-- v1.2.0 (Phase 5): 見積 / 議事録 / 契約 / 履歴
+- 新スキーマ追加時は MINOR bump で Chrome Web Store に再 submit、patch bump は同スキーマ内の改善
+
+| 拡張バージョン | リリース時期 | 対応スキーマ / 主機能 |
+|---|---|---|
+| v0.1.0 | 2026-06-16（審査中） | `invoice`（請求書）MVP |
+| v0.1.x | 審査通過直後〜 | invoice patch（テンプレ始動 UX、ファイル名 UI、書き方ガイド拡充 等） |
+| v0.2.0 | Phase 2 完了時 | + `schema-spec`（基本設計書）+ 画像 / SVG / Mermaid 対応 |
+| v0.3.0 以降 | Phase 3 以降 | + `test-spec` / `quotation` / `meeting-minutes` / `contract` / `resume` 等 |
+| v1.0.0 | schema API 安定 + 主要スキーマ揃った時点 | 安定版宣言 |
 
 ## 将来構想（未決定・Phase 1b 以降で検討）
 
