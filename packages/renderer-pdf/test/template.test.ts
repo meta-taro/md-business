@@ -71,6 +71,36 @@ describe('renderInvoiceBody — mixed rate', () => {
   });
 });
 
+describe('renderInvoiceBody — empty row padding', () => {
+  it('pads the items table up to 5 rows by default', () => {
+    // standardInvoice() has 1 real item → 4 placeholder rows should follow.
+    const html = renderInvoiceBody(standardInvoice());
+    const emptyRowMatches = html.match(/<tr class="empty"/g) ?? [];
+    expect(emptyRowMatches.length).toBe(4);
+  });
+
+  it('honors a custom minItemRows', () => {
+    const html = renderInvoiceBody(standardInvoice(), { minItemRows: 8 });
+    const emptyRowMatches = html.match(/<tr class="empty"/g) ?? [];
+    expect(emptyRowMatches.length).toBe(7);
+  });
+
+  it('emits no placeholder rows when items already meet the minimum', () => {
+    const html = renderInvoiceBody(standardInvoice(), { minItemRows: 1 });
+    expect(html).not.toContain('<tr class="empty"');
+  });
+
+  it('emits no placeholder rows when minItemRows is zero', () => {
+    const html = renderInvoiceBody(standardInvoice(), { minItemRows: 0 });
+    expect(html).not.toContain('<tr class="empty"');
+  });
+
+  it('marks placeholder rows aria-hidden so screen readers skip them', () => {
+    const html = renderInvoiceBody(standardInvoice());
+    expect(html).toContain('aria-hidden="true"');
+  });
+});
+
 describe('renderInvoiceBody — XSS safety', () => {
   const html = renderInvoiceBody(xssInvoice());
 

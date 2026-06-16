@@ -68,6 +68,24 @@ function renderItemRow(item: InvoiceItem): string {
   `;
 }
 
+// Japanese invoice convention: pad the item table to a fixed visual row count
+// so the layout stays balanced even with 1–2 line items. Empty rows preserve
+// column widths and table borders so the document does not look "half-filled".
+function renderEmptyItemRow(): string {
+  return `
+    <tr class="empty" aria-hidden="true">
+      <td>&nbsp;</td>
+      <td></td>
+      <td></td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+  `;
+}
+
+const DEFAULT_MIN_ITEM_ROWS = 5;
+
 function renderTaxBucketRow(label: string, bucket: InvoiceTaxBucket): string {
   if (bucket.subtotal === 0 && bucket.tax === 0) return '';
   return `
@@ -99,6 +117,13 @@ function renderPayment(invoice: Invoice): string {
 
 export interface RenderInvoiceBodyOptions {
   signatureArea?: boolean;
+  /**
+   * Minimum number of visual rows in the items table. When `items[]` is
+   * shorter, the remaining rows render as empty placeholders so the table
+   * looks complete on the printed page — matches the Japanese 請求書
+   * convention of fixed-height item grids. Defaults to 5.
+   */
+  minItemRows?: number;
 }
 
 function renderStampForInvoice(invoice: Invoice) {
@@ -113,7 +138,11 @@ function renderStampForInvoice(invoice: Invoice) {
 }
 
 export function renderInvoiceBody(invoice: Invoice, options: RenderInvoiceBodyOptions = {}): string {
-  const { signatureArea = true } = options;
+  const { signatureArea = true, minItemRows = DEFAULT_MIN_ITEM_ROWS } = options;
+  const emptyRowCount = Math.max(0, minItemRows - invoice.items.length);
+  const itemsMarkup =
+    invoice.items.map(renderItemRow).join('') +
+    Array.from({ length: emptyRowCount }, renderEmptyItemRow).join('');
   const dueLine = invoice.dueDate
     ? `<dt>支払期限</dt><dd>${escapeHtml(formatDateIso(invoice.dueDate))}</dd>`
     : '';
@@ -164,7 +193,7 @@ export function renderInvoiceBody(invoice: Invoice, options: RenderInvoiceBodyOp
           </tr>
         </thead>
         <tbody>
-          ${invoice.items.map(renderItemRow).join('')}
+          ${itemsMarkup}
         </tbody>
       </table>
 

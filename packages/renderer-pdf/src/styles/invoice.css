@@ -28,8 +28,8 @@ body {
   padding: 0;
   font-family: var(--mdb-font-base);
   color: var(--mdb-color-fg);
-  font-size: 10.5pt;
-  line-height: 1.55;
+  font-size: 10pt;
+  line-height: 1.45;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -41,18 +41,18 @@ body {
 .mdb-invoice__header {
   display: grid;
   grid-template-columns: 1fr auto;
-  gap: 8mm;
+  gap: 6mm;
   align-items: flex-start;
-  margin-bottom: 8mm;
-  padding-bottom: 4mm;
+  margin-bottom: 5mm;
+  padding-bottom: 3mm;
   border-bottom: 2px solid var(--mdb-color-accent);
 }
 
 .mdb-invoice__title {
-  font-size: 22pt;
+  font-size: 20pt;
   font-weight: 700;
   letter-spacing: 0.15em;
-  margin: 0 0 2mm;
+  margin: 0 0 1.5mm;
 }
 
 .mdb-invoice__meta {
@@ -79,28 +79,28 @@ body {
 .mdb-invoice__parties {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 8mm;
-  margin-bottom: 8mm;
+  gap: 6mm;
+  margin-bottom: 5mm;
 }
 
 .mdb-invoice__party {
   border: 1px solid var(--mdb-color-border);
-  padding: 4mm;
+  padding: 3mm;
   border-radius: 2mm;
 }
 
 .mdb-invoice__party h2 {
-  margin: 0 0 2mm;
-  font-size: 10pt;
+  margin: 0 0 1.5mm;
+  font-size: 9.5pt;
   color: var(--mdb-color-muted);
   font-weight: 600;
   letter-spacing: 0.08em;
 }
 
 .mdb-invoice__party .name {
-  font-size: 13pt;
+  font-size: 12pt;
   font-weight: 700;
-  margin-bottom: 2mm;
+  margin-bottom: 1.5mm;
   display: flex;
   align-items: center;
   gap: 3mm;
@@ -109,28 +109,28 @@ body {
 
 .mdb-invoice__registration {
   font-family: var(--mdb-font-mono);
-  font-size: 10pt;
+  font-size: 9pt;
   color: var(--mdb-color-accent);
-  margin-top: 2mm;
+  margin-top: 1mm;
 }
 
 .mdb-invoice__items {
   width: 100%;
   border-collapse: collapse;
-  margin-bottom: 6mm;
+  margin-bottom: 4mm;
 }
 
 .mdb-invoice__items th,
 .mdb-invoice__items td {
   border-bottom: 1px solid var(--mdb-color-border);
-  padding: 2.5mm 2mm;
+  padding: 1.8mm 2mm;
   vertical-align: top;
 }
 
 .mdb-invoice__items thead th {
   background: #f3f5f9;
   font-weight: 600;
-  font-size: 9.5pt;
+  font-size: 9pt;
   text-align: left;
   border-bottom-width: 2px;
 }
@@ -150,22 +150,29 @@ body {
   margin-right: 1mm;
 }
 
+/* Placeholder rows padded by the renderer so the items table always shows the
+   conventional fixed-row look. Keep them visually quiet but the same height
+   as a real row — the &nbsp; in the first cell handles line-height. */
+.mdb-invoice__items tr.empty td {
+  color: transparent;
+}
+
 .mdb-invoice__totals {
   display: grid;
   grid-template-columns: 1fr auto;
-  gap: 6mm;
-  margin-bottom: 6mm;
+  gap: 4mm;
+  margin-bottom: 4mm;
 }
 
 .mdb-invoice__tax-summary {
   border: 1px solid var(--mdb-color-border);
   border-radius: 2mm;
-  padding: 3mm 4mm;
+  padding: 2.5mm 3mm;
 }
 
 .mdb-invoice__tax-summary h3 {
-  margin: 0 0 2mm;
-  font-size: 10pt;
+  margin: 0 0 1.5mm;
+  font-size: 9.5pt;
   color: var(--mdb-color-muted);
 }
 
@@ -198,7 +205,7 @@ body {
 }
 
 .mdb-invoice__grand-total .amount {
-  font-size: 20pt;
+  font-size: 18pt;
   font-weight: 700;
   color: var(--mdb-color-accent);
   border-bottom: 2px double var(--mdb-color-accent);
@@ -241,11 +248,11 @@ body {
 
 .mdb-invoice__notes {
   white-space: pre-wrap;
-  font-size: 9.5pt;
+  font-size: 9pt;
   color: var(--mdb-color-muted);
   border-top: 1px dashed var(--mdb-color-border);
-  padding-top: 3mm;
-  margin-bottom: 6mm;
+  padding-top: 2.5mm;
+  margin-bottom: 4mm;
 }
 
 .mdb-invoice__signature .seal-area {
