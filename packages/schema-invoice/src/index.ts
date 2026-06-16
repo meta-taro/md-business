@@ -18,6 +18,12 @@ export type { NormalizeWarning, NormalizeResult } from './normalize.js';
 export { autofillInvoice } from './autofill.js';
 export type { TaxRounding, AutofillWarning, AutofillResult } from './autofill.js';
 export { renderInvoiceFileName } from './fileName.js';
+export {
+  translateInvoiceError,
+  translateInvoiceErrors,
+  translateInvoiceWarning,
+  translateInvoiceWarnings,
+} from './translateError.js';
 export { parseInvoiceMarkdown, parseInvoiceObject } from './parseInvoice.js';
 export type { InvoiceParseResult, InvoiceParseSuccess, InvoiceParseFailure } from './parseInvoice.js';
 export {

@@ -13,8 +13,8 @@ export interface ValidationError {
 }
 
 export type ValidationResult<T> =
-  | { ok: true; data: T }
-  | { ok: false; errors: ValidationError[] };
+  | { ok: true; data: T; warnings?: string[] }
+  | { ok: false; errors: ValidationError[]; warnings?: string[] };
 
 export type ParseAndValidateResult<T> =
   | { ok: true; frontmatter: T; body: string; ast: Root }

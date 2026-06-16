@@ -124,9 +124,45 @@ body {
 
 .mdb-status[data-state='error'] {
   border-left: 4px solid #dc2626;
+  background: #fef2f2;
   color: #7f1d1d;
-  white-space: pre-wrap;
-  font-family: 'SF Mono', Consolas, monospace;
+}
+
+.mdb-status[data-state='warning'] {
+  border-left: 4px solid #d97706;
+  background: #fffbeb;
+  color: #78350f;
+}
+
+.mdb-status__title {
+  font-weight: 700;
+  font-size: 14px;
+  margin-bottom: 6px;
+}
+
+.mdb-status__list {
+  margin: 0;
+  padding-left: 1.25em;
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+.mdb-status__list li + li {
+  margin-top: 2px;
+}
+
+/* Warnings live outside the status element so they survive past successful
+   rendering. Keep them in line with the document max-width. */
+#mdb-warnings {
+  margin: 8px auto;
+  max-width: 720px;
+}
+
+@media print {
+  .mdb-status,
+  #mdb-warnings {
+    display: none !important;
+  }
 }
 
 .mdb-document {

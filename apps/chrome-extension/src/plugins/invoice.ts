@@ -3,6 +3,8 @@ import {
   normalizeInvoiceFrontmatter,
   autofillInvoice,
   renderInvoiceFileName,
+  translateInvoiceErrors,
+  translateInvoiceWarnings,
   type Invoice,
 } from '@md-business/schema-invoice';
 import validateInvoice from '@md-business/schema-invoice/validate';
@@ -21,7 +23,22 @@ export const invoicePlugin: SchemaPlugin<Invoice> = {
     // emerge: normalize (key translation) -> autofill (compute totals).
     const normalized = normalizeInvoiceFrontmatter(frontmatter);
     const autofilled = autofillInvoice(normalized.data);
-    return validateWithCompiled<Invoice>(autofilled.data, validateInvoice);
+    const warnings = translateInvoiceWarnings([
+      ...normalized.warnings,
+      ...autofilled.warnings,
+    ]);
+    const validation = validateWithCompiled<Invoice>(autofilled.data, validateInvoice);
+    if (!validation.ok) {
+      // Translate raw Ajv errors to Japanese user-facing messages so the
+      // viewer can surface them as a readable alert list.
+      const translated = translateInvoiceErrors(validation.errors);
+      return {
+        ok: false,
+        errors: validation.errors.map((e, i) => ({ ...e, message: translated[i] ?? e.message })),
+        warnings,
+      };
+    }
+    return { ok: true, data: validation.data, warnings };
   },
   render(frontmatter) {
     return renderInvoiceBody(frontmatter);

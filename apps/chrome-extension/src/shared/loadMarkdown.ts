@@ -19,12 +19,20 @@ export interface LoadMarkdownSuccess {
    */
   pdfFileName: string;
   pluginId: string;
+  /**
+   * Non-fatal warnings collected by the plugin (e.g. autofill mismatch
+   * between supplied totals and computed totals). Already translated to
+   * Japanese user-facing messages by the plugin.
+   */
+  warnings: string[];
 }
 
 export interface LoadMarkdownFailure {
   ok: false;
   reason: string;
   details?: string[];
+  /** Warnings from upstream passes (normalize/autofill) shown alongside errors. */
+  warnings?: string[];
 }
 
 export type LoadMarkdownResult = LoadMarkdownSuccess | LoadMarkdownFailure;
@@ -75,10 +83,14 @@ export function loadMarkdown(source: string, options: LoadMarkdownOptions = {}):
 
   const validated = plugin.validate(frontmatter);
   if (!validated.ok) {
+    // Plugin is responsible for translating its own errors to user-facing
+    // language. We pass `message` through verbatim — for the invoice plugin
+    // these are already Japanese sentences like "請求先の名前は必須項目です".
     return {
       ok: false,
-      reason: `Validation failed against ${plugin.label}.`,
-      details: validated.errors.map((e) => `${e.path}: ${e.message}`),
+      reason: `${plugin.label} の Markdown に不備があります。`,
+      details: validated.errors.map((e) => e.message),
+      warnings: validated.warnings ?? [],
     };
   }
 
@@ -91,5 +103,6 @@ export function loadMarkdown(source: string, options: LoadMarkdownOptions = {}):
     documentTitle,
     pdfFileName,
     pluginId: plugin.id,
+    warnings: validated.warnings ?? [],
   };
 }

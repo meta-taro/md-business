@@ -75,8 +75,62 @@ totals: { subtotal: 0, tax: 0, total: 0 }
 `;
     const result = loadMarkdown(badMd);
     if (result.ok) throw new Error('expected failure');
-    expect(result.reason).toMatch(/Validation failed/);
-    expect(result.details?.join('\n')).toMatch(/registrationNumber/);
+    expect(result.reason).toMatch(/不備/);
+    // Errors are now translated to Japanese; registrationNumber appears as
+    // "発行元の登録番号".
+    expect(result.details?.join('\n')).toMatch(/登録番号/);
+  });
+
+  it('returns Japanese-translated error messages for missing required fields', () => {
+    // Missing recipient.name — most common author mistake.
+    const md = `---
+schemaVersion: "invoice/v1"
+invoiceNumber: "INV-1"
+issueDate: "2026-06-30"
+issuer:
+  name: "X"
+  registrationNumber: "T1234567890123"
+recipient: {}
+items:
+  - name: "A"
+    quantity: 1
+    unitPrice: 1000
+    taxRate: 10
+---
+`;
+    const result = loadMarkdown(md);
+    if (result.ok) throw new Error('expected failure');
+    expect(result.details).toEqual(
+      expect.arrayContaining([expect.stringMatching(/請求先の名前.*必須/)]),
+    );
+  });
+
+  it('exposes autofill warnings through the success path', () => {
+    // Supplied totals deliberately mismatch the items[] truth.
+    const md = `---
+schemaVersion: "invoice/v1"
+invoiceNumber: "INV-2"
+issueDate: "2026-06-30"
+issuer:
+  name: "X"
+  registrationNumber: "T1234567890123"
+recipient:
+  name: "Y"
+items:
+  - name: "A"
+    quantity: 1
+    unitPrice: 1000
+    taxRate: 10
+totals:
+  subtotal: 999
+  tax: 100
+  total: 1099
+---
+`;
+    const result = loadMarkdown(md);
+    if (!result.ok) throw new Error('expected success');
+    expect(result.warnings.length).toBeGreaterThan(0);
+    expect(result.warnings.join('\n')).toMatch(/小計|税込合計/);
   });
 
   it('falls back to a clear error when no plugin matches', () => {

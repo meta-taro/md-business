@@ -17,16 +17,68 @@ async function readPayload(): Promise<ViewerPayload | null> {
   return bucket[key] ?? null;
 }
 
-function setStatus(message: string, state: 'info' | 'error' | 'hidden'): void {
+type StatusPayload = string | { title: string; items?: string[] };
+type StatusState = 'info' | 'error' | 'warning' | 'hidden';
+
+function setStatus(message: StatusPayload, state: StatusState): void {
   const el = document.getElementById('mdb-status');
   if (!el) return;
   if (state === 'hidden') {
     el.style.display = 'none';
+    el.replaceChildren();
     return;
   }
-  el.textContent = message;
   el.dataset['state'] = state;
   el.style.display = '';
+  el.replaceChildren();
+
+  if (typeof message === 'string') {
+    el.textContent = message;
+    return;
+  }
+
+  const title = document.createElement('div');
+  title.className = 'mdb-status__title';
+  title.textContent = message.title;
+  el.appendChild(title);
+
+  if (message.items && message.items.length > 0) {
+    const list = document.createElement('ul');
+    list.className = 'mdb-status__list';
+    for (const item of message.items) {
+      const li = document.createElement('li');
+      li.textContent = item;
+      list.appendChild(li);
+    }
+    el.appendChild(list);
+  }
+}
+
+function showWarnings(items: string[]): void {
+  // Render warnings as a yellow banner separate from the status element so
+  // they remain visible even after the document successfully renders.
+  let el = document.getElementById('mdb-warnings');
+  if (!el) {
+    el = document.createElement('aside');
+    el.id = 'mdb-warnings';
+    el.className = 'mdb-status';
+    el.dataset['state'] = 'warning';
+    const stage = document.getElementById('mdb-document');
+    stage?.parentElement?.insertBefore(el, stage);
+  }
+  el.replaceChildren();
+  const title = document.createElement('div');
+  title.className = 'mdb-status__title';
+  title.textContent = '次の点を確認してください（描画は続行しています）';
+  el.appendChild(title);
+  const list = document.createElement('ul');
+  list.className = 'mdb-status__list';
+  for (const item of items) {
+    const li = document.createElement('li');
+    li.textContent = item;
+    list.appendChild(li);
+  }
+  el.appendChild(list);
 }
 
 function injectStylesheet(href: string): void {
@@ -115,8 +167,8 @@ async function main(): Promise<void> {
 
   const result = loadMarkdown(payload.source, payload.pluginId ? { pluginId: payload.pluginId } : {});
   if (!result.ok) {
-    const details = result.details?.join('\n') ?? '';
-    setStatus(`${result.reason}\n${details}`, 'error');
+    const items = [...(result.details ?? []), ...(result.warnings ?? [])];
+    setStatus({ title: result.reason, items }, 'error');
     return;
   }
 
@@ -132,6 +184,7 @@ async function main(): Promise<void> {
   const stage = document.getElementById('mdb-document');
   if (stage) stage.innerHTML = result.bodyHtml;
   setStatus('', 'hidden');
+  if (result.warnings.length > 0) showWarnings(result.warnings);
 
   // Wire toolbar + modal handlers BEFORE Paged.js, because injectPagedJs
   // detaches those nodes from <body> mid-flight. DOM event listeners survive

@@ -29,6 +29,9 @@ Phase 0 骨格は完了見込み。Phase 1 を MVP に縮約し、2026-06-30 ま
 - 2026-06-16 篆書系 OSS フォント調査: 青柳衡山フォント T はカスタムライセンスで再配布不可、JFZSKSealScript は OFL だが日本語非対応 → Noto Serif JP Bold で代替、Phase 1.1 で再評価
 - 2026-06-16 ハンコ SVG ジェネレータ実装（`packages/renderer-pdf/src/stamp.ts`）。`stamp.shape: auto` は法人キーワード（株式会社/有限会社/合同会社/合名会社/合資会社 / `(株)` / `㈱` 系）で角印、それ以外は丸印を自動判定。1/2/3/4 字レイアウト分岐、ASCII は横書き 1 行、CJK は縦書き / 田の字。朱色 `#c8161d`、フォントは `MdBusiness Stamp` alias 経由
 - 2026-06-16 schema-invoice に `stamp?: { enabled?, shape?, text?, font? }` フィールド追加。Ajv standalone 再ビルド、20 件のハンコテスト追加（renderer-pdf 全 52 tests pass、stamp.ts 98% カバレッジ）
+- 2026-06-16 schema-invoice v0.2: 日本語 frontmatter キー（請求書番号/発行日/発行元/請求先/品目/振込先/印影/丸め/ファイル名）対応、normalize+autofill 2 段、autofill で taxSummary/totals を items[] から自動計算（既定丸め floor、適格請求書 B2B 慣行）。`templates/invoice/standard-ja.md` 追加。`schema-invoice` 全 45 tests pass、branch 84.48%
+- 2026-06-16 PDF 保存ファイル名のテンプレート指定対応（`fileName: "御請求書_{請求先}{敬称}_{発行元}_{YMD}"` のような token 展開、Windows 禁止文字をサニタイズ）。viewer は `window.print()` 直前に `document.title` を差し替え、終了後復元
+- 2026-06-16 バリデーションエラーの日本語化・可視化。`packages/schema-invoice/src/translateError.ts` で path × keyword を日本語ラベル（「請求先の名前は必須項目です」「発行元の登録番号: T で始まる 13 桁の数字…」等）に翻訳。Chrome 拡張 viewer に warning バナー（黄）/ error 構造化リスト（赤）を追加。`@md-business/core` の `ValidationResult` に warnings を任意プロパティとして拡張。`schema-invoice` 全 69 tests + chrome-extension 全 14 tests pass
 
 ## 進行中
 
