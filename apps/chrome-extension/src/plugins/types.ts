@@ -24,4 +24,11 @@ export interface SchemaPlugin<TFrontmatter = unknown> {
   render(frontmatter: TFrontmatter): string;
   /** Override the <title> of the generated viewer page. */
   documentTitle?(frontmatter: TFrontmatter): string;
+  /**
+   * Compute the suggested PDF save filename. The viewer assigns this to
+   * `document.title` right before `window.print()` so Chrome's "Save as PDF"
+   * dialog pre-fills the user's preferred name, then restores the tab title.
+   * Falls back to `documentTitle()` when not provided.
+   */
+  pdfFileName?(frontmatter: TFrontmatter): string;
 }

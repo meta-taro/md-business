@@ -75,4 +75,11 @@ export interface Invoice {
   paymentInfo?: InvoicePaymentInfo;
   notes?: string;
   stamp?: InvoiceStamp;
+  /**
+   * Optional template for the PDF save filename. Substituted at viewer-side
+   * render time — see `renderInvoiceFileName` for the token vocabulary.
+   * Authors set this once per company; AI-generated invoices inherit it
+   * via the company's template.
+   */
+  fileName?: string;
 }

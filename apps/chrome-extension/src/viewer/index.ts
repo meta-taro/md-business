@@ -54,6 +54,33 @@ function injectFonts(): void {
 }
 
 function injectPagedJs(): void {
+  // Paged.js scoops the ENTIRE <body> into a `<template data-ref="pagedjs-content">`
+  // and re-renders it inside `<div class="pagedjs_pages">`. That removes our
+  // toolbar and modal from the live DOM. Detach them first, then re-attach
+  // them as siblings of `.pagedjs_pages` once pagination has rendered.
+  const toolbar = document.getElementById('mdb-toolbar');
+  const modal = document.getElementById('mdb-pdf-guide');
+  toolbar?.remove();
+  modal?.remove();
+
+  const reattach = (): void => {
+    if (toolbar && !toolbar.isConnected) document.body.appendChild(toolbar);
+    if (modal && !modal.isConnected) document.body.appendChild(modal);
+  };
+
+  if (toolbar || modal) {
+    const observer = new MutationObserver(() => {
+      if (document.querySelector('.pagedjs_pages')) {
+        reattach();
+        observer.disconnect();
+      }
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+    // Safety net: if Paged.js fails to load or never renders, still restore
+    // the UI within a few seconds so the user is not left stranded.
+    globalThis.setTimeout(reattach, 4000);
+  }
+
   // Paged.js is vendored locally to satisfy MV3 CSP.
   const url = chrome.runtime.getURL('vendor/paged.polyfill.js');
   const script = document.createElement('script');
@@ -62,7 +89,21 @@ function injectPagedJs(): void {
   document.body.appendChild(script);
 }
 
+function markStaticStylesheetsAsPagedIgnore(): void {
+  // Vite rewrites the `<link rel="stylesheet" href="./viewer.css">` we author
+  // in index.html into a bundled href and strips any extra attributes we put
+  // on the tag — so we cannot annotate it at author time. Tag it from JS
+  // before Paged.js mounts so that Paged.js skips it during CSS parsing.
+  // (Without this Paged.js treats `@media print` rules as canonical and the
+  // toolbar's `display: none` leaks onto the screen.) Stylesheets we inject
+  // ourselves carry a `data-mdb` marker and are left untouched.
+  for (const el of document.head.querySelectorAll<HTMLLinkElement>('link[rel="stylesheet"]')) {
+    if (!el.dataset['mdb']) el.setAttribute('data-pagedjs-ignore', '');
+  }
+}
+
 async function main(): Promise<void> {
+  markStaticStylesheetsAsPagedIgnore();
   const payload = await readPayload();
   if (!payload) {
     setStatus(
@@ -80,6 +121,11 @@ async function main(): Promise<void> {
   }
 
   document.title = result.documentTitle;
+  // Stash on globalThis so `triggerPrint` can swap `document.title` to the
+  // PDF filename right before `window.print()` opens — Chrome reads the
+  // current `document.title` as the suggested "Save as PDF" filename.
+  (globalThis as unknown as { __mdbPdfFileName?: string }).__mdbPdfFileName = result.pdfFileName;
+  (globalThis as unknown as { __mdbViewerTitle?: string }).__mdbViewerTitle = result.documentTitle;
   injectFonts();
   injectStylesheet(result.stylesHref);
 
@@ -87,20 +133,46 @@ async function main(): Promise<void> {
   if (stage) stage.innerHTML = result.bodyHtml;
   setStatus('', 'hidden');
 
-  // Paged.js paginates the document for crisp print preview.
-  injectPagedJs();
-
+  // Wire toolbar + modal handlers BEFORE Paged.js, because injectPagedJs
+  // detaches those nodes from <body> mid-flight. DOM event listeners survive
+  // the detach -> re-append cycle, but getElementById would not find them
+  // during the detached window.
   const printBtn = document.getElementById('mdb-print');
   printBtn?.addEventListener('click', handlePdfDownloadClick);
 
+  // "別ファイルを開く" opens a hidden <input type="file"> so the user can swap
+  // the rendered document in-place. We deliberately do NOT message a service
+  // worker — MV3's `chrome.action.openPopup()` requires a user gesture and is
+  // brittle across platforms; an inline file picker is the reliable path.
   const reloadBtn = document.getElementById('mdb-reload');
-  reloadBtn?.addEventListener('click', () => {
-    chrome.runtime.sendMessage({ type: 'open-popup' }).catch(() => {
-      /* ignore — popup will be opened by user clicking the action icon */
+  const filePicker = document.getElementById('mdb-file-picker') as HTMLInputElement | null;
+  reloadBtn?.addEventListener('click', () => filePicker?.click());
+  filePicker?.addEventListener('change', () => {
+    const file = filePicker.files?.[0];
+    if (!file) return;
+    void swapDocument(file).finally(() => {
+      filePicker.value = '';
     });
   });
 
   wirePdfGuideModal();
+
+  // Paged.js paginates the document for crisp print preview.
+  injectPagedJs();
+}
+
+async function swapDocument(file: File): Promise<void> {
+  if (!/\.(md|markdown)$/i.test(file.name) && file.type !== 'text/markdown') {
+    setStatus('Markdown (.md) ファイルを選択してください。', 'error');
+    return;
+  }
+  const source = await file.text();
+  const payload: ViewerPayload = { source, filename: file.name };
+  // Persist so a manual refresh re-renders the new doc rather than the old one.
+  await chrome.storage.session.set({ [STORAGE_KEY]: payload });
+  // Easiest way to fully reset Paged.js state is a full reload — the existing
+  // bootstrap path (storage → loadMarkdown → Paged.js) then runs cleanly.
+  globalThis.location.reload();
 }
 
 function handlePdfDownloadClick(): void {
@@ -163,7 +235,22 @@ function triggerPrint(): void {
   // Defer one frame so the modal is fully torn down before the (modal) print
   // dialog opens — otherwise some browsers leave the backdrop visible in the
   // printed output preview.
-  globalThis.requestAnimationFrame(() => globalThis.print());
+  globalThis.requestAnimationFrame(() => {
+    // Chrome's "Save as PDF" reads `document.title` at the moment print()
+    // runs to populate the suggested filename. Swap to the PDF name, print,
+    // restore the tab title afterwards. window.print() blocks the main
+    // thread until the dialog closes, so a straight-line save/restore is
+    // sufficient — no afterprint listener needed.
+    const stash = globalThis as unknown as { __mdbPdfFileName?: string; __mdbViewerTitle?: string };
+    const pdfName = stash.__mdbPdfFileName;
+    const tabTitle = stash.__mdbViewerTitle ?? document.title;
+    if (pdfName) document.title = pdfName;
+    try {
+      globalThis.print();
+    } finally {
+      document.title = tabTitle;
+    }
+  });
 }
 
 main().catch((err: unknown) => {

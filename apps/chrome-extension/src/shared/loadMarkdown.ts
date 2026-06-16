@@ -11,6 +11,13 @@ export interface LoadMarkdownSuccess {
   bodyHtml: string;
   stylesHref: string;
   documentTitle: string;
+  /**
+   * Suggested PDF save filename. Viewer sets `document.title` to this value
+   * just before opening the print dialog; Chrome uses it as the default
+   * filename in "Save as PDF". Falls back to `documentTitle` if the plugin
+   * does not implement `pdfFileName()`.
+   */
+  pdfFileName: string;
   pluginId: string;
 }
 
@@ -75,11 +82,14 @@ export function loadMarkdown(source: string, options: LoadMarkdownOptions = {}):
     };
   }
 
+  const documentTitle = plugin.documentTitle?.(validated.data) ?? plugin.label;
+  const pdfFileName = plugin.pdfFileName?.(validated.data) ?? documentTitle;
   return {
     ok: true,
     bodyHtml: plugin.render(validated.data),
     stylesHref: plugin.stylesHref,
-    documentTitle: plugin.documentTitle?.(validated.data) ?? plugin.label,
+    documentTitle,
+    pdfFileName,
     pluginId: plugin.id,
   };
 }

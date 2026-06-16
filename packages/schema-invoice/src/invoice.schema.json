@@ -10,9 +10,7 @@
     "issueDate",
     "issuer",
     "recipient",
-    "items",
-    "taxSummary",
-    "totals"
+    "items"
   ],
   "additionalProperties": false,
   "properties": {
@@ -177,6 +175,10 @@
     "notes": {
       "type": "string",
       "description": "Free-form notes (備考)."
+    },
+    "fileName": {
+      "type": "string",
+      "description": "Optional PDF save filename template (ファイル名). Tokens like {請求先}, {敬称}, {発行元}, {請求書番号}, {発行日}, {YMD} are substituted at render time. When omitted, falls back to `請求書_{請求書番号}`."
     },
     "stamp": {
       "type": "object",
