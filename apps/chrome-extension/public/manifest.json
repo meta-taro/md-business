@@ -7,7 +7,7 @@
   "author": "md-business contributors",
   "homepage_url": "https://github.com/meta-taro/md-business",
   "minimum_chrome_version": "120",
-  "permissions": ["storage", "activeTab", "scripting"],
+  "permissions": ["storage"],
   "host_permissions": ["file:///*"],
   "action": {
     "default_title": "md-business: Open Markdown file",
