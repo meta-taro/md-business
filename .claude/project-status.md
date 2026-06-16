@@ -1,6 +1,6 @@
 # Project Status — md-business
 
-最終更新: 2026-06-16
+最終更新: 2026-06-16（v0.1.1 push + v0.2.0 設計合意 Issue 起票）
 
 ## 現在のフェーズ
 
@@ -42,12 +42,17 @@
 - 2026-06-16 `PRIVACY.md` 追加（ゼロデータ収集宣言、`chrome.storage.session` 使用範囲明記、リモートコード不使用宣言）。Web Store の Privacy Policy URL は GitHub blob 直リンクを登録
 - 2026-06-16 Chrome Web Store 申請完了（v0.1.0、ドコカデ Inc. アカウント、後で公開モード）。審査結果待ち
 - 2026-06-16 サンプル md（`private/sample-contractor-invoice.md`、業務委託エンジニア → ドコカデ宛、4 品目 ¥616,000、テーマ青、丸印）を Web Store スクリーンショット用に生成
+- 2026-06-16 v0.1.1 patch 実装完了・push 済（`343f5e3` `5f7c725`）。popup「テンプレートから始める」3 ボタン（standard-ja / standard / inbound-eligible）+ `dist/templates/` 同梱 + `scripts/bump-version.mjs`（厳格 SemVer + lib/version.ts 分離で vitest 透過）+ `manifest.json`/`package.json` 同期 bump + `chrome.runtime.getURL()` + `web_accessible_resources` 追加。chrome-extension 36 tests pass（うち bumpVersion 9 件）、217 tests 継続
+- 2026-06-16 `apps/chrome-extension/README.md` に Chrome Web Store 審査者向けサンプル md の GitHub Raw URL 表（standard-ja / standard / inbound-eligible）を追記
+- 2026-06-16 `feat/v0.2.0` ブランチ作成（main 温存）。`packages/schema-invoice` / `plugins/invoice.ts` / `renderer-pdf/src/template.ts` の invoice 系・`manifest.json` の version を触らない方針を Issue 001 に明記
+- 2026-06-16 v0.2.0 設計合意 Issue 起票（`.claude/issues/001-v0.2.0-schema-spec.md`）。並行 Explore で SDD テンプレ事例（MADR / arc42 / Google Design Docs）+ Mermaid/SVG/MV3 ライブラリ選定を調査、Issue に反映
+- 2026-06-16 v0.2.0 B 案（章ツリー）を **B1 単一 md + B3 chapters: 明示参照** 併用で確定。A 案（ファイル名 prefix 順序制御）は人間負担で不採用、API 仕様書（v0.4.0+）も同じ C 哲学（インデックス + 明示参照）で行く方針確定
 
 ## 進行中
 
-- Chrome Web Store 審査結果待ち（通常 1〜7 日、初回は 2〜3 週かかる場合あり）
-- v0.1.1 patch の設計（テンプレ始動 UX）
-- v0.2.0 minor の設計（基本設計書スキーマ + 画像 / SVG / Mermaid 対応）
+- Chrome Web Store v0.1.0 審査結果待ち（通常 1〜7 日、初回は 2〜3 週かかる場合あり）
+- v0.1.1 release zip は `release/md-business-v0.1.1.zip` で生成済、v0.1.0 通過後に Web Store へ提出予定（PdM 操作）
+- v0.2.0 minor の設計合意（Issue 001 の A. frontmatter フィールド最終形 / D. PDF レイアウト / E. plugin 統合タイミングが PdM 判断待ち）
 
 ## 次タスク
 
