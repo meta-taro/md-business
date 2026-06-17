@@ -121,6 +121,38 @@ describe('autofillInvoice', () => {
     expect(warnings.some((w) => w.path === 'taxSummary.standard.tax')).toBe(true);
   });
 
+  it('warns when issuer has both registrationNumber and taxExemptIssuer (相互排他)', () => {
+    const { warnings } = autofillInvoice({
+      issuer: { name: 'X', registrationNumber: 'T1234567890123', taxExemptIssuer: true },
+      items: [{ name: 'A', quantity: 1, unitPrice: 1000, taxRate: 10 }],
+    });
+    expect(warnings.some((w) => w.path === 'issuer.taxExemptIssuer')).toBe(true);
+  });
+
+  it('warns when issuer has neither registrationNumber nor taxExemptIssuer', () => {
+    const { warnings } = autofillInvoice({
+      issuer: { name: 'X' },
+      items: [{ name: 'A', quantity: 1, unitPrice: 1000, taxRate: 10 }],
+    });
+    expect(warnings.some((w) => w.path === 'issuer.registrationNumber')).toBe(true);
+  });
+
+  it('does not warn for valid 適格事業者 (registrationNumber 指定 / taxExemptIssuer 未指定)', () => {
+    const { warnings } = autofillInvoice({
+      issuer: { name: 'X', registrationNumber: 'T1234567890123' },
+      items: [{ name: 'A', quantity: 1, unitPrice: 1000, taxRate: 10 }],
+    });
+    expect(warnings.some((w) => w.path.startsWith('issuer.'))).toBe(false);
+  });
+
+  it('does not warn for valid 免税事業者 (taxExemptIssuer: true / registrationNumber 未指定)', () => {
+    const { warnings } = autofillInvoice({
+      issuer: { name: 'X', taxExemptIssuer: true },
+      items: [{ name: 'A', quantity: 1, unitPrice: 1000, taxRate: 10 }],
+    });
+    expect(warnings.some((w) => w.path.startsWith('issuer.'))).toBe(false);
+  });
+
   it('ignores items whose taxRate is invalid (skipped silently — schema validation catches it)', () => {
     const { data } = autofillInvoice({
       items: [

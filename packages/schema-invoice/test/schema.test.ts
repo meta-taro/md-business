@@ -76,14 +76,24 @@ describe('schema validation — error cases', () => {
     return `---\n${yaml}\n---\n`;
   }
 
-  it('rejects missing T-number', () => {
+  it('accepts a missing registrationNumber when taxExemptIssuer is true (免税事業者モード)', () => {
+    const data = buildInvoice();
+    (data['issuer'] as Record<string, unknown>) = { name: '発行者', taxExemptIssuer: true };
+    const result = parseAndValidate<Invoice>(toFrontmatter(data), invoiceSchema);
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.frontmatter.issuer.taxExemptIssuer).toBe(true);
+      expect(result.frontmatter.issuer.registrationNumber).toBeUndefined();
+    }
+  });
+
+  it('accepts a missing registrationNumber even without taxExemptIssuer (warning is autofill責務)', () => {
+    // schema レベルでは issuer.required = ["name"] のみ。登録番号も taxExemptIssuer も無い
+    // ケースは autofill 警告で利用者に通知され、スキーマ検証は通る（後方互換と段階的入力のため）。
     const data = buildInvoice();
     (data['issuer'] as Record<string, unknown>) = { name: '発行者' };
     const result = parseAndValidate<Invoice>(toFrontmatter(data), invoiceSchema);
-    expect(result.ok).toBe(false);
-    if (!result.ok) {
-      expect(result.errors.some((e) => e.path.includes('issuer'))).toBe(true);
-    }
+    expect(result.ok).toBe(true);
   });
 
   it('rejects an invalid T-number format', () => {

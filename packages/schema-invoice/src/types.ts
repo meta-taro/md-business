@@ -3,7 +3,16 @@ export type AccountType = '普通' | '当座' | '貯蓄';
 
 export interface InvoiceIssuer {
   name: string;
-  registrationNumber: string;
+  /**
+   * 適格請求書発行事業者の登録番号 (T + 13 桁)。
+   * 免税事業者の請求書では省略可。省略時は `taxExemptIssuer: true` を指定すること推奨。
+   */
+  registrationNumber?: string;
+  /**
+   * 免税事業者フラグ。true の場合は適格請求書発行事業者の登録を受けていない発行元として扱う。
+   * renderer はヘッダに「適格請求書ではありません」の注記と経過措置案内を出力する。
+   */
+  taxExemptIssuer?: boolean;
   postalCode?: string;
   address?: string;
   tel?: string;

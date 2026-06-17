@@ -23,6 +23,7 @@ const INVOICE_FIELD_LABELS: Record<string, string> = {
   '/issuer': '発行元',
   '/issuer/name': '発行元の名前',
   '/issuer/registrationNumber': '発行元の登録番号',
+  '/issuer/taxExemptIssuer': '発行元の免税事業者フラグ',
   '/issuer/postalCode': '発行元の郵便番号',
   '/issuer/address': '発行元の住所',
   '/issuer/tel': '発行元の電話番号',
@@ -75,7 +76,7 @@ const INVOICE_FIELD_LABELS: Record<string, string> = {
 
 // Pattern-specific Japanese hints for known regex constraints in the schema.
 const PATTERN_HINTS: Record<string, string> = {
-  '/issuer/registrationNumber': 'T で始まる 13 桁の数字（例: T1234567890123）で入力してください',
+  '/issuer/registrationNumber': 'T で始まる 13 桁の数字（例: T1234567890123）で入力してください。免税事業者は登録番号を省略し、代わりに「免税事業者: true」を指定してください',
   '/issuer/postalCode': '郵便番号は 7 桁（例: 123-4567）で入力してください',
   '/recipient/postalCode': '郵便番号は 7 桁（例: 123-4567）で入力してください',
 };

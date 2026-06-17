@@ -88,6 +88,16 @@ describe('translateInvoiceError — common keywords', () => {
       keyword: 'pattern',
     });
     expect(msg).toContain('T で始まる 13 桁');
+    expect(msg).toContain('免税事業者');
+  });
+
+  it('labels taxExemptIssuer with a Japanese name', () => {
+    const msg = translateInvoiceError({
+      path: '/issuer/taxExemptIssuer',
+      message: 'must be boolean',
+      keyword: 'type',
+    });
+    expect(msg).toBe('発行元の免税事業者フラグは真偽値（true/false）である必要があります');
   });
 
   it('pattern falls back to "形式が不正" when no hint exists', () => {
