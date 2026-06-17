@@ -279,6 +279,32 @@ body {
   font-family: var(--mdb-font-base);
 }
 
+/* Mermaid diagrams (post-rendered to inline SVG by renderMermaidInHtml).
+   Centered, max-width clamped, kept on one page when possible. */
+.mdb-mermaid {
+  margin: 4mm auto;
+  text-align: center;
+  page-break-inside: avoid;
+  break-inside: avoid;
+  max-width: 100%;
+}
+
+.mdb-mermaid svg {
+  max-width: 100%;
+  height: auto;
+  display: inline-block;
+}
+
+.mdb-mermaid--error {
+  color: var(--mdb-color-danger, #b91c1c);
+  background: #fef2f2;
+  border: 0.4pt solid #fecaca;
+  border-radius: 1mm;
+  padding: 2mm 3mm;
+  font-size: 9pt;
+  text-align: left;
+}
+
 /* Table — design docs frequently embed comparison and requirement tables. */
 .mdb-spec__body table {
   width: 100%;

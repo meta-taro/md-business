@@ -8,7 +8,9 @@ import {
   type LoadMarkdownResult,
   type PreviewMarkdownResult,
 } from '../shared/loadMarkdown.js';
+import { renderMermaidInHtml } from '../shared/renderMermaid.js';
 import { STORAGE_KEY } from '../shared/storage.js';
+import { createPrintFrame } from './printFrame.js';
 
 const PDF_GUIDE_SKIP_KEY = 'mdb:pdf-guide-skip';
 const PREVIEW_DEBOUNCE_MS = 200;
@@ -166,7 +168,7 @@ function updateIframeBody(html: string): void {
   if (host) host.innerHTML = html;
 }
 
-function renderPreviewFromSource(): void {
+async function renderPreviewFromSource(): Promise<void> {
   const result: PreviewMarkdownResult = previewMarkdown(
     state.source,
     state.pluginId ? { pluginId: state.pluginId } : {},
@@ -180,7 +182,11 @@ function renderPreviewFromSource(): void {
   state.lastStylesHref = result.stylesHref;
   // Ensure the iframe has the right stylesheet loaded; cheap idempotent check.
   ensureIframeStylesheet(result.stylesHref);
-  updateIframeBody(result.bodyHtml);
+  // Pre-resolve Mermaid blocks into inline SVG before swapping the iframe body.
+  // Invoice documents have no Mermaid blocks so this short-circuits without
+  // triggering the dynamic import.
+  const renderedHtml = await renderMermaidInHtml(result.bodyHtml);
+  updateIframeBody(renderedHtml);
   updateErrorBadge(result.errors.length);
   showWarnings(result.warnings);
 }
@@ -232,7 +238,7 @@ function scheduleRerender(): void {
   }
   previewTimer = globalThis.setTimeout(() => {
     previewTimer = null;
-    renderPreviewFromSource();
+    void renderPreviewFromSource();
   }, PREVIEW_DEBOUNCE_MS);
 }
 
@@ -286,8 +292,6 @@ function handlePdfDownloadClick(): void {
 
 let pendingPrint: LoadMarkdownResult & { ok: true } | null = null;
 
-const PRINT_FRAME_ID = 'mdb-print-frame';
-
 /**
  * Create a dedicated hidden iframe just for printing, leaving the on-screen
  * preview iframe untouched. Past behaviour rewrote the preview iframe with the
@@ -306,19 +310,9 @@ const PRINT_FRAME_ID = 'mdb-print-frame';
  * margins, so native browser pagination is sufficient.
  */
 async function runPrintFlow(result: LoadMarkdownResult & { ok: true }): Promise<void> {
-  // Tear down any leftover print frame from a previous attempt before
-  // building a fresh one. Defensive — afterprint normally removes it.
-  document.getElementById(PRINT_FRAME_ID)?.remove();
-
-  const frame = document.createElement('iframe');
-  frame.id = PRINT_FRAME_ID;
-  frame.setAttribute('aria-hidden', 'true');
-  // Keep the frame interactive enough for Chrome to print but invisible to
-  // the user. `display: none` makes some Chromium builds skip layout entirely
-  // and print blank; off-screen positioning with 1×1 size avoids that.
-  frame.style.cssText =
-    'position:fixed;left:-10000px;top:0;width:1px;height:1px;border:0;opacity:0;pointer-events:none;';
-  document.body.appendChild(frame);
+  // Build a fresh hidden frame. createPrintFrame() also tears down any leftover
+  // frame from a previous attempt (defensive — afterprint normally removes it).
+  const frame = createPrintFrame(document);
 
   const doc = frame.contentDocument;
   const win = frame.contentWindow;
@@ -329,6 +323,11 @@ async function runPrintFlow(result: LoadMarkdownResult & { ok: true }): Promise<
 
   const fontsUrl = chrome.runtime.getURL('styles/fonts.css');
   const stylesUrl = chrome.runtime.getURL(result.stylesHref);
+  // Pre-render Mermaid blocks against the main document so the PDF print
+  // path receives inline SVG (vector, searchable text) rather than an
+  // empty <pre>. Same short-circuit as the preview flow: invoice paths skip
+  // the import entirely.
+  const printBody = await renderMermaidInHtml(result.bodyHtml);
   const printHtml = `<!doctype html>
 <html lang="ja">
 <head>
@@ -341,7 +340,7 @@ async function runPrintFlow(result: LoadMarkdownResult & { ok: true }): Promise<
 </style>
 </head>
 <body>
-${result.bodyHtml}
+${printBody}
 </body>
 </html>`;
 
@@ -505,7 +504,7 @@ async function main(): Promise<void> {
   // first render. This avoids a flash of unstyled content.
   bootstrapIframe('styles/invoice.css');
   initEditor(payload.source);
-  renderPreviewFromSource();
+  void renderPreviewFromSource();
 
   setMode('preview');
 

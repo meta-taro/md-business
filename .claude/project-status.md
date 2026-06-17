@@ -1,19 +1,20 @@
 # Project Status — md-business
 
-最終更新: 2026-06-17（**v0.4.0 検収フィードバック反映 + zip 再生成済み**: 免税テンプレの 2 ページ溢れ + 非適格朱書きの撤回 / 表紙 1 ページ収まり + シャドウ撤去 / GFM pipe table / 印刷キャンセル時のプレビュー消失バグ修正）
+最終更新: 2026-06-17（**v0.5.0 = v0.4.0 + Mermaid subset build 復活**: cytoscape を空 shim で排除 + lodash CSP 違反パターンを vite plugin で置換 → scan-bundle clean、ER / flowchart / sequence などが MV3 CSP 下で描画可能に）
 
 ## 現在のフェーズ
 
-**Phase 1-MVP 公開済み（v0.1.0）→ v0.4.0 を Web Store update として 1 本に統合し提出**
+**Phase 1-MVP 公開済み（v0.1.0）→ v0.5.0 を Web Store update として提出予定**
 
 2026-06-16 にドコカデ Inc. アカウントで v0.1.0 を submit、2026-06-17 に審査通過＆公開。store URL: https://chromewebstore.google.com/detail/lmdplkkfmgapnhombimeohjliinifgjh （extension ID 固定）。
 
-v0.2.0 〜 v0.4.0 のスコープを 1 つの zip にまとめて v0.4.0 として提出する（バージョン 0.1.1 → 0.4.0 への単発 bump）:
+v0.2.0 〜 v0.5.0 のスコープを 1 つの zip にまとめて v0.5.0 として提出する（バージョン 0.1.1 → 0.5.0 への単発 bump）:
 - v0.2.0 系: DOMPurify サニタイザ + schema-spec（基本設計書）骨格 + remark→HTML 変換
 - v0.3.0 系: 免税事業者モード（`taxExemptIssuer` 後方互換拡張、renderer-pdf が経過措置案内を自動出力、tax-exempt-ja テンプレ）
 - v0.4.0 系: popup の適格 / 免税分岐 UX + 書き方ガイドモーダルに免税モード解説 + frontmatter 早見表更新
+- v0.5.0 系: Mermaid 動的 import 描画復活（cytoscape 空 shim + lodash CSP 違反 vite plugin 置換、ER / flowchart / sequence など対応）
 
-Mermaid 動的 import 統合は **2026-06-17 撤回**: pre-push `scan-bundle.mjs` が mermaid 11.x 依存の cytoscape / wardley / graph chunk に `Function("return this")()` + `require("util").types` を検出。MV3 CSP `script-src 'self'`（unsafe-eval 拒否）を突破できないため、v0.5.0+ で代替手段（静的 SVG / 軽量代替 / vendor 化）を再検討する。`git reset --hard b836ee5` で当該コミットを除去済み。
+Mermaid の MV3 CSP 突破は **2026-06-17 朝の撤回（id 61）を即日撤回（id 67）**: cytoscape を `src/shims/cytoscape-empty.ts`（call で throw する空 shim）に alias で差し替え、`vite.config.ts` の `shimLodashCspViolations()` plugin で lodash 由来の `Function('return this')()` を `globalThis` に、`x.require('util').types` を `undefined` に置換。`mermaid.initialize({ securityLevel: 'strict' })`、class marker による short-circuit で請求書フローは zero-cost、scan-bundle clean。
 
 Issue #15（高橋たくと氏 → 株式会社キングダム宛 6 月分請求書）が v0.3.0 のドライバ、すでに schema/renderer/template/private 全レイヤで成立済み。
 
@@ -58,6 +59,7 @@ Issue #15（高橋たくと氏 → 株式会社キングダム宛 6 月分請求
 - 2026-06-16 v0.2.0 B 案（章ツリー）を **B1 単一 md + B3 chapters: 明示参照** 併用で確定。A 案（ファイル名 prefix 順序制御）は人間負担で不採用、API 仕様書（v0.4.0+）も同じ C 哲学（インデックス + 明示参照）で行く方針確定
 - 2026-06-17 Issue #12（baseline 1 違反疑い）調査・解決。`pnpm-workspace.yaml` の `onlyBuiltDependencies: []` / `minimumReleaseAge: 1440` は正常動作（`pendingBuilds: []` + install ログ無 postinstall）。`pnpm config get` は npm 互換 global config のみ読む仕様で workspace settings は見ないため未定義は誤検知。CI に install ログ grep 検証ステップを追加し将来の退行を検出（c53de03）
 - 2026-06-17 `templates/spec/standard-ja.md` 追加（EC 注文管理サブシステム基本設計書、8 章 / Mermaid 図 4 種 / 表 49 行 / A4 横 6 ページ想定 / 日本語 frontmatter A 案）。v0.2.0 設計合意の数ページ評価用サンプル（16410e7）
+- 2026-06-17 v0.5.0 Mermaid 復活実装。`mermaid@11.15.0` 動的 import + `<pre><code class="language-mermaid">` short-circuit、`vite.config.ts` で cytoscape 系 3 パッケージを `src/shims/cytoscape-empty.ts` に alias、`shimLodashCspViolations()` vite plugin で lodash CSP 違反パターン（`Function('return this')()` / `x.require('util').types`）を browser-safe 実装に置換（lodash-es + `@mermaid-js/parser` dist の両方）。`apps/chrome-extension/src/shared/renderMermaid.ts` 87 行 + 4 unit tests、`packages/renderer-pdf/src/styles/spec.css` に `.mdb-mermaid` / `.mdb-mermaid--error` 追加、`viewer/index.ts` の `renderPreviewFromSource` と `runPrintFlow` を await async 化。`scripts/scan-bundle.mjs` clean、chrome-extension 36 tests pass、`v0.4.0 → v0.5.0` minor bump（`scripts/bump-version.mjs`）
 - 2026-06-17 `packages/schema-spec/` 骨格実装。JSON Schema draft 2020-12（required: schemaVersion/documentNumber/title/version/issueDate/status/authors、SemVer pattern、ISO date format、`.md` chapters pattern、additionalProperties: false）+ TypeScript 型 + 日本語キー dictionary（root + party scope、status/toc/theme 値翻訳）+ Ajv standalone build。44 tests pass（schema 14 + normalize 30）、coverage 100% lines / 94.87% branches
 - 2026-06-17 `packages/schema-spec` 完成度向上: autofill（schemaVersion / version=0.1.0 / status=draft / toc=auto デフォルト、toc=manual で chapters 空時の警告、toc=auto と chapters 同時指定の mixed signal 警告）+ translateError（Ajv エラー / normalize / autofill 警告を日本語化、SemVer / `.md` / YYYY-MM-DD ヒント、enum 許可値を明記）+ parseSpec（splitFrontmatter → normalize → autofill → validateWithCompiled の MV3 CSP セーフな End-to-End）+ fileName（`{文書番号} / {タイトル} / {版} / {ステータス} / {発行日YMD} / {YMD}` token、Windows 禁止文字サニタイズ、デフォルト `基本設計書_{文書番号}_v{版}`）。96 tests pass（schema 14 + normalize 30 + autofill 10 + translateError 21 + fileName 14 + parseSpec 7）、coverage 99.52% lines / 82.57% branches
 - 2026-06-17 `packages/renderer-pdf` に基本設計書レイアウト追加。`renderSpecBody(spec, options)` で表紙ページ（タイトル / ステータスバッジ / 文書番号 / 版 / 発行日 / 作成者 / レビュアー / 関連文書、テーマアクセントカラー、左端 6mm カラーバー）+ `renderSpecHtml(spec, options)` フル HTML 文書ラッパ + `src/styles/spec.css`（A4 縦、表紙 page-break-after、h1 章ごと page-break-before、h2 左ボーダー、テーブル / コードブロック / Mermaid コンテナ / 引用 / 画像スタイル）。`bodyHtml` は viewer 側責務（chrome-extension の plugins/spec で md→HTML 変換予定）。CSS injection 攻撃 / XSS のテストカバー含む 29 tests pass（specTemplate 20 + renderSpecHtml 9）、renderer-pdf 全 106 tests pass、specTemplate / renderSpecHtml 共に 100% カバレッジ
