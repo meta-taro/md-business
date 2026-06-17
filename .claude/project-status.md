@@ -1,12 +1,14 @@
 # Project Status — md-business
 
-最終更新: 2026-06-17（v0.2.0 chrome-extension viewer sanitizer 追加・DOMPurify 経由で inline SVG / 画像 src 制限 / XSS 対策、全 chrome-extension 77 tests pass）
+最終更新: 2026-06-17（v0.3.0 免税事業者モード schema/renderer/template/chrome-ext 完了 / 408 tests pass）
 
 ## 現在のフェーズ
 
-**Phase 1-MVP リリース完了 → Chrome Web Store 審査中**
+**Phase 1-MVP 公開済み（v0.1.0）→ v0.2.0 / v0.3.0 連続開発中（1〜2 日で v0.5.0 まで駆け抜け予定）**
 
-2026-06-16 にドコカデ Inc. アカウントで v0.1.0 を submit（後で公開モード、審査通過後 30 日以内に手動公開）。審査結果待ちと並行して、UX 改善 patch（v0.1.1）と基本設計書スキーマ minor（v0.2.0）の設計を進める。
+2026-06-16 にドコカデ Inc. アカウントで v0.1.0 を submit、2026-06-17 に審査通過＆公開。store URL: https://chromewebstore.google.com/detail/lmdplkkfmgapnhombimeohjliinifgjh （extension ID 固定）。以降の v0.1.1 / v0.2.0 / v0.3.0 / v0.4.0 / v0.5.0 は同 ID への update 申請（v0.5.0 で 1 本にまとめる想定）。
+
+v0.2.0（基本設計書スキーマ）と v0.3.0（免税事業者モード）を 1〜2 日で連続実装中。schema-invoice の `taxExemptIssuer` 拡張は **後方互換のまま（issuer.required: ["name"] のみ）** で適格 / 免税の二形態に対応、renderer-pdf がフラグ検知で経過措置案内を自動出力する。Issue #15（高橋たくと氏 → 株式会社キングダム宛 6 月分請求書）が v0.3.0 のドライバ。
 
 ## 完了
 
@@ -55,33 +57,41 @@
 - 2026-06-17 `@md-business/core` に `renderMarkdownToHtml(src, options)` 追加。`remark-parse → remark-rehype → rehype-stringify` の unified パイプライン（純 JS、MV3 CSP セーフ）で Markdown → HTML 変換。`allowDangerousHtml: false` で生 HTML を破棄（XSS 防御）、`hasFrontmatter` オプションで frontmatter 分離有無を制御。19 tests、100% カバレッジ
 - 2026-06-17 `apps/chrome-extension` に `shared/sanitizeHtml.ts` 追加（DOMPurify 3 ベース）。Markdown→HTML 後の bodyHtml を viewer で injection 防御。`USE_PROFILES: { html, svg, svgFilters }` で SVG カメルケース属性（viewBox/preserveAspectRatio）を保持、`ALLOW_UNKNOWN_PROTOCOLS: true` + `uponSanitizeAttribute` フックで URI スキーム allowlist（https / blob / mailto / `data:image/{png|jpg|gif|webp|svg+xml};base64,` + 相対 `# / ? / /`、`http:` / `data:text/html` / `javascript:` / `vbscript:` / 相対パスは拒否）。`FORBID_TAGS` で form/input/iframe/object/embed をブロック、`FORBID_ATTR` で srcdoc 除去。spec plugin の render/previewRender からサニタイザを呼ぶよう更新。テスト環境を node → jsdom に切替（happy-dom は HTML 先頭 `<h1>` を head に正規化し本文先頭の章タイトルが消える既知挙動のため不採用）。24 件のサニタイザテスト追加（XSS / 属性ホワイトリスト / SVG / Mermaid コード塊保持 / 通常 markdown 通過）、chrome-extension 全 77 tests pass、sanitizeHtml.ts 92.42% カバレッジ
 - 2026-06-17 `apps/chrome-extension` に `plugins/spec.ts` 追加。`SchemaPlugin` 契約を `render(frontmatter, markdownBody?)` / `previewRender(frontmatter, markdownBody?)` の 2 引数に拡張（invoice plugin は body 無視、spec plugin は使用）。`loadMarkdown` / `previewMarkdown` を `parseMarkdown().body` も渡すよう更新。registry に spec plugin を登録（detect: 文書番号 / 章ファイル / レビュアー / documentNumber / chapters / reviewers）。post-build.mjs を `copySchemaCss`（invoice.css + spec.css 両方）に統合 + `templates/spec/standard-ja.md` を STARTER_TEMPLATES に追加（popup から「テンプレートから始める」で開けるように）。chrome-extension 全 53 tests pass（spec plugin 14 + registry 14 + invoice loadMarkdown 8 + previewMarkdown 8 + bumpVersion 9）、spec.ts 96.2% カバレッジ。repo 全体で typecheck + test:run + build green
+- 2026-06-17 **v0.3.0 免税事業者モード** schema-invoice 改修。`invoice.schema.json` の `issuer.required` を `["name"]` のみに縮約、`issuer.taxExemptIssuer: boolean` プロパティ追加（後方互換）。`InvoiceIssuer.registrationNumber` を optional 化 + `taxExemptIssuer?: boolean` 追加。`dictionary.ja.ts` party scope に `免税事業者` / `taxExemptIssuer` / `免税` / `非適格` / `インボイス未登録` → `taxExemptIssuer` 正本マッピング追加。`autofill.ts` に `checkIssuerQualification` 追加（both-set / neither-set を警告通知、path: `issuer.taxExemptIssuer` / `issuer.registrationNumber`）。`translateError.ts` で `/issuer/taxExemptIssuer` 日本語ラベル追加 + `registrationNumber` ヒントに「免税事業者なら taxExemptIssuer: true で代替可」を追記。schema-invoice 全 81 tests pass（既存テストの後方互換性維持 + 免税モード 7 tests 追加）
+- 2026-06-17 **v0.3.0 renderer-pdf 免税事業者表示分岐**。`renderInvoiceBody` で `invoice.issuer.taxExemptIssuer === true` を検知し、タイトル `<h1>請求書</h1>` 直下に `<p class="mdb-invoice__non-qualified-notice">※ 適格請求書ではありません（インボイス制度経過措置の対象）</p>`（赤字 #b91c1c、9pt、600 weight）と、本文末尾の備考 section 直前に `<section class="mdb-invoice__transition-notice">本請求書は適格請求書発行事業者以外が発行したものです。インボイス制度の経過措置（2023年10月〜2029年9月）の範囲で仕入税額控除を行ってください。</section>`（グレーボックス・左端アクセントボーダー）を自動出力。`.mdb-invoice` ルート要素に `data-tax-exempt="true"` 属性も付与してテーマ別 CSS 拡張可能。`styles/invoice.css` に対応スタイル追加。renderer-pdf 全 112 tests pass（免税事業者モード 6 tests 追加、`taxExemptInvoice()` fixture factory）
+- 2026-06-17 **v0.3.0 chrome-extension invoicePlugin / popup 調整**。`plugins/invoice.ts` の label を `請求書（適格請求書）` → `請求書（適格 / 免税対応）` に更新。`apps/chrome-extension/scripts/post-build.mjs` の `STARTER_TEMPLATES` に `tax-exempt-ja.md` 第 4 エントリを追加（label: `日本語フィールド名・免税事業者向け`、description: 免税事業者 + 経過措置案内自動出力）。`dist/templates/manifest.json` に 5 件のテンプレが揃った
+- 2026-06-17 **v0.3.0 テンプレ `templates/invoice/tax-exempt-ja.md`** 追加。屋号なし個人事業主想定（山田 太郎 → 株式会社サンプル受領先宛）、90,000 × 10% = 9,000 / total 99,000 サンプル。`免税事業者: true` を明示、taxSummary / totals は YAML コメントで参考値（feedback-invoice-manual-calc 方針）を残して autofill に委譲、登録番号フィールドは存在しない。日本語キー throughout、テーマ青、丸印スタンプ無効
+- 2026-06-17 **v0.3.0 private/2026-06-contractor-invoice.md** を高橋たくと氏の本番テンプレに整備。旧 `登録番号: ""` + TODO コメント → `免税事業者: true` に切替、備考から redundant な経過措置記述を削除（renderer が自動出力する）。3 リポジトリ運用（store-girlsbar / store-concafe-maid / store-cabaret）× 30,000 円/月 = 90,000 + 税 9,000 = 99,000 円。ファイル名: `御請求書_{請求先}{敬称}_高橋たくと_{YMD}`
+- 2026-06-17 v0.3.0 完了時点で **repo 全体 408 tests pass / lint 10 pkg green / typecheck 10 pkg green / 5 pkg build green**。dist/templates/manifest.json に 5 テンプレ揃った（standard-ja / standard / inbound-eligible / **tax-exempt-ja** / spec/standard-ja）
 
 ## 進行中
 
-- Chrome Web Store v0.1.0 審査結果待ち（通常 1〜7 日、初回は 2〜3 週かかる場合あり）
-- v0.1.1 release zip は `release/md-business-v0.1.1.zip` で生成済、v0.1.0 通過後に Web Store へ提出予定（PdM 操作）
-- v0.2.0 minor の設計合意（A/D/E は PdM OK 受領済。サンプル md / schema-spec / renderer-pdf spec / chrome-extension plugins/spec まで実装）
-- v0.2.0 残実装: ローカル画像リゾルバ + DOMPurify による inline SVG 受け入れ / Mermaid 動的レンダリング / 章ファイル参照解決 / バージョン bump（manifest.json + package.json を 0.2.0 に）+ release zip / Web Store 再申請（v0.1.0 通過後）
+- v0.4.0 / v0.5.0 で追加予定の細部（適格 / 免税の popup 分岐 UX、書き方ガイド拡充、振込手数料・締日・端数処理 UI）
+- v0.2.0 残実装: Mermaid 動的 import レンダリング（mermaid@10.9.0 を dynamic import）+ バージョン bump（manifest.json + package.json を 0.2.0 → 0.3.0 → ...）+ release zip + Web Store update 提出（v0.5.0 でまとめて 1 本）
 
 ## 次タスク
 
-### v0.1.1 patch（審査結果待ち中に仕込み、通過直後に提出）
+### v0.4.0 minor（適格 / 免税の UX 分岐）
 
-1. popup に「テンプレートから始める」ボタン追加（`templates/invoice/standard-ja.md` 等を `dist/templates/` に同梱、クリックで untitled として viewer を開く）
-2. viewer に「ファイル名で保存」UI（untitled 状態でも保存可能に）
-3. 書き方ガイドモーダルに frontmatter 早見表を追加
-4. バージョン bump 自動化スクリプト（`pnpm release:patch / release:minor / release:major` で `package.json` + `manifest.json` 同時更新 → rebuild → zip）
-5. `post-build.mjs` に `templates/` コピーを追加
+1. popup「テンプレートから始める」を 2 タブ構成に整理（「適格請求書」/「免税事業者」）、各タブで関連テンプレのみ表示
+2. viewer 書き方ガイドモーダルに「免税事業者モード」セクション追加（経過措置の概要・自動出力される文言・登録番号は不要）
+3. viewer の警告バナーに `taxExemptIssuer` 関連の親切な誘導文（「適格 → 免税に切り替える方法」「経過措置の終了予定」）
+4. frontmatter 早見表に `免税事業者` 行を追加
 
-### v0.2.0 minor（Phase 2 = 基本設計書スキーマ）
+### v0.5.0 minor（請求書実務細部）
 
-1. `packages/schema-spec/` 新設（基本設計書スキーマ・章立て / ER / シーケンス / 画面遷移 / 用語集 等）
-2. viewer: ローカル相対パス画像 (`file:///`) リゾルバ + blob URL 差し替え
-3. viewer: HTTPS 外部画像 + manifest の `host_permissions` 拡張 + CSP 調整
-4. viewer: インライン `<svg>...</svg>` 受け入れ（DOMPurify サニタイズ）
-5. viewer: ` ```mermaid ` コードブロックを動的 import レンダリング（mermaid.js ~200KB を遅延ロード、初期バンドルへの影響ゼロ）
-6. `templates/spec/` 配下に基本設計書サンプル + draw.io SVG エクスポート例 + Mermaid サンプル
-7. PDF 化時は Mermaid 描画完了を待ってから印刷
+1. frontmatter `振込手数料: ご負担 | 元負担` を schema-invoice に追加（autofill が備考末尾に文章生成、上書き可能）
+2. frontmatter `締日基準: 月末 | 20日 | カスタム` を追加（renderer-pdf が支払期限の文章補足を生成）
+3. frontmatter `丸め: 切り捨て | 四捨五入 | 切り上げ` の UI 説明・選択肢のドキュメント整備（既に内部は `taxRounding` 実装済）
+4. viewer に「適格事業者登録番号の調べ方」リンクモーダル（国税庁の公表サイト案内）
+5. `templates/invoice/` に振込手数料込み・締日カスタムのサンプル
+6. **manifest.json / package.json の version を 0.5.0 に bump → release zip → PdM が Web Store update 提出**（v0.2.0〜v0.5.0 を 1 本にまとめる）
+
+### v0.2.0 残実装（v0.5.0 提出前に消化）
+
+1. viewer: ` ```mermaid ` コードブロックを動的 import レンダリング（mermaid@10.9.0、+200KB on-demand）
+2. PDF 化時は Mermaid 描画完了を待ってから印刷
+3. viewer: ローカル相対パス画像 (`file:///`) リゾルバ + blob URL 差し替え（章ファイル参照解決と合わせて）
 
 ## Chrome 拡張の拡張性方針（SemVer 運用）
 
