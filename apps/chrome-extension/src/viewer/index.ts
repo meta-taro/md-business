@@ -286,23 +286,46 @@ function handlePdfDownloadClick(): void {
 
 let pendingPrint: LoadMarkdownResult & { ok: true } | null = null;
 
+const PRINT_FRAME_ID = 'mdb-print-frame';
+
 /**
- * Re-use the on-screen preview iframe for printing: rewrite it with a print
- * document, swap the parent's `document.title` (Chrome uses the TOP frame's
- * title for "Save as PDF" filename — not the iframe's), fire `print()`, and
- * restore both on `afterprint`.
+ * Create a dedicated hidden iframe just for printing, leaving the on-screen
+ * preview iframe untouched. Past behaviour rewrote the preview iframe with the
+ * print document and restored it on `afterprint`; when the user cancelled the
+ * print dialog the restore path raced with Chrome's preview teardown, which
+ * could leave the preview blank ("ブラウザ側のデータがなくなる" report).
  *
- * Why no Paged.js in this path: in practice, Paged.js inside an iframe that
- * is then printed via `iframe.contentWindow.print()` produced a blank Chrome
- * print dialog. The invoice template is single-page A4 and its stylesheet
- * already declares `@page size: A4 portrait` + margins, so native browser
- * pagination is sufficient and avoids the iframe + Paged.js interaction bug.
+ * The print frame is appended off-screen, written with the schema-styled body,
+ * printed via its own `contentWindow.print()`, and removed on `afterprint`.
+ * The top-level `document.title` is swapped to drive Chrome's "Save as PDF"
+ * default filename and restored when the dialog closes.
+ *
+ * Why no Paged.js: Paged.js inside an iframe that is then printed via
+ * `iframe.contentWindow.print()` produced a blank Chrome print dialog. The
+ * invoice / spec stylesheets already declare `@page size: A4 portrait` +
+ * margins, so native browser pagination is sufficient.
  */
 async function runPrintFlow(result: LoadMarkdownResult & { ok: true }): Promise<void> {
-  const iframe = document.getElementById('mdb-preview') as HTMLIFrameElement | null;
-  const doc = iframe?.contentDocument;
-  const win = iframe?.contentWindow;
-  if (!iframe || !doc || !win) return;
+  // Tear down any leftover print frame from a previous attempt before
+  // building a fresh one. Defensive — afterprint normally removes it.
+  document.getElementById(PRINT_FRAME_ID)?.remove();
+
+  const frame = document.createElement('iframe');
+  frame.id = PRINT_FRAME_ID;
+  frame.setAttribute('aria-hidden', 'true');
+  // Keep the frame interactive enough for Chrome to print but invisible to
+  // the user. `display: none` makes some Chromium builds skip layout entirely
+  // and print blank; off-screen positioning with 1×1 size avoids that.
+  frame.style.cssText =
+    'position:fixed;left:-10000px;top:0;width:1px;height:1px;border:0;opacity:0;pointer-events:none;';
+  document.body.appendChild(frame);
+
+  const doc = frame.contentDocument;
+  const win = frame.contentWindow;
+  if (!doc || !win) {
+    frame.remove();
+    return;
+  }
 
   const fontsUrl = chrome.runtime.getURL('styles/fonts.css');
   const stylesUrl = chrome.runtime.getURL(result.stylesHref);
@@ -338,18 +361,18 @@ ${result.bodyHtml}
   const previousTitle = document.title;
   document.title = result.pdfFileName;
 
-  // Restore preview + title AFTER the dialog closes — `window.print()` is
-  // async in Chrome (the dialog opens on the next tick), so a `finally`
-  // restore would blank the dialog before it opens.
-  const restore = (): void => {
+  let cleanedUp = false;
+  const cleanup = (): void => {
+    if (cleanedUp) return;
+    cleanedUp = true;
     document.title = previousTitle;
-    if (state.lastStylesHref) bootstrapIframe(state.lastStylesHref);
-    renderPreviewFromSource();
+    frame.remove();
   };
-  win.addEventListener('afterprint', restore, { once: true });
+
+  win.addEventListener('afterprint', cleanup, { once: true });
   // Safety net: `afterprint` is reliable on desktop Chrome but we keep a
   // generous timeout in case a future build drops the event silently.
-  globalThis.setTimeout(restore, 120_000);
+  globalThis.setTimeout(cleanup, 120_000);
 
   win.focus();
   win.print();
