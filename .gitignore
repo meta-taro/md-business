@@ -18,6 +18,10 @@ release/
 # Test
 coverage/
 .nyc_output/
+# Playwright report / per-run artifacts (HTML reports, screenshots, traces)
+test-results/
+playwright-report/
+dist-e2e-typecheck/
 
 # IDE
 .vscode/

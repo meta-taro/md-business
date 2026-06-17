@@ -312,3 +312,20 @@ body {
   margin-top: 6mm;
 }
 
+/* 免税事業者モード（v0.4.0+）では transition-notice のグレーボックスが
+   約 12mm 追加で乗るため、デフォルトの余白だと印鑑領域が 2 ページ目に
+   こぼれる。tax-exempt 時のみ signature / transition-notice の縦余白を
+   圧縮して 1 ページに戻す。standard / inbound テンプレには影響しない。
+   regression は tests-e2e/invoice-fits-a4.spec.ts でゲートする。 */
+.mdb-invoice[data-tax-exempt='true'] .mdb-invoice__transition-notice {
+  margin: 2mm 0;
+  padding: 2mm 3mm;
+}
+.mdb-invoice[data-tax-exempt='true'] .mdb-invoice__signature {
+  margin-top: 3mm;
+}
+.mdb-invoice[data-tax-exempt='true'] .mdb-invoice__signature .seal-area {
+  width: 20mm;
+  height: 20mm;
+}
+
