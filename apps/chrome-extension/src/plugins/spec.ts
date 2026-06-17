@@ -10,6 +10,7 @@ import {
 import validateSpec from '@md-business/schema-spec/validate';
 import { validateWithCompiled, renderMarkdownToHtml } from '@md-business/core';
 import { renderSpecBody } from '@md-business/renderer-pdf';
+import { sanitizeViewerHtml } from '../shared/sanitizeHtml.js';
 import type { PreviewRenderResult, SchemaPlugin } from './types.js';
 
 /**
@@ -65,9 +66,11 @@ export const specPlugin: SchemaPlugin<Spec> = {
   render(frontmatter, markdownBody) {
     // Spec documents render the Markdown body as the chapter section beneath
     // the cover page. Body is converted via the core's CSP-safe MD→HTML
-    // pipeline (unified — no eval / new Function()).
+    // pipeline (unified — no eval / new Function()), then sanitized to allow
+    // inline `<svg>` + image data URLs while dropping `<script>` / event
+    // handlers / `javascript:` URLs. (XSS hardening for v0.2.0 spec viewer.)
     const bodyHtml = markdownBody
-      ? renderMarkdownToHtml(markdownBody, { hasFrontmatter: false })
+      ? sanitizeViewerHtml(renderMarkdownToHtml(markdownBody, { hasFrontmatter: false }))
       : '';
     return renderSpecBody(frontmatter, { bodyHtml });
   },
@@ -87,7 +90,7 @@ export const specPlugin: SchemaPlugin<Spec> = {
         }));
     const safe = withPreviewDefaults(autofilled.data);
     const bodyHtml = markdownBody
-      ? renderMarkdownToHtml(markdownBody, { hasFrontmatter: false })
+      ? sanitizeViewerHtml(renderMarkdownToHtml(markdownBody, { hasFrontmatter: false }))
       : '';
     try {
       return { html: renderSpecBody(safe, { bodyHtml }), warnings, errors };
