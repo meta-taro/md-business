@@ -118,6 +118,9 @@ importers:
       '@md-business/schema-invoice':
         specifier: workspace:*
         version: link:../schema-invoice
+      '@md-business/schema-spec':
+        specifier: workspace:*
+        version: link:../schema-spec
     devDependencies:
       '@types/node':
         specifier: ^22.10.0

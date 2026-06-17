@@ -16,7 +16,8 @@
       "types": "./dist/browser.d.ts",
       "import": "./dist/browser.js"
     },
-    "./styles/invoice.css": "./src/styles/invoice.css"
+    "./styles/invoice.css": "./src/styles/invoice.css",
+    "./styles/spec.css": "./src/styles/spec.css"
   },
   "files": [
     "dist",
@@ -31,7 +32,8 @@
     "lint": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@md-business/schema-invoice": "workspace:*"
+    "@md-business/schema-invoice": "workspace:*",
+    "@md-business/schema-spec": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",

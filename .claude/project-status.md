@@ -1,6 +1,6 @@
 # Project Status — md-business
 
-最終更新: 2026-06-17（v0.2.0 schema-spec autofill/translateError/parseSpec/fileName + 96 tests pass）
+最終更新: 2026-06-17（v0.2.0 renderer-pdf に spec レイアウト追加、106 tests pass）
 
 ## 現在のフェーズ
 
@@ -51,13 +51,14 @@
 - 2026-06-17 `templates/spec/standard-ja.md` 追加（EC 注文管理サブシステム基本設計書、8 章 / Mermaid 図 4 種 / 表 49 行 / A4 横 6 ページ想定 / 日本語 frontmatter A 案）。v0.2.0 設計合意の数ページ評価用サンプル（16410e7）
 - 2026-06-17 `packages/schema-spec/` 骨格実装。JSON Schema draft 2020-12（required: schemaVersion/documentNumber/title/version/issueDate/status/authors、SemVer pattern、ISO date format、`.md` chapters pattern、additionalProperties: false）+ TypeScript 型 + 日本語キー dictionary（root + party scope、status/toc/theme 値翻訳）+ Ajv standalone build。44 tests pass（schema 14 + normalize 30）、coverage 100% lines / 94.87% branches
 - 2026-06-17 `packages/schema-spec` 完成度向上: autofill（schemaVersion / version=0.1.0 / status=draft / toc=auto デフォルト、toc=manual で chapters 空時の警告、toc=auto と chapters 同時指定の mixed signal 警告）+ translateError（Ajv エラー / normalize / autofill 警告を日本語化、SemVer / `.md` / YYYY-MM-DD ヒント、enum 許可値を明記）+ parseSpec（splitFrontmatter → normalize → autofill → validateWithCompiled の MV3 CSP セーフな End-to-End）+ fileName（`{文書番号} / {タイトル} / {版} / {ステータス} / {発行日YMD} / {YMD}` token、Windows 禁止文字サニタイズ、デフォルト `基本設計書_{文書番号}_v{版}`）。96 tests pass（schema 14 + normalize 30 + autofill 10 + translateError 21 + fileName 14 + parseSpec 7）、coverage 99.52% lines / 82.57% branches
+- 2026-06-17 `packages/renderer-pdf` に基本設計書レイアウト追加。`renderSpecBody(spec, options)` で表紙ページ（タイトル / ステータスバッジ / 文書番号 / 版 / 発行日 / 作成者 / レビュアー / 関連文書、テーマアクセントカラー、左端 6mm カラーバー）+ `renderSpecHtml(spec, options)` フル HTML 文書ラッパ + `src/styles/spec.css`（A4 縦、表紙 page-break-after、h1 章ごと page-break-before、h2 左ボーダー、テーブル / コードブロック / Mermaid コンテナ / 引用 / 画像スタイル）。`bodyHtml` は viewer 側責務（chrome-extension の plugins/spec で md→HTML 変換予定）。CSS injection 攻撃 / XSS のテストカバー含む 29 tests pass（specTemplate 20 + renderSpecHtml 9）、renderer-pdf 全 106 tests pass、specTemplate / renderSpecHtml 共に 100% カバレッジ
 
 ## 進行中
 
 - Chrome Web Store v0.1.0 審査結果待ち（通常 1〜7 日、初回は 2〜3 週かかる場合あり）
 - v0.1.1 release zip は `release/md-business-v0.1.1.zip` で生成済、v0.1.0 通過後に Web Store へ提出予定（PdM 操作）
-- v0.2.0 minor の設計合意（A/D/E は PdM OK 受領済。サンプル md と schema-spec 骨格まで実装）
-- v0.2.0 残実装: renderer-pdf 章レイアウト（design-doc CSS、Mermaid 描画完了待ち、章ファイル参照解決）/ chrome-extension に `plugins/spec.ts` 追加（schema レジストリ登録 + viewer ライブプレビュー連携）/ ローカル画像リゾルバ + DOMPurify による inline SVG 受け入れ
+- v0.2.0 minor の設計合意（A/D/E は PdM OK 受領済。サンプル md と schema-spec / renderer-pdf spec レイアウトまで実装）
+- v0.2.0 残実装: chrome-extension に `plugins/spec.ts` 追加（schema レジストリ登録 + viewer ライブプレビュー連携 + md→HTML 変換）/ ローカル画像リゾルバ + DOMPurify による inline SVG 受け入れ / Mermaid 動的レンダリング / 章ファイル参照解決
 
 ## 次タスク
 
