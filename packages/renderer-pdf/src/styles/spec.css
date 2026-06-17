@@ -282,25 +282,25 @@ body {
 /* Mermaid diagrams (post-rendered to inline SVG by renderMermaidInHtml).
    Centered, max-width clamped, kept on one page when possible.
 
-   `max-height: 220mm` は A4 portrait の本文有効高（≈ 257mm = 297 − 上下 margin
-   40mm）から見出し + キャプション分を引いた値。これを超える図は SVG が縮小
-   されて表示される。読みやすさよりもページ跨ぎ回避を優先する。これが無いと
-   `break-inside: avoid` を指定しても Chromium はページ高を超える図に対して
-   break を諦めて改頁を強行するため、6 章のような縦長 flowchart が p11→p12 に
-   またがってしまう（PdM 検収で確認）。 */
+   `max-height: 190mm` は A4 portrait の本文有効高（≈ 257mm = 297 − 上下 margin
+   40mm）から h1 + h2（≈ 60mm）を引いた残り（≈ 197mm）よりさらに 7mm 削った値。
+   220mm では h1 + h2 + 図 = 280mm となり本文有効高を超え、6.1 のような図が
+   章タイトルから分離して次ページに送られる（PdM 検収で確認）。190mm に絞ると
+   h1 + h2 + 図が同ページに収まり、見出しと図のセットが維持される。読みやすさ
+   よりもページ跨ぎ回避 + 見出し-図セット化を優先。 */
 .mdb-mermaid {
   margin: 4mm auto;
   text-align: center;
   page-break-inside: avoid;
   break-inside: avoid;
   max-width: 100%;
-  max-height: 220mm;
+  max-height: 190mm;
   overflow: hidden;
 }
 
 .mdb-mermaid svg {
   max-width: 100%;
-  max-height: 220mm;
+  max-height: 190mm;
   height: auto;
   width: auto;
   display: inline-block;
