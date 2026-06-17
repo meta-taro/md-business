@@ -24,6 +24,7 @@
     "@md-business/core": "workspace:*",
     "@md-business/renderer-pdf": "workspace:*",
     "@md-business/schema-invoice": "workspace:*",
+    "@md-business/schema-spec": "workspace:*",
     "buffer": "^6.0.3",
     "codemirror": "^6.0.2"
   },

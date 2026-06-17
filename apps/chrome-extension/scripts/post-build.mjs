@@ -19,21 +19,14 @@ async function ensureDir(p) {
   await mkdir(p, { recursive: true });
 }
 
-async function copyInvoiceCss() {
-  const src = resolve(
-    ROOT,
-    '..',
-    '..',
-    'packages',
-    'renderer-pdf',
-    'src',
-    'styles',
-    'invoice.css',
-  );
+async function copySchemaCss() {
+  const stylesDir = resolve(ROOT, '..', '..', 'packages', 'renderer-pdf', 'src', 'styles');
   const destDir = resolve(DIST, 'styles');
   await ensureDir(destDir);
-  await copyFile(src, resolve(destDir, 'invoice.css'));
-  console.log('[post-build] copied invoice.css');
+  for (const file of ['invoice.css', 'spec.css']) {
+    await copyFile(resolve(stylesDir, file), resolve(destDir, file));
+    console.log(`[post-build] copied ${file}`);
+  }
 }
 
 async function copyPagedJs() {
@@ -146,6 +139,12 @@ const STARTER_TEMPLATES = [
     label: '英語フィールド名・軽減税率（8%）込み',
     description: '8% 軽減税率対象品目を含む適格請求書サンプル。',
   },
+  {
+    schema: 'spec',
+    file: 'standard-ja.md',
+    label: '日本語フィールド名・基本設計書（EC 注文管理サブシステム）',
+    description: '8 章 / Mermaid 図 / 表を含む数ページの基本設計書サンプル。日本語キー（文書番号 / 作成者 / レビュアー …）。',
+  },
 ];
 
 async function copyStarterTemplates() {
@@ -169,7 +168,7 @@ async function copyStarterTemplates() {
   console.log(`[post-build] copied ${STARTER_TEMPLATES.length} starter templates and wrote templates/manifest.json`);
 }
 
-await copyInvoiceCss();
+await copySchemaCss();
 await copyPagedJs();
 await copyFonts();
 await copyStarterTemplates();

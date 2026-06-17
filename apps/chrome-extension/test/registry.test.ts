@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { PluginRegistry } from '../src/plugins/registry.js';
 import { invoicePlugin } from '../src/plugins/invoice.js';
+import { specPlugin } from '../src/plugins/spec.js';
 import { createDefaultRegistry } from '../src/plugins/index.js';
 import type { SchemaPlugin } from '../src/plugins/types.js';
 
@@ -86,10 +87,30 @@ describe('invoicePlugin.detect', () => {
   });
 });
 
+describe('specPlugin.detect', () => {
+  it('claims documents with Japanese marker keys', () => {
+    expect(specPlugin.detect?.({ 文書番号: 'SPEC-1' })).toBe(true);
+    expect(specPlugin.detect?.({ 章ファイル: [] })).toBe(true);
+    expect(specPlugin.detect?.({ レビュアー: [] })).toBe(true);
+  });
+
+  it('claims documents with English marker keys', () => {
+    expect(specPlugin.detect?.({ documentNumber: 'X' })).toBe(true);
+    expect(specPlugin.detect?.({ chapters: [] })).toBe(true);
+    expect(specPlugin.detect?.({ reviewers: [] })).toBe(true);
+  });
+
+  it('does not claim unrelated documents', () => {
+    expect(specPlugin.detect?.({ title: 'note' })).toBe(false);
+    expect(specPlugin.detect?.({ items: [], 請求書番号: 'X' })).toBe(false);
+  });
+});
+
 describe('createDefaultRegistry', () => {
-  it('ships with the invoice plugin', () => {
+  it('ships with the invoice and spec plugins', () => {
     const r = createDefaultRegistry();
     expect(r.get('invoice')).toBe(invoicePlugin);
-    expect(r.list().map((p) => p.id)).toContain('invoice');
+    expect(r.get('spec')).toBe(specPlugin);
+    expect(r.list().map((p) => p.id)).toEqual(['invoice', 'spec']);
   });
 });

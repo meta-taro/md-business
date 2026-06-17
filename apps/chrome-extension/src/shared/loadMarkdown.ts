@@ -60,8 +60,11 @@ export function loadMarkdown(source: string, options: LoadMarkdownOptions = {}):
   const registry = options.registry ?? createDefaultRegistry();
 
   let frontmatter: Record<string, unknown>;
+  let markdownBody: string;
   try {
-    frontmatter = parseMarkdown(source).data;
+    const parsed = parseMarkdown(source);
+    frontmatter = parsed.data;
+    markdownBody = parsed.body;
   } catch (error: unknown) {
     return {
       ok: false,
@@ -100,7 +103,7 @@ export function loadMarkdown(source: string, options: LoadMarkdownOptions = {}):
   const pdfFileName = plugin.pdfFileName?.(validated.data) ?? documentTitle;
   return {
     ok: true,
-    bodyHtml: plugin.render(validated.data),
+    bodyHtml: plugin.render(validated.data, markdownBody),
     stylesHref: plugin.stylesHref,
     documentTitle,
     pdfFileName,
@@ -150,8 +153,11 @@ export function previewMarkdown(
   const registry = options.registry ?? createDefaultRegistry();
 
   let frontmatter: Record<string, unknown>;
+  let markdownBody: string;
   try {
-    frontmatter = parseMarkdown(source).data;
+    const parsed = parseMarkdown(source);
+    frontmatter = parsed.data;
+    markdownBody = parsed.body;
   } catch (error: unknown) {
     return {
       ok: false,
@@ -176,7 +182,7 @@ export function previewMarkdown(
   // to the strict path when one is not available — older plugins still work
   // (they just block on validation errors).
   if (plugin.previewRender) {
-    const result = plugin.previewRender(frontmatter);
+    const result = plugin.previewRender(frontmatter, markdownBody);
     return {
       ok: true,
       bodyHtml: result.html,
@@ -190,7 +196,7 @@ export function previewMarkdown(
   const validated = plugin.validate(frontmatter);
   return {
     ok: true,
-    bodyHtml: validated.ok ? plugin.render(validated.data) : '',
+    bodyHtml: validated.ok ? plugin.render(validated.data, markdownBody) : '',
     stylesHref: plugin.stylesHref,
     pluginId: plugin.id,
     errors: validated.ok ? [] : validated.errors,

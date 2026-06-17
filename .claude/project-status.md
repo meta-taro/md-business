@@ -1,6 +1,6 @@
 # Project Status — md-business
 
-最終更新: 2026-06-17（v0.2.0 renderer-pdf に spec レイアウト追加、106 tests pass）
+最終更新: 2026-06-17（v0.2.0 chrome-extension plugins/spec 追加・viewer 連携、コア MD→HTML、全 167 tests pass）
 
 ## 現在のフェーズ
 
@@ -52,13 +52,15 @@
 - 2026-06-17 `packages/schema-spec/` 骨格実装。JSON Schema draft 2020-12（required: schemaVersion/documentNumber/title/version/issueDate/status/authors、SemVer pattern、ISO date format、`.md` chapters pattern、additionalProperties: false）+ TypeScript 型 + 日本語キー dictionary（root + party scope、status/toc/theme 値翻訳）+ Ajv standalone build。44 tests pass（schema 14 + normalize 30）、coverage 100% lines / 94.87% branches
 - 2026-06-17 `packages/schema-spec` 完成度向上: autofill（schemaVersion / version=0.1.0 / status=draft / toc=auto デフォルト、toc=manual で chapters 空時の警告、toc=auto と chapters 同時指定の mixed signal 警告）+ translateError（Ajv エラー / normalize / autofill 警告を日本語化、SemVer / `.md` / YYYY-MM-DD ヒント、enum 許可値を明記）+ parseSpec（splitFrontmatter → normalize → autofill → validateWithCompiled の MV3 CSP セーフな End-to-End）+ fileName（`{文書番号} / {タイトル} / {版} / {ステータス} / {発行日YMD} / {YMD}` token、Windows 禁止文字サニタイズ、デフォルト `基本設計書_{文書番号}_v{版}`）。96 tests pass（schema 14 + normalize 30 + autofill 10 + translateError 21 + fileName 14 + parseSpec 7）、coverage 99.52% lines / 82.57% branches
 - 2026-06-17 `packages/renderer-pdf` に基本設計書レイアウト追加。`renderSpecBody(spec, options)` で表紙ページ（タイトル / ステータスバッジ / 文書番号 / 版 / 発行日 / 作成者 / レビュアー / 関連文書、テーマアクセントカラー、左端 6mm カラーバー）+ `renderSpecHtml(spec, options)` フル HTML 文書ラッパ + `src/styles/spec.css`（A4 縦、表紙 page-break-after、h1 章ごと page-break-before、h2 左ボーダー、テーブル / コードブロック / Mermaid コンテナ / 引用 / 画像スタイル）。`bodyHtml` は viewer 側責務（chrome-extension の plugins/spec で md→HTML 変換予定）。CSS injection 攻撃 / XSS のテストカバー含む 29 tests pass（specTemplate 20 + renderSpecHtml 9）、renderer-pdf 全 106 tests pass、specTemplate / renderSpecHtml 共に 100% カバレッジ
+- 2026-06-17 `@md-business/core` に `renderMarkdownToHtml(src, options)` 追加。`remark-parse → remark-rehype → rehype-stringify` の unified パイプライン（純 JS、MV3 CSP セーフ）で Markdown → HTML 変換。`allowDangerousHtml: false` で生 HTML を破棄（XSS 防御）、`hasFrontmatter` オプションで frontmatter 分離有無を制御。19 tests、100% カバレッジ
+- 2026-06-17 `apps/chrome-extension` に `plugins/spec.ts` 追加。`SchemaPlugin` 契約を `render(frontmatter, markdownBody?)` / `previewRender(frontmatter, markdownBody?)` の 2 引数に拡張（invoice plugin は body 無視、spec plugin は使用）。`loadMarkdown` / `previewMarkdown` を `parseMarkdown().body` も渡すよう更新。registry に spec plugin を登録（detect: 文書番号 / 章ファイル / レビュアー / documentNumber / chapters / reviewers）。post-build.mjs を `copySchemaCss`（invoice.css + spec.css 両方）に統合 + `templates/spec/standard-ja.md` を STARTER_TEMPLATES に追加（popup から「テンプレートから始める」で開けるように）。chrome-extension 全 53 tests pass（spec plugin 14 + registry 14 + invoice loadMarkdown 8 + previewMarkdown 8 + bumpVersion 9）、spec.ts 96.2% カバレッジ。repo 全体で typecheck + test:run + build green
 
 ## 進行中
 
 - Chrome Web Store v0.1.0 審査結果待ち（通常 1〜7 日、初回は 2〜3 週かかる場合あり）
 - v0.1.1 release zip は `release/md-business-v0.1.1.zip` で生成済、v0.1.0 通過後に Web Store へ提出予定（PdM 操作）
-- v0.2.0 minor の設計合意（A/D/E は PdM OK 受領済。サンプル md と schema-spec / renderer-pdf spec レイアウトまで実装）
-- v0.2.0 残実装: chrome-extension に `plugins/spec.ts` 追加（schema レジストリ登録 + viewer ライブプレビュー連携 + md→HTML 変換）/ ローカル画像リゾルバ + DOMPurify による inline SVG 受け入れ / Mermaid 動的レンダリング / 章ファイル参照解決
+- v0.2.0 minor の設計合意（A/D/E は PdM OK 受領済。サンプル md / schema-spec / renderer-pdf spec / chrome-extension plugins/spec まで実装）
+- v0.2.0 残実装: ローカル画像リゾルバ + DOMPurify による inline SVG 受け入れ / Mermaid 動的レンダリング / 章ファイル参照解決 / バージョン bump（manifest.json + package.json を 0.2.0 に）+ release zip / Web Store 再申請（v0.1.0 通過後）
 
 ## 次タスク
 
