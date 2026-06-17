@@ -37,13 +37,13 @@ describe('renderInvoiceBody — standard invoice', () => {
     expect(html).toContain('お振込手数料');
   });
 
-  it('renders signature area by default', () => {
-    expect(html).toContain('seal-area');
+  it('omits signature area by default (2026-06-14 印影なし方針)', () => {
+    expect(html).not.toContain('seal-area');
   });
 
-  it('omits signature area when option is false', () => {
-    const without = renderInvoiceBody(standardInvoice(), { signatureArea: false });
-    expect(without).not.toContain('seal-area');
+  it('renders signature area when explicitly opted in', () => {
+    const withSeal = renderInvoiceBody(standardInvoice(), { signatureArea: true });
+    expect(withSeal).toContain('seal-area');
   });
 });
 

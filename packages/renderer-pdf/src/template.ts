@@ -190,6 +190,14 @@ function renderPayment(invoice: Invoice): string {
 }
 
 export interface RenderInvoiceBodyOptions {
+  /**
+   * When true, render a `<div class="seal-area">印</div>` placeholder for a
+   * hand-stamp at the bottom of the invoice. Default is `false` per the
+   * 2026-06-14 「印影なし方針」decision — Japanese qualified invoices have no
+   * legal requirement for a seal, and the placeholder caused 2-page overflow
+   * for tax-exempt invoices. Set to `true` only when the consumer explicitly
+   * wants the legacy seal box back.
+   */
   signatureArea?: boolean;
   /**
    * Minimum number of visual rows in the items table. When `items[]` is
@@ -212,7 +220,7 @@ function renderStampForInvoice(invoice: Invoice) {
 }
 
 export function renderInvoiceBody(invoice: Invoice, options: RenderInvoiceBodyOptions = {}): string {
-  const { signatureArea = true, minItemRows = DEFAULT_MIN_ITEM_ROWS } = options;
+  const { signatureArea = false, minItemRows = DEFAULT_MIN_ITEM_ROWS } = options;
   const emptyRowCount = Math.max(0, minItemRows - invoice.items.length);
   const itemsMarkup =
     invoice.items.map(renderItemRow).join('') +
