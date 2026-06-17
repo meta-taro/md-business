@@ -6,6 +6,7 @@ const registry = createDefaultRegistry();
 
 interface StarterTemplate {
   schema: string;
+  category?: string;
   file: string;
   label: string;
   description: string;
@@ -15,6 +16,8 @@ interface StarterTemplate {
 interface StarterTemplateManifest {
   templates: StarterTemplate[];
 }
+
+const DEFAULT_CATEGORY = 'その他';
 
 function populateSchemaSelect(): void {
   const select = document.getElementById('mdb-schema') as HTMLSelectElement | null;
@@ -79,6 +82,29 @@ async function handleTemplateClick(template: StarterTemplate): Promise<void> {
   await openViewerWithSource(source, template.file, template.schema);
 }
 
+function buildTemplateButton(t: StarterTemplate): HTMLButtonElement {
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'mdb-starter__item';
+  btn.setAttribute('role', 'listitem');
+  btn.dataset['templatePath'] = t.path;
+
+  const title = document.createElement('span');
+  title.className = 'mdb-starter__item-title';
+  title.textContent = t.label;
+  btn.appendChild(title);
+
+  const desc = document.createElement('span');
+  desc.className = 'mdb-starter__item-desc';
+  desc.textContent = t.description;
+  btn.appendChild(desc);
+
+  btn.addEventListener('click', () => {
+    handleTemplateClick(t).catch((err: unknown) => showError(formatError(err)));
+  });
+  return btn;
+}
+
 async function loadStarterTemplates(): Promise<void> {
   const list = document.getElementById('mdb-starter-list');
   if (!list) return;
@@ -90,27 +116,28 @@ async function loadStarterTemplates(): Promise<void> {
       return;
     }
     const manifest = (await res.json()) as StarterTemplateManifest;
+
+    // Group templates by category while preserving manifest insertion order
+    // (post-build.mjs already sorts categories in CATEGORY_ORDER).
+    const grouped = new Map<string, StarterTemplate[]>();
     for (const t of manifest.templates) {
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'mdb-starter__item';
-      btn.setAttribute('role', 'listitem');
-      btn.dataset['templatePath'] = t.path;
+      const key = t.category ?? DEFAULT_CATEGORY;
+      const existing = grouped.get(key);
+      if (existing) existing.push(t);
+      else grouped.set(key, [t]);
+    }
 
-      const title = document.createElement('span');
-      title.className = 'mdb-starter__item-title';
-      title.textContent = t.label;
-      btn.appendChild(title);
-
-      const desc = document.createElement('span');
-      desc.className = 'mdb-starter__item-desc';
-      desc.textContent = t.description;
-      btn.appendChild(desc);
-
-      btn.addEventListener('click', () => {
-        handleTemplateClick(t).catch((err: unknown) => showError(formatError(err)));
-      });
-      list.appendChild(btn);
+    for (const [category, templates] of grouped) {
+      const section = document.createElement('div');
+      section.className = 'mdb-starter__section';
+      const heading = document.createElement('div');
+      heading.className = 'mdb-starter__section-heading';
+      heading.textContent = category;
+      section.appendChild(heading);
+      for (const t of templates) {
+        section.appendChild(buildTemplateButton(t));
+      }
+      list.appendChild(section);
     }
   } catch (err: unknown) {
     showError(formatError(err));

@@ -123,46 +123,65 @@ async function copyFonts() {
 const STARTER_TEMPLATES = [
   {
     schema: 'invoice',
+    category: '適格請求書',
     file: 'standard-ja.md',
     label: '日本語フィールド名・適格請求書（推奨）',
     description: '日本語キー（請求書番号 / 発行元 / 品目 …）の最新スタイル。3 品目 + 振込先 + 印影。',
   },
   {
     schema: 'invoice',
+    category: '適格請求書',
     file: 'standard.md',
     label: '英語フィールド名・標準請求書',
     description: '英語キー（invoiceNumber / issuer / items …）の標準スタイル。',
   },
   {
     schema: 'invoice',
+    category: '適格請求書',
     file: 'inbound-eligible.md',
     label: '英語フィールド名・軽減税率（8%）込み',
     description: '8% 軽減税率対象品目を含む適格請求書サンプル。',
   },
   {
     schema: 'invoice',
+    category: '免税事業者',
     file: 'tax-exempt-ja.md',
     label: '日本語フィールド名・免税事業者向け',
     description: '適格請求書発行事業者でない個人事業主・小規模法人向け。登録番号なしで「免税事業者: true」を指定。経過措置案内を自動出力。',
   },
   {
     schema: 'spec',
+    category: '基本設計書',
     file: 'standard-ja.md',
     label: '日本語フィールド名・基本設計書（EC 注文管理サブシステム）',
     description: '8 章 / Mermaid 図 / 表を含む数ページの基本設計書サンプル。日本語キー（文書番号 / 作成者 / レビュアー …）。',
   },
 ];
 
+// Display order for category sections in the popup. Templates whose category
+// is not listed here fall back to the end (preserves insertion order).
+const CATEGORY_ORDER = ['適格請求書', '免税事業者', '基本設計書'];
+
 async function copyStarterTemplates() {
   const repoRoot = resolve(ROOT, '..', '..');
   const manifest = [];
-  for (const t of STARTER_TEMPLATES) {
+  // Sort so categories appear in CATEGORY_ORDER while preserving insertion
+  // order within each category (and after that, unknown categories).
+  const sorted = [...STARTER_TEMPLATES].sort((a, b) => {
+    const ai = CATEGORY_ORDER.indexOf(a.category);
+    const bi = CATEGORY_ORDER.indexOf(b.category);
+    const av = ai === -1 ? CATEGORY_ORDER.length : ai;
+    const bv = bi === -1 ? CATEGORY_ORDER.length : bi;
+    return av - bv;
+  });
+  for (const t of sorted) {
     const src = resolve(repoRoot, 'templates', t.schema, t.file);
     const destDir = resolve(DIST, 'templates', t.schema);
     await ensureDir(destDir);
     await copyFile(src, resolve(destDir, t.file));
     manifest.push({
       schema: t.schema,
+      category: t.category,
       file: t.file,
       label: t.label,
       description: t.description,

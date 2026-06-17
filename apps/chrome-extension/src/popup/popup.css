@@ -120,7 +120,25 @@ body {
 .mdb-starter__list {
   display: flex;
   flex-direction: column;
+  gap: 10px;
+}
+
+.mdb-starter__section {
+  display: flex;
+  flex-direction: column;
   gap: 4px;
+}
+
+.mdb-starter__section-heading {
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: var(--fg);
+  text-transform: none;
+  padding: 0 2px;
+  border-left: 2px solid var(--accent);
+  padding-left: 6px;
+  margin-bottom: 2px;
 }
 
 .mdb-starter__item {
