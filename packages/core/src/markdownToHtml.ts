@@ -1,5 +1,6 @@
 import { unified } from 'unified';
 import remarkParse from 'remark-parse';
+import remarkGfm from 'remark-gfm';
 import remarkRehype from 'remark-rehype';
 import rehypeStringify from 'rehype-stringify';
 import { splitFrontmatter } from './frontmatter.js';
@@ -13,8 +14,11 @@ import { splitFrontmatter } from './frontmatter.js';
  * uses the same pipeline.
  *
  * Implementation notes:
- *   - The unified pipeline (remark-parse → remark-rehype → rehype-stringify)
- *     is pure JS with no `eval` / `new Function()`, so it is MV3 CSP safe.
+ *   - The unified pipeline (remark-parse → remark-gfm → remark-rehype →
+ *     rehype-stringify) is pure JS with no `eval` / `new Function()`, so it is
+ *     MV3 CSP safe. `remark-gfm` adds GitHub Flavored Markdown — tables,
+ *     strikethrough, task lists, autolinks — which the spec template relies on
+ *     for 機能一覧 / 比較表 のような pipe table を描画するため必須。
  *   - `allowDangerousHtml: false` (the default) drops raw HTML embedded in
  *     the Markdown rather than passing it through. Authors who need inline
  *     SVG / Mermaid will get dedicated handling on a later pass — for now,
@@ -32,6 +36,7 @@ export interface RenderMarkdownToHtmlOptions {
 
 const processor = unified()
   .use(remarkParse)
+  .use(remarkGfm)
   .use(remarkRehype)
   .use(rehypeStringify);
 

@@ -44,13 +44,27 @@ describe('renderMarkdownToHtml — basic blocks', () => {
     expect(html).toContain('const x = 1;');
   });
 
-  it('converts tables (GFM-style would need a plugin; plain syntax falls back to paragraphs)', () => {
-    // Plain remark without GFM treats pipe-tables as paragraphs.
-    // This test pins the current behavior so a future GFM-enabling commit
-    // changes it deliberately, not by accident.
+  it('converts GFM pipe tables to <table>', () => {
+    // remark-gfm enabled — the spec template's 機能一覧 / 比較表 など pipe table
+    // を <table> 要素として描画する。viewer はこの HTML を Paged.js + spec.css
+    // に流し込むので、ここで <table> が落ちると基本設計書のテーブルが
+    // 生テキストとして出てしまう（過去に v0.4.0 で発生）。
     const md = '| a | b |\n|---|---|\n| 1 | 2 |';
     const html = renderMarkdownToHtml(md, { hasFrontmatter: false });
-    expect(html).not.toContain('<table>');
+    expect(html).toContain('<table>');
+    expect(html).toContain('<th>a</th>');
+    expect(html).toContain('<td>1</td>');
+  });
+
+  it('renders GFM strikethrough', () => {
+    const html = renderMarkdownToHtml('~~old~~', { hasFrontmatter: false });
+    expect(html).toContain('<del>old</del>');
+  });
+
+  it('renders GFM task lists', () => {
+    const html = renderMarkdownToHtml('- [x] done\n- [ ] todo', { hasFrontmatter: false });
+    expect(html).toContain('type="checkbox"');
+    expect(html).toContain('checked');
   });
 
   it('converts blockquotes', () => {
