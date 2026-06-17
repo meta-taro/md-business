@@ -280,19 +280,55 @@ body {
 }
 
 /* Mermaid diagrams (post-rendered to inline SVG by renderMermaidInHtml).
-   Centered, max-width clamped, kept on one page when possible. */
+   Centered, max-width clamped, kept on one page when possible.
+
+   `max-height: 220mm` は A4 portrait の本文有効高（≈ 257mm = 297 − 上下 margin
+   40mm）から見出し + キャプション分を引いた値。これを超える図は SVG が縮小
+   されて表示される。読みやすさよりもページ跨ぎ回避を優先する。これが無いと
+   `break-inside: avoid` を指定しても Chromium はページ高を超える図に対して
+   break を諦めて改頁を強行するため、6 章のような縦長 flowchart が p11→p12 に
+   またがってしまう（PdM 検収で確認）。 */
 .mdb-mermaid {
   margin: 4mm auto;
   text-align: center;
   page-break-inside: avoid;
   break-inside: avoid;
   max-width: 100%;
+  max-height: 220mm;
+  overflow: hidden;
 }
 
 .mdb-mermaid svg {
   max-width: 100%;
+  max-height: 220mm;
   height: auto;
+  width: auto;
   display: inline-block;
+}
+
+/* 章タイトル（h1）と最初のサブセクション（h2）を必ず同じページに置く。
+   `.mdb-spec__body > h1` は `break-before: page` を持つため新ページ開始する
+   が、その直後の h2 が次ページに送られると「h1 だけのほぼ白紙ページ」が
+   発生する（PdM 検収で「6. 画面遷移」見出しだけの白紙 p10 として確認）。
+   h2 の上マージンを縮め break-before: avoid を指定して同ページ収まりを促す。 */
+.mdb-spec__body > h1 + h2,
+.mdb-spec__body > h1 + p + h2 {
+  margin-top: 5mm;
+  break-before: avoid;
+  page-break-before: avoid;
+}
+
+/* サブセクションタイトル（h2）と直後の図/表を必ず同じページに置く。
+   h2 一般に `break-after: avoid` は指定済みだが、直後が縦長 Mermaid 図 / 表
+   の場合「h2 だけ残して図が次ページ」が起きやすい（PdM 検収で「6.1 注文
+   確定フロー」見出しだけの白紙 p11 として確認）。Mermaid 側の max-height
+   と組み合わせて、h2 + 図のセット化を強制する。 */
+.mdb-spec__body h2 + .mdb-mermaid,
+.mdb-spec__body h2 + p + .mdb-mermaid,
+.mdb-spec__body h3 + .mdb-mermaid,
+.mdb-spec__body h3 + p + .mdb-mermaid {
+  break-before: avoid;
+  page-break-before: avoid;
 }
 
 .mdb-mermaid--error {
