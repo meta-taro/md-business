@@ -140,6 +140,12 @@ const STARTER_TEMPLATES = [
     description: '8% 軽減税率対象品目を含む適格請求書サンプル。',
   },
   {
+    schema: 'invoice',
+    file: 'tax-exempt-ja.md',
+    label: '日本語フィールド名・免税事業者向け',
+    description: '適格請求書発行事業者でない個人事業主・小規模法人向け。登録番号なしで「免税事業者: true」を指定。経過措置案内を自動出力。',
+  },
+  {
     schema: 'spec',
     file: 'standard-ja.md',
     label: '日本語フィールド名・基本設計書（EC 注文管理サブシステム）',
