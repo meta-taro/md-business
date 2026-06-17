@@ -1,10 +1,10 @@
 # Project Status — md-business
 
-最終更新: 2026-06-17（**v0.5.0 = v0.4.0 + Mermaid subset build 復活**: cytoscape を空 shim で排除 + lodash CSP 違反パターンを vite plugin で置換 → scan-bundle clean、ER / flowchart / sequence などが MV3 CSP 下で描画可能に）
+最終更新: 2026-06-17（**v0.5.0 を Chrome Web Store に submit 完了**: zip アップロード成功 + 拡張表示名を `md-business — Markdown 業務文書ビューワー` に刷新 + ストア掲載スクショ 5 枚を 1280×800 / 24bit PNG (alpha なし) で再生成 + 商品の詳細を v0.5.0 反映に書き換え。`templates/manifest.json` → `templates/index.json` リネームで package validator の「複数マニフェスト検出」エラーを解消。前ブロック: v0.5.0 = v0.4.0 + Mermaid subset build 復活）
 
 ## 現在のフェーズ
 
-**Phase 1-MVP 公開済み（v0.1.0）→ v0.5.0 を Web Store update として提出予定**
+**Phase 1-MVP 公開済み（v0.1.0）→ v0.5.0 を Web Store update として submit 済（審査待ち）**
 
 2026-06-16 にドコカデ Inc. アカウントで v0.1.0 を submit、2026-06-17 に審査通過＆公開。store URL: https://chromewebstore.google.com/detail/lmdplkkfmgapnhombimeohjliinifgjh （extension ID 固定）。
 
