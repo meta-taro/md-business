@@ -109,7 +109,7 @@ async function loadStarterTemplates(): Promise<void> {
   const list = document.getElementById('mdb-starter-list');
   if (!list) return;
   try {
-    const manifestUrl = chrome.runtime.getURL('templates/manifest.json');
+    const manifestUrl = chrome.runtime.getURL('templates/index.json');
     const res = await fetch(manifestUrl);
     if (!res.ok) {
       list.textContent = 'テンプレート一覧を読み込めませんでした。';

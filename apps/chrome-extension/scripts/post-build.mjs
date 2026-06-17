@@ -188,9 +188,13 @@ async function copyStarterTemplates() {
       path: `templates/${t.schema}/${t.file}`,
     });
   }
-  const manifestPath = resolve(DIST, 'templates', 'manifest.json');
+  // NOTE: file name is `index.json`, not `manifest.json`. Chrome Web Store's
+  // package validator scans for *any* manifest.json under the zip root and
+  // rejects the upload with "複数のマニフェストが見つかりました" when a second
+  // one exists at templates/manifest.json. Keep this file named index.json.
+  const manifestPath = resolve(DIST, 'templates', 'index.json');
   await writeFile(manifestPath, JSON.stringify({ templates: manifest }, null, 2) + '\n', 'utf8');
-  console.log(`[post-build] copied ${STARTER_TEMPLATES.length} starter templates and wrote templates/manifest.json`);
+  console.log(`[post-build] copied ${STARTER_TEMPLATES.length} starter templates and wrote templates/index.json`);
 }
 
 await copySchemaCss();
