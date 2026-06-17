@@ -11,6 +11,8 @@
   margin: 20mm 18mm 22mm 18mm;
 }
 
+/* 表紙ページは余白 0。`.mdb-spec__cover` 自体が左カラーバー + 内側 padding を
+   持つので、@page margin で更に削るとレイアウトが二重に縮む。 */
 @page :first {
   margin: 0;
 }
@@ -37,9 +39,12 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+/* `.mdb-spec` 全体には幅制約をかけない。表紙 `.mdb-spec__cover` を preview-host
+   (chrome-extension viewer) の padding 18mm 16mm を相殺してフルブリードで見せたい
+   のと、本文 `.mdb-spec__body` の max-width 174mm（A4 portrait 印刷余白後の有効幅）
+   は別レイヤーで制御するため。 */
 .mdb-spec {
-  max-width: 174mm;
-  margin: 0 auto;
+  margin: 0;
 }
 
 /* ─────────────────────── Cover page ─────────────────────── */
@@ -49,7 +54,10 @@ body {
   align-items: stretch;
   justify-content: center;
   width: 100%;
+  /* A4 portrait 297mm を上限とする。標準的な作成者 / レビュアー / 関連文書を
+     含めても 1 ページに収まるよう、padding は控えめに（旧 40/24/32/22mm → 24/22/14/22mm）。 */
   min-height: 297mm;
+  max-height: 297mm;
   padding: 0;
   margin: 0;
   page-break-after: always;
@@ -57,10 +65,11 @@ body {
   background: linear-gradient(135deg, var(--mdb-color-accent-soft) 0%, #ffffff 60%);
   border-left: 6mm solid var(--mdb-color-accent);
   box-sizing: border-box;
+  overflow: hidden;
 }
 
 .mdb-spec__cover-inner {
-  padding: 40mm 24mm 32mm 22mm;
+  padding: 24mm 22mm 14mm 22mm;
   width: 100%;
   box-sizing: border-box;
 }
@@ -75,7 +84,7 @@ body {
   border-radius: 999px;
   color: var(--mdb-color-accent);
   background: #ffffff;
-  margin-bottom: 14mm;
+  margin-bottom: 10mm;
 }
 
 .mdb-spec__status--approved {
@@ -88,10 +97,10 @@ body {
 }
 
 .mdb-spec__title {
-  font-size: 28pt;
+  font-size: 26pt;
   font-weight: 700;
   line-height: 1.3;
-  margin: 0 0 18mm 0;
+  margin: 0 0 12mm 0;
   color: var(--mdb-color-fg);
   letter-spacing: 0.02em;
 }
@@ -99,9 +108,9 @@ body {
 .mdb-spec__meta {
   display: grid;
   grid-template-columns: 28mm 1fr;
-  row-gap: 3mm;
+  row-gap: 2.5mm;
   column-gap: 6mm;
-  margin: 0 0 14mm 0;
+  margin: 0 0 10mm 0;
   padding: 0;
   font-size: 11pt;
 }
@@ -156,6 +165,8 @@ body {
 
 .mdb-spec__body {
   padding: 4mm 0 0 0;
+  max-width: 174mm;
+  margin: 0 auto;
 }
 
 .mdb-spec__body > h1 {
@@ -313,10 +324,20 @@ body {
   word-break: break-all;
 }
 
+/* 画面プレビュー時のシャドウ / 余分なマージンは付与しない。Chrome 拡張のビューワーで
+   「印刷時の見た目とプレビューを一致させたい」「シャドウが入ると印刷の白枠と二重に
+   なって見える」という要望を受け、screen 用の装飾は意図的に空にしている。 */
 @media screen {
   .mdb-spec {
     background: #ffffff;
-    margin: 8mm auto;
-    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+  }
+  /* preview-host (chrome-extension viewer) の padding 18mm 16mm を相殺し、表紙を
+     紙ぴったりのフルブリードで見せる。印刷時は @page :first { margin: 0 } が同じ
+     役割を担うので、screen 限定で十分。
+     負の margin 単独だと自身の幅は親 100% のまま変わらないので、width も合わせて
+     左右 16mm × 2 = 32mm 拡張する。 */
+  .mdb-spec__cover {
+    margin: -18mm -16mm 0 -16mm;
+    width: calc(100% + 32mm);
   }
 }
