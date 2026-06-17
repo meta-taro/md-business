@@ -1,6 +1,6 @@
 # Project Status — md-business
 
-最終更新: 2026-06-17（**v0.4.0 zip 生成準備中**: v0.2.0 sanitizer + v0.3.0 免税事業者モード + v0.4.0 popup 分岐 UX / 書き方ガイドモーダルを 1 申請に統合、Mermaid は MV3 CSP 違反で v0.5.0+ へ延期）
+最終更新: 2026-06-17（**v0.4.0 検収フィードバック反映 + zip 再生成済み**: 免税テンプレの 2 ページ溢れ + 非適格朱書きの撤回 / 表紙 1 ページ収まり + シャドウ撤去 / GFM pipe table / 印刷キャンセル時のプレビュー消失バグ修正）
 
 ## 現在のフェーズ
 
@@ -70,10 +70,11 @@ Issue #15（高橋たくと氏 → 株式会社キングダム宛 6 月分請求
 - 2026-06-17 **v0.3.0 テンプレ `templates/invoice/tax-exempt-ja.md`** 追加。屋号なし個人事業主想定（山田 太郎 → 株式会社サンプル受領先宛）、90,000 × 10% = 9,000 / total 99,000 サンプル。`免税事業者: true` を明示、taxSummary / totals は YAML コメントで参考値（feedback-invoice-manual-calc 方針）を残して autofill に委譲、登録番号フィールドは存在しない。日本語キー throughout、テーマ青、丸印スタンプ無効
 - 2026-06-17 **v0.3.0 private/2026-06-contractor-invoice.md** を高橋たくと氏の本番テンプレに整備。旧 `登録番号: ""` + TODO コメント → `免税事業者: true` に切替、備考から redundant な経過措置記述を削除（renderer が自動出力する）。3 リポジトリ運用（store-girlsbar / store-concafe-maid / store-cabaret）× 30,000 円/月 = 90,000 + 税 9,000 = 99,000 円。ファイル名: `御請求書_{請求先}{敬称}_高橋たくと_{YMD}`
 - 2026-06-17 v0.3.0 完了時点で **repo 全体 408 tests pass / lint 10 pkg green / typecheck 10 pkg green / 5 pkg build green**。dist/templates/manifest.json に 5 テンプレ揃った（standard-ja / standard / inbound-eligible / **tax-exempt-ja** / spec/standard-ja）
+- 2026-06-17 **v0.4.0 検収フィードバック対応（6 件まとめて 1 コミット）**: (1) renderer-pdf 免税テンプレからタイトル直下の朱書き「※ 適格請求書ではありません」と「〜へ」受領者サブタイトルを撤回（商習慣配慮、本文末尾の経過措置案内は維持）。(2) `@md-business/core` の `renderMarkdownToHtml` に `remark-gfm@^4.0.0` 追加、`templates/spec/standard-ja.md` の「3.1 機能一覧」pipe table が `<table>` として描画されるよう修正。(3) `packages/renderer-pdf/src/styles/spec.css` の表紙を A4 1 ページ収まりに圧縮: `@page :first` margin: 0、`.mdb-spec__cover` を `min/max-height: 297mm` + `overflow: hidden`、title 28→26pt + 余白 18→12mm、meta 14→10mm、status 14→10mm、cover-inner padding 40/24/32/22 → 24/22/14/22mm に圧縮。(4) `@media screen` の `box-shadow` と外側 8mm margin を撤去（プレビューと印刷の見た目を一致）。(5) **印刷キャンセル時のプレビュー消失バグ修正**（apps/chrome-extension/src/viewer/index.ts `runPrintFlow`）: プレビュー iframe を上書きする旧実装を撤回し、専用の隠し iframe（`#mdb-print-frame`）を毎回作って印刷後に `remove()` する方式へ。キャンセル時もメイン UI は無変化。core 44 tests + renderer-pdf 112 tests + chrome-extension 77 tests + 全体 472 tests pass、scan-bundle clean、v0.4.0 zip 再生成済み
 
 ## 進行中
 
-- v0.4.0 zip 生成 + Web Store update 提出（PdM 手動）
+- v0.4.0 zip Web Store update 提出（PdM 手動 push 待ち → 提出）
 - v0.5.0 / Mermaid 代替手段の検討（静的 SVG 埋め込み / 軽量代替ライブラリ / mermaid 完全 vendor 化）
 
 ## 次タスク
@@ -82,9 +83,10 @@ Issue #15（高橋たくと氏 → 株式会社キングダム宛 6 月分請求
 
 1. ✅ `manifest.json` / `package.json` を 0.1.1 → 0.4.0 へ bump
 2. ✅ roadmap / decisions / project-status を Mermaid 延期 + v0.4.0 統合に更新
-3. ⏳ `pnpm --filter @md-business/chrome-extension release` で `release/md-business-v0.4.0.zip` 再生成（Mermaid 抜き）
-4. ⏳ scan-bundle が clean を返すことを確認（cytoscape / wardley / graph chunk は bundle から消えるので 0 件想定）
-5. ⏳ 単発コミット → PdM が push → PdM が Web Store update 提出
+3. ✅ `pnpm --filter @md-business/chrome-extension release` で `release/md-business-v0.4.0.zip` 再生成（Mermaid 抜き）
+4. ✅ scan-bundle clean（6 bundled JS, 0 violations）
+5. ✅ PdM 検収フィードバック（6 件: 朱書き撤回 / 経過措置案内維持 / GFM pipe table / 表紙 1 ページ / シャドウ撤去 / 印刷キャンセルバグ）を反映 → zip 再々生成
+6. ⏳ PdM が push → PdM が Web Store update 提出
 
 ### v0.5.0 minor（請求書実務細部 + Mermaid 代替）
 
