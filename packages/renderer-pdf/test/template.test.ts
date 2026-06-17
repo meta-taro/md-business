@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { renderInvoiceBody } from '../src/template.js';
-import { standardInvoice, mixedRateInvoice, xssInvoice } from './fixtures.js';
+import { standardInvoice, mixedRateInvoice, taxExemptInvoice, xssInvoice } from './fixtures.js';
 
 describe('renderInvoiceBody — standard invoice', () => {
   const html = renderInvoiceBody(standardInvoice());
@@ -225,6 +225,42 @@ describe('renderInvoiceBody — logo', () => {
   it('omits the logo block when the field is absent', () => {
     const html = renderInvoiceBody(standardInvoice());
     expect(html).not.toContain('mdb-invoice__logo');
+  });
+});
+
+describe('renderInvoiceBody — 免税事業者モード (taxExemptIssuer)', () => {
+  const html = renderInvoiceBody(taxExemptInvoice());
+
+  it('marks the article element with data-tax-exempt="true"', () => {
+    expect(html).toContain('data-tax-exempt="true"');
+  });
+
+  it('renders a non-qualified notice under the title', () => {
+    expect(html).toContain('mdb-invoice__non-qualified-notice');
+    expect(html).toContain('適格請求書ではありません');
+  });
+
+  it('renders a 経過措置 transition notice in the body', () => {
+    expect(html).toContain('mdb-invoice__transition-notice');
+    expect(html).toContain('経過措置');
+    expect(html).toContain('2023年10月');
+    expect(html).toContain('2029年9月');
+  });
+
+  it('does not render a 登録番号 row when registrationNumber is absent', () => {
+    expect(html).not.toContain('mdb-invoice__registration');
+    expect(html).not.toContain('登録番号:');
+  });
+
+  it('keeps the same title 請求書 (does not swap to 支払明細書 or similar)', () => {
+    expect(html).toContain('<h1 class="mdb-invoice__title">請求書</h1>');
+  });
+
+  it('does NOT emit the tax-exempt markup for a qualified issuer (standardInvoice)', () => {
+    const qualified = renderInvoiceBody(standardInvoice());
+    expect(qualified).not.toContain('data-tax-exempt="true"');
+    expect(qualified).not.toContain('mdb-invoice__non-qualified-notice');
+    expect(qualified).not.toContain('mdb-invoice__transition-notice');
   });
 });
 

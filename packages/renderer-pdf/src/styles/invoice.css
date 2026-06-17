@@ -55,6 +55,16 @@ body {
   margin: 0 0 1.5mm;
 }
 
+/* 免税事業者モード: タイトル直下に小さく「適格請求書ではありません」を表示。
+   赤系の色で警告として読み取れるが、行高を抑えてレイアウトを崩さない。 */
+.mdb-invoice__non-qualified-notice {
+  font-size: 9pt;
+  font-weight: 600;
+  color: #b91c1c;
+  margin: 0 0 1.5mm;
+  letter-spacing: 0.05em;
+}
+
 .mdb-invoice__meta {
   font-size: 9.5pt;
   text-align: right;
@@ -267,6 +277,18 @@ body {
   border-top: 1px dashed var(--mdb-color-border);
   padding-top: 2.5mm;
   margin-bottom: 4mm;
+}
+
+/* 免税事業者モード: 経過措置案内。背景色をうっすら入れて受領者の目に留める。
+   notes より目立たせる必要があるため左ボーダーをアクセントカラーにする。 */
+.mdb-invoice__transition-notice {
+  font-size: 9pt;
+  color: var(--mdb-color-muted);
+  background: rgba(0, 0, 0, 0.025);
+  border-left: 3px solid var(--mdb-color-accent);
+  padding: 2.5mm 3mm;
+  margin: 4mm 0;
+  line-height: 1.55;
 }
 
 .mdb-invoice__signature .seal-area {
