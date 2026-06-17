@@ -1,6 +1,6 @@
 # Project Status — md-business
 
-最終更新: 2026-06-16（v0.1.1 push + v0.2.0 設計合意 Issue 起票）
+最終更新: 2026-06-17（v0.2.0 schema-spec パッケージ骨格 + 44 tests pass）
 
 ## 現在のフェーズ
 
@@ -47,12 +47,16 @@
 - 2026-06-16 `feat/v0.2.0` ブランチ作成（main 温存）。`packages/schema-invoice` / `plugins/invoice.ts` / `renderer-pdf/src/template.ts` の invoice 系・`manifest.json` の version を触らない方針を Issue 001 に明記
 - 2026-06-16 v0.2.0 設計合意 Issue 起票（`.claude/issues/001-v0.2.0-schema-spec.md`）。並行 Explore で SDD テンプレ事例（MADR / arc42 / Google Design Docs）+ Mermaid/SVG/MV3 ライブラリ選定を調査、Issue に反映
 - 2026-06-16 v0.2.0 B 案（章ツリー）を **B1 単一 md + B3 chapters: 明示参照** 併用で確定。A 案（ファイル名 prefix 順序制御）は人間負担で不採用、API 仕様書（v0.4.0+）も同じ C 哲学（インデックス + 明示参照）で行く方針確定
+- 2026-06-17 Issue #12（baseline 1 違反疑い）調査・解決。`pnpm-workspace.yaml` の `onlyBuiltDependencies: []` / `minimumReleaseAge: 1440` は正常動作（`pendingBuilds: []` + install ログ無 postinstall）。`pnpm config get` は npm 互換 global config のみ読む仕様で workspace settings は見ないため未定義は誤検知。CI に install ログ grep 検証ステップを追加し将来の退行を検出（c53de03）
+- 2026-06-17 `templates/spec/standard-ja.md` 追加（EC 注文管理サブシステム基本設計書、8 章 / Mermaid 図 4 種 / 表 49 行 / A4 横 6 ページ想定 / 日本語 frontmatter A 案）。v0.2.0 設計合意の数ページ評価用サンプル（16410e7）
+- 2026-06-17 `packages/schema-spec/` 骨格実装。JSON Schema draft 2020-12（required: schemaVersion/documentNumber/title/version/issueDate/status/authors、SemVer pattern、ISO date format、`.md` chapters pattern、additionalProperties: false）+ TypeScript 型 + 日本語キー dictionary（root + party scope、status/toc/theme 値翻訳）+ Ajv standalone build。44 tests pass（schema 14 + normalize 30）、coverage 100% lines / 94.87% branches
 
 ## 進行中
 
 - Chrome Web Store v0.1.0 審査結果待ち（通常 1〜7 日、初回は 2〜3 週かかる場合あり）
 - v0.1.1 release zip は `release/md-business-v0.1.1.zip` で生成済、v0.1.0 通過後に Web Store へ提出予定（PdM 操作）
-- v0.2.0 minor の設計合意（Issue 001 の A. frontmatter フィールド最終形 / D. PDF レイアウト / E. plugin 統合タイミングが PdM 判断待ち）
+- v0.2.0 minor の設計合意（A/D/E は PdM OK 受領済。サンプル md と schema-spec 骨格まで実装）
+- v0.2.0 schema-spec 残実装: autofill（toc:auto の章自動生成、version デフォルト等）/ translateError 日本語化 / parseSpec / fileName 解決 / renderer-pdf 章レイアウト / chrome-extension plugin 統合
 
 ## 次タスク
 
