@@ -49,17 +49,41 @@ Authors write Japanese; `normalizeSpecFrontmatter` translates to the canonical E
 
 ## Usage
 
-```ts
-import { parseAndValidate } from '@md-business/core/runtime';
-import { specSchema, normalizeSpecFrontmatter, type Spec } from '@md-business/schema-spec';
+### Browser / MV3 (recommended — no Ajv runtime)
 
-const result = parseAndValidate<Record<string, unknown>>(markdownSource, { type: 'object' });
+```ts
+import validate from '@md-business/schema-spec/validate';
+import { parseSpecMarkdown, translateSpecErrors, type Spec } from '@md-business/schema-spec';
+
+const result = parseSpecMarkdown(markdownSource, validate);
 if (result.ok) {
-  const { data, warnings } = normalizeSpecFrontmatter(result.frontmatter);
-  const validated = parseAndValidate<Spec>(serializeFrontmatter(data), specSchema);
-  // ...
+  const spec: Spec = result.spec;
+  // render spec ...
+} else {
+  const messages = translateSpecErrors(result.errors); // Japanese, user-facing
 }
 ```
+
+### Node / tests
+
+```ts
+import { parseAndValidate } from '@md-business/core/runtime';
+import { specSchema, type Spec } from '@md-business/schema-spec';
+
+const result = parseAndValidate<Spec>(markdownSource, specSchema);
+```
+
+## API surface
+
+| Export                  | Purpose                                                       |
+|-------------------------|---------------------------------------------------------------|
+| `specSchema`            | JSON Schema object (Ajv-compatible).                          |
+| `normalizeSpecFrontmatter` | Japanese → English key translation + collision warnings.   |
+| `autofillSpec`          | Defaults (schemaVersion / version / status / toc) + cross-checks. |
+| `parseSpecMarkdown`     | End-to-end pipeline: split → normalize → autofill → validate. |
+| `renderSpecFileName`    | Template-driven PDF filename (`{文書番号}` / `{タイトル}` / `{版}` / …). |
+| `translateSpecError(s)` | Ajv error → Japanese user-facing message.                     |
+| `translateSpecWarning(s)` | Normalize / autofill warning → Japanese message.            |
 
 ## Sample template
 
