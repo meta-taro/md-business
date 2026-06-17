@@ -56,6 +56,21 @@
           以下が書けます。
         </p>
         <dl class="mdb-help__list">
+          <dt><code>登録番号: "T1234567890123"</code> （適格請求書発行事業者）</dt>
+          <dd>
+            適格請求書発行事業者の登録番号（<code>T</code> + 13 桁）。
+            国税庁の<a href="https://www.invoice-kohyo.nta.go.jp/" target="_blank" rel="noopener noreferrer">公表サイト</a>で発番後に記入します。
+          </dd>
+
+          <dt><code>免税事業者: true</code> （免税事業者モード）</dt>
+          <dd>
+            適格請求書発行事業者の登録を受けていない発行元の場合、登録番号の代わりに
+            このフラグを <code>true</code> にしてください。
+            タイトル直下に <strong>「※ 適格請求書ではありません」</strong> を、本文末尾に
+            インボイス制度経過措置（2023年10月〜2029年9月）の案内を自動出力します。
+            手書きで備考に書く必要はありません。
+          </dd>
+
           <dt><code>fileName: "御請求書_{請求先}{敬称}_{発行元}_{YMD}"</code></dt>
           <dd>PDF 保存時のファイル名テンプレート。<code>{請求先}</code> <code>{発行元}</code> <code>{YMD}</code> <code>{YM}</code> <code>{敬称}</code> が展開されます。</dd>
 
