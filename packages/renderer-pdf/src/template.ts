@@ -240,13 +240,12 @@ export function renderInvoiceBody(invoice: Invoice, options: RenderInvoiceBodyOp
   const themeStyle = themeColor ? ` style="--mdb-color-accent:${themeColor}"` : '';
 
   // 免税事業者モード: 適格請求書発行事業者ではない（登録番号なし）旨を
-  // タイトル直下と備考末尾に明示。インボイス制度経過措置（2023-10〜2029-9）
-  // に基づき仕入税額控除が段階的に縮小されるため、受領者が判断できるよう必須。
+  // 本文末尾の経過措置案内で明示。インボイス制度経過措置（2023-10〜2029-9）に
+  // 基づき仕入税額控除が段階的に縮小されるため、受領者が判断できるよう必須。
+  // タイトル直下の朱書きは商習慣上「免税事業者は『非適格』とハッキリ書きたく
+  // ない」ケースが多いため出力しない（経過措置案内のみで法的情報は伝わる）。
   const isTaxExempt = invoice.issuer.taxExemptIssuer === true;
   const taxExemptAttr = isTaxExempt ? ' data-tax-exempt="true"' : '';
-  const nonQualifiedNotice = isTaxExempt
-    ? `<p class="mdb-invoice__non-qualified-notice">※ 適格請求書ではありません（インボイス制度経過措置の対象）</p>`
-    : '';
   const transitionNotice = isTaxExempt
     ? `<section class="mdb-invoice__transition-notice">本請求書は適格請求書発行事業者以外が発行したものです。インボイス制度の経過措置（2023年10月〜2029年9月）の範囲で仕入税額控除を行ってください。</section>`
     : '';
@@ -256,8 +255,6 @@ export function renderInvoiceBody(invoice: Invoice, options: RenderInvoiceBodyOp
       <header class="mdb-invoice__header">
         <div>
           <h1 class="mdb-invoice__title">請求書</h1>
-          ${nonQualifiedNotice}
-          <div>${escapeHtml(invoice.recipient.name)}${invoice.recipient.honorific ? ' ' + escapeHtml(invoice.recipient.honorific) : ''} へ</div>
         </div>
         <div class="mdb-invoice__meta">
           <dl>

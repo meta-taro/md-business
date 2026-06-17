@@ -235,9 +235,9 @@ describe('renderInvoiceBody — 免税事業者モード (taxExemptIssuer)', () 
     expect(html).toContain('data-tax-exempt="true"');
   });
 
-  it('renders a non-qualified notice under the title', () => {
-    expect(html).toContain('mdb-invoice__non-qualified-notice');
-    expect(html).toContain('適格請求書ではありません');
+  it('does NOT render a 朱書き notice under the title (商習慣上、非適格と明示しない)', () => {
+    expect(html).not.toContain('mdb-invoice__non-qualified-notice');
+    expect(html).not.toContain('※ 適格請求書ではありません');
   });
 
   it('renders a 経過措置 transition notice in the body', () => {
