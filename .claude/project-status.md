@@ -1,6 +1,8 @@
 # Project Status — md-business
 
-最終更新: 2026-06-18（**v0.7.0 schema-test-spec 設計合意フェーズ着手**）: 2026-06-18 PdM の発端（「プルダウンとか、NGなら行を薄い赤背景にするとか可能ですかね？」）が schema-test-spec の本質を直接表現していたため、合意フェーズの論点を `.claude/issues/002-v0.7.0-schema-test-spec.md` に展開。frontmatter `columns:` で列型（初版 7 種: text / multiline_text / enum / date / number / checkbox / url）+ `values` + `visual`（行全体 = `row_background` / セル単独 = `background`）を宣言 → Apps Script が import 時に DataValidation + ConditionalFormat + setFrozenRows を自動適用、export で round-trip 復元。**Markdown が真**（シート側の未知列は捨てる）。onEdit 自動同期は v0.7.1 へ後送り（OAuth 追加スコープを Phase E 検証申請の所要時間に乗せない）。PdM 合意ポイント 8 件（A-1〜F-1）を Issue 002 にチェックリスト化。実装着手は PdM 合意後（TDD で `packages/schema-test-spec/` の失敗テスト先行）。前ブロック: Phase C-1/C-2 完遂 + submit guide 実走知見反映 (commit `f798d88`)
+最終更新: 2026-06-18（**v0.7.0 schema-test-spec 設計合意完了 — PdM 戦略判断 3 件確定**）: PdM 回答: **D-1** = イレギュラーセル/未知列は「捨てる / 取り込む」の二択ではなく **検出して通知**（サイドバー警告 + `setNote` + 行背景色）/ **E-1** = onEdit 自動同期を **v0.7.0 入り**（Sheets 編集 → debounce 2 秒 → validation → 通過行のみ GitHub API で md commit。Phase E 検証申請所要は Sensitive スコープ 3 個で 3〜4 週 → **5〜7 週** に延長を許容）/ **F-1** = パッケージ名 `schema-test-spec` 確定（音声入力 typo「敗訴の名前」を文脈解釈、違ったら次ターン訂正）。残論点 A-1/A-2/A-3/B/C-1/C-2/C-3 は AI が推奨案で確定（`schema: test-spec/v1` ヘッダ / `columns` 必須化 / `googleSheetId` を同期 ON 時必須に昇格 / 初版型 7 種 / visual キー 2 種 / ConditionalFormatRule 実装方針 / frontmatter 真で常に上書き）。`appsscript.json` の `oauthScopes` に `script.external_request`（Sensitive）+ `script.scriptapp` を追加予定、GitHub PAT は `PropertiesService.getUserProperties` に PdM 手作業投入（baseline §15）。conflict resolution は v0.7.0 では最終編集勝ち、3-way merge は v0.8.0 以降。次セッションで TDD 着手（`packages/schema-test-spec/` の失敗テスト先行 → schemaToSheet / sheetToSchema / validateSheet → onEdit + GitHub API クライアントは最後に）。前ブロック: v0.7.0 設計合意フェーズ起票 (commit `716c31c`)
+
+2026-06-18 earlier（**v0.7.0 schema-test-spec 設計合意フェーズ着手**）: PdM 発端（「プルダウンとか、NGなら行を薄い赤背景にするとか可能ですかね？」）が schema-test-spec の本質を直接表現していたため、合意フェーズの論点を `.claude/issues/002-v0.7.0-schema-test-spec.md` に展開。8 件の判断項目をチェックリスト化。前ブロック: Phase C-1/C-2 完遂 + submit guide 実走知見反映 (commit `f798d88`)
 
 2026-06-18 earlier（**Phase C-1/C-2 完遂 + submit guide を実走知見で大幅改訂**）: テストデプロイ → Sheets サイドバー → md ⇔ シート双方向 import/export を PdM 手元で実機確証（B2 を `OK` → `NG` に編集してエクスポートし textarea に Markdown 反映されることを目視確認）。Phase B-1〜B-3 → A-4 → C の順序制約、Workspace ドメインポリシーの External + Testing preempt 挙動、Side Panel アイコンが `addOns.common.logoUrl` 404 で非表示になる挙動、`useLocaleFromApp: true` の暗黙 `script.locale` 要求挙動、個人 Gmail（`ladygo755@gmail.com`）からの「アクセス権限をリクエスト」誤動作と baseline §17 violation 寸前事案（業務 Gmail 側で「不承認」処理 + Internal 切替で恒久対処）、4 アカウント同時ログインによる context flip の根本対処（Chrome プロファイル分離）を `docs/google-addon-submit-guide.md` に折り込み。`script.container.ui` を Sensitive scope と訂正（Phase E 検証申請の所要時間見積もりに影響）。`apps/google-workspace-addon/appsscript.json` を最終構成（`useLocaleFromApp` 削除 / `logoUrl` = `https://www.gstatic.com/images/branding/product/2x/apps_script_48dp.png` の Google CDN placeholder）に確定。OAuth User type は「内部に公開」運用（Phase F 直前に「外部」に戻す）。次は schema-test-spec v0.7.0 で frontmatter スキーマ駆動のデータ検証 / 条件付き書式（OK/NG プルダウン / NG 行薄赤背景 / 日付ピッカー / ヘッダー固定）→ Marketplace submit。前ブロック: clasp v3 .claspignore セマンティクス fix
 
@@ -85,7 +87,7 @@ Issue #15（高橋たくと氏 → 株式会社キングダム宛 6 月分請求
 
 - v0.5.0 Chrome Web Store update 提出済（審査待ち）
 - Phase 2 Google Workspace アドオン Phase C-1/C-2 完遂（2026-06-18）→ Marketplace submit は schema-test-spec (v0.7.0) 完成と同時
-- **v0.7.0 schema-test-spec 設計合意フェーズ**（実装未着手）: `.claude/issues/002-v0.7.0-schema-test-spec.md` で PdM 判断項目 8 件（A-1〜F-1）をチェックリスト化。合意後に TDD で実装着手
+- **v0.7.0 schema-test-spec 設計合意完了**（PdM 戦略判断 3 件確定、実装未着手）: D-1 = 検出+通知 / E-1 = onEdit 自動同期も v0.7.0 入り / F-1 = `schema-test-spec` 確定。次セッションで TDD 着手（`packages/schema-test-spec/` の失敗テスト先行）
 - PdM 推奨タスク（未着手・優先低）: dokokade.co.jp 業務専用 Chrome プロファイル分離
 
 ## 次タスク
