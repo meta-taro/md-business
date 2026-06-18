@@ -28,11 +28,16 @@ pnpm --filter @md-business/google-workspace-addon build   # → dist/{Code.js, a
 ```bash
 npm i -g @google/clasp     # PdM 作業（1 回のみ）
 clasp login                # PdM の Google アカウントでログイン
-clasp create --type standalone --title "md-business" --rootDir dist
+# ↓ ブラウザで Apps Script API を ON にする（ユーザー設定）:
+#   https://script.google.com/home/usersettings
+clasp create-script --type standalone --title "md-business" --rootDir dist
 # clasp.json (.clasp.json) が dist/ 配下に生成される
 pnpm --filter @md-business/google-workspace-addon build
 clasp push                 # dist/ の Code.js / appsscript.json / Sidebar.html を Apps Script へ送信
+clasp open-script          # Apps Script Editor をブラウザで開く
 ```
+
+> **clasp v3.x 系での注意**: v2 系の `clasp create` / `clasp open` は v3 では `clasp create-script` / `clasp open-script` に renamed されています。古いネット記事のコマンドをコピペすると `Unknown command` で失敗するので、上記の v3 系コマンドを使ってください。
 
 `.clasp.json` は **`.gitignore`** で git 管理外（script ID が漏れると差し替え攻撃の余地が生まれる）。
 
