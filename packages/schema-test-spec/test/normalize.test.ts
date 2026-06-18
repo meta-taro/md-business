@@ -20,6 +20,7 @@ describe('normalizeTestSpecFrontmatter — root scope', () => {
       レビュアー: [{ 名前: '佐藤' }],
       関連文書: ['./PRD.md'],
       シートID: '1AbcD_Sheet',
+      同期先リポジトリ: 'meta-taro/md-business@main:verify/login.md',
       列: [{ 名前: '項目', 型: '文字列' }],
       テーマ: '青',
       ファイル名: '{documentNumber}.pdf',
@@ -34,12 +35,25 @@ describe('normalizeTestSpecFrontmatter — root scope', () => {
       status: 'draft',
       relatedDocs: ['./PRD.md'],
       googleSheetId: '1AbcD_Sheet',
+      repository: 'meta-taro/md-business@main:verify/login.md',
       theme: 'blue',
       fileName: '{documentNumber}.pdf',
     });
     expect(data.authors).toEqual([{ name: '田中', role: 'QA Lead' }]);
     expect(data.reviewers).toEqual([{ name: '佐藤' }]);
     expect(data.columns).toEqual([{ name: '項目', type: 'text' }]);
+  });
+
+  it.each([
+    ['同期先リポジトリ'],
+    ['同期先'],
+    ['リポジトリ'],
+    ['リポ'],
+    ['repository'],
+    ['repo'],
+  ])('maps root key "%s" → repository', (key) => {
+    const { data } = normalizeTestSpecFrontmatter({ [key]: 'o/r@main:x.md' });
+    expect(data.repository).toBe('o/r@main:x.md');
   });
 
   it('accepts English keys verbatim (idempotent)', () => {

@@ -65,6 +65,30 @@ describe('testSpecSchema — happy path', () => {
     expect(result.ok).toBe(true);
   });
 
+  it.each([
+    ['meta-taro/md-business@main:verify/login.md'],
+    ['meta-taro/md-business:verify/login.md'],
+    ['o/r@feat/test-spec:verify.md'],
+    ['o/r@main:nested/dir/file.md'],
+  ])('accepts repository ref %s', (repository) => {
+    const data = { ...buildTestSpec(), repository };
+    const result = parseAndValidate<TestSpec>(toFrontmatter(data), testSpecSchema);
+    expect(result.ok).toBe(true);
+  });
+
+  it.each([
+    ['meta-taro/md-business@main'],
+    ['meta-taro/md-business@main:'],
+    ['@main:x.md'],
+    ['owneronly@main:x.md'],
+    [''],
+    ['meta-taro/md-business@main:has space.md'],
+  ])('rejects malformed repository ref %s', (repository) => {
+    const data = { ...buildTestSpec(), repository };
+    const result = parseAndValidate<TestSpec>(toFrontmatter(data), testSpecSchema);
+    expect(result.ok).toBe(false);
+  });
+
   it('accepts all 7 column types', () => {
     const data = {
       ...buildTestSpec(),

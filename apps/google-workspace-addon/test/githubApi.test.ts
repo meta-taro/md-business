@@ -4,8 +4,25 @@ import {
   parseRepoRef,
   buildContentsUrl,
   buildContentsPutPayload,
+  extractRepoRefFromSpec,
+  buildAutoCommitMessage,
   type RepoRef,
 } from '../src/lib/githubApi.js';
+import type { TestSpec } from '@md-business/schema-test-spec';
+
+function buildSpec(overrides: Partial<TestSpec> = {}): TestSpec {
+  return {
+    schema: 'test-spec/v1',
+    documentNumber: 'TEST-2026-001',
+    title: 'ログイン機能 検証シート',
+    version: '0.1.0',
+    issueDate: '2026-06-18',
+    status: 'draft',
+    authors: [{ name: '田中' }],
+    columns: [{ name: '項目', type: 'text' }],
+    ...overrides,
+  };
+}
 
 describe('parseRepoRef', () => {
   it('parses owner/repo@branch:path form', () => {
@@ -135,5 +152,71 @@ describe('buildContentsPutPayload', () => {
       name: 'md-business bot',
       email: 'noreply@example.com',
     });
+  });
+});
+
+describe('extractRepoRefFromSpec', () => {
+  it('returns parsed ref when spec.repository is set and valid', () => {
+    const spec = buildSpec({ repository: 'meta-taro/md-business@main:verify/login.md' });
+    expect(extractRepoRefFromSpec(spec)).toEqual<RepoRef>({
+      owner: 'meta-taro',
+      repo: 'md-business',
+      branch: 'main',
+      path: 'verify/login.md',
+    });
+  });
+
+  it('returns null when spec.repository is omitted', () => {
+    const spec = buildSpec();
+    expect(extractRepoRefFromSpec(spec)).toBeNull();
+  });
+
+  it('returns null when spec.repository is malformed', () => {
+    const spec = buildSpec({ repository: 'no-slash@main:x.md' });
+    expect(extractRepoRefFromSpec(spec)).toBeNull();
+  });
+
+  it('defaults branch to main when @branch is omitted', () => {
+    const spec = buildSpec({ repository: 'o/r:verify.md' });
+    expect(extractRepoRefFromSpec(spec)?.branch).toBe('main');
+  });
+});
+
+describe('buildAutoCommitMessage', () => {
+  it('builds default message with documentNumber, sheetName, timestamp', () => {
+    const spec = buildSpec();
+    expect(
+      buildAutoCommitMessage({
+        spec,
+        sheetName: 'Sheet1',
+        isoTimestamp: '2026-06-18T09:30:00Z',
+      }),
+    ).toBe(
+      'chore(test-spec): sync TEST-2026-001 from "Sheet1" — 2026-06-18T09:30:00Z',
+    );
+  });
+
+  it('uses customMessage verbatim when provided', () => {
+    const spec = buildSpec();
+    expect(
+      buildAutoCommitMessage({
+        spec,
+        sheetName: 'Sheet1',
+        isoTimestamp: '2026-06-18T09:30:00Z',
+        customMessage: 'fix: typo in row 3',
+      }),
+    ).toBe('fix: typo in row 3');
+  });
+
+  it('strips ASCII double quotes in sheetName to avoid breaking the format', () => {
+    const spec = buildSpec();
+    const msg = buildAutoCommitMessage({
+      spec,
+      sheetName: 'Sheet "with quote"',
+      isoTimestamp: '2026-06-18T09:30:00Z',
+    });
+    expect(msg).toBe(
+      'chore(test-spec): sync TEST-2026-001 from "Sheet with quote" — 2026-06-18T09:30:00Z',
+    );
   });
 });

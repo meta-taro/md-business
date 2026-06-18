@@ -57,6 +57,12 @@ export interface TestSpec {
    * Identifies the bound Google Sheets document by its file ID.
    */
   googleSheetId?: string;
+  /**
+   * GitHub binding for onEdit auto-sync (PdM decision 2026-06-18 / case A).
+   * Format: `owner/repo@branch:path` (e.g. `meta-taro/md-business@main:verify/login.md`).
+   * `@branch` is optional and defaults to `main` during parsing.
+   */
+  repository?: string;
   /** Column schema — drives DataValidation, ConditionalFormat, SetFrozenRows. */
   columns: TestSpecColumn[];
   theme?: string;

@@ -1,3 +1,5 @@
+import type { TestSpec } from '@md-business/schema-test-spec';
+
 export type RepoRef = {
   owner: string;
   repo: string;
@@ -90,4 +92,24 @@ export function buildContentsPutPayload(
     payload.committer = input.committer;
   }
   return payload;
+}
+
+export function extractRepoRefFromSpec(spec: TestSpec): RepoRef | null {
+  if (typeof spec.repository !== 'string') return null;
+  return parseRepoRef(spec.repository);
+}
+
+export type AutoCommitMessageInput = {
+  spec: TestSpec;
+  sheetName: string;
+  isoTimestamp: string;
+  customMessage?: string;
+};
+
+export function buildAutoCommitMessage(input: AutoCommitMessageInput): string {
+  if (input.customMessage !== undefined && input.customMessage.length > 0) {
+    return input.customMessage;
+  }
+  const safeSheetName = input.sheetName.replace(/"/g, '');
+  return `chore(test-spec): sync ${input.spec.documentNumber} from "${safeSheetName}" — ${input.isoTimestamp}`;
 }
