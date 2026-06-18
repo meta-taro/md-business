@@ -24,3 +24,10 @@ export {
   THEME_VALUE_TRANSLATIONS,
 } from './dictionary.ja.js';
 export type { DictionaryScope, Dictionary } from './dictionary.ja.js';
+export {
+  translateTestSpecError,
+  translateTestSpecErrors,
+  translateTestSpecWarning,
+  translateTestSpecWarnings,
+} from './translateError.js';
+export { renderTestSpecFileName } from './fileName.js';
