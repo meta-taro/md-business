@@ -1,0 +1,167 @@
+import { describe, it, expect } from 'vitest';
+import { parseAndValidate } from '@md-business/core/runtime';
+import { testSpecSchema, SCHEMA_VERSION } from '../src/index.js';
+import type { TestSpec } from '../src/index.js';
+
+function buildTestSpec(): Record<string, unknown> {
+  return {
+    schema: 'test-spec/v1',
+    documentNumber: 'TEST-2026-001',
+    title: 'ログイン機能 検証シート',
+    version: '0.1.0',
+    issueDate: '2026-06-18',
+    status: 'draft',
+    authors: [{ name: '田中', role: 'QA Lead' }],
+    columns: [
+      { name: '項目', type: 'text' },
+      { name: '手順', type: 'multiline_text' },
+      {
+        name: '結果',
+        type: 'enum',
+        values: ['OK', 'NG', '保留'],
+        visual: {
+          OK: { row_background: '#e6f4ea' },
+          NG: { row_background: '#fce8e6' },
+          保留: { background: '#fef7e0' },
+        },
+      },
+    ],
+  };
+}
+
+function toFrontmatter(data: Record<string, unknown>): string {
+  const yaml = Object.entries(data)
+    .map(([k, v]) => `${k}: ${JSON.stringify(v)}`)
+    .join('\n');
+  return `---\n${yaml}\n---\n`;
+}
+
+describe('testSpecSchema constants', () => {
+  it('exports the schema as an object', () => {
+    expect(typeof testSpecSchema).toBe('object');
+  });
+
+  it('exposes SCHEMA_VERSION constant', () => {
+    expect(SCHEMA_VERSION).toBe('test-spec/v1');
+  });
+});
+
+describe('testSpecSchema — happy path', () => {
+  it('validates a minimal complete test-spec', () => {
+    const result = parseAndValidate<TestSpec>(toFrontmatter(buildTestSpec()), testSpecSchema);
+    expect(result.ok).toBe(true);
+  });
+
+  it('accepts optional reviewers, relatedDocs, googleSheetId, theme, fileName', () => {
+    const data = {
+      ...buildTestSpec(),
+      reviewers: [{ name: '佐藤' }],
+      relatedDocs: ['./PRD.md'],
+      googleSheetId: '1AbcD_ExampleSheetId',
+      theme: 'blue',
+      fileName: '{documentNumber}-{title}.pdf',
+    };
+    const result = parseAndValidate<TestSpec>(toFrontmatter(data), testSpecSchema);
+    expect(result.ok).toBe(true);
+  });
+
+  it('accepts all 7 column types', () => {
+    const data = {
+      ...buildTestSpec(),
+      columns: [
+        { name: 'A', type: 'text' },
+        { name: 'B', type: 'multiline_text' },
+        { name: 'C', type: 'enum', values: ['x'] },
+        { name: 'D', type: 'date' },
+        { name: 'E', type: 'number', min: 0, max: 100 },
+        { name: 'F', type: 'checkbox' },
+        { name: 'G', type: 'url' },
+      ],
+    };
+    const result = parseAndValidate<TestSpec>(toFrontmatter(data), testSpecSchema);
+    expect(result.ok).toBe(true);
+  });
+});
+
+describe('testSpecSchema — error cases', () => {
+  it('rejects a wrong schema constant', () => {
+    const data = buildTestSpec();
+    data['schema'] = 'test-spec/v2';
+    const result = parseAndValidate<TestSpec>(toFrontmatter(data), testSpecSchema);
+    expect(result.ok).toBe(false);
+  });
+
+  it('rejects a non-SemVer version', () => {
+    const data = buildTestSpec();
+    data['version'] = '0.1';
+    const result = parseAndValidate<TestSpec>(toFrontmatter(data), testSpecSchema);
+    expect(result.ok).toBe(false);
+  });
+
+  it('rejects a non-ISO issueDate', () => {
+    const data = buildTestSpec();
+    data['issueDate'] = '2026/06/18';
+    const result = parseAndValidate<TestSpec>(toFrontmatter(data), testSpecSchema);
+    expect(result.ok).toBe(false);
+  });
+
+  it('rejects an unknown status value', () => {
+    const data = buildTestSpec();
+    data['status'] = 'archived';
+    const result = parseAndValidate<TestSpec>(toFrontmatter(data), testSpecSchema);
+    expect(result.ok).toBe(false);
+  });
+
+  it('rejects an empty authors array', () => {
+    const data = buildTestSpec();
+    (data['authors'] as unknown[]) = [];
+    const result = parseAndValidate<TestSpec>(toFrontmatter(data), testSpecSchema);
+    expect(result.ok).toBe(false);
+  });
+
+  it('rejects an empty columns array', () => {
+    const data = buildTestSpec();
+    (data['columns'] as unknown[]) = [];
+    const result = parseAndValidate<TestSpec>(toFrontmatter(data), testSpecSchema);
+    expect(result.ok).toBe(false);
+  });
+
+  it('rejects an unknown column type', () => {
+    const data = buildTestSpec();
+    (data['columns'] as Array<Record<string, unknown>>)[0] = { name: 'X', type: 'guid' };
+    const result = parseAndValidate<TestSpec>(toFrontmatter(data), testSpecSchema);
+    expect(result.ok).toBe(false);
+  });
+
+  it('rejects type=enum without values', () => {
+    const data = buildTestSpec();
+    (data['columns'] as Array<Record<string, unknown>>)[0] = { name: 'X', type: 'enum' };
+    const result = parseAndValidate<TestSpec>(toFrontmatter(data), testSpecSchema);
+    expect(result.ok).toBe(false);
+  });
+
+  it('rejects a visual style with an invalid hex color', () => {
+    const data = buildTestSpec();
+    (data['columns'] as Array<Record<string, unknown>>)[2] = {
+      name: '結果',
+      type: 'enum',
+      values: ['OK'],
+      visual: { OK: { background: 'pink' } },
+    };
+    const result = parseAndValidate<TestSpec>(toFrontmatter(data), testSpecSchema);
+    expect(result.ok).toBe(false);
+  });
+
+  it('rejects unknown top-level keys', () => {
+    const data = { ...buildTestSpec(), 不明: 'x' };
+    const result = parseAndValidate<TestSpec>(toFrontmatter(data), testSpecSchema);
+    expect(result.ok).toBe(false);
+  });
+
+  it('rejects column entries missing the name field', () => {
+    const data = buildTestSpec();
+    (data['columns'] as Array<Record<string, unknown>>)[0] = { type: 'text' };
+    const result = parseAndValidate<TestSpec>(toFrontmatter(data), testSpecSchema);
+    expect(result.ok).toBe(false);
+  });
+});

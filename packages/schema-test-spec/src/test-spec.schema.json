@@ -1,0 +1,130 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://md-business.dev/schemas/test-spec/v1.json",
+  "title": "md-business test-spec frontmatter",
+  "description": "Frontmatter schema for verification test sheets (検証シート). Declares column types and visual styles to drive Google Sheets double-binding.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "documentNumber",
+    "title",
+    "version",
+    "issueDate",
+    "status",
+    "authors",
+    "columns"
+  ],
+  "properties": {
+    "schema": {
+      "const": "test-spec/v1"
+    },
+    "documentNumber": {
+      "type": "string",
+      "minLength": 1
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$"
+    },
+    "issueDate": {
+      "type": "string",
+      "format": "date"
+    },
+    "status": {
+      "enum": ["draft", "review", "executing", "completed"]
+    },
+    "authors": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/person" }
+    },
+    "reviewers": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/person" }
+    },
+    "relatedDocs": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "googleSheetId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "columns": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/column" }
+    },
+    "theme": {
+      "type": "string"
+    },
+    "fileName": {
+      "type": "string"
+    }
+  },
+  "$defs": {
+    "person": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "role": { "type": "string" }
+      }
+    },
+    "column": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "type"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "type": {
+          "enum": ["text", "multiline_text", "enum", "date", "number", "checkbox", "url"]
+        },
+        "values": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "visual": {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/$defs/visualStyle" }
+        },
+        "min": { "type": "number" },
+        "max": { "type": "number" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "type": { "const": "enum" } },
+            "required": ["type"]
+          },
+          "then": { "required": ["values"] }
+        }
+      ]
+    },
+    "visualStyle": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "row_background": {
+          "type": "string",
+          "pattern": "^#[0-9a-fA-F]{3,8}$"
+        },
+        "background": {
+          "type": "string",
+          "pattern": "^#[0-9a-fA-F]{3,8}$"
+        },
+        "color": {
+          "type": "string",
+          "pattern": "^#[0-9a-fA-F]{3,8}$"
+        }
+      }
+    }
+  }
+}
