@@ -10,43 +10,71 @@
       p  { font-size: 12px; color: #5f6368; margin: 0 0 12px 0; }
       textarea { width: 100%; height: 240px; font-family: 'Roboto Mono', 'Source Code Pro', monospace;
         font-size: 12px; padding: 8px; border: 1px solid #dadce0; border-radius: 4px; box-sizing: border-box; }
-      button { margin-top: 8px; padding: 8px 14px; background: #1a73e8; color: white; border: 0;
+      .actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+      button { padding: 8px 14px; background: #1a73e8; color: white; border: 0;
         border-radius: 4px; font-size: 13px; cursor: pointer; }
+      button.secondary { background: #fff; color: #1a73e8; border: 1px solid #1a73e8; }
       button:disabled { background: #80868b; cursor: progress; }
+      button.secondary:disabled { background: #f1f3f4; color: #80868b; border-color: #dadce0; }
       .status { margin-top: 12px; font-size: 12px; color: #137333; }
       .status.err { color: #c5221f; }
     </style>
   </head>
   <body>
-    <h1>md-business — Markdown → Sheet</h1>
-    <p>下に Markdown テーブルを貼り付けて「インポート」を押すと、現在のシートに書き込みます（雛形・schema-test-spec 完成後に双方向同期へ拡張予定）。</p>
+    <h1>md-business — Markdown ⇔ Sheet</h1>
+    <p>Markdown テーブルとシート間を双方向で変換します。<strong>インポート</strong>は textarea の内容をシートに書き込み、<strong>エクスポート</strong>は現在のシートを textarea に Markdown として書き出します。</p>
     <textarea id="src" placeholder="| 項目 | OK/NG | 備考 |&#10;|---|---|---|&#10;| ログイン成功 | OK | - |"></textarea>
-    <button id="run">インポート</button>
+    <div class="actions">
+      <button id="import-btn">インポート（md → シート）</button>
+      <button id="export-btn" class="secondary">エクスポート（シート → md）</button>
+    </div>
     <div id="status" class="status"></div>
     <script>
-      const btn = document.getElementById('run');
+      const importBtn = document.getElementById('import-btn');
+      const exportBtn = document.getElementById('export-btn');
       const src = document.getElementById('src');
       const status = document.getElementById('status');
-      btn.addEventListener('click', () => {
-        btn.disabled = true;
+
+      function setBusy(busy, message) {
+        importBtn.disabled = busy;
+        exportBtn.disabled = busy;
         status.classList.remove('err');
-        status.textContent = '処理中...';
+        status.textContent = message || '';
+      }
+      function setError(message) {
+        importBtn.disabled = false;
+        exportBtn.disabled = false;
+        status.classList.add('err');
+        status.textContent = message || '不明なエラー';
+      }
+
+      importBtn.addEventListener('click', () => {
+        setBusy(true, 'インポート処理中...');
         google.script.run
           .withSuccessHandler((res) => {
-            btn.disabled = false;
             if (res && res.ok) {
-              status.textContent = res.rows + ' 行をインポートしました。';
+              setBusy(false, res.rows + ' 行をインポートしました。');
             } else {
-              status.classList.add('err');
-              status.textContent = (res && res.error) || '不明なエラー';
+              setError(res && res.error);
             }
           })
-          .withFailureHandler((err) => {
-            btn.disabled = false;
-            status.classList.add('err');
-            status.textContent = err && err.message ? err.message : String(err);
-          })
+          .withFailureHandler((err) => setError(err && err.message ? err.message : String(err)))
           .importMarkdownTableToActiveSheet(src.value);
+      });
+
+      exportBtn.addEventListener('click', () => {
+        setBusy(true, 'エクスポート処理中...');
+        google.script.run
+          .withSuccessHandler((res) => {
+            if (res && res.ok) {
+              src.value = res.markdown;
+              setBusy(false, res.rows + ' 行を Markdown に書き出しました（必要に応じてコピーしてください）。');
+            } else {
+              setError(res && res.error);
+            }
+          })
+          .withFailureHandler((err) => setError(err && err.message ? err.message : String(err)))
+          .exportActiveSheetToMarkdown();
       });
     </script>
   </body>

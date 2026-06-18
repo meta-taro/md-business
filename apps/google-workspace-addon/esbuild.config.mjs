@@ -14,7 +14,15 @@ const WATCH = process.argv.includes('--watch');
  * Why: esbuild に IIFE 出力させ globalName=mdb の下に export を集約、footer で
  *      Apps Script が呼ぶ top-level function を1行ずつ手書きする。
  */
-const TRIGGER_NAMES = ['onHomepage', 'onOpen', 'onInstall', 'showSidebar', 'getSidebarHtml'];
+const TRIGGER_NAMES = [
+  'onHomepage',
+  'onOpen',
+  'onInstall',
+  'showSidebar',
+  'getSidebarHtml',
+  'importMarkdownTableToActiveSheet',
+  'exportActiveSheetToMarkdown',
+];
 const footer = TRIGGER_NAMES.map((name) => `function ${name}(e){return mdb.${name}(e);}`).join('\n');
 
 const buildOptions = {

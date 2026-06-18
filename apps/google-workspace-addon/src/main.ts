@@ -1,6 +1,6 @@
 /// <reference types="google-apps-script" />
 
-import { parseMdTable, mdTableToValues } from './lib/mdTable.js';
+import { parseMdTable, mdTableToValues, valuesToMdTable } from './lib/mdTable.js';
 
 /**
  * Workspace Add-on のホーム画面（Docs / Sheets / Slides 共通カード）。
@@ -75,4 +75,27 @@ export function importMarkdownTableToActiveSheet(markdown: string): {
   const range = sheet.getRange(1, 1, values.length, values[0]?.length ?? 0);
   range.setValues(values);
   return { ok: true, rows: values.length };
+}
+
+/**
+ * 現在の Sheet（または選択範囲）を Markdown table 文字列に変換して返す。
+ * Why: 双方向同期の片方向（Sheets → md）。Phase 2 完成形では `onEdit` で GitHub API へ自動 commit する予定だが、
+ *      Phase C 動作確認段階でも手動コピペ経路があると検収しやすい。
+ */
+export function exportActiveSheetToMarkdown(): {
+  ok: true;
+  markdown: string;
+  rows: number;
+} | {
+  ok: false;
+  error: string;
+} {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  const range = sheet.getDataRange();
+  const values = range.getValues();
+  if (values.length === 0) {
+    return { ok: false, error: 'シートに値がありません。' };
+  }
+  const markdown = valuesToMdTable(values);
+  return { ok: true, markdown, rows: values.length };
 }
