@@ -60,11 +60,11 @@ esbuild.config.mjs     (IIFE バンドル + Apps Script global function 露出 f
 
 ## ロードマップ（このパッケージ）
 
-- [x] **v0.1.0 (本日)** — 雛形 + Markdown table → Sheet 片方向書き込み + 申請手順書 [`docs/google-addon-submit-guide.md`](../../docs/google-addon-submit-guide.md)
-- [ ] v0.2.0 — `schema-test-spec` 完成連動: 検証シート md ⇔ Sheets の双方向同期、`onEdit` トリガで GitHub API へ commit
+- [x] **v0.1.0 (2026-06-18)** — 雛形 + Markdown table ⇔ Sheets 双方向 import/export（PdM 手元で実機確証済）+ 申請手順書 [`docs/google-addon-submit-guide.md`](../../docs/google-addon-submit-guide.md)（実走知見を Phase A〜C のトラブルシュートに反映済）
+- [ ] v0.2.0 — `schema-test-spec` 完成連動: 検証シート md ⇔ Sheets の **frontmatter スキーマ駆動 double-binding**（列スキーマ宣言 → DataValidation プルダウン / ConditionalFormat 行背景色 / DateValidation 日付ピッカー / setFrozenRows ヘッダー固定 を import で自動適用、export で逆変換して frontmatter ごと書き出し）+ `onEdit` トリガで GitHub API へ commit
 - [ ] v0.3.0 — Docs 向け md ⇔ ドキュメント変換（章立て / 表 / リスト）
 - [ ] v0.4.0 — Slides 向け md ⇔ プレゼン変換
-- [ ] Marketplace 公開: schema-test-spec 完成と同時に submit
+- [ ] Marketplace 公開: schema-test-spec 完成と同時に submit（Phase D-F: listing 草案 → 検証申請 → 公開申請）
 
 ## 参考 / 一次資料
 
