@@ -1,10 +1,10 @@
 # Project Status — md-business
 
-最終更新: 2026-06-17（**v0.5.0 を Chrome Web Store に submit 完了**: zip アップロード成功 + 拡張表示名を `md-business — Markdown 業務文書ビューワー` に刷新 + ストア掲載スクショ 5 枚を 1280×800 / 24bit PNG (alpha なし) で再生成 + 商品の詳細を v0.5.0 反映に書き換え。`templates/manifest.json` → `templates/index.json` リネームで package validator の「複数マニフェスト検出」エラーを解消。前ブロック: v0.5.0 = v0.4.0 + Mermaid subset build 復活）
+最終更新: 2026-06-18（**Phase 2 Google Workspace アドオン雛形を `apps/google-workspace-addon/` に新規作成**: clasp + esbuild + TypeScript で IIFE バンドル + Apps Script trigger 露出 footer を実装、Docs/Sheets/Slides 共通 homepage card + サイドバー UI + Markdown table → Sheets row 変換の最小スパイク + 6 tests 100% カバレッジ。`docs/google-addon-submit-guide.md` で GCP / OAuth consent / Marketplace listing / 検証申請の手順を Phase A〜F 時系列ドキュメント化、AI 補佐範囲と PdM 手作業範囲を明確化（baseline 15 遵守）。実 Marketplace submit は `schema-test-spec` (v0.7.0) 完成と同時 = 本日は土台作りまで。前ブロック: v0.5.0 を Chrome Web Store に submit 完了）
 
 ## 現在のフェーズ
 
-**Phase 1-MVP 公開済み（v0.1.0）→ v0.5.0 を Web Store update として submit 済（審査待ち）**
+**Phase 1-MVP 公開済み（v0.1.0）→ v0.5.0 を Web Store update として submit 済（審査待ち）+ Phase 2 Google Workspace アドオン土台作り着手（2026-06-18）**
 
 2026-06-16 にドコカデ Inc. アカウントで v0.1.0 を submit、2026-06-17 に審査通過＆公開。store URL: https://chromewebstore.google.com/detail/lmdplkkfmgapnhombimeohjliinifgjh （extension ID 固定）。
 
@@ -73,11 +73,12 @@ Issue #15（高橋たくと氏 → 株式会社キングダム宛 6 月分請求
 - 2026-06-17 **v0.3.0 private/2026-06-contractor-invoice.md** を高橋たくと氏の本番テンプレに整備。旧 `登録番号: ""` + TODO コメント → `免税事業者: true` に切替、備考から redundant な経過措置記述を削除（renderer が自動出力する）。3 リポジトリ運用（store-girlsbar / store-concafe-maid / store-cabaret）× 30,000 円/月 = 90,000 + 税 9,000 = 99,000 円。ファイル名: `御請求書_{請求先}{敬称}_高橋たくと_{YMD}`
 - 2026-06-17 v0.3.0 完了時点で **repo 全体 408 tests pass / lint 10 pkg green / typecheck 10 pkg green / 5 pkg build green**。dist/templates/manifest.json に 5 テンプレ揃った（standard-ja / standard / inbound-eligible / **tax-exempt-ja** / spec/standard-ja）
 - 2026-06-17 **v0.4.0 検収フィードバック対応（6 件まとめて 1 コミット）**: (1) renderer-pdf 免税テンプレからタイトル直下の朱書き「※ 適格請求書ではありません」と「〜へ」受領者サブタイトルを撤回（商習慣配慮、本文末尾の経過措置案内は維持）。(2) `@md-business/core` の `renderMarkdownToHtml` に `remark-gfm@^4.0.0` 追加、`templates/spec/standard-ja.md` の「3.1 機能一覧」pipe table が `<table>` として描画されるよう修正。(3) `packages/renderer-pdf/src/styles/spec.css` の表紙を A4 1 ページ収まりに圧縮: `@page :first` margin: 0、`.mdb-spec__cover` を `min/max-height: 297mm` + `overflow: hidden`、title 28→26pt + 余白 18→12mm、meta 14→10mm、status 14→10mm、cover-inner padding 40/24/32/22 → 24/22/14/22mm に圧縮。(4) `@media screen` の `box-shadow` と外側 8mm margin を撤去（プレビューと印刷の見た目を一致）。(5) **印刷キャンセル時のプレビュー消失バグ修正**（apps/chrome-extension/src/viewer/index.ts `runPrintFlow`）: プレビュー iframe を上書きする旧実装を撤回し、専用の隠し iframe（`#mdb-print-frame`）を毎回作って印刷後に `remove()` する方式へ。キャンセル時もメイン UI は無変化。core 44 tests + renderer-pdf 112 tests + chrome-extension 77 tests + 全体 472 tests pass、scan-bundle clean、v0.4.0 zip 再生成済み
+- 2026-06-18 **Phase 2 Google Workspace アドオン雛形** `apps/google-workspace-addon/` 新規作成。clasp + esbuild + TypeScript + vitest + @vitest/coverage-v8 + @types/google-apps-script + @types/node の workspace 構成。`esbuild.config.mjs` で IIFE バンドル + globalName=mdb + footer に Apps Script trigger wrapper（onHomepage / onOpen / onInstall / showSidebar / getSidebarHtml）を inject。`appsscript.json` で oauth scope を `.currentonly` 系 + `script.container.ui` の **非センシティブのみ** に限定（OAuth 検証申請をスキップ可能な構成）、addOns.common.homepageTrigger + docs/sheets/slides 各 homepageTrigger 宣言。`src/main.ts` に CardService ベースの homepage card（「サイドバーを開く」ボタン）+ Editor Add-on 互換の onOpen / onInstall + `importMarkdownTableToActiveSheet`（Markdown table 文字列を現在の Sheet に書き込む先行スパイク）。`src/sidebar.html` に vanilla HTML サイドバー（textarea + ボタン + google.script.run 連携）。`src/lib/mdTable.ts` に薄い Markdown table パーサ（schema-test-spec 完成時に core 統合判断）。`.claspignore` で dist/ のみ push、`.gitignore` で `.clasp.json` / dist / coverage を排除。6 unit tests pass / カバレッジ 100%、build で `dist/Code.js`（4.0kb）+ `Sidebar.html` + `appsscript.json` 生成、monorepo turbo 全 12 tasks green。`docs/google-addon-submit-guide.md` に PdM 手作業手順（Phase A〜F: GCP プロジェクト / OAuth consent / アドオン動作確認 / Marketplace listing / 検証申請 / 公開申請）を時系列で documentation 化、baseline 15 に従い AI 補佐範囲と PdM のみ実行範囲を明確分離。実 Marketplace submit は `schema-test-spec` (v0.7.0) 完成と同時 = 本日は土台作りまで（[`.claude/decisions.md`](.claude/decisions.md) 2026-06-18 行）
 
 ## 進行中
 
-- v0.4.0 zip Web Store update 提出（PdM 手動 push 待ち → 提出）
-- v0.5.0 / Mermaid 代替手段の検討（静的 SVG 埋め込み / 軽量代替ライブラリ / mermaid 完全 vendor 化）
+- v0.5.0 Chrome Web Store update 提出済（審査待ち）
+- Phase 2 Google Workspace アドオン雛形完成（本日 2026-06-18）→ schema-test-spec (v0.7.0) 完成まで土台保持
 
 ## 次タスク
 

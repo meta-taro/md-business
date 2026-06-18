@@ -88,6 +88,31 @@ importers:
         specifier: ^2.1.8
         version: 2.1.9(@types/node@22.19.21)(happy-dom@20.10.5)(jsdom@29.1.1)
 
+  apps/google-workspace-addon:
+    dependencies:
+      '@md-business/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+    devDependencies:
+      '@types/google-apps-script':
+        specifier: ^1.0.83
+        version: 1.0.100
+      '@types/node':
+        specifier: ^22.10.0
+        version: 22.19.21
+      '@vitest/coverage-v8':
+        specifier: ^2.1.8
+        version: 2.1.9(vitest@2.1.9(@types/node@22.19.21)(happy-dom@20.10.5)(jsdom@29.1.1))
+      esbuild:
+        specifier: ^0.21.5
+        version: 0.21.5
+      typescript:
+        specifier: ^5.6.3
+        version: 5.9.3
+      vitest:
+        specifier: ^2.1.8
+        version: 2.1.9(@types/node@22.19.21)(happy-dom@20.10.5)(jsdom@29.1.1)
+
   packages/core:
     dependencies:
       ajv:
@@ -909,6 +934,9 @@ packages:
 
   '@types/geojson@7946.0.16':
     resolution: {integrity: sha512-6C8nqWur3j98U6+lXDfTUWIfgvZU+EumvpHKcYjujKH7woYyLj2sUmff0tRhrqM7BohUw7Pz3ZB1jj2gW9Fvmg==}
+
+  '@types/google-apps-script@1.0.100':
+    resolution: {integrity: sha512-POgcjcDbrjYJYf3Av6j5n+z9/z/WulCNh9Gj199HgrcgRLzcQLg5ALw6jdWcgBkzgTLNYZSe7/01aOfiNzzn9g==}
 
   '@types/har-format@1.2.16':
     resolution: {integrity: sha512-fluxdy7ryD3MV6h8pTfTYpy/xQzCFC7m89nOH9y94cNqJ1mDIDPut7MnRHI3F6qRmh/cT2fUjG1MLdCNb4hE9A==}
@@ -3072,6 +3100,8 @@ snapshots:
   '@types/filewriter@0.0.33': {}
 
   '@types/geojson@7946.0.16': {}
+
+  '@types/google-apps-script@1.0.100': {}
 
   '@types/har-format@1.2.16': {}
 

@@ -1,0 +1,27 @@
+{
+  "name": "@md-business/google-workspace-addon",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Google Workspace Add-on for md-business — Docs / Sheets / Slides サイドバーで md ⇔ ドキュメント双方向 UI 編集（PDF 出力は Google ネイティブ任せ）。",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "build": "node esbuild.config.mjs",
+    "dev": "node esbuild.config.mjs --watch",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest",
+    "test:run": "vitest run --coverage"
+  },
+  "dependencies": {
+    "@md-business/core": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/google-apps-script": "^1.0.83",
+    "@types/node": "^22.10.0",
+    "@vitest/coverage-v8": "^2.1.8",
+    "esbuild": "^0.21.5",
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.8"
+  }
+}

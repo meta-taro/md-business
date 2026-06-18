@@ -1,0 +1,67 @@
+# @md-business/google-workspace-addon
+
+Google Workspace アドオン雛形（Docs / Sheets / Slides サイドバーから Markdown を扱う）。
+
+> **公開ステータス**: 開発初期段階。Marketplace 申請は `schema-test-spec` (v0.7.0) 完成と同時に submit 予定（[`.claude/decisions.md`](../../.claude/decisions.md) 2026-06-18 行）。
+
+## 役割分担（Chrome 拡張 / Workspace アドオン）
+
+| | Chrome 拡張 (`apps/chrome-extension`) | Google Workspace アドオン (本パッケージ) |
+|---|---|---|
+| 主軸 | **手元 .md → A4 PDF** 出力 | **Docs / Sheets / Slides ⇔ md 双方向 UI 編集** |
+| PDF | Paged.js で生成 | Google ネイティブ（ファイル → PDF ダウンロード）任せ |
+| 編集 | サイドエディタ + プレビュー | Sheets / Docs / Slides の UI そのもの + サイドバー |
+| 同期 | ローカル .md にのみ書き戻し | Sheets-as-truth: onEdit → Apps Script → GitHub API で md commit |
+
+## ローカル開発フロー
+
+```bash
+pnpm install                        # ルートで（pnpm workspace）
+pnpm --filter @md-business/google-workspace-addon test:run
+pnpm --filter @md-business/google-workspace-addon build   # → dist/{Code.js, appsscript.json, Sidebar.html}
+```
+
+### Apps Script に push
+
+事前に `clasp` を **グローバルインストール** する（プロジェクト依存に含めると minimumReleaseAge 隔離の影響を受けるため、`pnpm` 経由ではなく `npm i -g @google/clasp` を PdM が手作業で実行）。
+
+```bash
+npm i -g @google/clasp     # PdM 作業（1 回のみ）
+clasp login                # PdM の Google アカウントでログイン
+clasp create --type standalone --title "md-business" --rootDir dist
+# clasp.json (.clasp.json) が dist/ 配下に生成される
+pnpm --filter @md-business/google-workspace-addon build
+clasp push                 # dist/ の Code.js / appsscript.json / Sidebar.html を Apps Script へ送信
+```
+
+`.clasp.json` は **`.gitignore`** で git 管理外（script ID が漏れると差し替え攻撃の余地が生まれる）。
+
+## 構成
+
+```
+src/
+├── main.ts            (Apps Script trigger: onHomepage / onOpen / onInstall / showSidebar / importMarkdownTableToActiveSheet)
+├── sidebar.html       (サイドバー UI — vanilla HTML + google.script.run)
+└── lib/
+    └── mdTable.ts     (Markdown table → string[][] 変換、Sheets row 化用)
+test/
+└── mdTable.test.ts
+appsscript.json        (Apps Script マニフェスト: oauthScopes / addOns 定義)
+esbuild.config.mjs     (IIFE バンドル + Apps Script global function 露出 footer 注入)
+.claspignore           (dist/ 配下のみ push)
+```
+
+## ロードマップ（このパッケージ）
+
+- [x] **v0.1.0 (本日)** — 雛形 + Markdown table → Sheet 片方向書き込み + 申請手順書 [`docs/google-addon-submit-guide.md`](../../docs/google-addon-submit-guide.md)
+- [ ] v0.2.0 — `schema-test-spec` 完成連動: 検証シート md ⇔ Sheets の双方向同期、`onEdit` トリガで GitHub API へ commit
+- [ ] v0.3.0 — Docs 向け md ⇔ ドキュメント変換（章立て / 表 / リスト）
+- [ ] v0.4.0 — Slides 向け md ⇔ プレゼン変換
+- [ ] Marketplace 公開: schema-test-spec 完成と同時に submit
+
+## 参考 / 一次資料
+
+- [Google Workspace Add-ons overview](https://developers.google.com/workspace/add-ons/overview)
+- [Apps Script Manifest reference](https://developers.google.com/apps-script/concepts/manifests)
+- [Marketplace SDK](https://developers.google.com/workspace/marketplace/how-to-publish)
+- [clasp](https://github.com/google/clasp)

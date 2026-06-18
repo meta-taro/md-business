@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <base target="_top" />
+    <title>md-business</title>
+    <style>
+      body { font-family: 'Roboto', 'Noto Sans JP', sans-serif; margin: 0; padding: 16px; color: #202124; }
+      h1 { font-size: 14px; margin: 0 0 8px 0; }
+      p  { font-size: 12px; color: #5f6368; margin: 0 0 12px 0; }
+      textarea { width: 100%; height: 240px; font-family: 'Roboto Mono', 'Source Code Pro', monospace;
+        font-size: 12px; padding: 8px; border: 1px solid #dadce0; border-radius: 4px; box-sizing: border-box; }
+      button { margin-top: 8px; padding: 8px 14px; background: #1a73e8; color: white; border: 0;
+        border-radius: 4px; font-size: 13px; cursor: pointer; }
+      button:disabled { background: #80868b; cursor: progress; }
+      .status { margin-top: 12px; font-size: 12px; color: #137333; }
+      .status.err { color: #c5221f; }
+    </style>
+  </head>
+  <body>
+    <h1>md-business — Markdown → Sheet</h1>
+    <p>下に Markdown テーブルを貼り付けて「インポート」を押すと、現在のシートに書き込みます（雛形・schema-test-spec 完成後に双方向同期へ拡張予定）。</p>
+    <textarea id="src" placeholder="| 項目 | OK/NG | 備考 |&#10;|---|---|---|&#10;| ログイン成功 | OK | - |"></textarea>
+    <button id="run">インポート</button>
+    <div id="status" class="status"></div>
+    <script>
+      const btn = document.getElementById('run');
+      const src = document.getElementById('src');
+      const status = document.getElementById('status');
+      btn.addEventListener('click', () => {
+        btn.disabled = true;
+        status.classList.remove('err');
+        status.textContent = '処理中...';
+        google.script.run
+          .withSuccessHandler((res) => {
+            btn.disabled = false;
+            if (res && res.ok) {
+              status.textContent = res.rows + ' 行をインポートしました。';
+            } else {
+              status.classList.add('err');
+              status.textContent = (res && res.error) || '不明なエラー';
+            }
+          })
+          .withFailureHandler((err) => {
+            btn.disabled = false;
+            status.classList.add('err');
+            status.textContent = err && err.message ? err.message : String(err);
+          })
+          .importMarkdownTableToActiveSheet(src.value);
+      });
+    </script>
+  </body>
+</html>
