@@ -14,7 +14,8 @@
     "test:run": "vitest run --coverage"
   },
   "dependencies": {
-    "@md-business/core": "workspace:*"
+    "@md-business/core": "workspace:*",
+    "@md-business/schema-test-spec": "workspace:*"
   },
   "devDependencies": {
     "@types/google-apps-script": "^1.0.83",

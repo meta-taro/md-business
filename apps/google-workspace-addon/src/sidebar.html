@@ -22,28 +22,35 @@
   </head>
   <body>
     <h1>md-business — Markdown ⇔ Sheet</h1>
-    <p>Markdown テーブルとシート間を双方向で変換します。<strong>インポート</strong>は textarea の内容をシートに書き込み、<strong>エクスポート</strong>は現在のシートを textarea に Markdown として書き出します。</p>
-    <textarea id="src" placeholder="| 項目 | OK/NG | 備考 |&#10;|---|---|---|&#10;| ログイン成功 | OK | - |"></textarea>
+    <p>Markdown テーブルとシート間を双方向で変換します。<strong>インポート</strong>は textarea の内容をシートに書き込み、<strong>エクスポート</strong>は現在のシートを textarea に Markdown として書き出します。検証シートの場合は <strong>セットアップ</strong> で列ドロップダウン / 条件付き書式 / 1行目固定を、<strong>検証</strong> で値の妥当性を一括チェックします。</p>
+    <textarea id="src" placeholder="---&#10;schema: test-spec/v1&#10;documentNumber: TEST-2026-0001&#10;title: ログイン機能 検証シート&#10;...&#10;columns:&#10;  - { name: 項目, type: text }&#10;  - { name: 結果, type: enum, values: [OK, NG] }&#10;---&#10;&#10;| 項目 | 結果 |&#10;|---|---|&#10;| ログイン成功 | OK |"></textarea>
     <div class="actions">
       <button id="import-btn">インポート（md → シート）</button>
       <button id="export-btn" class="secondary">エクスポート（シート → md）</button>
+    </div>
+    <div class="actions">
+      <button id="setup-btn" class="secondary">検証シート: セットアップ</button>
+      <button id="validate-btn" class="secondary">検証シート: 検証</button>
+      <button id="ts-export-btn" class="secondary">検証シート: md 書き出し</button>
     </div>
     <div id="status" class="status"></div>
     <script>
       const importBtn = document.getElementById('import-btn');
       const exportBtn = document.getElementById('export-btn');
+      const setupBtn = document.getElementById('setup-btn');
+      const validateBtn = document.getElementById('validate-btn');
+      const tsExportBtn = document.getElementById('ts-export-btn');
       const src = document.getElementById('src');
       const status = document.getElementById('status');
+      const allBtns = [importBtn, exportBtn, setupBtn, validateBtn, tsExportBtn];
 
       function setBusy(busy, message) {
-        importBtn.disabled = busy;
-        exportBtn.disabled = busy;
+        allBtns.forEach((b) => (b.disabled = busy));
         status.classList.remove('err');
         status.textContent = message || '';
       }
       function setError(message) {
-        importBtn.disabled = false;
-        exportBtn.disabled = false;
+        allBtns.forEach((b) => (b.disabled = false));
         status.classList.add('err');
         status.textContent = message || '不明なエラー';
       }
@@ -75,6 +82,56 @@
           })
           .withFailureHandler((err) => setError(err && err.message ? err.message : String(err)))
           .exportActiveSheetToMarkdown();
+      });
+
+      setupBtn.addEventListener('click', () => {
+        setBusy(true, '検証シートをセットアップ中...');
+        google.script.run
+          .withSuccessHandler((res) => {
+            if (res && res.ok) {
+              setBusy(false,
+                res.columns + ' 列 / DataValidation ' + res.dataValidations +
+                ' 件 / ConditionalFormat ' + res.conditionalFormats + ' 件 を適用しました。');
+            } else {
+              setError(res && res.error);
+            }
+          })
+          .withFailureHandler((err) => setError(err && err.message ? err.message : String(err)))
+          .setupTestSpecSheet(src.value);
+      });
+
+      validateBtn.addEventListener('click', () => {
+        setBusy(true, '検証実行中...');
+        google.script.run
+          .withSuccessHandler((res) => {
+            if (res && res.ok) {
+              if (res.issues.length === 0) {
+                setBusy(false, '問題なし — すべてのセルが frontmatter columns に適合しています。');
+              } else {
+                setError(res.issues.length +
+                  ' 件の問題を検出しました（該当セルに setNote で詳細を記載）。');
+              }
+            } else {
+              setError(res && res.error);
+            }
+          })
+          .withFailureHandler((err) => setError(err && err.message ? err.message : String(err)))
+          .validateActiveTestSpecSheet(src.value);
+      });
+
+      tsExportBtn.addEventListener('click', () => {
+        setBusy(true, 'Markdown 書き出し中...');
+        google.script.run
+          .withSuccessHandler((res) => {
+            if (res && res.ok) {
+              src.value = res.markdown;
+              setBusy(false, '検証シート frontmatter + body を書き出しました（必要に応じてコピーしてください）。');
+            } else {
+              setError(res && res.error);
+            }
+          })
+          .withFailureHandler((err) => setError(err && err.message ? err.message : String(err)))
+          .exportTestSpecMarkdown(src.value);
       });
     </script>
   </body>

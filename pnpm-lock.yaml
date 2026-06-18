@@ -93,6 +93,9 @@ importers:
       '@md-business/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@md-business/schema-test-spec':
+        specifier: workspace:*
+        version: link:../../packages/schema-test-spec
     devDependencies:
       '@types/google-apps-script':
         specifier: ^1.0.83
