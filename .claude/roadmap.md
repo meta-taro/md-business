@@ -9,7 +9,7 @@
 | **0** | 骨格構築・LICENSE / README / CLAUDE.md / baseline 焼き込み | `pnpm install` 成功・空の packages/apps が並ぶ | 〜1 週 | 2026-06 中旬（ほぼ完了） |
 | **1-MVP** | 請求書 md + Chrome 拡張（インポート → プレビュー → PDF DL） + 適格請求書 schema + キングダム社向け運用開始 | Chrome Web Store 申請完了・PDF DL 動作 | 〜2.5 週 | **2026-06-30** |
 | **1b** | `viewer-invoice`（Lit + フォーム UI 双方向バインド）+ `apps/pwa`（Astro 5 + Cloudflare Pages） | PWA で frontmatter 編集 → PDF DL | 3〜4 週 | 2026-07 末〜08 上旬 |
-| **2** | **Google Workspace アドオン**（md ⇔ Docs / Sheets / Slides の **双方向同期**、Marketplace submit）。**`schema-test-spec` 完成と同時に submit** | Workspace Marketplace に submit、Sheets-as-truth 同期で md 自動 commit が成立 | 3〜4 週 | **v0.7.0 完成直後** |
+| **2** | **Google Workspace アドオン**（Docs / Sheets / Slides サイドバーで md ⇔ ドキュメント / スプレッドシートを **双方向 UI 編集**、PDF 出力は Google ネイティブ任せ）。**`schema-test-spec` 完成と同時に Marketplace submit** | Marketplace submit、Sheets-as-truth 同期で md 自動 commit が成立、サイドバー UI から Sheets / Docs を編集可能 | 3〜4 週 | **v0.7.0 完成直後** |
 | **3** | テンプレ拡張（schema-test-spec → schema-api-spec → schema-db-spec → schema-slides）+ npm 公開 | `@md-business/*` が npm published | 4〜6 週 | 2026-09 末〜10 中旬 |
 | **4** | 配布チャネル展開 b（VS Code 拡張 + LINE LIFF + GitHub Action） | 各 Marketplace に submit | 4〜5 週 | 2026-10 末〜11 上旬 |
 | **5** | テンプレ拡張 b（見積書 / 議事録 / 契約書 / 履歴書）+ fork-guide 整備 | コミュニティ contributor 受け入れ態勢 | 4〜6 週 | 2026-12 中旬 |
