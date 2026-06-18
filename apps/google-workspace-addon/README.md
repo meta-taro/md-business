@@ -39,6 +39,8 @@ clasp open-script          # Apps Script Editor をブラウザで開く
 
 > **clasp v3.x 系での注意**: v2 系の `clasp create` / `clasp open` は v3 では `clasp create-script` / `clasp open-script` に renamed されています。古いネット記事のコマンドをコピペすると `Unknown command` で失敗するので、上記の v3 系コマンドを使ってください。
 
+> **`.claspignore` の挙動も v3 で変更**: v2 系では `.claspignore` のパターンは **プロジェクトルート（`.clasp.json` の場所）相対**で評価されましたが、v3 系では **`contentDir` (= `rootDir` で指定した `dist/`) 相対**で評価されます。本リポの `.claspignore` は v3 用に最小化（`node_modules/**` `.git/**` のみ ignore）。`!dist/Code.js` のような dist プレフィックス付き whitelist は機能しません。詳細は [`docs/google-addon-submit-guide.md`](../../docs/google-addon-submit-guide.md) の「clasp v3 の `.claspignore` セマンティクス」セクション参照。
+
 `.clasp.json` は **`.gitignore`** で git 管理外（script ID が漏れると差し替え攻撃の余地が生まれる）。
 
 ## 構成

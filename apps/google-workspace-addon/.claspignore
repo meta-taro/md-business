@@ -1,4 +1,8 @@
-**/**
-!dist/Code.js
-!dist/appsscript.json
-!dist/Sidebar.html
+# clasp v3 では `.claspignore` のパターンは contentDir (= rootDir = dist/) を基点に評価される。
+# パターンは「dist 内の相対パス」に対してマッチング。
+# dist/ 以下に node_modules / .git は存在しないので実質的な ignore は無く、
+# `appsscript.json` / `Code.js` / `Sidebar.html` が全て Tracked になる。
+node_modules/**
+.git/**
+.DS_Store
+*.map
