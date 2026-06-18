@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { PluginRegistry } from '../src/plugins/registry.js';
 import { invoicePlugin } from '../src/plugins/invoice.js';
 import { specPlugin } from '../src/plugins/spec.js';
+import { testSpecPlugin } from '../src/plugins/test-spec.js';
 import { createDefaultRegistry } from '../src/plugins/index.js';
 import type { SchemaPlugin } from '../src/plugins/types.js';
 
@@ -40,6 +41,12 @@ describe('PluginRegistry', () => {
     const r = new PluginRegistry();
     r.register(dummyPlugin('invoice'));
     expect(r.resolve({ schemaVersion: 'invoice/v1' })?.id).toBe('invoice');
+  });
+
+  it('resolves via schema field prefix (e.g. "test-spec/v1" → "test-spec")', () => {
+    const r = new PluginRegistry();
+    r.register(dummyPlugin('test-spec'));
+    expect(r.resolve({ schema: 'test-spec/v1' })?.id).toBe('test-spec');
   });
 
   it('returns undefined when nothing matches', () => {
@@ -106,11 +113,34 @@ describe('specPlugin.detect', () => {
   });
 });
 
+describe('testSpecPlugin.detect', () => {
+  it('claims documents with Japanese marker keys', () => {
+    expect(testSpecPlugin.detect?.({ 列: [] })).toBe(true);
+    expect(testSpecPlugin.detect?.({ 連携シートID: 'x' })).toBe(true);
+  });
+
+  it('claims documents with English marker keys', () => {
+    expect(testSpecPlugin.detect?.({ columns: [] })).toBe(true);
+    expect(testSpecPlugin.detect?.({ googleSheetId: 'x' })).toBe(true);
+  });
+
+  it('does not claim unrelated documents', () => {
+    expect(testSpecPlugin.detect?.({ title: 'note' })).toBe(false);
+    expect(testSpecPlugin.detect?.({ 請求書番号: 'INV-1' })).toBe(false);
+  });
+
+  it('does not steal documents with only reviewers / レビュアー (spec keeps them)', () => {
+    expect(testSpecPlugin.detect?.({ reviewers: [] })).toBe(false);
+    expect(testSpecPlugin.detect?.({ レビュアー: [] })).toBe(false);
+  });
+});
+
 describe('createDefaultRegistry', () => {
-  it('ships with the invoice and spec plugins', () => {
+  it('ships with the invoice, test-spec, and spec plugins (test-spec before spec for detect order)', () => {
     const r = createDefaultRegistry();
     expect(r.get('invoice')).toBe(invoicePlugin);
+    expect(r.get('test-spec')).toBe(testSpecPlugin);
     expect(r.get('spec')).toBe(specPlugin);
-    expect(r.list().map((p) => p.id)).toEqual(['invoice', 'spec']);
+    expect(r.list().map((p) => p.id)).toEqual(['invoice', 'test-spec', 'spec']);
   });
 });

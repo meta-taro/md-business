@@ -23,7 +23,7 @@ async function copySchemaCss() {
   const stylesDir = resolve(ROOT, '..', '..', 'packages', 'renderer-pdf', 'src', 'styles');
   const destDir = resolve(DIST, 'styles');
   await ensureDir(destDir);
-  for (const file of ['invoice.css', 'spec.css']) {
+  for (const file of ['invoice.css', 'spec.css', 'test-spec.css']) {
     await copyFile(resolve(stylesDir, file), resolve(destDir, file));
     console.log(`[post-build] copied ${file}`);
   }
@@ -156,11 +156,18 @@ const STARTER_TEMPLATES = [
     label: '日本語フィールド名・基本設計書（EC 注文管理サブシステム）',
     description: '8 章 / Mermaid 図 / 表を含む数ページの基本設計書サンプル。日本語キー（文書番号 / 作成者 / レビュアー …）。',
   },
+  {
+    schema: 'test-spec',
+    category: '検証シート',
+    file: 'standard-ja.md',
+    label: '日本語フィールド名・検証シート（ログイン機能サンプル）',
+    description: '列定義（プルダウン / 日付 / 数値）と検証手順表を含む検証シート。Google Sheets 連携 + GitHub 自動同期に対応。日本語キー。',
+  },
 ];
 
 // Display order for category sections in the popup. Templates whose category
 // is not listed here fall back to the end (preserves insertion order).
-const CATEGORY_ORDER = ['適格請求書', '免税事業者', '基本設計書'];
+const CATEGORY_ORDER = ['適格請求書', '免税事業者', '基本設計書', '検証シート'];
 
 async function copyStarterTemplates() {
   const repoRoot = resolve(ROOT, '..', '..');

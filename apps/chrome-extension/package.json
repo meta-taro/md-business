@@ -25,6 +25,7 @@
     "@md-business/renderer-pdf": "workspace:*",
     "@md-business/schema-invoice": "workspace:*",
     "@md-business/schema-spec": "workspace:*",
+    "@md-business/schema-test-spec": "workspace:*",
     "buffer": "^6.0.3",
     "codemirror": "^6.0.2",
     "dompurify": "^3.2.0",
