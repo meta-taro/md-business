@@ -4,6 +4,8 @@ export { renderInvoiceBody, type RenderInvoiceBodyOptions } from './template.js'
 export { renderInvoiceHtml, type RenderInvoiceHtmlOptions } from './renderHtml.js';
 export { renderSpecBody, type RenderSpecBodyOptions } from './specTemplate.js';
 export { renderSpecHtml, type RenderSpecHtmlOptions } from './renderSpecHtml.js';
+export { renderTestSpecBody, type RenderTestSpecBodyOptions } from './testSpecTemplate.js';
+export { renderTestSpecHtml, type RenderTestSpecHtmlOptions } from './renderTestSpecHtml.js';
 export {
   renderStampSvg,
   inferStampShape,

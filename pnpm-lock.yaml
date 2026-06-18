@@ -167,6 +167,9 @@ importers:
       '@md-business/schema-spec':
         specifier: workspace:*
         version: link:../schema-spec
+      '@md-business/schema-test-spec':
+        specifier: workspace:*
+        version: link:../schema-test-spec
     devDependencies:
       '@playwright/test':
         specifier: ^1.50

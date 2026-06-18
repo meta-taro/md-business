@@ -17,7 +17,8 @@
       "import": "./dist/browser.js"
     },
     "./styles/invoice.css": "./src/styles/invoice.css",
-    "./styles/spec.css": "./src/styles/spec.css"
+    "./styles/spec.css": "./src/styles/spec.css",
+    "./styles/test-spec.css": "./src/styles/test-spec.css"
   },
   "files": [
     "dist",
@@ -34,7 +35,8 @@
   },
   "dependencies": {
     "@md-business/schema-invoice": "workspace:*",
-    "@md-business/schema-spec": "workspace:*"
+    "@md-business/schema-spec": "workspace:*",
+    "@md-business/schema-test-spec": "workspace:*"
   },
   "devDependencies": {
     "@playwright/test": "^1.50",

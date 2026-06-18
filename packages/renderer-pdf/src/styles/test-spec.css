@@ -1,0 +1,345 @@
+/*
+ * Test-spec (検証シート) print styles — A4 portrait, Japanese-aware.
+ * Cover page + columns definition + verification table body, optimized for
+ * Paged.js.
+ *
+ * Theme color: set `--mdb-color-accent` on `.mdb-test-spec` via inline style
+ * or preset (see testSpecTemplate.ts). All accent surfaces inherit from it.
+ */
+
+@page {
+  size: A4 portrait;
+  margin: 20mm 18mm 22mm 18mm;
+}
+
+/* 表紙ページは余白 0。`.mdb-test-spec__cover` 自体が左カラーバー + 内側 padding
+   を持つので @page margin で更に削るとレイアウトが二重に縮む。 */
+@page :first {
+  margin: 0;
+}
+
+:root {
+  --mdb-color-fg: #111;
+  --mdb-color-muted: #666;
+  --mdb-color-border: #d4d4d8;
+  --mdb-color-accent: #2a4d7a;
+  --mdb-color-accent-soft: #e0e7f0;
+  --mdb-color-code-bg: #f5f5f4;
+  --mdb-font-base: 'Noto Sans JP', 'Hiragino Kaku Gothic ProN', 'Yu Gothic', sans-serif;
+  --mdb-font-mono: 'JetBrains Mono', 'Noto Sans Mono CJK JP', 'Consolas', monospace;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  font-family: var(--mdb-font-base);
+  color: var(--mdb-color-fg);
+  font-size: 10.5pt;
+  line-height: 1.7;
+  -webkit-font-smoothing: antialiased;
+}
+
+.mdb-test-spec {
+  margin: 0;
+}
+
+/* ─────────────────────── Cover page ─────────────────────── */
+
+.mdb-test-spec__cover {
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  width: 100%;
+  min-height: 297mm;
+  max-height: 297mm;
+  padding: 0;
+  margin: 0;
+  page-break-after: always;
+  break-after: page;
+  background: linear-gradient(135deg, var(--mdb-color-accent-soft) 0%, #ffffff 60%);
+  border-left: 6mm solid var(--mdb-color-accent);
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.mdb-test-spec__cover-inner {
+  padding: 24mm 22mm 14mm 22mm;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.mdb-test-spec__status {
+  display: inline-block;
+  padding: 2mm 6mm;
+  font-size: 9pt;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  border: 1.2pt solid var(--mdb-color-accent);
+  border-radius: 999px;
+  color: var(--mdb-color-accent);
+  background: #ffffff;
+  margin-bottom: 10mm;
+}
+
+.mdb-test-spec__status--completed {
+  background: var(--mdb-color-accent);
+  color: #ffffff;
+}
+
+.mdb-test-spec__status--executing {
+  border-style: solid;
+}
+
+.mdb-test-spec__status--draft {
+  border-style: dashed;
+}
+
+.mdb-test-spec__title {
+  font-size: 26pt;
+  font-weight: 700;
+  line-height: 1.3;
+  margin: 0 0 12mm 0;
+  color: var(--mdb-color-fg);
+  letter-spacing: 0.02em;
+}
+
+.mdb-test-spec__meta {
+  display: grid;
+  grid-template-columns: 28mm 1fr;
+  row-gap: 2.5mm;
+  column-gap: 6mm;
+  margin: 0 0 10mm 0;
+  padding: 0;
+  font-size: 11pt;
+}
+
+.mdb-test-spec__meta dt {
+  font-weight: 600;
+  color: var(--mdb-color-muted);
+  margin: 0;
+}
+
+.mdb-test-spec__meta dd {
+  margin: 0;
+  color: var(--mdb-color-fg);
+}
+
+.mdb-test-spec__people,
+.mdb-test-spec__related,
+.mdb-test-spec__sheet {
+  margin: 0 0 8mm 0;
+}
+
+.mdb-test-spec__people h2,
+.mdb-test-spec__related h2,
+.mdb-test-spec__sheet h2 {
+  font-size: 11pt;
+  font-weight: 600;
+  color: var(--mdb-color-accent);
+  margin: 0 0 3mm 0;
+  padding: 0 0 1.5mm 0;
+  border-bottom: 0.6pt solid var(--mdb-color-accent);
+  letter-spacing: 0.04em;
+}
+
+.mdb-test-spec__people ul,
+.mdb-test-spec__related ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.mdb-test-spec__people li,
+.mdb-test-spec__related li {
+  padding: 1mm 0;
+  font-size: 10.5pt;
+}
+
+.mdb-test-spec__role {
+  font-size: 9.5pt;
+  color: var(--mdb-color-muted);
+  margin-left: 1mm;
+}
+
+.mdb-test-spec__sheet code {
+  font-family: var(--mdb-font-mono);
+  font-size: 9.5pt;
+  background: var(--mdb-color-code-bg);
+  padding: 0.5mm 1.5mm;
+  border-radius: 1mm;
+  word-break: break-all;
+}
+
+/* ─────────────────────── Columns definition ─────────────────────── */
+
+.mdb-test-spec__columns {
+  padding: 4mm 0 0 0;
+  max-width: 174mm;
+  margin: 0 auto 8mm auto;
+  page-break-before: always;
+  break-before: page;
+}
+
+.mdb-test-spec__columns > h2 {
+  font-size: 16pt;
+  font-weight: 600;
+  color: var(--mdb-color-accent);
+  margin: 0 0 5mm 0;
+  padding: 0 0 2mm 2mm;
+  border-left: 3pt solid var(--mdb-color-accent);
+}
+
+.mdb-test-spec__columns-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 10pt;
+}
+
+.mdb-test-spec__columns-table th,
+.mdb-test-spec__columns-table td {
+  border: 0.6pt solid var(--mdb-color-border);
+  padding: 2mm 3mm;
+  text-align: left;
+  vertical-align: top;
+}
+
+.mdb-test-spec__columns-table thead th {
+  background: var(--mdb-color-accent-soft);
+  color: var(--mdb-color-fg);
+  font-weight: 600;
+}
+
+.mdb-test-spec__columns-table tbody th {
+  font-weight: 600;
+  background: #fafafa;
+  width: 30mm;
+}
+
+.mdb-test-spec__column-values,
+.mdb-test-spec__column-range {
+  color: var(--mdb-color-muted);
+  font-size: 9.5pt;
+  margin-left: 1mm;
+}
+
+.mdb-test-spec__visual-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-size: 9.5pt;
+}
+
+.mdb-test-spec__visual-list li {
+  padding: 0.5mm 0;
+}
+
+.mdb-test-spec__visual-list strong {
+  display: inline-block;
+  min-width: 12mm;
+  color: var(--mdb-color-accent);
+}
+
+/* ─────────────────────── Body (verification table) ─────────────────────── */
+
+.mdb-test-spec__body {
+  padding: 4mm 0 0 0;
+  max-width: 174mm;
+  margin: 0 auto;
+}
+
+.mdb-test-spec__body > h1 {
+  font-size: 20pt;
+  font-weight: 700;
+  color: var(--mdb-color-accent);
+  margin: 0 0 8mm 0;
+  padding: 0 0 3mm 0;
+  border-bottom: 1.2pt solid var(--mdb-color-accent);
+  page-break-before: always;
+  break-before: page;
+  letter-spacing: 0.02em;
+}
+
+.mdb-test-spec__body > h1:first-child {
+  page-break-before: avoid;
+  break-before: avoid;
+}
+
+.mdb-test-spec__body h2 {
+  font-size: 14pt;
+  font-weight: 600;
+  color: var(--mdb-color-fg);
+  margin: 10mm 0 4mm 0;
+  padding: 0 0 1.5mm 2mm;
+  border-left: 3pt solid var(--mdb-color-accent);
+  page-break-after: avoid;
+  break-after: avoid;
+}
+
+.mdb-test-spec__body h3 {
+  font-size: 12pt;
+  font-weight: 600;
+  color: var(--mdb-color-fg);
+  margin: 7mm 0 3mm 0;
+  page-break-after: avoid;
+  break-after: avoid;
+}
+
+.mdb-test-spec__body p {
+  margin: 0 0 3mm 0;
+  text-align: justify;
+  text-justify: inter-ideograph;
+}
+
+.mdb-test-spec__body ul,
+.mdb-test-spec__body ol {
+  margin: 0 0 4mm 0;
+  padding-left: 6mm;
+}
+
+.mdb-test-spec__body code {
+  font-family: var(--mdb-font-mono);
+  font-size: 9.5pt;
+  background: var(--mdb-color-code-bg);
+  padding: 0.2mm 1mm;
+  border-radius: 1mm;
+}
+
+.mdb-test-spec__body table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0 0 5mm 0;
+  font-size: 9.5pt;
+}
+
+.mdb-test-spec__body th,
+.mdb-test-spec__body td {
+  border: 0.6pt solid var(--mdb-color-border);
+  padding: 1.8mm 2.5mm;
+  text-align: left;
+  vertical-align: top;
+}
+
+.mdb-test-spec__body thead th {
+  background: var(--mdb-color-accent-soft);
+  color: var(--mdb-color-fg);
+  font-weight: 600;
+  position: sticky;
+  top: 0;
+}
+
+.mdb-test-spec__body a {
+  color: var(--mdb-color-accent);
+  text-decoration: underline;
+  word-break: break-all;
+}
+
+@media screen {
+  .mdb-test-spec {
+    background: #ffffff;
+  }
+  .mdb-test-spec__cover {
+    margin: -18mm -16mm 0 -16mm;
+    width: calc(100% + 32mm);
+  }
+}
