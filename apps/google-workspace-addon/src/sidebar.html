@@ -33,6 +33,19 @@
       <button id="validate-btn" class="secondary">検証シート: 検証</button>
       <button id="ts-export-btn" class="secondary">検証シート: md 書き出し</button>
     </div>
+    <hr style="border: 0; border-top: 1px solid #dadce0; margin: 16px 0;" />
+    <h1>GitHub 自動同期（Phase 3C）</h1>
+    <p>frontmatter に <code>repository: owner/repo@branch:path</code> を書いて「有効化」を押すと、シート編集が <strong>2 秒</strong> 静まった時点で GitHub に <code>chore(test-spec): sync ...</code> として PUT します。<strong>PAT は PdM (担当者) が手作業で登録</strong>してください（AI は credential を扱いません）。</p>
+    <div class="actions">
+      <input id="pat-input" type="password" placeholder="ghp_..." style="flex: 1; padding: 6px 8px; border: 1px solid #dadce0; border-radius: 4px; font-size: 12px; font-family: 'Roboto Mono', monospace;" />
+      <button id="pat-save-btn" class="secondary">PAT を保存</button>
+      <button id="pat-clear-btn" class="secondary">PAT 削除</button>
+    </div>
+    <div class="actions">
+      <button id="sync-install-btn">自動同期: 有効化</button>
+      <button id="sync-uninstall-btn" class="secondary">自動同期: 無効化</button>
+      <button id="sync-status-btn" class="secondary">状態を確認</button>
+    </div>
     <div id="status" class="status"></div>
     <script>
       const importBtn = document.getElementById('import-btn');
@@ -40,9 +53,16 @@
       const setupBtn = document.getElementById('setup-btn');
       const validateBtn = document.getElementById('validate-btn');
       const tsExportBtn = document.getElementById('ts-export-btn');
+      const patInput = document.getElementById('pat-input');
+      const patSaveBtn = document.getElementById('pat-save-btn');
+      const patClearBtn = document.getElementById('pat-clear-btn');
+      const syncInstallBtn = document.getElementById('sync-install-btn');
+      const syncUninstallBtn = document.getElementById('sync-uninstall-btn');
+      const syncStatusBtn = document.getElementById('sync-status-btn');
       const src = document.getElementById('src');
       const status = document.getElementById('status');
-      const allBtns = [importBtn, exportBtn, setupBtn, validateBtn, tsExportBtn];
+      const allBtns = [importBtn, exportBtn, setupBtn, validateBtn, tsExportBtn,
+        patSaveBtn, patClearBtn, syncInstallBtn, syncUninstallBtn, syncStatusBtn];
 
       function setBusy(busy, message) {
         allBtns.forEach((b) => (b.disabled = busy));
@@ -132,6 +152,75 @@
           })
           .withFailureHandler((err) => setError(err && err.message ? err.message : String(err)))
           .exportTestSpecMarkdown(src.value);
+      });
+
+      patSaveBtn.addEventListener('click', () => {
+        const pat = patInput.value;
+        setBusy(true, 'PAT を保存中...');
+        google.script.run
+          .withSuccessHandler((res) => {
+            if (res && res.ok) {
+              patInput.value = '';
+              setBusy(false, 'PAT を保存しました（UserProperties）。');
+            } else {
+              setError(res && res.error);
+            }
+          })
+          .withFailureHandler((err) => setError(err && err.message ? err.message : String(err)))
+          .setGithubPat(pat);
+      });
+
+      patClearBtn.addEventListener('click', () => {
+        setBusy(true, 'PAT を削除中...');
+        google.script.run
+          .withSuccessHandler(() => setBusy(false, 'PAT を削除しました。'))
+          .withFailureHandler((err) => setError(err && err.message ? err.message : String(err)))
+          .clearGithubPat();
+      });
+
+      syncInstallBtn.addEventListener('click', () => {
+        setBusy(true, '自動同期を有効化中...');
+        google.script.run
+          .withSuccessHandler((res) => {
+            if (res && res.ok) {
+              setBusy(false, '自動同期 ON。シート「' + res.sheetName + '」→ ' + res.repoRef + ' に 2 秒 debounce で commit します。');
+            } else {
+              setError(res && res.error);
+            }
+          })
+          .withFailureHandler((err) => setError(err && err.message ? err.message : String(err)))
+          .installTestSpecAutoSync(src.value);
+      });
+
+      syncUninstallBtn.addEventListener('click', () => {
+        setBusy(true, '自動同期を無効化中...');
+        google.script.run
+          .withSuccessHandler(() => setBusy(false, '自動同期 OFF。trigger を削除しました。'))
+          .withFailureHandler((err) => setError(err && err.message ? err.message : String(err)))
+          .uninstallTestSpecAutoSync();
+      });
+
+      syncStatusBtn.addEventListener('click', () => {
+        setBusy(true, '状態を取得中...');
+        google.script.run
+          .withSuccessHandler((res) => {
+            const parts = [
+              '有効: ' + (res.installed ? 'YES' : 'NO'),
+              'PAT: ' + (res.hasPat ? 'YES' : 'NO'),
+              'sheet: ' + (res.sheetName || '-'),
+              'repo: ' + (res.repoRef || '-'),
+              'state: ' + res.state.kind,
+            ];
+            if (res.state.kind === 'success') {
+              parts.push('@ ' + res.state.syncedAt + ' / sha ' + res.state.commitSha.slice(0, 7));
+            }
+            if (res.state.kind === 'error') {
+              parts.push('@ ' + res.state.failedAt + ' / ' + res.state.reason + ': ' + (res.state.details || ''));
+            }
+            setBusy(false, parts.join(' | '));
+          })
+          .withFailureHandler((err) => setError(err && err.message ? err.message : String(err)))
+          .getTestSpecAutoSyncStatus();
       });
     </script>
   </body>

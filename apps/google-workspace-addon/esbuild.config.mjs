@@ -22,6 +22,17 @@ const TRIGGER_NAMES = [
   'getSidebarHtml',
   'importMarkdownTableToActiveSheet',
   'exportActiveSheetToMarkdown',
+  'setupTestSpecSheet',
+  'validateActiveTestSpecSheet',
+  'exportTestSpecMarkdown',
+  'setGithubPat',
+  'clearGithubPat',
+  'hasGithubPat',
+  'installTestSpecAutoSync',
+  'uninstallTestSpecAutoSync',
+  'handleTestSpecEdit',
+  'flushPendingTestSpecSync',
+  'getTestSpecAutoSyncStatus',
 ];
 const footer = TRIGGER_NAMES.map((name) => `function ${name}(e){return mdb.${name}(e);}`).join('\n');
 
