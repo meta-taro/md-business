@@ -99,10 +99,16 @@ importers:
       '@md-business/schema-test-spec':
         specifier: workspace:*
         version: link:../../packages/schema-test-spec
+      js-yaml:
+        specifier: ^4.1.0
+        version: 4.2.0
     devDependencies:
       '@types/google-apps-script':
         specifier: ^1.0.83
         version: 1.0.100
+      '@types/js-yaml':
+        specifier: ^4.0.9
+        version: 4.0.9
       '@types/node':
         specifier: ^22.10.0
         version: 22.19.21

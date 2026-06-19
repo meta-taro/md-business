@@ -4,65 +4,115 @@
     <meta charset="utf-8" />
     <base target="_top" />
     <title>md-business</title>
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20,400,0,0"
+    />
     <style>
       body { font-family: 'Roboto', 'Noto Sans JP', sans-serif; margin: 0; padding: 16px; color: #202124; }
       h1 { font-size: 14px; margin: 0 0 8px 0; }
+      h2 { font-size: 12px; color: #5f6368; margin: 16px 0 6px 0; text-transform: uppercase; letter-spacing: 0.4px; }
       p  { font-size: 12px; color: #5f6368; margin: 0 0 12px 0; }
-      textarea { width: 100%; height: 240px; font-family: 'Roboto Mono', 'Source Code Pro', monospace;
+      textarea { width: 100%; height: 200px; font-family: 'Roboto Mono', 'Source Code Pro', monospace;
         font-size: 12px; padding: 8px; border: 1px solid #dadce0; border-radius: 4px; box-sizing: border-box; }
+      input[type=text], input[type=password] { box-sizing: border-box; padding: 6px 8px;
+        border: 1px solid #dadce0; border-radius: 4px; font-size: 12px; font-family: 'Roboto Mono', monospace; }
       .actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
       button { padding: 8px 14px; background: #1a73e8; color: white; border: 0;
         border-radius: 4px; font-size: 13px; cursor: pointer; }
       button.secondary { background: #fff; color: #1a73e8; border: 1px solid #1a73e8; }
       button:disabled { background: #80868b; cursor: progress; }
       button.secondary:disabled { background: #f1f3f4; color: #80868b; border-color: #dadce0; }
+      .palette { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+      .palette button.icon { padding: 6px; min-width: 32px; height: 32px; display: inline-flex;
+        align-items: center; justify-content: center; }
+      .palette button.icon .material-symbols-outlined { font-size: 20px; }
+      .col-name-row { display: flex; gap: 6px; margin-top: 6px; }
+      .col-name-row input { flex: 1; }
       .status { margin-top: 12px; font-size: 12px; color: #137333; }
       .status.err { color: #c5221f; }
+      hr { border: 0; border-top: 1px solid #dadce0; margin: 16px 0; }
     </style>
   </head>
   <body>
-    <h1>md-business — Markdown ⇔ Sheet</h1>
-    <p>Markdown テーブルとシート間を双方向で変換します。<strong>インポート</strong>は textarea の内容をシートに書き込み、<strong>エクスポート</strong>は現在のシートを textarea に Markdown として書き出します。検証シートの場合は <strong>セットアップ</strong> で列ドロップダウン / 条件付き書式 / 1行目固定を、<strong>検証</strong> で値の妥当性を一括チェックします。</p>
-    <textarea id="src" placeholder="---&#10;schema: test-spec/v1&#10;documentNumber: TEST-2026-0001&#10;title: ログイン機能 検証シート&#10;...&#10;columns:&#10;  - { name: 項目, type: text }&#10;  - { name: 結果, type: enum, values: [OK, NG] }&#10;---&#10;&#10;| 項目 | 結果 |&#10;|---|---|&#10;| ログイン成功 | OK |"></textarea>
+    <h1>md-business — 検証シート frontmatter</h1>
+    <p>
+      列名を入れてアイコンを押すと <code>columns</code> に追加されます。
+      テンプレから始めるか、下の textarea を直接編集してから「セットアップ」で適用してください。
+    </p>
+
+    <h2>テンプレ</h2>
+    <div class="palette" id="tpl-palette">
+      <button class="icon secondary" data-tpl="minimal" title="最小テンプレ"><span class="material-symbols-outlined">description</span></button>
+      <button class="icon secondary" data-tpl="full" title="完全テンプレ"><span class="material-symbols-outlined">checklist</span></button>
+      <button class="icon secondary" data-tpl="clear" title="クリア"><span class="material-symbols-outlined">delete_sweep</span></button>
+    </div>
+
+    <h2>列を追加</h2>
+    <div class="col-name-row">
+      <input type="text" id="col-name" placeholder="列名（空なら「列N」）" />
+    </div>
+    <div class="palette" id="col-palette">
+      <button class="icon secondary" data-type="text" title="text（自由記述）"><span class="material-symbols-outlined">text_fields</span></button>
+      <button class="icon secondary" data-type="multiline_text" title="multiline_text（複数行）"><span class="material-symbols-outlined">notes</span></button>
+      <button class="icon secondary" data-type="enum" title="enum（候補から選択）"><span class="material-symbols-outlined">arrow_drop_down_circle</span></button>
+      <button class="icon secondary" data-type="date" title="date（日付）"><span class="material-symbols-outlined">calendar_month</span></button>
+      <button class="icon secondary" data-type="number" title="number（数値）"><span class="material-symbols-outlined">tag</span></button>
+      <button class="icon secondary" data-type="checkbox" title="checkbox（チェック）"><span class="material-symbols-outlined">check_box</span></button>
+      <button class="icon secondary" data-type="url" title="url（リンク）"><span class="material-symbols-outlined">link</span></button>
+      <button class="icon secondary" id="col-pop-btn" title="末尾の列を削除"><span class="material-symbols-outlined">delete</span></button>
+    </div>
+
+    <h2>frontmatter / 本文</h2>
+    <textarea id="src" placeholder="（テンプレを選ぶか、アイコンで列を追加してください）"></textarea>
     <div class="actions">
-      <button id="import-btn">インポート（md → シート）</button>
-      <button id="export-btn" class="secondary">エクスポート（シート → md）</button>
+      <button id="import-btn" class="secondary">md → シート</button>
+      <button id="export-btn" class="secondary">シート → md</button>
     </div>
     <div class="actions">
-      <button id="setup-btn" class="secondary">検証シート: セットアップ</button>
-      <button id="validate-btn" class="secondary">検証シート: 検証</button>
-      <button id="ts-export-btn" class="secondary">検証シート: md 書き出し</button>
+      <button id="setup-btn">検証シート: セットアップ</button>
+      <button id="validate-btn" class="secondary">検証</button>
+      <button id="ts-export-btn" class="secondary">md 書き出し</button>
     </div>
-    <hr style="border: 0; border-top: 1px solid #dadce0; margin: 16px 0;" />
-    <h1>GitHub 自動同期（Phase 3C）</h1>
-    <p>frontmatter に <code>repository: owner/repo@branch:path</code> を書いて「有効化」を押すと、シート編集が <strong>2 秒</strong> 静まった時点で GitHub に <code>chore(test-spec): sync ...</code> として PUT します。<strong>PAT は PdM (担当者) が手作業で登録</strong>してください（AI は credential を扱いません）。</p>
+
+    <hr />
+    <h1>GitHub 自動同期</h1>
+    <p>
+      frontmatter に <code>repository: owner/repo@branch:path</code> を書いて「有効化」を押すと、
+      シート編集が <strong>2 秒</strong> 静まった時点で GitHub に PUT します。
+      <strong>PAT は PdM が手作業で登録</strong>してください。
+    </p>
     <div class="actions">
-      <input id="pat-input" type="password" placeholder="ghp_..." style="flex: 1; padding: 6px 8px; border: 1px solid #dadce0; border-radius: 4px; font-size: 12px; font-family: 'Roboto Mono', monospace;" />
+      <input id="pat-input" type="password" placeholder="ghp_..." style="flex: 1;" />
       <button id="pat-save-btn" class="secondary">PAT を保存</button>
       <button id="pat-clear-btn" class="secondary">PAT 削除</button>
     </div>
     <div class="actions">
-      <button id="sync-install-btn">自動同期: 有効化</button>
-      <button id="sync-uninstall-btn" class="secondary">自動同期: 無効化</button>
-      <button id="sync-status-btn" class="secondary">状態を確認</button>
+      <button id="sync-install-btn">有効化</button>
+      <button id="sync-uninstall-btn" class="secondary">無効化</button>
+      <button id="sync-status-btn" class="secondary">状態</button>
     </div>
     <div id="status" class="status"></div>
+
     <script>
-      const importBtn = document.getElementById('import-btn');
-      const exportBtn = document.getElementById('export-btn');
-      const setupBtn = document.getElementById('setup-btn');
-      const validateBtn = document.getElementById('validate-btn');
-      const tsExportBtn = document.getElementById('ts-export-btn');
-      const patInput = document.getElementById('pat-input');
-      const patSaveBtn = document.getElementById('pat-save-btn');
-      const patClearBtn = document.getElementById('pat-clear-btn');
-      const syncInstallBtn = document.getElementById('sync-install-btn');
-      const syncUninstallBtn = document.getElementById('sync-uninstall-btn');
-      const syncStatusBtn = document.getElementById('sync-status-btn');
-      const src = document.getElementById('src');
-      const status = document.getElementById('status');
-      const allBtns = [importBtn, exportBtn, setupBtn, validateBtn, tsExportBtn,
-        patSaveBtn, patClearBtn, syncInstallBtn, syncUninstallBtn, syncStatusBtn];
+      const $ = (id) => document.getElementById(id);
+      const importBtn = $('import-btn');
+      const exportBtn = $('export-btn');
+      const setupBtn = $('setup-btn');
+      const validateBtn = $('validate-btn');
+      const tsExportBtn = $('ts-export-btn');
+      const patInput = $('pat-input');
+      const patSaveBtn = $('pat-save-btn');
+      const patClearBtn = $('pat-clear-btn');
+      const syncInstallBtn = $('sync-install-btn');
+      const syncUninstallBtn = $('sync-uninstall-btn');
+      const syncStatusBtn = $('sync-status-btn');
+      const colNameInput = $('col-name');
+      const colPopBtn = $('col-pop-btn');
+      const src = $('src');
+      const status = $('status');
+
+      const allBtns = Array.from(document.querySelectorAll('button'));
 
       function setBusy(busy, message) {
         allBtns.forEach((b) => (b.disabled = busy));
@@ -74,6 +124,82 @@
         status.classList.add('err');
         status.textContent = message || '不明なエラー';
       }
+      function failureHandler() {
+        return (err) => setError(err && err.message ? err.message : String(err));
+      }
+
+      function autoColumnName() {
+        const raw = colNameInput.value.trim();
+        if (raw.length > 0) return raw;
+        const match = (src.value.match(/name:/g) || []).length;
+        return '列' + (match + 1);
+      }
+
+      // テンプレ
+      document.querySelectorAll('#tpl-palette button[data-tpl]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const tplKey = btn.getAttribute('data-tpl');
+          setBusy(true, 'テンプレを適用中...');
+          google.script.run
+            .withSuccessHandler((res) => {
+              if (res && res.ok) {
+                src.value = res.newSrc;
+                setBusy(false, 'テンプレ「' + tplKey + '」を適用しました。');
+              } else {
+                setError(res && res.error);
+              }
+            })
+            .withFailureHandler(failureHandler())
+            .applyTestSpecTemplateAction(tplKey);
+        });
+      });
+
+      // 列追加
+      document.querySelectorAll('#col-palette button[data-type]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const colType = btn.getAttribute('data-type');
+          const colName = autoColumnName();
+          let values = null;
+          if (colType === 'enum') {
+            const raw = window.prompt('enum の候補値を CSV で入力（例: OK,NG,保留）', 'OK,NG');
+            if (raw === null) return;
+            values = raw.split(',').map((s) => s.trim()).filter((s) => s.length > 0);
+            if (values.length === 0) {
+              setError('enum には値が 1 つ以上必要です。');
+              return;
+            }
+          }
+          setBusy(true, '「' + colName + '」(' + colType + ') を追加中...');
+          google.script.run
+            .withSuccessHandler((res) => {
+              if (res && res.ok) {
+                src.value = res.newSrc;
+                colNameInput.value = '';
+                setBusy(false, '「' + colName + '」(' + colType + ') を追加しました。');
+              } else {
+                setError(res && res.error);
+              }
+            })
+            .withFailureHandler(failureHandler())
+            .appendTestSpecColumn(src.value, colName, colType, values);
+        });
+      });
+
+      // 末尾列削除
+      colPopBtn.addEventListener('click', () => {
+        setBusy(true, '末尾の列を削除中...');
+        google.script.run
+          .withSuccessHandler((res) => {
+            if (res && res.ok) {
+              src.value = res.newSrc;
+              setBusy(false, '末尾の列を削除しました。');
+            } else {
+              setError(res && res.error);
+            }
+          })
+          .withFailureHandler(failureHandler())
+          .removeLastTestSpecColumn(src.value);
+      });
 
       importBtn.addEventListener('click', () => {
         setBusy(true, 'インポート処理中...');
@@ -85,7 +211,7 @@
               setError(res && res.error);
             }
           })
-          .withFailureHandler((err) => setError(err && err.message ? err.message : String(err)))
+          .withFailureHandler(failureHandler())
           .importMarkdownTableToActiveSheet(src.value);
       });
 
@@ -95,12 +221,12 @@
           .withSuccessHandler((res) => {
             if (res && res.ok) {
               src.value = res.markdown;
-              setBusy(false, res.rows + ' 行を Markdown に書き出しました（必要に応じてコピーしてください）。');
+              setBusy(false, res.rows + ' 行を Markdown に書き出しました。');
             } else {
               setError(res && res.error);
             }
           })
-          .withFailureHandler((err) => setError(err && err.message ? err.message : String(err)))
+          .withFailureHandler(failureHandler())
           .exportActiveSheetToMarkdown();
       });
 
@@ -116,7 +242,7 @@
               setError(res && res.error);
             }
           })
-          .withFailureHandler((err) => setError(err && err.message ? err.message : String(err)))
+          .withFailureHandler(failureHandler())
           .setupTestSpecSheet(src.value);
       });
 
@@ -135,7 +261,7 @@
               setError(res && res.error);
             }
           })
-          .withFailureHandler((err) => setError(err && err.message ? err.message : String(err)))
+          .withFailureHandler(failureHandler())
           .validateActiveTestSpecSheet(src.value);
       });
 
@@ -145,12 +271,12 @@
           .withSuccessHandler((res) => {
             if (res && res.ok) {
               src.value = res.markdown;
-              setBusy(false, '検証シート frontmatter + body を書き出しました（必要に応じてコピーしてください）。');
+              setBusy(false, '検証シート frontmatter + body を書き出しました。');
             } else {
               setError(res && res.error);
             }
           })
-          .withFailureHandler((err) => setError(err && err.message ? err.message : String(err)))
+          .withFailureHandler(failureHandler())
           .exportTestSpecMarkdown(src.value);
       });
 
@@ -166,7 +292,7 @@
               setError(res && res.error);
             }
           })
-          .withFailureHandler((err) => setError(err && err.message ? err.message : String(err)))
+          .withFailureHandler(failureHandler())
           .setGithubPat(pat);
       });
 
@@ -174,7 +300,7 @@
         setBusy(true, 'PAT を削除中...');
         google.script.run
           .withSuccessHandler(() => setBusy(false, 'PAT を削除しました。'))
-          .withFailureHandler((err) => setError(err && err.message ? err.message : String(err)))
+          .withFailureHandler(failureHandler())
           .clearGithubPat();
       });
 
@@ -188,7 +314,7 @@
               setError(res && res.error);
             }
           })
-          .withFailureHandler((err) => setError(err && err.message ? err.message : String(err)))
+          .withFailureHandler(failureHandler())
           .installTestSpecAutoSync(src.value);
       });
 
@@ -196,7 +322,7 @@
         setBusy(true, '自動同期を無効化中...');
         google.script.run
           .withSuccessHandler(() => setBusy(false, '自動同期 OFF。trigger を削除しました。'))
-          .withFailureHandler((err) => setError(err && err.message ? err.message : String(err)))
+          .withFailureHandler(failureHandler())
           .uninstallTestSpecAutoSync();
       });
 
@@ -219,7 +345,7 @@
             }
             setBusy(false, parts.join(' | '));
           })
-          .withFailureHandler((err) => setError(err && err.message ? err.message : String(err)))
+          .withFailureHandler(failureHandler())
           .getTestSpecAutoSyncStatus();
       });
     </script>

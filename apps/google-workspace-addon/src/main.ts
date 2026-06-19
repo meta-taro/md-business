@@ -23,6 +23,14 @@ import {
   serializeAutoSyncState,
   type AutoSyncState,
 } from './lib/autoSync.js';
+import {
+  extractFrontmatter,
+  appendColumnToFrontmatter,
+  removeLastColumnFromFrontmatter,
+  applyTestSpecTemplate,
+  type ColumnType,
+  type TestSpecTemplateKey,
+} from './lib/frontmatterEdit.js';
 
 /**
  * Phase 3C 自動同期 PropertiesService キー。
@@ -233,8 +241,9 @@ function parseTestSpec(
 }
 
 function extractFrontmatterBlock(src: string): string | null {
-  const m = src.match(/^---\r?\n[\s\S]*?\r?\n---/);
-  return m ? m[0] : null;
+  const { yaml } = extractFrontmatter(src);
+  if (yaml === '') return null;
+  return `---\n${yaml}\n---`;
 }
 
 function applyOpsToSheet(
@@ -540,6 +549,40 @@ export function flushPendingTestSpecSync(): void {
  * - sheetName / repoRef: 設置時の binding 内容
  * - state: 最後の sync 結果 (idle / pending / success / error)
  */
+/**
+ * Phase 3E: アイコンパレット UX 用の純粋関数 expose 層。
+ * サイドバーが google.script.run 経由で呼び、frontmatter を直書きせず
+ * 「列名入力 + アイコンクリック」で columns を編集できるようにする。
+ * 副作用なし (SpreadsheetApp / PropertiesService に触れない)。
+ */
+export function appendTestSpecColumn(
+  currentSrc: string,
+  name: string,
+  type: string,
+  values?: string[] | null,
+): { ok: true; newSrc: string } | { ok: false; error: string } {
+  const column =
+    values && values.length > 0
+      ? { name, type: type as ColumnType, values }
+      : { name, type: type as ColumnType };
+  return appendColumnToFrontmatter(currentSrc, column);
+}
+
+export function removeLastTestSpecColumn(
+  currentSrc: string,
+): { ok: true; newSrc: string } | { ok: false; error: string } {
+  return removeLastColumnFromFrontmatter(currentSrc);
+}
+
+export function applyTestSpecTemplateAction(
+  templateKey: string,
+): { ok: true; newSrc: string } | { ok: false; error: string } {
+  if (templateKey !== 'minimal' && templateKey !== 'full' && templateKey !== 'clear') {
+    return { ok: false, error: `unknown template: ${templateKey}` };
+  }
+  return { ok: true, newSrc: applyTestSpecTemplate(templateKey as TestSpecTemplateKey) };
+}
+
 export function getTestSpecAutoSyncStatus(): {
   installed: boolean;
   hasPat: boolean;
