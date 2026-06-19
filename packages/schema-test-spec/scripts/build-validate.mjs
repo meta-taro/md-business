@@ -1,9 +1,11 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { createRequire } from 'node:module';
 import Ajv2020 from 'ajv/dist/2020.js';
 import addFormats from 'ajv-formats';
 import standaloneCode from 'ajv/dist/standalone/index.js';
+import ucs2lengthMod from 'ajv/dist/runtime/ucs2length.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, '..');
@@ -25,20 +27,42 @@ addFormats.default(ajv);
 const validate = ajv.compile(schema);
 const rawCode = standaloneCode.default(ajv, validate);
 
-const requireMap = new Map();
-let cjsCounter = 0;
-const rewritten = rawCode.replace(/require\(\s*"([^"]+)"\s*\)/g, (_, modulePath) => {
-  let binding = requireMap.get(modulePath);
-  if (!binding) {
-    binding = `__cjs_${cjsCounter++}`;
-    requireMap.set(modulePath, binding);
-  }
-  return binding;
-});
-const importHeader = Array.from(requireMap.entries())
-  .map(([modulePath, binding]) => `import * as ${binding} from "${modulePath}";`)
-  .join('\n');
-const code = importHeader ? `${importHeader}\n${rewritten}` : rewritten;
+// Inline ajv runtime helpers so the compiled validator has zero ESM/CJS
+// imports. Required to dodge esbuild's __toESM(mod, 1) interop which double-
+// wraps `default` and breaks Apps Script execution (`func2 is not a function`).
+const ucs2length = ucs2lengthMod.default || ucs2lengthMod;
+const ucs2lengthInline = `const __md_ucs2length = ${ucs2length.toString()};`;
+
+const requireFromHere = createRequire(import.meta.url);
+const formatsPath = requireFromHere.resolve('ajv-formats/dist/formats.js');
+const formatsSrc = fs.readFileSync(formatsPath, 'utf-8');
+const formatsInline = `const __md_ajv_formats = (() => {
+  const exports = {};
+  ${formatsSrc}
+  return exports;
+})();`;
+
+const patched = rawCode
+  .replace(
+    /require\(\s*"ajv\/dist\/runtime\/ucs2length"\s*\)\.default/g,
+    '__md_ucs2length',
+  )
+  .replace(
+    /require\(\s*"ajv\/dist\/runtime\/ucs2length"\s*\)/g,
+    '({ default: __md_ucs2length })',
+  )
+  .replace(
+    /require\(\s*"ajv-formats\/dist\/formats"\s*\)/g,
+    '__md_ajv_formats',
+  );
+
+if (/require\(/.test(patched) || /__cjs_\d+/.test(patched)) {
+  throw new Error(
+    '[schema-test-spec] unexpected require() or __cjs_N binding left in compiled validator',
+  );
+}
+
+const code = `${ucs2lengthInline}\n${formatsInline}\n${patched}`;
 
 fs.mkdirSync(distDir, { recursive: true });
 fs.writeFileSync(outJs, code);
