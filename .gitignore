@@ -61,3 +61,10 @@ pnpm-debug.log*
 **/seal-*.png
 **/seal-*.jpg
 **/.kingdom/
+
+# AI 開発者個人の作業ルール / 進捗ノート (OSS 上流に出さない)
+# 司令塔リポからの配布元なので、本リポ (OSS 公開予定) には含めない方針。
+# baseline / decisions / roadmap / project-status / issues / CLAUDE.md は
+# クローンした開発者ごとに独自運用するため、tracked から外す。
+/.claude/
+/CLAUDE.md
