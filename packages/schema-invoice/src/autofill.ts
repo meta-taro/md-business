@@ -39,6 +39,7 @@ export function autofillInvoice(input: unknown): AutofillResult {
 
   const items = Array.isArray(data['items']) ? data['items'] : [];
   applyItemDefaults(items, warnings);
+  checkIssuerQualification(data['issuer'], warnings);
 
   const buckets = computeBuckets(items, rounding);
 
@@ -76,6 +77,29 @@ export function autofillInvoice(input: unknown): AutofillResult {
 function resolveRounding(value: unknown): TaxRounding {
   if (value === 'floor' || value === 'round' || value === 'ceil') return value;
   return 'floor';
+}
+
+/**
+ * 適格請求書発行事業者（登録番号あり）と免税事業者（taxExemptIssuer: true）は
+ * 排他関係。両方を満たす / 両方欠ける状態は authoring ミスの可能性が高いので
+ * 警告に上げる。スキーマ側では両方 optional にしてあり、validate は通る。
+ */
+function checkIssuerQualification(issuer: unknown, warnings: AutofillWarning[]): void {
+  if (!isPlainObject(issuer)) return;
+  const hasReg = typeof issuer['registrationNumber'] === 'string' && issuer['registrationNumber'].length > 0;
+  const taxExempt = issuer['taxExemptIssuer'] === true;
+  if (hasReg && taxExempt) {
+    warnings.push({
+      path: 'issuer.taxExemptIssuer',
+      message: '登録番号と免税事業者フラグ（taxExemptIssuer: true）が両方指定されています。適格請求書発行事業者なら taxExemptIssuer を外し、免税事業者なら登録番号を外してください。',
+    });
+  }
+  if (!hasReg && !taxExempt) {
+    warnings.push({
+      path: 'issuer.registrationNumber',
+      message: '登録番号が指定されていません。適格請求書として発行する場合は T で始まる 13 桁の登録番号を指定してください。免税事業者として発行する場合は「免税事業者: true」を指定してください。',
+    });
+  }
 }
 
 function applyItemDefaults(items: unknown[], warnings: AutofillWarning[]): void {

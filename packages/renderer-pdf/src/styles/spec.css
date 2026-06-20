@@ -1,0 +1,405 @@
+/*
+ * Spec (基本設計書) print styles — A4 portrait, Japanese-aware.
+ * Cover page + chapter body layout, optimized for Paged.js.
+ *
+ * Theme color: set `--mdb-color-accent` on `.mdb-spec` via inline style or
+ * preset (see specTemplate.ts). All accent surfaces inherit from it.
+ */
+
+@page {
+  size: A4 portrait;
+  margin: 20mm 18mm 22mm 18mm;
+}
+
+/* 表紙ページは余白 0。`.mdb-spec__cover` 自体が左カラーバー + 内側 padding を
+   持つので、@page margin で更に削るとレイアウトが二重に縮む。 */
+@page :first {
+  margin: 0;
+}
+
+:root {
+  --mdb-color-fg: #111;
+  --mdb-color-muted: #666;
+  --mdb-color-border: #d4d4d8;
+  --mdb-color-accent: #2a4d7a;
+  --mdb-color-accent-soft: #e0e7f0;
+  --mdb-color-code-bg: #f5f5f4;
+  --mdb-font-base: 'Noto Sans JP', 'Hiragino Kaku Gothic ProN', 'Yu Gothic', sans-serif;
+  --mdb-font-mono: 'JetBrains Mono', 'Noto Sans Mono CJK JP', 'Consolas', monospace;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  font-family: var(--mdb-font-base);
+  color: var(--mdb-color-fg);
+  font-size: 10.5pt;
+  line-height: 1.7;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* `.mdb-spec` 全体には幅制約をかけない。表紙 `.mdb-spec__cover` を preview-host
+   (chrome-extension viewer) の padding 18mm 16mm を相殺してフルブリードで見せたい
+   のと、本文 `.mdb-spec__body` の max-width 174mm（A4 portrait 印刷余白後の有効幅）
+   は別レイヤーで制御するため。 */
+.mdb-spec {
+  margin: 0;
+}
+
+/* ─────────────────────── Cover page ─────────────────────── */
+
+.mdb-spec__cover {
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  width: 100%;
+  /* A4 portrait 297mm を上限とする。標準的な作成者 / レビュアー / 関連文書を
+     含めても 1 ページに収まるよう、padding は控えめに（旧 40/24/32/22mm → 24/22/14/22mm）。 */
+  min-height: 297mm;
+  max-height: 297mm;
+  padding: 0;
+  margin: 0;
+  page-break-after: always;
+  break-after: page;
+  background: linear-gradient(135deg, var(--mdb-color-accent-soft) 0%, #ffffff 60%);
+  border-left: 6mm solid var(--mdb-color-accent);
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.mdb-spec__cover-inner {
+  padding: 24mm 22mm 14mm 22mm;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.mdb-spec__status {
+  display: inline-block;
+  padding: 2mm 6mm;
+  font-size: 9pt;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  border: 1.2pt solid var(--mdb-color-accent);
+  border-radius: 999px;
+  color: var(--mdb-color-accent);
+  background: #ffffff;
+  margin-bottom: 10mm;
+}
+
+.mdb-spec__status--approved {
+  background: var(--mdb-color-accent);
+  color: #ffffff;
+}
+
+.mdb-spec__status--draft {
+  border-style: dashed;
+}
+
+.mdb-spec__title {
+  font-size: 26pt;
+  font-weight: 700;
+  line-height: 1.3;
+  margin: 0 0 12mm 0;
+  color: var(--mdb-color-fg);
+  letter-spacing: 0.02em;
+}
+
+.mdb-spec__meta {
+  display: grid;
+  grid-template-columns: 28mm 1fr;
+  row-gap: 2.5mm;
+  column-gap: 6mm;
+  margin: 0 0 10mm 0;
+  padding: 0;
+  font-size: 11pt;
+}
+
+.mdb-spec__meta dt {
+  font-weight: 600;
+  color: var(--mdb-color-muted);
+  margin: 0;
+}
+
+.mdb-spec__meta dd {
+  margin: 0;
+  color: var(--mdb-color-fg);
+}
+
+.mdb-spec__people,
+.mdb-spec__related {
+  margin: 0 0 10mm 0;
+}
+
+.mdb-spec__people h2,
+.mdb-spec__related h2 {
+  font-size: 11pt;
+  font-weight: 600;
+  color: var(--mdb-color-accent);
+  margin: 0 0 3mm 0;
+  padding: 0 0 1.5mm 0;
+  border-bottom: 0.6pt solid var(--mdb-color-accent);
+  letter-spacing: 0.04em;
+}
+
+.mdb-spec__people ul,
+.mdb-spec__related ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.mdb-spec__people li,
+.mdb-spec__related li {
+  padding: 1mm 0;
+  font-size: 10.5pt;
+}
+
+.mdb-spec__role {
+  font-size: 9.5pt;
+  color: var(--mdb-color-muted);
+  margin-left: 1mm;
+}
+
+/* ─────────────────────── Body ─────────────────────── */
+
+.mdb-spec__body {
+  padding: 4mm 0 0 0;
+  max-width: 174mm;
+  margin: 0 auto;
+}
+
+.mdb-spec__body > h1 {
+  font-size: 20pt;
+  font-weight: 700;
+  color: var(--mdb-color-accent);
+  margin: 0 0 8mm 0;
+  padding: 0 0 3mm 0;
+  border-bottom: 1.2pt solid var(--mdb-color-accent);
+  page-break-before: always;
+  break-before: page;
+  letter-spacing: 0.02em;
+}
+
+.mdb-spec__body > h1:first-child {
+  page-break-before: avoid;
+  break-before: avoid;
+}
+
+.mdb-spec__body h2 {
+  font-size: 14pt;
+  font-weight: 600;
+  color: var(--mdb-color-fg);
+  margin: 10mm 0 4mm 0;
+  padding: 0 0 1.5mm 2mm;
+  border-left: 3pt solid var(--mdb-color-accent);
+  page-break-after: avoid;
+  break-after: avoid;
+}
+
+.mdb-spec__body h3 {
+  font-size: 12pt;
+  font-weight: 600;
+  color: var(--mdb-color-fg);
+  margin: 7mm 0 3mm 0;
+  page-break-after: avoid;
+  break-after: avoid;
+}
+
+.mdb-spec__body h4 {
+  font-size: 11pt;
+  font-weight: 600;
+  color: var(--mdb-color-muted);
+  margin: 5mm 0 2mm 0;
+  page-break-after: avoid;
+  break-after: avoid;
+}
+
+.mdb-spec__body p {
+  margin: 0 0 3mm 0;
+  text-align: justify;
+  text-justify: inter-ideograph;
+}
+
+.mdb-spec__body ul,
+.mdb-spec__body ol {
+  margin: 0 0 4mm 0;
+  padding-left: 6mm;
+}
+
+.mdb-spec__body li {
+  margin: 0 0 1.5mm 0;
+}
+
+.mdb-spec__body li > p {
+  margin: 0 0 1mm 0;
+}
+
+.mdb-spec__body blockquote {
+  margin: 4mm 0;
+  padding: 2mm 4mm;
+  border-left: 3pt solid var(--mdb-color-border);
+  background: var(--mdb-color-code-bg);
+  color: var(--mdb-color-muted);
+}
+
+.mdb-spec__body code {
+  font-family: var(--mdb-font-mono);
+  font-size: 9.5pt;
+  background: var(--mdb-color-code-bg);
+  padding: 0.2mm 1mm;
+  border-radius: 1mm;
+}
+
+.mdb-spec__body pre {
+  font-family: var(--mdb-font-mono);
+  font-size: 9pt;
+  background: var(--mdb-color-code-bg);
+  padding: 3mm 4mm;
+  margin: 0 0 4mm 0;
+  border-radius: 1mm;
+  overflow: hidden;
+  white-space: pre-wrap;
+  word-break: break-all;
+  page-break-inside: avoid;
+  break-inside: avoid;
+}
+
+.mdb-spec__body pre > code {
+  background: transparent;
+  padding: 0;
+}
+
+.mdb-spec__body pre.mermaid,
+.mdb-spec__body .mermaid {
+  background: #ffffff;
+  border: 0.6pt solid var(--mdb-color-border);
+  padding: 4mm;
+  text-align: center;
+  font-family: var(--mdb-font-base);
+}
+
+/* Mermaid diagrams (post-rendered to inline SVG by renderMermaidInHtml).
+   Centered, max-width clamped, kept on one page when possible.
+
+   `max-height: 190mm` は A4 portrait の本文有効高（≈ 257mm = 297 − 上下 margin
+   40mm）から h1 + h2（≈ 60mm）を引いた残り（≈ 197mm）よりさらに 7mm 削った値。
+   220mm では h1 + h2 + 図 = 280mm となり本文有効高を超え、6.1 のような図が
+   章タイトルから分離して次ページに送られる（PdM 検収で確認）。190mm に絞ると
+   h1 + h2 + 図が同ページに収まり、見出しと図のセットが維持される。読みやすさ
+   よりもページ跨ぎ回避 + 見出し-図セット化を優先。 */
+.mdb-mermaid {
+  margin: 4mm auto;
+  text-align: center;
+  page-break-inside: avoid;
+  break-inside: avoid;
+  max-width: 100%;
+  max-height: 190mm;
+  overflow: hidden;
+}
+
+.mdb-mermaid svg {
+  max-width: 100%;
+  max-height: 190mm;
+  height: auto;
+  width: auto;
+  display: inline-block;
+}
+
+/* 章タイトル（h1）と最初のサブセクション（h2）を必ず同じページに置く。
+   `.mdb-spec__body > h1` は `break-before: page` を持つため新ページ開始する
+   が、その直後の h2 が次ページに送られると「h1 だけのほぼ白紙ページ」が
+   発生する（PdM 検収で「6. 画面遷移」見出しだけの白紙 p10 として確認）。
+   h2 の上マージンを縮め break-before: avoid を指定して同ページ収まりを促す。 */
+.mdb-spec__body > h1 + h2,
+.mdb-spec__body > h1 + p + h2 {
+  margin-top: 5mm;
+  break-before: avoid;
+  page-break-before: avoid;
+}
+
+/* サブセクションタイトル（h2）と直後の図/表を必ず同じページに置く。
+   h2 一般に `break-after: avoid` は指定済みだが、直後が縦長 Mermaid 図 / 表
+   の場合「h2 だけ残して図が次ページ」が起きやすい（PdM 検収で「6.1 注文
+   確定フロー」見出しだけの白紙 p11 として確認）。Mermaid 側の max-height
+   と組み合わせて、h2 + 図のセット化を強制する。 */
+.mdb-spec__body h2 + .mdb-mermaid,
+.mdb-spec__body h2 + p + .mdb-mermaid,
+.mdb-spec__body h3 + .mdb-mermaid,
+.mdb-spec__body h3 + p + .mdb-mermaid {
+  break-before: avoid;
+  page-break-before: avoid;
+}
+
+.mdb-mermaid--error {
+  color: var(--mdb-color-danger, #b91c1c);
+  background: #fef2f2;
+  border: 0.4pt solid #fecaca;
+  border-radius: 1mm;
+  padding: 2mm 3mm;
+  font-size: 9pt;
+  text-align: left;
+}
+
+/* Table — design docs frequently embed comparison and requirement tables. */
+.mdb-spec__body table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0 0 5mm 0;
+  font-size: 10pt;
+  page-break-inside: avoid;
+  break-inside: avoid;
+}
+
+.mdb-spec__body th,
+.mdb-spec__body td {
+  border: 0.6pt solid var(--mdb-color-border);
+  padding: 2mm 3mm;
+  text-align: left;
+  vertical-align: top;
+}
+
+.mdb-spec__body thead th {
+  background: var(--mdb-color-accent-soft);
+  color: var(--mdb-color-fg);
+  font-weight: 600;
+}
+
+.mdb-spec__body img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  margin: 3mm auto;
+  page-break-inside: avoid;
+  break-inside: avoid;
+}
+
+.mdb-spec__body hr {
+  border: none;
+  border-top: 0.6pt solid var(--mdb-color-border);
+  margin: 6mm 0;
+}
+
+.mdb-spec__body a {
+  color: var(--mdb-color-accent);
+  text-decoration: underline;
+  word-break: break-all;
+}
+
+/* 画面プレビュー時のシャドウ / 余分なマージンは付与しない。Chrome 拡張のビューワーで
+   「印刷時の見た目とプレビューを一致させたい」「シャドウが入ると印刷の白枠と二重に
+   なって見える」という要望を受け、screen 用の装飾は意図的に空にしている。 */
+@media screen {
+  .mdb-spec {
+    background: #ffffff;
+  }
+  /* preview-host (chrome-extension viewer) の padding 18mm 16mm を相殺し、表紙を
+     紙ぴったりのフルブリードで見せる。印刷時は @page :first { margin: 0 } が同じ
+     役割を担うので、screen 限定で十分。
+     負の margin 単独だと自身の幅は親 100% のまま変わらないので、width も合わせて
+     左右 16mm × 2 = 32mm 拡張する。 */
+  .mdb-spec__cover {
+    margin: -18mm -16mm 0 -16mm;
+    width: calc(100% + 32mm);
+  }
+}

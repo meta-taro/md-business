@@ -40,7 +40,7 @@ function withPreviewDefaults(data: Record<string, unknown>): Invoice {
 
 export const invoicePlugin: SchemaPlugin<Invoice> = {
   id: 'invoice',
-  label: '請求書（適格請求書）',
+  label: '請求書（適格 / 免税対応）',
   schema: invoiceSchema,
   stylesHref: 'styles/invoice.css',
   detect(frontmatter) {

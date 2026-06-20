@@ -1,0 +1,81 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://md-business.dev/schemas/spec/v1.json",
+  "title": "md-business spec frontmatter",
+  "description": "Frontmatter schema for software design documents (基本設計書).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "documentNumber",
+    "title",
+    "version",
+    "issueDate",
+    "status",
+    "authors"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "spec/v1"
+    },
+    "documentNumber": {
+      "type": "string",
+      "minLength": 1
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$"
+    },
+    "issueDate": {
+      "type": "string",
+      "format": "date"
+    },
+    "status": {
+      "enum": ["draft", "review", "approved"]
+    },
+    "authors": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/person" }
+    },
+    "reviewers": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/person" }
+    },
+    "relatedDocs": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "chapters": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "\\.md$"
+      }
+    },
+    "toc": {
+      "enum": ["auto", "manual"]
+    },
+    "theme": {
+      "type": "string"
+    },
+    "fileName": {
+      "type": "string"
+    }
+  },
+  "$defs": {
+    "person": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "role": { "type": "string" }
+      }
+    }
+  }
+}

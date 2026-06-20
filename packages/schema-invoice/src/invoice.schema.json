@@ -36,18 +36,22 @@
     },
     "issuer": {
       "type": "object",
-      "required": ["name", "registrationNumber"],
+      "required": ["name"],
       "additionalProperties": false,
       "properties": {
         "name": {
           "type": "string",
           "minLength": 1,
-          "description": "Issuer name (適格請求書発行事業者の氏名又は名称)."
+          "description": "Issuer name (発行元の氏名又は名称)."
         },
         "registrationNumber": {
           "type": "string",
           "pattern": "^T\\d{13}$",
-          "description": "Qualified invoice issuer registration number (T + 13 桁の登録番号)."
+          "description": "Qualified invoice issuer registration number (T + 13 桁の登録番号). 適格請求書発行事業者のみ指定。免税事業者は taxExemptIssuer: true を指定して省略。"
+        },
+        "taxExemptIssuer": {
+          "type": "boolean",
+          "description": "免税事業者フラグ — true の場合は適格請求書発行事業者の登録を受けていない発行元として扱い、登録番号なしを許容。renderer はヘッダに「適格請求書ではありません」の注記と経過措置案内を出力する。"
         },
         "postalCode": {
           "type": "string",

@@ -32,4 +32,4 @@ printInvoice(result.frontmatter, { stylesHref: cssUrl, inNewWindow: true });
 - **HTML 生成は pure** — テスト容易・サーバ/Worker でも使用可
 - **PDF 化はブラウザ印刷経由** — Chrome 拡張は Paged.js を別途 inject
 - **XSS 対策** — 全フィールドを HTML エスケープ
-- **印影なし**（baseline 方針）— 署名欄余白のみ。`signatureArea: false` で完全除去可
+- **印影なし**（baseline 方針）— `signatureArea` は既定 `false`、`<div class="seal-area">印</div>` 空欄は出ない。`signatureArea: true` を渡したときのみ復活可能（後方互換）

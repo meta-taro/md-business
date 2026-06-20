@@ -50,15 +50,23 @@ export interface SchemaPlugin<TFrontmatter = unknown> {
    * pure Japanese frontmatter still get auto-detected.
    */
   detect?(frontmatter: Record<string, unknown>): boolean;
-  render(frontmatter: TFrontmatter): string;
+  /**
+   * Render the body HTML for a fully validated document. The optional
+   * `markdownBody` parameter carries the Markdown body text (post-frontmatter)
+   * for schemas whose output includes prose — design docs, test specs, etc.
+   * Data-driven schemas (invoice) ignore it.
+   */
+  render(frontmatter: TFrontmatter, markdownBody?: string): string;
   /**
    * Permissive render used by the live editor preview pane. Unlike `validate()`
    * + `render()`, this path never throws and never blocks — it returns the
    * best-effort HTML even if required fields are missing, and surfaces the
    * validation errors as a side channel. The viewer can show them as a
    * non-blocking warning list while still keeping the preview pane filled.
+   * `markdownBody` is the post-frontmatter body text; ignored by data-driven
+   * schemas.
    */
-  previewRender?(frontmatter: unknown): PreviewRenderResult;
+  previewRender?(frontmatter: unknown, markdownBody?: string): PreviewRenderResult;
   /** Override the <title> of the generated viewer page. */
   documentTitle?(frontmatter: TFrontmatter): string;
   /**

@@ -19,21 +19,14 @@ async function ensureDir(p) {
   await mkdir(p, { recursive: true });
 }
 
-async function copyInvoiceCss() {
-  const src = resolve(
-    ROOT,
-    '..',
-    '..',
-    'packages',
-    'renderer-pdf',
-    'src',
-    'styles',
-    'invoice.css',
-  );
+async function copySchemaCss() {
+  const stylesDir = resolve(ROOT, '..', '..', 'packages', 'renderer-pdf', 'src', 'styles');
   const destDir = resolve(DIST, 'styles');
   await ensureDir(destDir);
-  await copyFile(src, resolve(destDir, 'invoice.css'));
-  console.log('[post-build] copied invoice.css');
+  for (const file of ['invoice.css', 'spec.css', 'test-spec.css']) {
+    await copyFile(resolve(stylesDir, file), resolve(destDir, file));
+    console.log(`[post-build] copied ${file}`);
+  }
 }
 
 async function copyPagedJs() {
@@ -130,46 +123,88 @@ async function copyFonts() {
 const STARTER_TEMPLATES = [
   {
     schema: 'invoice',
+    category: '適格請求書',
     file: 'standard-ja.md',
     label: '日本語フィールド名・適格請求書（推奨）',
     description: '日本語キー（請求書番号 / 発行元 / 品目 …）の最新スタイル。3 品目 + 振込先 + 印影。',
   },
   {
     schema: 'invoice',
+    category: '適格請求書',
     file: 'standard.md',
     label: '英語フィールド名・標準請求書',
     description: '英語キー（invoiceNumber / issuer / items …）の標準スタイル。',
   },
   {
     schema: 'invoice',
+    category: '適格請求書',
     file: 'inbound-eligible.md',
     label: '英語フィールド名・軽減税率（8%）込み',
     description: '8% 軽減税率対象品目を含む適格請求書サンプル。',
   },
+  {
+    schema: 'invoice',
+    category: '免税事業者',
+    file: 'tax-exempt-ja.md',
+    label: '日本語フィールド名・免税事業者向け',
+    description: '適格請求書発行事業者でない個人事業主・小規模法人向け。登録番号なしで「免税事業者: true」を指定。経過措置案内を自動出力。',
+  },
+  {
+    schema: 'spec',
+    category: '基本設計書',
+    file: 'standard-ja.md',
+    label: '日本語フィールド名・基本設計書（EC 注文管理サブシステム）',
+    description: '8 章 / Mermaid 図 / 表を含む数ページの基本設計書サンプル。日本語キー（文書番号 / 作成者 / レビュアー …）。',
+  },
+  {
+    schema: 'test-spec',
+    category: '検証シート',
+    file: 'standard-ja.md',
+    label: '日本語フィールド名・検証シート（ログイン機能サンプル）',
+    description: '列定義（プルダウン / 日付 / 数値）と検証手順表を含む検証シート。Google Sheets 連携 + GitHub 自動同期に対応。日本語キー。',
+  },
 ];
+
+// Display order for category sections in the popup. Templates whose category
+// is not listed here fall back to the end (preserves insertion order).
+const CATEGORY_ORDER = ['適格請求書', '免税事業者', '基本設計書', '検証シート'];
 
 async function copyStarterTemplates() {
   const repoRoot = resolve(ROOT, '..', '..');
   const manifest = [];
-  for (const t of STARTER_TEMPLATES) {
+  // Sort so categories appear in CATEGORY_ORDER while preserving insertion
+  // order within each category (and after that, unknown categories).
+  const sorted = [...STARTER_TEMPLATES].sort((a, b) => {
+    const ai = CATEGORY_ORDER.indexOf(a.category);
+    const bi = CATEGORY_ORDER.indexOf(b.category);
+    const av = ai === -1 ? CATEGORY_ORDER.length : ai;
+    const bv = bi === -1 ? CATEGORY_ORDER.length : bi;
+    return av - bv;
+  });
+  for (const t of sorted) {
     const src = resolve(repoRoot, 'templates', t.schema, t.file);
     const destDir = resolve(DIST, 'templates', t.schema);
     await ensureDir(destDir);
     await copyFile(src, resolve(destDir, t.file));
     manifest.push({
       schema: t.schema,
+      category: t.category,
       file: t.file,
       label: t.label,
       description: t.description,
       path: `templates/${t.schema}/${t.file}`,
     });
   }
-  const manifestPath = resolve(DIST, 'templates', 'manifest.json');
+  // NOTE: file name is `index.json`, not `manifest.json`. Chrome Web Store's
+  // package validator scans for *any* manifest.json under the zip root and
+  // rejects the upload with "複数のマニフェストが見つかりました" when a second
+  // one exists at templates/manifest.json. Keep this file named index.json.
+  const manifestPath = resolve(DIST, 'templates', 'index.json');
   await writeFile(manifestPath, JSON.stringify({ templates: manifest }, null, 2) + '\n', 'utf8');
-  console.log(`[post-build] copied ${STARTER_TEMPLATES.length} starter templates and wrote templates/manifest.json`);
+  console.log(`[post-build] copied ${STARTER_TEMPLATES.length} starter templates and wrote templates/index.json`);
 }
 
-await copyInvoiceCss();
+await copySchemaCss();
 await copyPagedJs();
 await copyFonts();
 await copyStarterTemplates();

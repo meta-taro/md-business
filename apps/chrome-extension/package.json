@@ -1,8 +1,8 @@
 {
   "name": "@md-business/chrome-extension",
-  "version": "0.1.1",
+  "version": "0.5.0",
   "private": true,
-  "description": "Markdown-first business document viewer for Chrome — open a Markdown file, preview as 適格請求書, save as PDF.",
+  "description": "Markdown-first business document viewer for Chrome — open a .md file, preview as 適格請求書 / 基本設計書, save as PDF. Mermaid diagrams & tax-exempt mode supported.",
   "license": "MIT",
   "type": "module",
   "scripts": {
@@ -24,8 +24,12 @@
     "@md-business/core": "workspace:*",
     "@md-business/renderer-pdf": "workspace:*",
     "@md-business/schema-invoice": "workspace:*",
+    "@md-business/schema-spec": "workspace:*",
+    "@md-business/schema-test-spec": "workspace:*",
     "buffer": "^6.0.3",
-    "codemirror": "^6.0.2"
+    "codemirror": "^6.0.2",
+    "dompurify": "^3.2.0",
+    "mermaid": "^11.15.0"
   },
   "devDependencies": {
     "@fontsource/noto-sans-jp": "^5.2.9",
@@ -33,6 +37,7 @@
     "@types/chrome": "^0.0.287",
     "@types/node": "^22.10.0",
     "@vitest/coverage-v8": "^2.1.8",
+    "jsdom": "^29.1.1",
     "pagedjs": "^0.4.3",
     "typescript": "^5.6.3",
     "vite": "^5.4.11",

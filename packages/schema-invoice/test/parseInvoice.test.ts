@@ -51,6 +51,29 @@ describe('parseInvoiceMarkdown — Japanese frontmatter + autofill', () => {
   });
 });
 
+describe('parseInvoiceMarkdown — 免税事業者モード', () => {
+  it('parses templates/invoice/tax-exempt-ja.md with taxExemptIssuer: true and no registrationNumber', () => {
+    const result = parseInvoiceMarkdown(loadTemplate('tax-exempt-ja.md'), validate);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.invoice.issuer.taxExemptIssuer).toBe(true);
+    expect(result.invoice.issuer.registrationNumber).toBeUndefined();
+    expect(result.invoice.issuer.name).toBe('山田 太郎');
+    // 90,000 + 9,000 (10%) = 99,000 (autofilled)
+    expect(result.invoice.totals.total).toBe(99000);
+    expect(result.invoice.taxSummary.standard.subtotal).toBe(90000);
+    expect(result.invoice.taxSummary.standard.tax).toBe(9000);
+  });
+
+  it('does not emit issuer.registrationNumber or issuer.taxExemptIssuer warnings for the tax-exempt template', () => {
+    const result = parseInvoiceMarkdown(loadTemplate('tax-exempt-ja.md'), validate);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const issuerWarnings = result.warnings.filter((w) => w.path.startsWith('issuer.'));
+    expect(issuerWarnings).toEqual([]);
+  });
+});
+
 describe('parseInvoiceObject — minimal Japanese input', () => {
   it('accepts an object with only items[] and Japanese party keys', () => {
     const result = parseInvoiceObject(

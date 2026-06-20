@@ -31,6 +31,21 @@ describe('normalizeInvoiceFrontmatter', () => {
     expect(recipient['honorific']).toBe('御中');
   });
 
+  it('translates 免税事業者 / 免税 / 非適格 / インボイス未登録 to taxExemptIssuer', () => {
+    expect(
+      ((normalizeInvoiceFrontmatter({ 発行元: { 名前: 'X', 免税事業者: true } }).data['issuer']) as Record<string, unknown>)['taxExemptIssuer'],
+    ).toBe(true);
+    expect(
+      ((normalizeInvoiceFrontmatter({ 発行元: { 名前: 'X', 免税: true } }).data['issuer']) as Record<string, unknown>)['taxExemptIssuer'],
+    ).toBe(true);
+    expect(
+      ((normalizeInvoiceFrontmatter({ 発行元: { 名前: 'X', 非適格: true } }).data['issuer']) as Record<string, unknown>)['taxExemptIssuer'],
+    ).toBe(true);
+    expect(
+      ((normalizeInvoiceFrontmatter({ 発行元: { 名前: 'X', インボイス未登録: true } }).data['issuer']) as Record<string, unknown>)['taxExemptIssuer'],
+    ).toBe(true);
+  });
+
   it('translates items[] keys per-element', () => {
     const input = {
       品目: [

@@ -269,6 +269,18 @@ body {
   margin-bottom: 4mm;
 }
 
+/* 免税事業者モード: 経過措置案内。背景色をうっすら入れて受領者の目に留める。
+   notes より目立たせる必要があるため左ボーダーをアクセントカラーにする。 */
+.mdb-invoice__transition-notice {
+  font-size: 9pt;
+  color: var(--mdb-color-muted);
+  background: rgba(0, 0, 0, 0.025);
+  border-left: 3px solid var(--mdb-color-accent);
+  padding: 2.5mm 3mm;
+  margin: 4mm 0;
+  line-height: 1.55;
+}
+
 .mdb-invoice__signature .seal-area {
   width: 24mm;
   height: 24mm;
@@ -298,5 +310,22 @@ body {
   display: flex;
   justify-content: flex-end;
   margin-top: 6mm;
+}
+
+/* 免税事業者モード（v0.4.0+）では transition-notice のグレーボックスが
+   約 12mm 追加で乗るため、デフォルトの余白だと印鑑領域が 2 ページ目に
+   こぼれる。tax-exempt 時のみ signature / transition-notice の縦余白を
+   圧縮して 1 ページに戻す。standard / inbound テンプレには影響しない。
+   regression は tests-e2e/invoice-fits-a4.spec.ts でゲートする。 */
+.mdb-invoice[data-tax-exempt='true'] .mdb-invoice__transition-notice {
+  margin: 2mm 0;
+  padding: 2mm 3mm;
+}
+.mdb-invoice[data-tax-exempt='true'] .mdb-invoice__signature {
+  margin-top: 3mm;
+}
+.mdb-invoice[data-tax-exempt='true'] .mdb-invoice__signature .seal-area {
+  width: 20mm;
+  height: 20mm;
 }
 

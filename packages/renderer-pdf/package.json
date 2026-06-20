@@ -16,7 +16,9 @@
       "types": "./dist/browser.d.ts",
       "import": "./dist/browser.js"
     },
-    "./styles/invoice.css": "./src/styles/invoice.css"
+    "./styles/invoice.css": "./src/styles/invoice.css",
+    "./styles/spec.css": "./src/styles/spec.css",
+    "./styles/test-spec.css": "./src/styles/test-spec.css"
   },
   "files": [
     "dist",
@@ -28,14 +30,20 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest",
     "test:run": "vitest run --coverage",
+    "test:e2e": "playwright test",
     "lint": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@md-business/schema-invoice": "workspace:*"
+    "@md-business/schema-invoice": "workspace:*",
+    "@md-business/schema-spec": "workspace:*",
+    "@md-business/schema-test-spec": "workspace:*"
   },
   "devDependencies": {
+    "@playwright/test": "^1.50",
     "@types/node": "^22.10.0",
+    "@types/pdf-parse": "^1.1.5",
     "@vitest/coverage-v8": "^2.1.8",
+    "pdf-parse": "^1.1",
     "typescript": "^5.6.3",
     "vitest": "^2.1.8"
   }

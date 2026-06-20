@@ -1,9 +1,9 @@
 {
   "manifest_version": 3,
-  "name": "md-business: Invoice (適格請求書)",
+  "name": "md-business — Markdown 業務文書ビューワー",
   "short_name": "md-business",
-  "description": "Markdown ファースト × 業務文書ビューワー。ローカルの .md を開いて適格請求書として描画し、PDF として保存します。",
-  "version": "0.1.1",
+  "description": "Markdown ファースト × 業務文書ビューワー。.md を開いて適格請求書・基本設計書として描画し、PDF として保存します。Mermaid 図・免税事業者モード対応。",
+  "version": "0.5.0",
   "author": "md-business contributors",
   "homepage_url": "https://github.com/meta-taro/md-business",
   "minimum_chrome_version": "120",

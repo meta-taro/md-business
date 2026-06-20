@@ -8,7 +8,15 @@ import {
   type LoadMarkdownResult,
   type PreviewMarkdownResult,
 } from '../shared/loadMarkdown.js';
+import { renderMermaidInHtml } from '../shared/renderMermaid.js';
 import { STORAGE_KEY } from '../shared/storage.js';
+import { createPrintFrame } from './printFrame.js';
+import {
+  buildSavePickerOptions,
+  normalizeForSave,
+  deriveSuggestedFileName,
+  buildBackupRecord,
+} from './localSave.js';
 
 const PDF_GUIDE_SKIP_KEY = 'mdb:pdf-guide-skip';
 const PREVIEW_DEBOUNCE_MS = 200;
@@ -28,6 +36,16 @@ interface ViewerState {
   editor?: EditorView;
   /** Last successful permissive render — kept so PDF DL can reuse the styles href. */
   lastStylesHref?: string;
+  /** Initial / current filename for the "save as" suggested name. */
+  fileName?: string;
+  /**
+   * Sticky FileSystemFileHandle from a prior File System Access pick.
+   * Why: Ctrl+S overwrite needs to write back to the SAME on-disk file as the
+   * last save / save-as, without re-prompting the user. The browser garbage-
+   * collects this handle when the viewer tab closes (acceptable — the file
+   * picker reappears next session).
+   */
+  fileHandle?: FileSystemFileHandle;
 }
 
 const state: ViewerState = {
@@ -166,7 +184,7 @@ function updateIframeBody(html: string): void {
   if (host) host.innerHTML = html;
 }
 
-function renderPreviewFromSource(): void {
+async function renderPreviewFromSource(): Promise<void> {
   const result: PreviewMarkdownResult = previewMarkdown(
     state.source,
     state.pluginId ? { pluginId: state.pluginId } : {},
@@ -180,7 +198,11 @@ function renderPreviewFromSource(): void {
   state.lastStylesHref = result.stylesHref;
   // Ensure the iframe has the right stylesheet loaded; cheap idempotent check.
   ensureIframeStylesheet(result.stylesHref);
-  updateIframeBody(result.bodyHtml);
+  // Pre-resolve Mermaid blocks into inline SVG before swapping the iframe body.
+  // Invoice documents have no Mermaid blocks so this short-circuits without
+  // triggering the dynamic import.
+  const renderedHtml = await renderMermaidInHtml(result.bodyHtml);
+  updateIframeBody(renderedHtml);
   updateErrorBadge(result.errors.length);
   showWarnings(result.warnings);
 }
@@ -232,7 +254,7 @@ function scheduleRerender(): void {
   }
   previewTimer = globalThis.setTimeout(() => {
     previewTimer = null;
-    renderPreviewFromSource();
+    void renderPreviewFromSource();
   }, PREVIEW_DEBOUNCE_MS);
 }
 
@@ -253,6 +275,101 @@ async function swapDocument(file: File): Promise<void> {
   const payload: ViewerPayload = { source, filename: file.name };
   await chrome.storage.session.set({ [STORAGE_KEY]: payload });
   globalThis.location.reload();
+}
+
+/**
+ * File System Access API は MV3 拡張のオプションページから直接利用可能
+ * (chrome-extension:// origin で showSaveFilePicker が解放される)。
+ * 古い Chrome / Firefox では undefined になるため defensive に検出する。
+ */
+function hasFileSystemAccess(): boolean {
+  return typeof (globalThis as unknown as { showSaveFilePicker?: unknown }).showSaveFilePicker === 'function';
+}
+
+async function pickSaveHandle(suggestedName: string): Promise<FileSystemFileHandle | null> {
+  const opts = buildSavePickerOptions(suggestedName);
+  try {
+    const picker = (globalThis as unknown as {
+      showSaveFilePicker: (o: SavePickerOptionsBrowser) => Promise<FileSystemFileHandle>;
+    }).showSaveFilePicker;
+    return await picker(opts as SavePickerOptionsBrowser);
+  } catch (err) {
+    if (err instanceof DOMException && err.name === 'AbortError') return null;
+    throw err;
+  }
+}
+
+interface SavePickerOptionsBrowser {
+  suggestedName?: string;
+  types?: Array<{ description?: string; accept: Record<string, string[]> }>;
+}
+
+async function writeMarkdownTo(handle: FileSystemFileHandle, content: string): Promise<void> {
+  const writable = await handle.createWritable();
+  try {
+    await writable.write(content);
+    await writable.close();
+  } catch (err) {
+    try {
+      await writable.abort();
+    } catch {
+      /* nothing — abort failure on a broken writer is benign */
+    }
+    throw err;
+  }
+}
+
+function snapshotPreviousContentToBackup(): void {
+  const fileName = state.fileName ?? 'untitled.md';
+  const record = buildBackupRecord(state.source, fileName, Date.now());
+  try {
+    globalThis.localStorage?.setItem(record.key, record.payload);
+  } catch {
+    /* localStorage disabled — proceed without backup */
+  }
+}
+
+async function handleSaveClick(saveAs: boolean): Promise<void> {
+  if (!hasFileSystemAccess()) {
+    setStatus(
+      'このブラウザは File System Access API に未対応です。Chrome / Edge の最新版でお試しください。',
+      'error',
+    );
+    return;
+  }
+
+  const suggested = deriveSuggestedFileName(
+    state.fileName ? { existingName: state.fileName } : {},
+  );
+  let handle = state.fileHandle;
+  if (saveAs || !handle) {
+    const picked = await pickSaveHandle(suggested);
+    if (!picked) return; // user cancelled
+    handle = picked;
+  }
+
+  // Snapshot the in-memory source to localStorage BEFORE writing — if the write
+  // fails or the user picks the wrong target, the previous content is still
+  // recoverable via DevTools / restore tooling.
+  snapshotPreviousContentToBackup();
+
+  const normalized = normalizeForSave(state.source);
+  try {
+    await writeMarkdownTo(handle, normalized);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    setStatus(`保存に失敗しました: ${message}`, 'error');
+    return;
+  }
+
+  state.fileHandle = handle;
+  state.fileName = handle.name;
+  state.source = normalized;
+  setStatus(`「${handle.name}」に保存しました。`, 'info');
+  globalThis.setTimeout(() => {
+    const el = document.getElementById('mdb-status');
+    if (el?.dataset['state'] === 'info') setStatus('', 'hidden');
+  }, 2_500);
 }
 
 /**
@@ -287,25 +404,41 @@ function handlePdfDownloadClick(): void {
 let pendingPrint: LoadMarkdownResult & { ok: true } | null = null;
 
 /**
- * Re-use the on-screen preview iframe for printing: rewrite it with a print
- * document, swap the parent's `document.title` (Chrome uses the TOP frame's
- * title for "Save as PDF" filename — not the iframe's), fire `print()`, and
- * restore both on `afterprint`.
+ * Create a dedicated hidden iframe just for printing, leaving the on-screen
+ * preview iframe untouched. Past behaviour rewrote the preview iframe with the
+ * print document and restored it on `afterprint`; when the user cancelled the
+ * print dialog the restore path raced with Chrome's preview teardown, which
+ * could leave the preview blank ("ブラウザ側のデータがなくなる" report).
  *
- * Why no Paged.js in this path: in practice, Paged.js inside an iframe that
- * is then printed via `iframe.contentWindow.print()` produced a blank Chrome
- * print dialog. The invoice template is single-page A4 and its stylesheet
- * already declares `@page size: A4 portrait` + margins, so native browser
- * pagination is sufficient and avoids the iframe + Paged.js interaction bug.
+ * The print frame is appended off-screen, written with the schema-styled body,
+ * printed via its own `contentWindow.print()`, and removed on `afterprint`.
+ * The top-level `document.title` is swapped to drive Chrome's "Save as PDF"
+ * default filename and restored when the dialog closes.
+ *
+ * Why no Paged.js: Paged.js inside an iframe that is then printed via
+ * `iframe.contentWindow.print()` produced a blank Chrome print dialog. The
+ * invoice / spec stylesheets already declare `@page size: A4 portrait` +
+ * margins, so native browser pagination is sufficient.
  */
 async function runPrintFlow(result: LoadMarkdownResult & { ok: true }): Promise<void> {
-  const iframe = document.getElementById('mdb-preview') as HTMLIFrameElement | null;
-  const doc = iframe?.contentDocument;
-  const win = iframe?.contentWindow;
-  if (!iframe || !doc || !win) return;
+  // Build a fresh hidden frame. createPrintFrame() also tears down any leftover
+  // frame from a previous attempt (defensive — afterprint normally removes it).
+  const frame = createPrintFrame(document);
+
+  const doc = frame.contentDocument;
+  const win = frame.contentWindow;
+  if (!doc || !win) {
+    frame.remove();
+    return;
+  }
 
   const fontsUrl = chrome.runtime.getURL('styles/fonts.css');
   const stylesUrl = chrome.runtime.getURL(result.stylesHref);
+  // Pre-render Mermaid blocks against the main document so the PDF print
+  // path receives inline SVG (vector, searchable text) rather than an
+  // empty <pre>. Same short-circuit as the preview flow: invoice paths skip
+  // the import entirely.
+  const printBody = await renderMermaidInHtml(result.bodyHtml);
   const printHtml = `<!doctype html>
 <html lang="ja">
 <head>
@@ -318,7 +451,7 @@ async function runPrintFlow(result: LoadMarkdownResult & { ok: true }): Promise<
 </style>
 </head>
 <body>
-${result.bodyHtml}
+${printBody}
 </body>
 </html>`;
 
@@ -338,18 +471,18 @@ ${result.bodyHtml}
   const previousTitle = document.title;
   document.title = result.pdfFileName;
 
-  // Restore preview + title AFTER the dialog closes — `window.print()` is
-  // async in Chrome (the dialog opens on the next tick), so a `finally`
-  // restore would blank the dialog before it opens.
-  const restore = (): void => {
+  let cleanedUp = false;
+  const cleanup = (): void => {
+    if (cleanedUp) return;
+    cleanedUp = true;
     document.title = previousTitle;
-    if (state.lastStylesHref) bootstrapIframe(state.lastStylesHref);
-    renderPreviewFromSource();
+    frame.remove();
   };
-  win.addEventListener('afterprint', restore, { once: true });
+
+  win.addEventListener('afterprint', cleanup, { once: true });
   // Safety net: `afterprint` is reliable on desktop Chrome but we keep a
   // generous timeout in case a future build drops the event silently.
-  globalThis.setTimeout(restore, 120_000);
+  globalThis.setTimeout(cleanup, 120_000);
 
   win.focus();
   win.print();
@@ -477,17 +610,34 @@ async function main(): Promise<void> {
   }
   state.source = payload.source;
   if (payload.pluginId) state.pluginId = payload.pluginId;
+  if (payload.filename) state.fileName = payload.filename;
 
   // Boot the iframe with a placeholder schema href; the real one is set on
   // first render. This avoids a flash of unstyled content.
   bootstrapIframe('styles/invoice.css');
   initEditor(payload.source);
-  renderPreviewFromSource();
+  void renderPreviewFromSource();
 
   setMode('preview');
 
   const printBtn = document.getElementById('mdb-print');
   printBtn?.addEventListener('click', handlePdfDownloadClick);
+
+  const saveBtn = document.getElementById('mdb-save');
+  saveBtn?.addEventListener('click', () => {
+    void handleSaveClick(false);
+  });
+  const saveAsBtn = document.getElementById('mdb-save-as');
+  saveAsBtn?.addEventListener('click', () => {
+    void handleSaveClick(true);
+  });
+
+  document.addEventListener('keydown', (e: KeyboardEvent) => {
+    if (!(e.ctrlKey || e.metaKey)) return;
+    if (e.key.toLowerCase() !== 's') return;
+    e.preventDefault();
+    void handleSaveClick(e.shiftKey);
+  });
 
   const reloadBtn = document.getElementById('mdb-reload');
   const filePicker = document.getElementById('mdb-file-picker') as HTMLInputElement | null;

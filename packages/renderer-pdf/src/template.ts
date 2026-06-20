@@ -190,6 +190,14 @@ function renderPayment(invoice: Invoice): string {
 }
 
 export interface RenderInvoiceBodyOptions {
+  /**
+   * When true, render a `<div class="seal-area">印</div>` placeholder for a
+   * hand-stamp at the bottom of the invoice. Default is `false` per the
+   * 2026-06-14 「印影なし方針」decision — Japanese qualified invoices have no
+   * legal requirement for a seal, and the placeholder caused 2-page overflow
+   * for tax-exempt invoices. Set to `true` only when the consumer explicitly
+   * wants the legacy seal box back.
+   */
   signatureArea?: boolean;
   /**
    * Minimum number of visual rows in the items table. When `items[]` is
@@ -212,7 +220,7 @@ function renderStampForInvoice(invoice: Invoice) {
 }
 
 export function renderInvoiceBody(invoice: Invoice, options: RenderInvoiceBodyOptions = {}): string {
-  const { signatureArea = true, minItemRows = DEFAULT_MIN_ITEM_ROWS } = options;
+  const { signatureArea = false, minItemRows = DEFAULT_MIN_ITEM_ROWS } = options;
   const emptyRowCount = Math.max(0, minItemRows - invoice.items.length);
   const itemsMarkup =
     invoice.items.map(renderItemRow).join('') +
@@ -239,12 +247,22 @@ export function renderInvoiceBody(invoice: Invoice, options: RenderInvoiceBodyOp
   const themeColor = resolveThemeColor(invoice.theme);
   const themeStyle = themeColor ? ` style="--mdb-color-accent:${themeColor}"` : '';
 
+  // 免税事業者モード: 適格請求書発行事業者ではない（登録番号なし）旨を
+  // 本文末尾の経過措置案内で明示。インボイス制度経過措置（2023-10〜2029-9）に
+  // 基づき仕入税額控除が段階的に縮小されるため、受領者が判断できるよう必須。
+  // タイトル直下の朱書きは商習慣上「免税事業者は『非適格』とハッキリ書きたく
+  // ない」ケースが多いため出力しない（経過措置案内のみで法的情報は伝わる）。
+  const isTaxExempt = invoice.issuer.taxExemptIssuer === true;
+  const taxExemptAttr = isTaxExempt ? ' data-tax-exempt="true"' : '';
+  const transitionNotice = isTaxExempt
+    ? `<section class="mdb-invoice__transition-notice">本請求書は適格請求書発行事業者以外が発行したものです。インボイス制度の経過措置（2023年10月〜2029年9月）の範囲で仕入税額控除を行ってください。</section>`
+    : '';
+
   return `
-    <article class="mdb-invoice" data-schema-version="${escapeHtml(invoice.schemaVersion)}"${themeStyle}>
+    <article class="mdb-invoice" data-schema-version="${escapeHtml(invoice.schemaVersion)}"${taxExemptAttr}${themeStyle}>
       <header class="mdb-invoice__header">
         <div>
           <h1 class="mdb-invoice__title">請求書</h1>
-          <div>${escapeHtml(invoice.recipient.name)}${invoice.recipient.honorific ? ' ' + escapeHtml(invoice.recipient.honorific) : ''} へ</div>
         </div>
         <div class="mdb-invoice__meta">
           <dl>
@@ -297,6 +315,7 @@ export function renderInvoiceBody(invoice: Invoice, options: RenderInvoiceBodyOp
       </section>
 
       ${renderPayment(invoice)}
+      ${transitionNotice}
       ${notes}
       ${fallbackSignature}
     </article>

@@ -74,6 +74,33 @@ export function mixedRateInvoice(): Invoice {
   };
 }
 
+export function taxExemptInvoice(): Invoice {
+  return {
+    schemaVersion: 'invoice/v1',
+    invoiceNumber: 'INV-2026-0003',
+    issueDate: '2026-06-30',
+    dueDate: '2026-07-10',
+    issuer: {
+      name: '個人事業主 山田太郎',
+      taxExemptIssuer: true,
+      postalCode: '550-0014',
+      address: '大阪市西区北堀江1-2-3',
+      tel: '090-0000-0000',
+    },
+    recipient: { name: '株式会社サンプル受領先', honorific: '御中' },
+    items: [
+      { name: '業務委託費 2026年6月分', quantity: 1, unit: '式', unitPrice: 90000, taxRate: 10 },
+    ],
+    taxSummary: {
+      standard: { rate: 10, subtotal: 90000, tax: 9000 },
+      reduced: { rate: 8, subtotal: 0, tax: 0 },
+      exempt: { rate: 0, subtotal: 0, tax: 0 },
+    },
+    totals: { subtotal: 90000, tax: 9000, total: 99000 },
+    notes: 'お振込手数料は貴社にてご負担ください。',
+  };
+}
+
 export function xssInvoice(): Invoice {
   return {
     schemaVersion: 'invoice/v1',
