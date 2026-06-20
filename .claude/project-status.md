@@ -28,9 +28,9 @@
 
 ## 現在のフェーズ
 
-**Phase 1-MVP 公開済み（v0.1.0）→ v0.5.0 を Web Store update として submit 済（審査待ち）+ Phase 2 Google Workspace アドオン土台作り着手（2026-06-18）**
+**Phase 1-MVP 公開済み（v0.1.0）→ v0.5.0 Web Store 審査通過＆公開（2026-06-20）+ Phase 2 Google Workspace アドオン Phase 3E 完了 / Phase 3D 残り PdM 動作確認待ち**
 
-2026-06-16 にドコカデ Inc. アカウントで v0.1.0 を submit、2026-06-17 に審査通過＆公開。store URL: https://chromewebstore.google.com/detail/lmdplkkfmgapnhombimeohjliinifgjh （extension ID 固定）。
+2026-06-16 にドコカデ Inc. アカウントで v0.1.0 を submit、2026-06-17 に審査通過＆公開。**2026-06-20 に v0.5.0 (v0.2〜0.5 まとめ submit) も審査通過、ストア表示名「md-business — Markdown 業務文書ビューワー」で公開**。store URL: https://chromewebstore.google.com/detail/lmdplkkfmgapnhombimeohjliinifgjh （extension ID 固定）。
 
 v0.2.0 〜 v0.5.0 のスコープを 1 つの zip にまとめて v0.5.0 として提出する（バージョン 0.1.1 → 0.5.0 への単発 bump）:
 - v0.2.0 系: DOMPurify サニタイザ + schema-spec（基本設計書）骨格 + remark→HTML 変換
