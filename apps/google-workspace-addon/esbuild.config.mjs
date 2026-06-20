@@ -28,6 +28,7 @@ const TRIGGER_NAMES = [
   'appendTestSpecColumn',
   'removeLastTestSpecColumn',
   'applyTestSpecTemplateAction',
+  'validateUploadedMarkdownAction',
   'setGithubPat',
   'clearGithubPat',
   'hasGithubPat',

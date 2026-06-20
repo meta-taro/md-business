@@ -31,6 +31,7 @@ import {
   type ColumnType,
   type TestSpecTemplateKey,
 } from './lib/frontmatterEdit.js';
+import { validateUploadedMarkdown } from './lib/uploadMarkdown.js';
 
 /**
  * Phase 3C 自動同期 PropertiesService キー。
@@ -581,6 +582,13 @@ export function applyTestSpecTemplateAction(
     return { ok: false, error: `unknown template: ${templateKey}` };
   }
   return { ok: true, newSrc: applyTestSpecTemplate(templateKey as TestSpecTemplateKey) };
+}
+
+export function validateUploadedMarkdownAction(
+  content: string,
+  fileName: string,
+): { ok: true; src: string } | { ok: false; error: string } {
+  return validateUploadedMarkdown(content, fileName);
 }
 
 export function getTestSpecAutoSyncStatus(): {

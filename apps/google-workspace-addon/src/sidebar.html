@@ -41,11 +41,13 @@
       テンプレから始めるか、下の textarea を直接編集してから「セットアップ」で適用してください。
     </p>
 
-    <h2>テンプレ</h2>
+    <h2>テンプレ / ローカル md</h2>
     <div class="palette" id="tpl-palette">
       <button class="icon secondary" data-tpl="minimal" title="最小テンプレ"><span class="material-symbols-outlined">description</span></button>
       <button class="icon secondary" data-tpl="full" title="完全テンプレ"><span class="material-symbols-outlined">checklist</span></button>
       <button class="icon secondary" data-tpl="clear" title="クリア"><span class="material-symbols-outlined">delete_sweep</span></button>
+      <button class="icon secondary" id="md-upload-btn" title="ローカル md を開く"><span class="material-symbols-outlined">upload_file</span></button>
+      <input type="file" id="md-upload-input" accept=".md,.markdown,text/markdown" hidden />
     </div>
 
     <h2>列を追加</h2>
@@ -109,6 +111,8 @@
       const syncStatusBtn = $('sync-status-btn');
       const colNameInput = $('col-name');
       const colPopBtn = $('col-pop-btn');
+      const mdUploadBtn = $('md-upload-btn');
+      const mdUploadInput = $('md-upload-input');
       const src = $('src');
       const status = $('status');
 
@@ -183,6 +187,35 @@
             .withFailureHandler(failureHandler())
             .appendTestSpecColumn(src.value, colName, colType, values);
         });
+      });
+
+      // ローカル md アップロード
+      mdUploadBtn.addEventListener('click', () => {
+        mdUploadInput.value = '';
+        mdUploadInput.click();
+      });
+      mdUploadInput.addEventListener('change', () => {
+        const file = mdUploadInput.files && mdUploadInput.files[0];
+        if (!file) return;
+        const fileName = file.name;
+        setBusy(true, '「' + fileName + '」を読み込み中...');
+        const reader = new FileReader();
+        reader.onerror = () => setError('ファイル読み込み失敗: ' + (reader.error && reader.error.message));
+        reader.onload = () => {
+          const content = typeof reader.result === 'string' ? reader.result : '';
+          google.script.run
+            .withSuccessHandler((res) => {
+              if (res && res.ok) {
+                src.value = res.src;
+                setBusy(false, '「' + fileName + '」を読み込みました（' + res.src.length + ' chars）。');
+              } else {
+                setError(res && res.error);
+              }
+            })
+            .withFailureHandler(failureHandler())
+            .validateUploadedMarkdownAction(content, fileName);
+        };
+        reader.readAsText(file, 'utf-8');
       });
 
       // 末尾列削除
