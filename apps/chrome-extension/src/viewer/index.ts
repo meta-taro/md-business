@@ -11,6 +11,12 @@ import {
 import { renderMermaidInHtml } from '../shared/renderMermaid.js';
 import { STORAGE_KEY } from '../shared/storage.js';
 import { createPrintFrame } from './printFrame.js';
+import {
+  buildSavePickerOptions,
+  normalizeForSave,
+  deriveSuggestedFileName,
+  buildBackupRecord,
+} from './localSave.js';
 
 const PDF_GUIDE_SKIP_KEY = 'mdb:pdf-guide-skip';
 const PREVIEW_DEBOUNCE_MS = 200;
@@ -30,6 +36,16 @@ interface ViewerState {
   editor?: EditorView;
   /** Last successful permissive render — kept so PDF DL can reuse the styles href. */
   lastStylesHref?: string;
+  /** Initial / current filename for the "save as" suggested name. */
+  fileName?: string;
+  /**
+   * Sticky FileSystemFileHandle from a prior File System Access pick.
+   * Why: Ctrl+S overwrite needs to write back to the SAME on-disk file as the
+   * last save / save-as, without re-prompting the user. The browser garbage-
+   * collects this handle when the viewer tab closes (acceptable — the file
+   * picker reappears next session).
+   */
+  fileHandle?: FileSystemFileHandle;
 }
 
 const state: ViewerState = {
@@ -259,6 +275,101 @@ async function swapDocument(file: File): Promise<void> {
   const payload: ViewerPayload = { source, filename: file.name };
   await chrome.storage.session.set({ [STORAGE_KEY]: payload });
   globalThis.location.reload();
+}
+
+/**
+ * File System Access API は MV3 拡張のオプションページから直接利用可能
+ * (chrome-extension:// origin で showSaveFilePicker が解放される)。
+ * 古い Chrome / Firefox では undefined になるため defensive に検出する。
+ */
+function hasFileSystemAccess(): boolean {
+  return typeof (globalThis as unknown as { showSaveFilePicker?: unknown }).showSaveFilePicker === 'function';
+}
+
+async function pickSaveHandle(suggestedName: string): Promise<FileSystemFileHandle | null> {
+  const opts = buildSavePickerOptions(suggestedName);
+  try {
+    const picker = (globalThis as unknown as {
+      showSaveFilePicker: (o: SavePickerOptionsBrowser) => Promise<FileSystemFileHandle>;
+    }).showSaveFilePicker;
+    return await picker(opts as SavePickerOptionsBrowser);
+  } catch (err) {
+    if (err instanceof DOMException && err.name === 'AbortError') return null;
+    throw err;
+  }
+}
+
+interface SavePickerOptionsBrowser {
+  suggestedName?: string;
+  types?: Array<{ description?: string; accept: Record<string, string[]> }>;
+}
+
+async function writeMarkdownTo(handle: FileSystemFileHandle, content: string): Promise<void> {
+  const writable = await handle.createWritable();
+  try {
+    await writable.write(content);
+    await writable.close();
+  } catch (err) {
+    try {
+      await writable.abort();
+    } catch {
+      /* nothing — abort failure on a broken writer is benign */
+    }
+    throw err;
+  }
+}
+
+function snapshotPreviousContentToBackup(): void {
+  const fileName = state.fileName ?? 'untitled.md';
+  const record = buildBackupRecord(state.source, fileName, Date.now());
+  try {
+    globalThis.localStorage?.setItem(record.key, record.payload);
+  } catch {
+    /* localStorage disabled — proceed without backup */
+  }
+}
+
+async function handleSaveClick(saveAs: boolean): Promise<void> {
+  if (!hasFileSystemAccess()) {
+    setStatus(
+      'このブラウザは File System Access API に未対応です。Chrome / Edge の最新版でお試しください。',
+      'error',
+    );
+    return;
+  }
+
+  const suggested = deriveSuggestedFileName(
+    state.fileName ? { existingName: state.fileName } : {},
+  );
+  let handle = state.fileHandle;
+  if (saveAs || !handle) {
+    const picked = await pickSaveHandle(suggested);
+    if (!picked) return; // user cancelled
+    handle = picked;
+  }
+
+  // Snapshot the in-memory source to localStorage BEFORE writing — if the write
+  // fails or the user picks the wrong target, the previous content is still
+  // recoverable via DevTools / restore tooling.
+  snapshotPreviousContentToBackup();
+
+  const normalized = normalizeForSave(state.source);
+  try {
+    await writeMarkdownTo(handle, normalized);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    setStatus(`保存に失敗しました: ${message}`, 'error');
+    return;
+  }
+
+  state.fileHandle = handle;
+  state.fileName = handle.name;
+  state.source = normalized;
+  setStatus(`「${handle.name}」に保存しました。`, 'info');
+  globalThis.setTimeout(() => {
+    const el = document.getElementById('mdb-status');
+    if (el?.dataset['state'] === 'info') setStatus('', 'hidden');
+  }, 2_500);
 }
 
 /**
@@ -499,6 +610,7 @@ async function main(): Promise<void> {
   }
   state.source = payload.source;
   if (payload.pluginId) state.pluginId = payload.pluginId;
+  if (payload.filename) state.fileName = payload.filename;
 
   // Boot the iframe with a placeholder schema href; the real one is set on
   // first render. This avoids a flash of unstyled content.
@@ -510,6 +622,22 @@ async function main(): Promise<void> {
 
   const printBtn = document.getElementById('mdb-print');
   printBtn?.addEventListener('click', handlePdfDownloadClick);
+
+  const saveBtn = document.getElementById('mdb-save');
+  saveBtn?.addEventListener('click', () => {
+    void handleSaveClick(false);
+  });
+  const saveAsBtn = document.getElementById('mdb-save-as');
+  saveAsBtn?.addEventListener('click', () => {
+    void handleSaveClick(true);
+  });
+
+  document.addEventListener('keydown', (e: KeyboardEvent) => {
+    if (!(e.ctrlKey || e.metaKey)) return;
+    if (e.key.toLowerCase() !== 's') return;
+    e.preventDefault();
+    void handleSaveClick(e.shiftKey);
+  });
 
   const reloadBtn = document.getElementById('mdb-reload');
   const filePicker = document.getElementById('mdb-file-picker') as HTMLInputElement | null;
