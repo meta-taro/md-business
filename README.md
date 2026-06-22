@@ -63,6 +63,18 @@ pnpm dev
 
 詳細は [CONTRIBUTING.md](./CONTRIBUTING.md) を参照。
 
+## ドキュメント
+
+### スキーマ仕様
+
+| 文書種別 | スキーマ識別子 | 仕様書 | パッケージ README |
+|---|---|---|---|
+| 適格請求書（インボイス制度） | `invoice/v1` | [docs/spec/invoice-v1.md](./docs/spec/invoice-v1.md) | [packages/schema-invoice/](./packages/schema-invoice/README.md) |
+| 基本設計書 | `spec/v1` | [docs/spec/spec-v1.md](./docs/spec/spec-v1.md) | [packages/schema-spec/](./packages/schema-spec/README.md) |
+| 検証シート（テスト項目書） | `test-spec/v1` | [docs/spec/test-spec-v1.md](./docs/spec/test-spec-v1.md) | [packages/schema-test-spec/](./packages/schema-test-spec/README.md) |
+
+各仕様書には JSON Schema へのリンク、トップレベルフィールド表、YAML frontmatter サンプル、バリデーション例を含む。新規スキーマを追加する場合は同じ構造で `docs/spec/<schema-name>-v1.md` を追加し、本表へリンクを追記する。
+
 ## ライセンス
 
 MIT — fork して各社で自由にカスタマイズしてください。本家にマージしない派生（例: `schema-invoice-custom`）も推奨です。
