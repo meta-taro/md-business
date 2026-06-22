@@ -102,9 +102,11 @@ export function getSidebarHtml(): string {
 
 /**
  * Markdown table 文字列を現在の Sheet にインポートする（雛形）。
- * Why: schema-test-spec が完成するまでの先行スパイク用。本実装は schema-test-spec
- *      の `テスト項目 | OK/NG | 備考` を Sheets row + checkbox に変換するため、
- *      core 側 schema 確定後に拡張する。
+ *
+ * NOTE: Sidebar からは非露出（Issue #21 / 2026-06-22）。schema-test-spec v0.7.0 完成に伴い、
+ * frontmatter の `列定義` から DataValidation + ConditionalFormat 入りシートを生成する本命機能は
+ * `setupTestSpecSheet` (`検証シート: セットアップ` ボタン) に統一。本関数は Apps Script の
+ * 公開シンボルとして残置するが、将来 UI に再露出する場合は本命機能と明確にラベル区別すること。
  */
 export function importMarkdownTableToActiveSheet(markdown: string): {
   ok: true;

@@ -78,7 +78,6 @@
     <h2>frontmatter / 本文</h2>
     <textarea id="src" placeholder="（テンプレを選ぶか、アイコンで列を追加してください）"></textarea>
     <div class="actions">
-      <button id="import-btn" class="secondary">md → シート</button>
       <button id="export-btn" class="secondary">シート → md</button>
     </div>
     <div class="actions">
@@ -108,7 +107,6 @@
 
     <script>
       const $ = (id) => document.getElementById(id);
-      const importBtn = $('import-btn');
       const exportBtn = $('export-btn');
       const setupBtn = $('setup-btn');
       const validateBtn = $('validate-btn');
@@ -251,20 +249,6 @@
           })
           .withFailureHandler(failureHandler())
           .removeLastTestSpecColumn(src.value);
-      });
-
-      importBtn.addEventListener('click', () => {
-        setBusy(true, 'インポート処理中...');
-        google.script.run
-          .withSuccessHandler((res) => {
-            if (res && res.ok) {
-              setBusy(false, res.rows + ' 行をインポートしました。');
-            } else {
-              setError(res && res.error);
-            }
-          })
-          .withFailureHandler(failureHandler())
-          .importMarkdownTableToActiveSheet(src.value);
       });
 
       exportBtn.addEventListener('click', () => {
