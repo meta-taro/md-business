@@ -1,7 +1,6 @@
 /// <reference types="google-apps-script" />
 
 import { parseMdTable, mdTableToValues, valuesToMdTable } from './lib/mdTable.js';
-import { parseTestSpecMarkdown } from '@md-business/schema-test-spec';
 import type { TestSpec } from '@md-business/schema-test-spec';
 import validateTestSpec from '@md-business/schema-test-spec/validate';
 import {
@@ -32,6 +31,7 @@ import {
   type TestSpecTemplateKey,
 } from './lib/frontmatterEdit.js';
 import { validateUploadedMarkdown } from './lib/uploadMarkdown.js';
+import { parseTestSpecForSidebar } from './lib/parseTestSpecForSidebar.js';
 
 /**
  * Phase 3C 自動同期 PropertiesService キー。
@@ -234,11 +234,7 @@ function parseTestSpec(
 ):
   | { ok: true; spec: TestSpec }
   | { ok: false; error: string } {
-  const result = parseTestSpecMarkdown(src, validateTestSpec);
-  if (!result.ok) {
-    return { ok: false, error: result.errors.map((e) => e.message).join(' / ') };
-  }
-  return { ok: true, spec: result.testSpec };
+  return parseTestSpecForSidebar(src, validateTestSpec);
 }
 
 function extractFrontmatterBlock(src: string): string | null {
