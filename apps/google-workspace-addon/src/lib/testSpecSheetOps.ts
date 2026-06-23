@@ -47,10 +47,30 @@ export interface SheetConditionalFormatOp {
 }
 
 export interface SheetWriteOps {
+  /** Sheet 名（spec.title をそのまま採用。衝突回避は resolveSheetName で行う）。 */
+  sheetName: string;
   headerValues: string[];
   frozenRows: number;
   dataValidations: SheetDataValidationOp[];
   conditionalFormats: SheetConditionalFormatOp[];
+}
+
+/**
+ * spec.title から sheet 名を決める。
+ * 既存 sheet と衝突した場合は ` (2)` ` (3)` …のサフィックスを付与。
+ * Apps Script 側は existingNames を渡すだけ、純粋関数として副作用なし。
+ */
+export function resolveSheetName(
+  desiredName: string,
+  existingNames: ReadonlyArray<string>,
+): string {
+  const taken = new Set(existingNames);
+  if (!taken.has(desiredName)) return desiredName;
+  for (let i = 2; i <= 99; i++) {
+    const candidate = `${desiredName} (${i})`;
+    if (!taken.has(candidate)) return candidate;
+  }
+  return `${desiredName} (99)`;
 }
 
 export function planSheetWriteOps(spec: TestSpec): SheetWriteOps {
@@ -87,6 +107,7 @@ export function planSheetWriteOps(spec: TestSpec): SheetWriteOps {
   });
 
   return {
+    sheetName: spec.title,
     headerValues,
     frozenRows: 1,
     dataValidations,
