@@ -108,6 +108,27 @@ describe('valuesToMdTable', () => {
     expect(md.split('\n')[2]).toBe('|  |  | 42 | true |');
   });
 
+  it('formats Date cells as YYYY-MM-DD (Apps Script は date セルを Date オブジェクトで返すため)', () => {
+    // String(date) すると `Mon Jun 22 2026 00:00:00 GMT+0900 (日本標準時)` になる。
+    // 検証シートでは ISO 短縮形 (YYYY-MM-DD) に正規化する。
+    const md = valuesToMdTable([
+      ['日付', '担当'],
+      [new Date(2026, 5, 22), '田中'],
+      [new Date(2026, 5, 23), '佐藤'],
+    ]);
+    const lines = md.split('\n');
+    expect(lines[2]).toBe('| 2026-06-22 | 田中 |');
+    expect(lines[3]).toBe('| 2026-06-23 | 佐藤 |');
+  });
+
+  it('renders invalid Date as empty string', () => {
+    const md = valuesToMdTable([
+      ['日付'],
+      [new Date(NaN)],
+    ]);
+    expect(md.split('\n')[2]).toBe('|  |');
+  });
+
   it('round-trips parseMdTable ↔ valuesToMdTable for simple tables', () => {
     const src = [
       '| 項目 | 状態 |',

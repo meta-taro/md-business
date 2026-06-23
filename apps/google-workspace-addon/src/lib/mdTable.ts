@@ -77,6 +77,16 @@ export function valuesToMdTable(values: ReadonlyArray<ReadonlyArray<unknown>>): 
 
 function toCell(v: unknown): string {
   if (v === null || v === undefined) return '';
+  if (v instanceof Date) {
+    // Apps Script の getDataRange().getValues() は date セルを Date オブジェクトで返す。
+    // String(date) の既定書式 (`Mon Jun 22 2026 00:00:00 GMT+0900 (日本標準時)`) は md として読みにくいため、
+    // 実行 timezone 基準で YYYY-MM-DD に正規化する（Apps Script では appsscript.json の `timeZone` が適用される）。
+    if (Number.isNaN(v.getTime())) return '';
+    const yyyy = String(v.getFullYear()).padStart(4, '0');
+    const mm = String(v.getMonth() + 1).padStart(2, '0');
+    const dd = String(v.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  }
   return String(v).replace(/\|/g, '\\|').replace(/\r?\n/g, ' ');
 }
 
