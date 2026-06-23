@@ -32,7 +32,10 @@ import {
   type TestSpecTemplateKey,
 } from './lib/frontmatterEdit.js';
 import { validateUploadedMarkdown } from './lib/uploadMarkdown.js';
-import { parseTestSpecForSidebar } from './lib/parseTestSpecForSidebar.js';
+import {
+  parseTestSpecForSidebar,
+  type ParseForSidebarResult,
+} from './lib/parseTestSpecForSidebar.js';
 
 /**
  * Phase 3C 自動同期 PropertiesService キー。
@@ -162,19 +165,20 @@ export function exportActiveSheetToMarkdown(): {
  *      Apps Script API 呼び出し部分は純粋関数 `planSheetWriteOps` の結果を流すだけにし、
  *      バリデーション・優先度判定は副作用ゼロでテスト可能な層に閉じる。
  */
-export function setupTestSpecSheet(markdownFrontmatter: string): {
+export function setupTestSpecSheet(markdownSource: string): {
   ok: true;
   columns: number;
   dataValidations: number;
   conditionalFormats: number;
+  bodyRows: number;
 } | {
   ok: false;
   error: string;
 } {
-  const parsed = parseTestSpec(markdownFrontmatter);
+  const parsed = parseTestSpec(markdownSource);
   if (!parsed.ok) return { ok: false, error: parsed.error };
 
-  const ops = planSheetWriteOps(parsed.spec);
+  const ops = planSheetWriteOps(parsed.spec, parsed.body);
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
   applyOpsToSheet(sheet, ops);
 
@@ -183,6 +187,7 @@ export function setupTestSpecSheet(markdownFrontmatter: string): {
     columns: ops.headerValues.length,
     dataValidations: ops.dataValidations.length,
     conditionalFormats: ops.conditionalFormats.length,
+    bodyRows: ops.bodyRows.length,
   };
 }
 
@@ -232,11 +237,7 @@ export function exportTestSpecMarkdown(markdownFrontmatter: string): {
   return { ok: true, markdown };
 }
 
-function parseTestSpec(
-  src: string,
-):
-  | { ok: true; spec: TestSpec }
-  | { ok: false; error: string } {
+function parseTestSpec(src: string): ParseForSidebarResult {
   return parseTestSpecForSidebar(src, validateTestSpec);
 }
 
@@ -254,8 +255,28 @@ function applyOpsToSheet(
   renameSheetFromOps(sheet, ops.sheetName);
   sheet.getRange(1, 1, 1, ops.headerValues.length).setValues([ops.headerValues]);
   sheet.setFrozenRows(ops.frozenRows);
+  writeBodyRowsToSheet(sheet, ops);
   applyDataValidations(sheet, ops);
   applyConditionalFormats(sheet, ops);
+}
+
+/**
+ * bodyRows を 2 行目以降に setValues する。
+ * Why: DataValidation 適用「前」に値を書き込むことで、setAllowInvalid(true) でも
+ *      警告マーカーが立たない。空配列なら何もせずスキップ。
+ */
+function writeBodyRowsToSheet(
+  sheet: GoogleAppsScript.Spreadsheet.Sheet,
+  ops: SheetWriteOps,
+): void {
+  if (ops.bodyRows.length === 0) return;
+  const numCols = ops.headerValues.length;
+  const normalized = ops.bodyRows.map((row) => {
+    const padded = row.slice(0, numCols);
+    while (padded.length < numCols) padded.push('');
+    return padded;
+  });
+  sheet.getRange(2, 1, normalized.length, numCols).setValues(normalized);
 }
 
 function renameSheetFromOps(

@@ -172,6 +172,92 @@ describe('planSheetWriteOps', () => {
   });
 });
 
+describe('planSheetWriteOps bodyRows', () => {
+  const SAMPLE_BODY = [
+    '## 検証範囲',
+    '',
+    '- ログイン',
+    '',
+    '## 検証結果',
+    '',
+    '| 項目 | 手順 | 結果 |',
+    '| --- | --- | --- |',
+    '| 正常ログイン | メール + パスワードで送信 | OK |',
+    '| 誤入力 | 誤ったパスワードで送信 | NG |',
+    '',
+    '## メモ',
+    '',
+    '- 補足',
+  ].join('\n');
+
+  function bodyOnlySpec(): TestSpec {
+    return sampleSpec({
+      columns: [
+        { name: '項目', type: 'text' },
+        { name: '手順', type: 'multiline_text' },
+        { name: '結果', type: 'enum', values: ['OK', 'NG'] },
+      ],
+    });
+  }
+
+  it('returns empty bodyRows when no body argument is given (backward compat)', () => {
+    const ops = planSheetWriteOps(bodyOnlySpec());
+    expect(ops.bodyRows).toEqual([]);
+  });
+
+  it('returns empty bodyRows when body has no table', () => {
+    const ops = planSheetWriteOps(bodyOnlySpec(), '## メモ\n\n- ただの段落\n');
+    expect(ops.bodyRows).toEqual([]);
+  });
+
+  it('extracts table rows from body and aligns to spec.columns order', () => {
+    const ops = planSheetWriteOps(bodyOnlySpec(), SAMPLE_BODY);
+    expect(ops.bodyRows).toEqual([
+      ['正常ログイン', 'メール + パスワードで送信', 'OK'],
+      ['誤入力', '誤ったパスワードで送信', 'NG'],
+    ]);
+  });
+
+  it('reorders body cells when md table header order differs from spec.columns', () => {
+    const body = [
+      '| 結果 | 項目 | 手順 |',
+      '| --- | --- | --- |',
+      '| OK | 正常 | 手順A |',
+    ].join('\n');
+    const ops = planSheetWriteOps(bodyOnlySpec(), body);
+    expect(ops.bodyRows).toEqual([['正常', '手順A', 'OK']]);
+  });
+
+  it('fills missing spec columns with empty strings (e.g. md table lacks 担当 column)', () => {
+    const spec = sampleSpec({
+      columns: [
+        { name: '項目', type: 'text' },
+        { name: '担当', type: 'text' },
+      ],
+    });
+    const body = [
+      '| 項目 | メモ |',
+      '| --- | --- |',
+      '| 正常 | 注記なし |',
+    ].join('\n');
+    const ops = planSheetWriteOps(spec, body);
+    expect(ops.bodyRows).toEqual([['正常', '']]);
+  });
+
+  it('returns empty bodyRows when md table has no overlap with spec columns', () => {
+    const spec = sampleSpec({
+      columns: [{ name: '項目', type: 'text' }],
+    });
+    const body = [
+      '| 関係ない | 他 |',
+      '| --- | --- |',
+      '| X | Y |',
+    ].join('\n');
+    const ops = planSheetWriteOps(spec, body);
+    expect(ops.bodyRows).toEqual([]);
+  });
+});
+
 describe('resolveSheetName', () => {
   it('returns desiredName as-is when no conflict exists', () => {
     expect(resolveSheetName('受発注ワークフロー 検証シート', ['シート1', 'メモ'])).toBe(
