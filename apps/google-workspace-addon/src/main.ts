@@ -1,7 +1,6 @@
 /// <reference types="google-apps-script" />
 
 import { parseMdTable, mdTableToValues } from './lib/mdTable.js';
-import type { TestSpec } from '@md-business/schema-test-spec';
 import validateTestSpec from '@md-business/schema-test-spec/validate';
 import {
   planSheetWriteOps,
@@ -14,15 +13,8 @@ import {
 import {
   buildContentsUrl,
   buildContentsPutPayload,
-  extractRepoRefFromSpec,
   type RepoRef,
 } from './lib/githubApi.js';
-import {
-  prepareAutoSyncCommit,
-  parseAutoSyncState,
-  serializeAutoSyncState,
-  type AutoSyncState,
-} from './lib/autoSync.js';
 import {
   extractFrontmatter,
   appendColumnToFrontmatter,
@@ -36,22 +28,9 @@ import {
   parseTestSpecForSidebar,
   type ParseForSidebarResult,
 } from './lib/parseTestSpecForSidebar.js';
+import { buildPushPlan } from './lib/pushTestSpec.js';
 
-/**
- * Phase 3C 自動同期 PropertiesService キー。
- * Why: trigger 跨ぎで状態を保持する必要があるが、PropertiesService は string only
- *      なのでキー文字列を 1 箇所に集約しておく（misspell 防止）。
- */
-const KEY_FRONTMATTER = 'TS_AUTO_SYNC_FRONTMATTER';
-const KEY_FRONTMATTER_BLOCK = 'TS_AUTO_SYNC_FRONTMATTER_BLOCK';
-const KEY_SHEET_NAME = 'TS_AUTO_SYNC_SHEET_NAME';
-const KEY_REPO_REF = 'TS_AUTO_SYNC_REPO_REF';
-const KEY_EDIT_TRIGGER_ID = 'TS_AUTO_SYNC_EDIT_TRIGGER_ID';
-const KEY_DEBOUNCE_TRIGGER_ID = 'TS_AUTO_SYNC_DEBOUNCE_TRIGGER_ID';
-const KEY_STATE = 'TS_AUTO_SYNC_STATE';
 const KEY_GITHUB_PAT = 'GITHUB_PAT';
-
-const DEBOUNCE_MS = 2000;
 
 /**
  * Workspace Add-on のホーム画面（Docs / Sheets / Slides 共通カード）。
@@ -416,11 +395,13 @@ function escapeFormulaString(s: string): string {
 }
 
 // ---------------------------------------------------------------------------
-// Phase 3C-2b: 自動同期 (Sheets ⇄ GitHub) trigger 層
+// GitHub Push (manual button)
 // ---------------------------------------------------------------------------
-// Why: Phase 3C-1 / 3C-2a で純粋関数は実装済み。本層は SpreadsheetApp /
-//      ScriptApp / UrlFetchApp / PropertiesService / Utilities への副作用に閉じる。
-//      テストは autoSync.test.ts / githubApi.test.ts でカバー済み。
+// Why: Workspace Add-on context は OAuth scope `script.scriptapp` を許可しない
+//      ため、onEdit installable trigger による 2 秒 debounce auto-sync が
+//      動かない（Google 公式制限）。代わりに「git push」と同じメンタルモデルで
+//      ユーザが保存したい瞬間に 1 回ボタンを押す形にする。trigger 不要 →
+//      編集中の小刻みな commit で履歴が汚れる問題も同時に解決する。
 // PAT は baseline §15 により PdM (田中さん) が手動投入する。AI は投入しない。
 
 /**
@@ -446,156 +427,6 @@ export function hasGithubPat(): boolean {
   return typeof pat === 'string' && pat.length > 0;
 }
 
-/**
- * 検証シート frontmatter を受け取り、現在のシートに onEdit installable trigger を
- * 設置して GitHub 自動同期を有効化する。
- * - spec.repository が存在しなければエラー
- * - 既存の trigger は idempotent に削除してから新規作成
- */
-export function installTestSpecAutoSync(markdownFrontmatter: string): {
-  ok: true;
-  sheetName: string;
-  repoRef: string;
-} | {
-  ok: false;
-  error: string;
-} {
-  const parsed = parseTestSpec(markdownFrontmatter);
-  if (!parsed.ok) return { ok: false, error: parsed.error };
-  if (typeof parsed.spec.repository !== 'string' || parsed.spec.repository.length === 0) {
-    return {
-      ok: false,
-      error: 'frontmatter に repository が未設定です（例: repository: owner/repo@main:verify/login.md）。',
-    };
-  }
-  const repoRef = extractRepoRefFromSpec(parsed.spec);
-  if (repoRef === null) {
-    return { ok: false, error: 'repository の形式が不正です（owner/repo@branch:path）。' };
-  }
-  const frontmatterBlock = extractFrontmatterBlock(markdownFrontmatter);
-  if (frontmatterBlock === null) {
-    return { ok: false, error: 'frontmatter ブロック (--- ... ---) を抽出できませんでした。' };
-  }
-
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheet = ss.getActiveSheet();
-  const sheetName = sheet.getName();
-
-  removeStoredTriggers();
-
-  const trigger = ScriptApp.newTrigger('handleTestSpecEdit').forSpreadsheet(ss).onEdit().create();
-  const props = PropertiesService.getDocumentProperties();
-  props.setProperties({
-    [KEY_FRONTMATTER]: markdownFrontmatter,
-    [KEY_FRONTMATTER_BLOCK]: frontmatterBlock,
-    [KEY_SHEET_NAME]: sheetName,
-    [KEY_REPO_REF]: parsed.spec.repository,
-    [KEY_EDIT_TRIGGER_ID]: trigger.getUniqueId(),
-    [KEY_STATE]: serializeAutoSyncState({ kind: 'idle' }),
-  });
-  return { ok: true, sheetName, repoRef: parsed.spec.repository };
-}
-
-export function uninstallTestSpecAutoSync(): { ok: true } {
-  removeStoredTriggers();
-  const props = PropertiesService.getDocumentProperties();
-  [
-    KEY_FRONTMATTER,
-    KEY_FRONTMATTER_BLOCK,
-    KEY_SHEET_NAME,
-    KEY_REPO_REF,
-    KEY_EDIT_TRIGGER_ID,
-    KEY_DEBOUNCE_TRIGGER_ID,
-    KEY_STATE,
-  ].forEach((k) => props.deleteProperty(k));
-  return { ok: true };
-}
-
-/**
- * onEdit installable trigger 本体。ScriptApp に登録済みのみ実行される。
- * Why: シートが頻繁に編集されるたびに GitHub へ commit するのは過剰なので、
- *      編集を 2 秒間 debounce する。次の編集が来たら time-based trigger を
- *      作り直して延期、無編集が 2 秒続いたら flushPendingTestSpecSync が発火する。
- */
-export function handleTestSpecEdit(e: GoogleAppsScript.Events.SheetsOnEdit): void {
-  const props = PropertiesService.getDocumentProperties();
-  const stored = props.getProperty(KEY_FRONTMATTER);
-  if (stored === null) return;
-
-  const targetSheetName = props.getProperty(KEY_SHEET_NAME);
-  if (targetSheetName !== null && e.range && e.range.getSheet().getName() !== targetSheetName) {
-    return;
-  }
-
-  removeDebounceTrigger(props);
-  const debounce = ScriptApp.newTrigger('flushPendingTestSpecSync').timeBased().after(DEBOUNCE_MS).create();
-  props.setProperty(KEY_DEBOUNCE_TRIGGER_ID, debounce.getUniqueId());
-  props.setProperty(
-    KEY_STATE,
-    serializeAutoSyncState({ kind: 'pending', lastEditAt: new Date().toISOString() }),
-  );
-}
-
-/**
- * debounce 切れ時に発火する time-based trigger 本体。
- * 純粋関数 prepareAutoSyncCommit に検証 + markdown 構築を委譲し、
- * 本体は UrlFetchApp の GET (sha 取得) → PUT (commit) と
- * 結果の状態保存に閉じる。
- */
-export function flushPendingTestSpecSync(): void {
-  const props = PropertiesService.getDocumentProperties();
-  const frontmatter = props.getProperty(KEY_FRONTMATTER);
-  const frontmatterBlock = props.getProperty(KEY_FRONTMATTER_BLOCK);
-  const sheetName = props.getProperty(KEY_SHEET_NAME);
-  if (frontmatter === null || frontmatterBlock === null || sheetName === null) {
-    saveErrorState(props, 'state_missing', '設置時の状態が見つかりません。再度有効化してください。');
-    return;
-  }
-  const pat = PropertiesService.getUserProperties().getProperty(KEY_GITHUB_PAT);
-  if (pat === null || pat.length === 0) {
-    saveErrorState(props, 'no_pat', 'GitHub PAT が未設定です。サイドバーから登録してください。');
-    return;
-  }
-  const parsed = parseTestSpec(frontmatter);
-  if (!parsed.ok) {
-    saveErrorState(props, 'spec_invalid', parsed.error);
-    return;
-  }
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(sheetName);
-  if (sheet === null) {
-    saveErrorState(props, 'sheet_missing', `シート「${sheetName}」が見つかりません。`);
-    return;
-  }
-  const values = sheet.getDataRange().getValues();
-  const plan = prepareAutoSyncCommit({
-    spec: parsed.spec,
-    sheetValues: values,
-    sheetName,
-    isoTimestamp: new Date().toISOString(),
-    frontmatterBlock,
-  });
-  if (plan.kind === 'skip') {
-    if (plan.reason === 'validation_failed') {
-      saveErrorState(
-        props,
-        'validation_failed',
-        `${plan.validationIssues?.length ?? 0} 件の検証エラーで sync を中断しました。`,
-      );
-    } else {
-      saveErrorState(props, plan.reason, 'repository 設定が不正です。');
-    }
-    return;
-  }
-  pushMarkdownToGithub(props, pat, plan.repoRef, plan.markdown, plan.commitMessage);
-}
-
-/**
- * 現在の自動同期状態をサイドバー向けに集約する。
- * - installed: trigger が PropertiesService に登録されているか
- * - hasPat: PAT が UserProperties にあるか
- * - sheetName / repoRef: 設置時の binding 内容
- * - state: 最後の sync 結果 (idle / pending / success / error)
- */
 /**
  * Phase 3E: アイコンパレット UX 用の純粋関数 expose 層。
  * サイドバーが google.script.run 経由で呼び、frontmatter を直書きせず
@@ -637,32 +468,50 @@ export function validateUploadedMarkdownAction(
   return validateUploadedMarkdown(content, fileName);
 }
 
-export function getTestSpecAutoSyncStatus(): {
-  installed: boolean;
-  hasPat: boolean;
-  sheetName: string | null;
-  repoRef: string | null;
-  state: AutoSyncState;
+/**
+ * 「GitHub に push」ボタン押下時のエントリポイント。
+ * サイドバーの textarea 内容（frontmatter + 本文）と現在の active sheet から、
+ * 検証 + markdown 組立 + GitHub Contents API への PUT までを 1 ショットで行う。
+ * 副作用層（SpreadsheetApp / PropertiesService / UrlFetchApp）に閉じ、
+ * 検証・markdown 組立は lib/pushTestSpec.buildPushPlan に委譲する。
+ */
+export function pushTestSpecToGithub(markdownSource: string): {
+  ok: true;
+  commitSha: string;
+  bytes: number;
+} | {
+  ok: false;
+  error: string;
 } {
-  const props = PropertiesService.getDocumentProperties();
-  const editTriggerId = props.getProperty(KEY_EDIT_TRIGGER_ID);
-  const stateJson = props.getProperty(KEY_STATE);
-  return {
-    installed: editTriggerId !== null,
-    hasPat: hasGithubPat(),
-    sheetName: props.getProperty(KEY_SHEET_NAME),
-    repoRef: props.getProperty(KEY_REPO_REF),
-    state: parseAutoSyncState(stateJson),
-  };
+  const pat = PropertiesService.getUserProperties().getProperty(KEY_GITHUB_PAT);
+  if (pat === null || pat.length === 0) {
+    return {
+      ok: false,
+      error: 'GitHub PAT が未設定です。サイドバーから登録してください。',
+    };
+  }
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  const sheetName = sheet.getName();
+  const values = sheet.getDataRange().getValues();
+  const plan = buildPushPlan({
+    markdownSource,
+    sheetValues: values,
+    sheetName,
+    isoTimestamp: new Date().toISOString(),
+    validate: validateTestSpec,
+  });
+  if (!plan.ok) {
+    return { ok: false, error: plan.error };
+  }
+  return pushMarkdownToGithub(pat, plan.repoRef, plan.markdown, plan.commitMessage);
 }
 
 function pushMarkdownToGithub(
-  props: GoogleAppsScript.Properties.Properties,
   pat: string,
   repoRef: RepoRef,
   markdown: string,
   commitMessage: string,
-): void {
+): { ok: true; commitSha: string; bytes: number } | { ok: false; error: string } {
   const contentBase64 = Utilities.base64Encode(markdown, Utilities.Charset.UTF_8);
   const url = buildContentsUrl(repoRef);
   const headers = {
@@ -686,8 +535,10 @@ function pushMarkdownToGithub(
       // sha 取得失敗は無視して新規 commit として進める（404 と同じ扱い）
     }
   } else if (getCode !== 404) {
-    saveErrorState(props, `github_${getCode}`, `GET ${repoRef.path} で ${getCode} が返りました。`);
-    return;
+    return {
+      ok: false,
+      error: `GET ${repoRef.path} で ${getCode} が返りました。`,
+    };
   }
 
   const putPayload = buildContentsPutPayload(
@@ -712,67 +563,20 @@ function pushMarkdownToGithub(
   });
   const putCode = putRes.getResponseCode();
   if (putCode !== 200 && putCode !== 201) {
-    saveErrorState(
-      props,
-      `github_${putCode}`,
-      `PUT ${repoRef.path} で ${putCode} が返りました: ${putRes.getContentText().slice(0, 200)}`,
-    );
-    return;
+    return {
+      ok: false,
+      error: `PUT ${repoRef.path} で ${putCode} が返りました: ${putRes
+        .getContentText()
+        .slice(0, 200)}`,
+    };
   }
   let commitSha = '';
   try {
     const body = JSON.parse(putRes.getContentText());
     if (body && body.commit && typeof body.commit.sha === 'string') commitSha = body.commit.sha;
   } catch {
-    // 成功時の commit sha 取得失敗は記録だけ落として続行
+    // 成功時の commit sha 取得失敗は無視（empty で続行）
   }
   const bytes = Utilities.newBlob(markdown).getBytes().length;
-  props.setProperty(
-    KEY_STATE,
-    serializeAutoSyncState({
-      kind: 'success',
-      syncedAt: new Date().toISOString(),
-      commitSha,
-      bytes,
-    }),
-  );
-}
-
-function saveErrorState(
-  props: GoogleAppsScript.Properties.Properties,
-  reason: string,
-  details: string,
-): void {
-  props.setProperty(
-    KEY_STATE,
-    serializeAutoSyncState({
-      kind: 'error',
-      failedAt: new Date().toISOString(),
-      reason,
-      details,
-    }),
-  );
-}
-
-function removeStoredTriggers(): void {
-  const props = PropertiesService.getDocumentProperties();
-  removeTriggerById(props.getProperty(KEY_EDIT_TRIGGER_ID));
-  props.deleteProperty(KEY_EDIT_TRIGGER_ID);
-  removeDebounceTrigger(props);
-}
-
-function removeDebounceTrigger(props: GoogleAppsScript.Properties.Properties): void {
-  removeTriggerById(props.getProperty(KEY_DEBOUNCE_TRIGGER_ID));
-  props.deleteProperty(KEY_DEBOUNCE_TRIGGER_ID);
-}
-
-function removeTriggerById(id: string | null): void {
-  if (id === null) return;
-  const triggers = ScriptApp.getProjectTriggers();
-  for (const t of triggers) {
-    if (t.getUniqueId() === id) {
-      ScriptApp.deleteTrigger(t);
-      return;
-    }
-  }
+  return { ok: true, commitSha, bytes };
 }

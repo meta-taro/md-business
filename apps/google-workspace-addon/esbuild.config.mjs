@@ -31,11 +31,7 @@ const TRIGGER_NAMES = [
   'setGithubPat',
   'clearGithubPat',
   'hasGithubPat',
-  'installTestSpecAutoSync',
-  'uninstallTestSpecAutoSync',
-  'handleTestSpecEdit',
-  'flushPendingTestSpecSync',
-  'getTestSpecAutoSyncStatus',
+  'pushTestSpecToGithub',
 ];
 const footer = TRIGGER_NAMES.map((name) => `function ${name}(e){return mdb.${name}(e);}`).join('\n');
 
