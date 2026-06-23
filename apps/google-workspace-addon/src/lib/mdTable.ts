@@ -10,6 +10,31 @@ export interface MdTable {
   rows: string[][];
 }
 
+/**
+ * 任意の Markdown 本文から最初の table ブロックを抽出して返す。
+ * Why: parseMdTable は冒頭 2 行が table 形式であることを要求する。
+ *      本文には見出し / リスト / 段落が混ざるため、最初の pipe + separator のペアを
+ *      探してその連続行だけを切り出してから parseMdTable に渡す前段が必要。
+ *      table が見つからなければ null（呼び出し側で空配列フォールバック）。
+ */
+export function extractFirstMdTable(src: string): string | null {
+  const lines = src.split('\n').map((l) => l.replace(/\r$/, ''));
+  for (let i = 0; i < lines.length - 1; i++) {
+    const head = lines[i]!;
+    const sep = lines[i + 1]!;
+    if (isPipeRow(head) && isSeparatorRow(sep)) {
+      const out = [head, sep];
+      for (let j = i + 2; j < lines.length; j++) {
+        const line = lines[j]!;
+        if (!isPipeRow(line)) break;
+        out.push(line);
+      }
+      return out.join('\n');
+    }
+  }
+  return null;
+}
+
 export function parseMdTable(src: string): MdTable | null {
   const lines = src
     .split('\n')

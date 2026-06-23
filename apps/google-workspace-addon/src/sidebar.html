@@ -272,8 +272,9 @@
           .withSuccessHandler((res) => {
             if (res && res.ok) {
               setBusy(false,
-                res.columns + ' 列 / DataValidation ' + res.dataValidations +
-                ' 件 / ConditionalFormat ' + res.conditionalFormats + ' 件 を適用しました。');
+                res.columns + ' 列 / 本文 ' + res.bodyRows + ' 行 / DataValidation ' +
+                res.dataValidations + ' 件 / ConditionalFormat ' + res.conditionalFormats +
+                ' 件 を適用しました。');
             } else {
               setError(res && res.error);
             }

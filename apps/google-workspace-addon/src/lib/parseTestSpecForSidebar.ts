@@ -6,7 +6,7 @@ import {
 import type { CompiledValidator } from '@md-business/core';
 
 export type ParseForSidebarResult =
-  | { ok: true; spec: TestSpec }
+  | { ok: true; spec: TestSpec; body: string }
   | { ok: false; error: string };
 
 const EMPTY_GUIDANCE =
@@ -24,7 +24,7 @@ export function parseTestSpecForSidebar(
     const messages = translateTestSpecErrors(parsed.errors);
     return { ok: false, error: messages.join('\n') };
   }
-  return { ok: true, spec: parsed.testSpec };
+  return { ok: true, spec: parsed.testSpec, body: parsed.body };
 }
 
 function hasMeaningfulFrontmatter(src: string): boolean {

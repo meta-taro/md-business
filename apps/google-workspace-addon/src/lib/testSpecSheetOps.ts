@@ -6,7 +6,7 @@
  */
 
 import type { TestSpec, TestSpecColumn, ColumnType } from '@md-business/schema-test-spec';
-import { valuesToMdTable } from './mdTable.js';
+import { valuesToMdTable, extractFirstMdTable, parseMdTable } from './mdTable.js';
 
 export type SheetValidationKind =
   | 'unknown_column'
@@ -53,6 +53,12 @@ export interface SheetWriteOps {
   frozenRows: number;
   dataValidations: SheetDataValidationOp[];
   conditionalFormats: SheetConditionalFormatOp[];
+  /**
+   * md 本文 table から抽出した行データ（spec.columns の順に並び替え済み）。
+   * body 引数なし / table 抽出失敗 / 列名一致無しなら空配列。
+   * Apps Script 側は Sheet 2 行目以降に `setValues(bodyRows)` で書き込む。
+   */
+  bodyRows: string[][];
 }
 
 /**
@@ -73,10 +79,28 @@ export function resolveSheetName(
   return `${desiredName} (99)`;
 }
 
-export function planSheetWriteOps(spec: TestSpec): SheetWriteOps {
+/**
+ * md 本文の最初の table から bodyRows を抽出し、spec.columns の順に並び替える。
+ * md と Sheet で列順が違っても spec.columns 順に揃える（ヘッダー名で照合）。
+ * spec に対応する列が table 側に無ければ、その列は空文字で埋める。
+ */
+function extractBodyRows(columns: ReadonlyArray<TestSpecColumn>, body: string): string[][] {
+  const tableSrc = extractFirstMdTable(body);
+  if (!tableSrc) return [];
+  const table = parseMdTable(tableSrc);
+  if (!table) return [];
+  const colIndexInMd = columns.map((col) => table.header.indexOf(col.name));
+  if (colIndexInMd.every((i) => i < 0)) return [];
+  return table.rows.map((row) =>
+    colIndexInMd.map((idx) => (idx >= 0 ? row[idx] ?? '' : '')),
+  );
+}
+
+export function planSheetWriteOps(spec: TestSpec, body?: string): SheetWriteOps {
   const headerValues = spec.columns.map((c) => c.name);
   const dataValidations: SheetDataValidationOp[] = [];
   const conditionalFormats: SheetConditionalFormatOp[] = [];
+  const bodyRows = body ? extractBodyRows(spec.columns, body) : [];
 
   spec.columns.forEach((column, columnIndex) => {
     const validation = planValidation(column, columnIndex);
@@ -112,6 +136,7 @@ export function planSheetWriteOps(spec: TestSpec): SheetWriteOps {
     frozenRows: 1,
     dataValidations,
     conditionalFormats,
+    bodyRows,
   };
 }
 
