@@ -105,6 +105,20 @@ describe('testSpecSchema — happy path', () => {
     const result = parseAndValidate<TestSpec>(toFrontmatter(data), testSpecSchema);
     expect(result.ok).toBe(true);
   });
+
+  it('accepts optional column-level required / widthScale / wrap', () => {
+    const data = {
+      ...buildTestSpec(),
+      columns: [
+        { name: '項目', type: 'text', widthScale: 1.5, wrap: true },
+        { name: '実施日', type: 'date', required: false, widthScale: 1.2 },
+        { name: '担当', type: 'text', required: false, wrap: false },
+        { name: '備考', type: 'multiline_text', widthScale: 3 },
+      ],
+    };
+    const result = parseAndValidate<TestSpec>(toFrontmatter(data), testSpecSchema);
+    expect(result.ok).toBe(true);
+  });
 });
 
 describe('testSpecSchema — error cases', () => {
@@ -160,6 +174,39 @@ describe('testSpecSchema — error cases', () => {
   it('rejects type=enum without values', () => {
     const data = buildTestSpec();
     (data['columns'] as Array<Record<string, unknown>>)[0] = { name: 'X', type: 'enum' };
+    const result = parseAndValidate<TestSpec>(toFrontmatter(data), testSpecSchema);
+    expect(result.ok).toBe(false);
+  });
+
+  it('rejects widthScale below 0.1', () => {
+    const data = buildTestSpec();
+    (data['columns'] as Array<Record<string, unknown>>)[0] = {
+      name: '項目',
+      type: 'text',
+      widthScale: 0.05,
+    };
+    const result = parseAndValidate<TestSpec>(toFrontmatter(data), testSpecSchema);
+    expect(result.ok).toBe(false);
+  });
+
+  it('rejects widthScale above 10', () => {
+    const data = buildTestSpec();
+    (data['columns'] as Array<Record<string, unknown>>)[0] = {
+      name: '項目',
+      type: 'text',
+      widthScale: 11,
+    };
+    const result = parseAndValidate<TestSpec>(toFrontmatter(data), testSpecSchema);
+    expect(result.ok).toBe(false);
+  });
+
+  it('rejects non-boolean required', () => {
+    const data = buildTestSpec();
+    (data['columns'] as Array<Record<string, unknown>>)[0] = {
+      name: '項目',
+      type: 'text',
+      required: 'yes',
+    };
     const result = parseAndValidate<TestSpec>(toFrontmatter(data), testSpecSchema);
     expect(result.ok).toBe(false);
   });

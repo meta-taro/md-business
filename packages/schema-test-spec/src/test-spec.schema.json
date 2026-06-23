@@ -100,7 +100,10 @@
           "additionalProperties": { "$ref": "#/$defs/visualStyle" }
         },
         "min": { "type": "number" },
-        "max": { "type": "number" }
+        "max": { "type": "number" },
+        "required": { "type": "boolean" },
+        "widthScale": { "type": "number", "minimum": 0.1, "maximum": 10 },
+        "wrap": { "type": "boolean" }
       },
       "allOf": [
         {

@@ -46,6 +46,19 @@ export interface SheetConditionalFormatOp {
   backgroundColor?: string;
 }
 
+export interface SheetColumnWidthOp {
+  columnIndex: number;
+  widthPx: number;
+}
+
+export interface SheetColumnWrapOp {
+  columnIndex: number;
+  wrap: boolean;
+}
+
+/** Sheet's default column width in pixels (Google Sheets baseline). */
+export const DEFAULT_COLUMN_WIDTH_PX = 100;
+
 export interface SheetWriteOps {
   /** Sheet 名（spec.title をそのまま採用。衝突回避は resolveSheetName で行う）。 */
   sheetName: string;
@@ -53,6 +66,17 @@ export interface SheetWriteOps {
   frozenRows: number;
   dataValidations: SheetDataValidationOp[];
   conditionalFormats: SheetConditionalFormatOp[];
+  /**
+   * Per-column width overrides. Only columns with `widthScale` in spec emit
+   * an entry — others keep the Sheet default (100 px). Width = 100 * scale.
+   */
+  columnWidths: SheetColumnWidthOp[];
+  /**
+   * Per-column text-wrap directives. Always emitted for every column
+   * (default `wrap: true` since Sheets are read by humans). Authors opt out
+   * with `折り返し: false` on the column definition.
+   */
+  columnWraps: SheetColumnWrapOp[];
   /**
    * md 本文 table から抽出した行データ（spec.columns の順に並び替え済み）。
    * body 引数なし / table 抽出失敗 / 列名一致無しなら空配列。
@@ -100,6 +124,8 @@ export function planSheetWriteOps(spec: TestSpec, body?: string): SheetWriteOps 
   const headerValues = spec.columns.map((c) => c.name);
   const dataValidations: SheetDataValidationOp[] = [];
   const conditionalFormats: SheetConditionalFormatOp[] = [];
+  const columnWidths: SheetColumnWidthOp[] = [];
+  const columnWraps: SheetColumnWrapOp[] = [];
   const bodyRows = body ? extractBodyRows(spec.columns, body) : [];
 
   spec.columns.forEach((column, columnIndex) => {
@@ -128,6 +154,15 @@ export function planSheetWriteOps(spec: TestSpec, body?: string): SheetWriteOps 
         }
       }
     }
+
+    if (typeof column.widthScale === 'number') {
+      columnWidths.push({
+        columnIndex,
+        widthPx: Math.round(DEFAULT_COLUMN_WIDTH_PX * column.widthScale),
+      });
+    }
+
+    columnWraps.push({ columnIndex, wrap: column.wrap !== false });
   });
 
   return {
@@ -136,6 +171,8 @@ export function planSheetWriteOps(spec: TestSpec, body?: string): SheetWriteOps 
     frozenRows: 1,
     dataValidations,
     conditionalFormats,
+    columnWidths,
+    columnWraps,
     bodyRows,
   };
 }
@@ -144,6 +181,7 @@ function planValidation(
   column: TestSpecColumn,
   columnIndex: number,
 ): SheetDataValidationOp | null {
+  if (column.required === false) return null;
   switch (column.type) {
     case 'enum':
       if (!column.values || column.values.length === 0) return null;
