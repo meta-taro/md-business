@@ -164,6 +164,37 @@ describe('normalizeTestSpecFrontmatter — visual scope', () => {
   });
 });
 
+describe('normalizeTestSpecFrontmatter — column required / widthScale / wrap', () => {
+  it.each([
+    ['必須', 'required'],
+    ['幅倍率', 'widthScale'],
+    ['列幅倍率', 'widthScale'],
+    ['幅', 'widthScale'],
+    ['折り返し', 'wrap'],
+    ['改行', 'wrap'],
+    ['ラップ', 'wrap'],
+  ])('maps column key "%s" → "%s"', (input, expected) => {
+    const { data } = normalizeTestSpecFrontmatter({
+      列: [{ 名前: 'X', 型: 'text', [input]: input === '必須' ? false : input.includes('折') || input === '改行' || input === 'ラップ' ? true : 2 }],
+    });
+    const cols = data.columns as Array<Record<string, unknown>>;
+    expect(Object.keys(cols[0]!)).toContain(expected);
+  });
+
+  it('keeps required:false / widthScale / wrap values verbatim', () => {
+    const { data } = normalizeTestSpecFrontmatter({
+      列: [
+        { 名前: '実施日', 型: '日付', 必須: false, 幅倍率: 1.2 },
+        { 名前: '備考', 型: '複数行', 幅倍率: 3, 折り返し: true },
+      ],
+    });
+    expect(data.columns).toEqual([
+      { name: '実施日', type: 'date', required: false, widthScale: 1.2 },
+      { name: '備考', type: 'multiline_text', widthScale: 3, wrap: true },
+    ]);
+  });
+});
+
 describe('normalizeTestSpecFrontmatter — party scope', () => {
   it('translates author/reviewer names and roles', () => {
     const { data } = normalizeTestSpecFrontmatter({

@@ -258,6 +258,83 @@ describe('planSheetWriteOps bodyRows', () => {
   });
 });
 
+describe('planSheetWriteOps required / widthScale / wrap', () => {
+  it('skips DataValidation entirely for columns with required:false', () => {
+    const spec = sampleSpec({
+      columns: [
+        { name: '項目', type: 'text' },
+        { name: '実施日', type: 'date', required: false },
+        { name: '担当', type: 'text', required: false },
+        { name: '結果', type: 'enum', values: ['OK', 'NG'], required: false },
+      ],
+    });
+    const ops = planSheetWriteOps(spec);
+    // date / enum normally emit validation; required:false suppresses both
+    expect(ops.dataValidations).toEqual([]);
+  });
+
+  it('keeps DataValidation for required:true (default)', () => {
+    const spec = sampleSpec({
+      columns: [
+        { name: '項目', type: 'text' },
+        { name: '実施日', type: 'date' },
+        { name: '結果', type: 'enum', values: ['OK', 'NG'] },
+      ],
+    });
+    const ops = planSheetWriteOps(spec);
+    expect(ops.dataValidations).toHaveLength(2);
+  });
+
+  it('emits columnWidths only for columns with widthScale, scaled from 100px', () => {
+    const spec = sampleSpec({
+      columns: [
+        { name: '項目', type: 'text', widthScale: 1.5 },
+        { name: '手順', type: 'multiline_text', widthScale: 3 },
+        { name: '結果', type: 'text' }, // no widthScale → omitted
+        { name: '備考', type: 'multiline_text', widthScale: 3 },
+      ],
+    });
+    const ops = planSheetWriteOps(spec);
+    expect(ops.columnWidths).toEqual([
+      { columnIndex: 0, widthPx: 150 },
+      { columnIndex: 1, widthPx: 300 },
+      { columnIndex: 3, widthPx: 300 },
+    ]);
+  });
+
+  it('rounds widthScale * 100 to the nearest pixel', () => {
+    const spec = sampleSpec({
+      columns: [{ name: '項目', type: 'text', widthScale: 1.234 }],
+    });
+    const ops = planSheetWriteOps(spec);
+    expect(ops.columnWidths).toEqual([{ columnIndex: 0, widthPx: 123 }]);
+  });
+
+  it('emits columnWraps for every column, defaulting to wrap:true', () => {
+    const spec = sampleSpec({
+      columns: [
+        { name: '項目', type: 'text' },
+        { name: '手順', type: 'multiline_text' },
+        { name: '担当', type: 'text', wrap: false },
+      ],
+    });
+    const ops = planSheetWriteOps(spec);
+    expect(ops.columnWraps).toEqual([
+      { columnIndex: 0, wrap: true },
+      { columnIndex: 1, wrap: true },
+      { columnIndex: 2, wrap: false },
+    ]);
+  });
+
+  it('honors explicit wrap:true alongside default', () => {
+    const spec = sampleSpec({
+      columns: [{ name: '項目', type: 'text', wrap: true }],
+    });
+    const ops = planSheetWriteOps(spec);
+    expect(ops.columnWraps).toEqual([{ columnIndex: 0, wrap: true }]);
+  });
+});
+
 describe('resolveSheetName', () => {
   it('returns desiredName as-is when no conflict exists', () => {
     expect(resolveSheetName('受発注ワークフロー 検証シート', ['シート1', 'メモ'])).toBe(

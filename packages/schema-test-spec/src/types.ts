@@ -33,6 +33,25 @@ export interface TestSpecColumn {
   min?: number;
   /** Number type — optional inclusive upper bound. */
   max?: number;
+  /**
+   * Whether the column enforces type-based DataValidation. Default: `true`.
+   * Set to `false` for free-form columns (e.g. "実施日" allowing "—" / "TBD" /
+   * empty) — the Sheet column gets no DataValidation, so no warning markers
+   * appear on non-conforming text.
+   */
+  required?: boolean;
+  /**
+   * Width multiplier applied to the Sheet's default column width (100 px).
+   * E.g. `widthScale: 3` → 300 px. Used at sheet-setup time only; later
+   * manual resizes by the user are preserved.
+   */
+  widthScale?: number;
+  /**
+   * Whether cell contents wrap onto multiple visual lines. Default: `true`
+   * (Sheets are read by humans). Set to `false` for narrow columns where
+   * truncation is acceptable.
+   */
+  wrap?: boolean;
 }
 
 export interface TestSpecPerson {

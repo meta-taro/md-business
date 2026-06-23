@@ -171,6 +171,8 @@ export function setupTestSpecSheet(markdownSource: string): {
   dataValidations: number;
   conditionalFormats: number;
   bodyRows: number;
+  columnWidths: number;
+  columnWraps: number;
 } | {
   ok: false;
   error: string;
@@ -188,6 +190,8 @@ export function setupTestSpecSheet(markdownSource: string): {
     dataValidations: ops.dataValidations.length,
     conditionalFormats: ops.conditionalFormats.length,
     bodyRows: ops.bodyRows.length,
+    columnWidths: ops.columnWidths.length,
+    columnWraps: ops.columnWraps.length,
   };
 }
 
@@ -258,6 +262,35 @@ function applyOpsToSheet(
   writeBodyRowsToSheet(sheet, ops);
   applyDataValidations(sheet, ops);
   applyConditionalFormats(sheet, ops);
+  applyColumnWidths(sheet, ops);
+  applyColumnWraps(sheet, ops);
+}
+
+/**
+ * spec の `幅倍率` を Sheet 列幅に反映する。
+ * 100 px base × widthScale。指定のない列は Sheet デフォルト（100 px）のまま。
+ */
+function applyColumnWidths(
+  sheet: GoogleAppsScript.Spreadsheet.Sheet,
+  ops: SheetWriteOps,
+): void {
+  for (const w of ops.columnWidths) {
+    sheet.setColumnWidth(w.columnIndex + 1, w.widthPx);
+  }
+}
+
+/**
+ * spec の `折り返し` を Sheet の text-wrap に反映する。デフォルト wrap=true。
+ * 人が読むスプレなので全行・全列に適用（ヘッダー含む）。
+ */
+function applyColumnWraps(
+  sheet: GoogleAppsScript.Spreadsheet.Sheet,
+  ops: SheetWriteOps,
+): void {
+  const rows = Math.max(sheet.getMaxRows(), 1);
+  for (const w of ops.columnWraps) {
+    sheet.getRange(1, w.columnIndex + 1, rows, 1).setWrap(w.wrap);
+  }
 }
 
 /**
