@@ -1,57 +1,182 @@
 # md-business
 
-> Markdown-first business document templates. Specialized viewers for invoices, test specs, design docs across multiple channels.
+> **English** | [日本語](./README.ja.md)
 
-**md-business** は Markdown ファイル（frontmatter + 本文）をハブにして、業務文書を特化型ビューワー UI で編集・PDF 出力する OSS シリーズです。請求書を起点に、テスト設計書・基本仕様書・見積書などへテンプレを順次拡張します。
+> AI-native business documents, powered by Markdown as the source of truth.
 
-各配布チャネル（Google Docs アドオン / Chrome 拡張 / VS Code 拡張 / PWA / LINE LIFF / GitHub Action）にビューワーを載せ、エンジニア・非エンジニア双方に届く形で配布します。
+**md-business** is an open-source framework for managing business documents as Markdown files with structured frontmatter, schemas, validation, Git history, and human-friendly viewers.
 
-## なぜ Markdown か
+It is not just a Markdown viewer, a PDF generator, or a template collection.
 
-- AI（特に Claude / Gemini 等）は Markdown の編集が得意。
-- frontmatter は機械可読データ、本文は人間可読プレビューとして両立する。
-- GitHub でそのまま読める。
-- 環境別エディタ (Word / Excel / 各社 SaaS) のロックインを避けられる。
+md-business treats Markdown as the canonical source of truth for invoices, test specifications, design documents, API documents, database design documents, estimates, meeting notes, and other operational documents. AI agents can create, edit, validate, diff, and render these documents directly, while humans can review and consume them through familiar interfaces such as PDF, Google Workspace, Chrome, VS Code, PWA, desktop apps, or GitHub.
 
-## やる配布チャネル
+## Why this exists
 
-| チャネル | 想定ユーザー |
-|---|---|
-| Google Docs アドオン | 非エンジニア（Docs を開ければ使える） |
-| Chrome 拡張 | ブラウザで MD ファイルを開く人 |
-| VS Code 拡張 | エンジニア |
-| PWA | 環境を選ばない |
-| LINE LIFF | 日本のモバイルユーザー |
-| GitHub Action | CI で PDF 自動生成したい人 |
+Most business documents still live inside tools designed primarily for humans:
 
-## 含まれるテンプレ（順次拡張）
+- Word processors
+- Spreadsheets
+- PDFs
+- Cloud drives
+- Office suites
+- SaaS back-office tools
+- Internal web forms
 
-| テンプレ | 状態 |
-|---|---|
-| 請求書（日本の適格請求書 / インボイス制度対応） | Phase 1 |
-| テスト設計書 | Phase 3 |
-| 基本仕様書 | Phase 3 |
-| 見積書 / 議事録 / 契約書 | Phase 5 |
+These tools are useful for human input and review, but they are not ideal as an AI-operable source of truth.
 
-## 構成
+AI agents can read and summarize these documents, but they often cannot safely and continuously operate them as structured business assets. They struggle with reliable editing, validation, diffing, version control, automation, and handoff across multiple agents or systems.
 
+md-business starts from a different premise:
+
+**Business documents should be stored in a format that AI agents can operate directly.**
+
+Markdown provides the human-readable body.
+YAML frontmatter provides machine-readable metadata.
+JSON Schema provides validation.
+Git provides history, review, branching, and rollback.
+Renderers and viewers provide human-facing output.
+
+## Core idea
+
+```text
+Markdown source of truth
+        ↓
+Schema validation
+        ↓
+AI agent editing
+        ↓
+Git diff / review / approval
+        ↓
+PDF / Sheets / Docs / browser / desktop / SaaS integration
 ```
-md-business/
-├── packages/
-│   ├── core/                Markdown ⇄ AST パーサ + frontmatter 検証
-│   ├── renderer-pdf/        Paged.js（ブラウザ）
-│   ├── renderer-typst/      Typst（サーバ・GitHub Action）
-│   ├── shared-ui/           Web Components 共通（Lit + Tailwind v4）
-│   ├── schema-invoice/      請求書 JSON Schema
-│   └── viewer-invoice/      請求書フォーム UI
-└── apps/
-    ├── pwa/                 Astro 5 + Content Collections
-    ├── chrome-extension/    Manifest V3
-    ├── docs-addon/          Apps Script + clasp
-    ├── vscode-extension/    Content Type 拡張
-    ├── line-liff/           LIFF SDK
-    └── github-action/       Marketplace 公開予定
-```
+
+The important layer is the Markdown source.
+
+Viewers and integrations are only access points for humans and existing workflows. They exist so that non-technical users can review, approve, print, share, or submit documents without needing to understand Markdown, Git, or AI agents.
+
+## What md-business is
+
+md-business is:
+
+- A schema-driven business document system
+- A Markdown-first source-of-truth layer
+- A document format designed for AI agents
+- A Git-friendly alternative to opaque office files
+- A bridge between AI workflows and human-facing business documents
+- A foundation for local-first and agent-driven business operations
+
+## What md-business is not
+
+md-business is not:
+
+- A Notion clone
+- A Google Docs clone
+- A spreadsheet replacement
+- A simple Markdown viewer
+- A PDF-only generator
+- A closed SaaS workflow tool
+
+Existing office suites and SaaS tools can still be useful as review surfaces, delivery channels, or regulated backends. md-business focuses on the source-of-truth layer that AI agents can actually operate.
+
+## Why Markdown
+
+Markdown is a practical base format for AI-native business operations because:
+
+- AI agents can edit it reliably
+- Humans can read it without special software
+- Git can track every change
+- Pull requests can be used for review and approval
+- Frontmatter can hold structured business data
+- JSON Schema can validate document correctness
+- Renderers can produce PDF, HTML, Sheets, Docs, or other outputs
+- Local repositories can be operated by desktop tools or autonomous agents
+
+## Human role
+
+md-business does not remove humans from responsibility.
+
+It moves humans away from repetitive document manipulation and places them at the review, approval, exception handling, and business decision layers.
+
+AI agents operate the source files.
+Humans approve the outcomes.
+Viewers provide the interface.
+
+## Example use cases
+
+### Test specifications
+
+AI agents generate and update test cases as Markdown.
+Schemas validate required fields.
+Git tracks changes.
+A Google Sheets or browser viewer allows non-engineers to execute and review test results.
+
+### Design documents
+
+AI agents maintain basic design documents, API specifications, database design documents, and implementation notes as version-controlled Markdown.
+Mermaid diagrams, structured frontmatter, and schema validation keep the documents reviewable and automatable.
+
+### Invoices and estimates
+
+AI agents update dates, line items, tax fields, customer information, and payment terms in Markdown.
+Schemas validate required fields.
+PDF renderers generate human-facing documents.
+External accounting tools can be treated as integration targets rather than the primary editing surface.
+
+## Planned distribution channels
+
+md-business aims to provide multiple human-facing viewers and automation channels:
+
+| Channel                 | Purpose                                                           |
+| ----------------------- | ----------------------------------------------------------------- |
+| Google Workspace Add-on | Review and display documents in familiar office workflows         |
+| Chrome Extension        | Open and preview Markdown business documents in the browser       |
+| VS Code Extension       | Developer and agent-oriented editing                              |
+| PWA                     | Cross-platform human-facing viewer                                |
+| Tauri Desktop App       | Local-first repository operation and document workflow automation |
+| GitHub Action           | CI validation and automatic rendering                             |
+| LINE LIFF               | Mobile-first access for Japanese business workflows               |
+
+These channels are not the core product.
+They are adapters around the Markdown source of truth.
+
+## Current templates
+
+| Template           | Schema         |
+| ------------------ | -------------- |
+| Invoice            | `invoice/v1`   |
+| Test specification | `test-spec/v1` |
+| Design document    | `spec/v1`      |
+
+Future templates may include estimates, meeting notes, contracts, API documents, database design documents, operational checklists, and other business documents.
+
+## Long-term vision
+
+md-business aims to make business documents operable by AI agents.
+
+Instead of placing AI on top of opaque SaaS screens, PDFs, spreadsheets, and office files, md-business places structured Markdown at the center of the workflow.
+
+This enables a different kind of organization:
+
+- Documents are version-controlled
+- Changes are reviewable
+- AI agents can work directly on source files
+- Humans approve through familiar views
+- Local repositories can become operational workspaces
+- Back-office and upstream engineering processes can be automated without locking the source of truth inside a specific SaaS
+
+The goal is not to replace every business tool.
+
+The goal is to make the canonical business document layer open, portable, reviewable, automatable, and AI-native.
+
+## Documentation
+
+| Schema | Spec | Package |
+| --- | --- | --- |
+| Qualified invoice (Japanese インボイス制度) | `invoice/v1` | [docs/spec/invoice-v1.md](./docs/spec/invoice-v1.md) → [packages/schema-invoice/](./packages/schema-invoice/README.md) |
+| Design document | `spec/v1` | [docs/spec/spec-v1.md](./docs/spec/spec-v1.md) → [packages/schema-spec/](./packages/schema-spec/README.md) |
+| Test specification | `test-spec/v1` | [docs/spec/test-spec-v1.md](./docs/spec/test-spec-v1.md) → [packages/schema-test-spec/](./packages/schema-test-spec/README.md) |
+
+Each spec document includes the JSON Schema link, top-level field table, YAML frontmatter sample, and validation examples.
 
 ## Quick Start
 
@@ -61,28 +186,12 @@ pnpm install
 pnpm dev
 ```
 
-詳細は [CONTRIBUTING.md](./CONTRIBUTING.md) を参照。
-
-## ドキュメント
-
-### スキーマ仕様
-
-| 文書種別 | スキーマ識別子 | 仕様書 | パッケージ README |
-|---|---|---|---|
-| 適格請求書（インボイス制度） | `invoice/v1` | [docs/spec/invoice-v1.md](./docs/spec/invoice-v1.md) | [packages/schema-invoice/](./packages/schema-invoice/README.md) |
-| 基本設計書 | `spec/v1` | [docs/spec/spec-v1.md](./docs/spec/spec-v1.md) | [packages/schema-spec/](./packages/schema-spec/README.md) |
-| 検証シート（テスト項目書） | `test-spec/v1` | [docs/spec/test-spec-v1.md](./docs/spec/test-spec-v1.md) | [packages/schema-test-spec/](./packages/schema-test-spec/README.md) |
-
-各仕様書には JSON Schema へのリンク、トップレベルフィールド表、YAML frontmatter サンプル、バリデーション例を含む。新規スキーマを追加する場合は同じ構造で `docs/spec/<schema-name>-v1.md` を追加し、本表へリンクを追記する。
-
-## ライセンス
-
-MIT — fork して各社で自由にカスタマイズしてください。本家にマージしない派生（例: `schema-invoice-custom`）も推奨です。
-
-## Status
-
-🚧 **Phase 0: 骨格構築中**（2026-06-12 開始）。Phase 1（請求書 MVP）に向けて開発中。
+See [CONTRIBUTING.md](./CONTRIBUTING.md) for details.
 
 ## Contributing
 
-Issue / PR は歓迎します。新規スキーマ・新規配布チャネルの追加方法は [CONTRIBUTING.md](./CONTRIBUTING.md) を参照してください。
+Issues and PRs are welcome. For adding new schemas or distribution channels, see [CONTRIBUTING.md](./CONTRIBUTING.md).
+
+## License
+
+MIT — fork and customize freely. Derivative repos that don't merge back upstream (e.g. `schema-invoice-custom`) are also encouraged.
