@@ -21,7 +21,6 @@ const TRIGGER_NAMES = [
   'showSidebar',
   'getSidebarHtml',
   'importMarkdownTableToActiveSheet',
-  'exportActiveSheetToMarkdown',
   'setupTestSpecSheet',
   'validateActiveTestSpecSheet',
   'exportTestSpecMarkdown',

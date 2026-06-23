@@ -78,9 +78,6 @@
     <h2>frontmatter / 本文</h2>
     <textarea id="src" placeholder="（テンプレを選ぶか、アイコンで列を追加してください）"></textarea>
     <div class="actions">
-      <button id="export-btn" class="secondary">シート → md</button>
-    </div>
-    <div class="actions">
       <button id="setup-btn">検証シート: セットアップ</button>
       <button id="validate-btn" class="secondary">検証</button>
       <button id="ts-export-btn" class="secondary">md 書き出し</button>
@@ -107,7 +104,6 @@
 
     <script>
       const $ = (id) => document.getElementById(id);
-      const exportBtn = $('export-btn');
       const setupBtn = $('setup-btn');
       const validateBtn = $('validate-btn');
       const tsExportBtn = $('ts-export-btn');
@@ -249,21 +245,6 @@
           })
           .withFailureHandler(failureHandler())
           .removeLastTestSpecColumn(src.value);
-      });
-
-      exportBtn.addEventListener('click', () => {
-        setBusy(true, 'エクスポート処理中...');
-        google.script.run
-          .withSuccessHandler((res) => {
-            if (res && res.ok) {
-              src.value = res.markdown;
-              setBusy(false, res.rows + ' 行を Markdown に書き出しました。');
-            } else {
-              setError(res && res.error);
-            }
-          })
-          .withFailureHandler(failureHandler())
-          .exportActiveSheetToMarkdown();
       });
 
       setupBtn.addEventListener('click', () => {
