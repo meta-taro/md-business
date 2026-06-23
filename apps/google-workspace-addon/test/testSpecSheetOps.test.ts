@@ -5,6 +5,7 @@ import {
   planSheetWriteOps,
   applySheetValuesToSpec,
   validateSheetValues,
+  resolveSheetName,
   type SheetWriteOps,
   type SheetValidationIssue,
 } from '../src/lib/testSpecSheetOps.js';
@@ -56,6 +57,18 @@ describe('planSheetWriteOps', () => {
 
   it('always freezes the header row', () => {
     expect(planSheetWriteOps(sampleSpec()).frozenRows).toBe(1);
+  });
+
+  it('exposes spec.title as sheetName for downstream sheet.setName() calls', () => {
+    const ops = planSheetWriteOps(sampleSpec());
+    expect(ops.sheetName).toBe('ログイン機能 検証シート');
+  });
+
+  it('sheetName reflects spec.title even when title contains spaces and JP/EN mix', () => {
+    const ops = planSheetWriteOps(
+      sampleSpec({ title: '受発注ワークフロー 検証シート' }),
+    );
+    expect(ops.sheetName).toBe('受発注ワークフロー 検証シート');
   });
 
   it('emits list DataValidation for enum columns with values', () => {
@@ -156,6 +169,42 @@ describe('planSheetWriteOps', () => {
       ],
     });
     expect(planSheetWriteOps(spec).conditionalFormats).toEqual([]);
+  });
+});
+
+describe('resolveSheetName', () => {
+  it('returns desiredName as-is when no conflict exists', () => {
+    expect(resolveSheetName('受発注ワークフロー 検証シート', ['シート1', 'メモ'])).toBe(
+      '受発注ワークフロー 検証シート',
+    );
+  });
+
+  it('returns desiredName when existingNames is empty', () => {
+    expect(resolveSheetName('受発注ワークフロー 検証シート', [])).toBe(
+      '受発注ワークフロー 検証シート',
+    );
+  });
+
+  it('adds (2) suffix when desiredName already exists', () => {
+    expect(resolveSheetName('受発注ワークフロー 検証シート', ['受発注ワークフロー 検証シート'])).toBe(
+      '受発注ワークフロー 検証シート (2)',
+    );
+  });
+
+  it('escalates suffix until a free slot is found', () => {
+    expect(
+      resolveSheetName('受発注ワークフロー 検証シート', [
+        '受発注ワークフロー 検証シート',
+        '受発注ワークフロー 検証シート (2)',
+        '受発注ワークフロー 検証シート (3)',
+      ]),
+    ).toBe('受発注ワークフロー 検証シート (4)');
+  });
+
+  it('treats existingNames as Set semantics (order-independent)', () => {
+    expect(
+      resolveSheetName('A', ['A (3)', 'A (2)', 'A']),
+    ).toBe('A (4)');
   });
 });
 

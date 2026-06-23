@@ -7,6 +7,7 @@ import {
   planSheetWriteOps,
   applySheetValuesToSpec,
   validateSheetValues,
+  resolveSheetName,
   type SheetValidationIssue,
   type SheetWriteOps,
 } from './lib/testSpecSheetOps.js';
@@ -250,10 +251,26 @@ function applyOpsToSheet(
   ops: SheetWriteOps,
 ): void {
   if (ops.headerValues.length === 0) return;
+  renameSheetFromOps(sheet, ops.sheetName);
   sheet.getRange(1, 1, 1, ops.headerValues.length).setValues([ops.headerValues]);
   sheet.setFrozenRows(ops.frozenRows);
   applyDataValidations(sheet, ops);
   applyConditionalFormats(sheet, ops);
+}
+
+function renameSheetFromOps(
+  sheet: GoogleAppsScript.Spreadsheet.Sheet,
+  desiredName: string,
+): void {
+  if (!desiredName) return;
+  if (sheet.getName() === desiredName) return;
+  const spreadsheet = sheet.getParent();
+  const existing = spreadsheet
+    .getSheets()
+    .filter((s) => s.getSheetId() !== sheet.getSheetId())
+    .map((s) => s.getName());
+  const resolved = resolveSheetName(desiredName, existing);
+  sheet.setName(resolved);
 }
 
 function applyDataValidations(
