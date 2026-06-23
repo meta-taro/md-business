@@ -85,10 +85,11 @@
     <div id="status" class="status" role="status" aria-live="polite"></div>
 
     <hr />
-    <h1>GitHub 自動同期</h1>
+    <h1>GitHub Push</h1>
     <p>
-      frontmatter に <code>repository: owner/repo@branch:path</code> を書いて「有効化」を押すと、
-      シート編集が <strong>2 秒</strong> 静まった時点で GitHub に PUT します。
+      frontmatter に <code>repository: owner/repo@branch:path</code> を書いて
+      「GitHub に push」を押すと、現在のシート内容を 1 コミットで PUT します
+      （<code>git push</code> と同じメンタルモデル）。
       <strong>PAT は PdM が手作業で登録</strong>してください。
     </p>
     <div class="actions">
@@ -97,9 +98,7 @@
       <button id="pat-clear-btn" class="secondary">PAT 削除</button>
     </div>
     <div class="actions">
-      <button id="sync-install-btn">有効化</button>
-      <button id="sync-uninstall-btn" class="secondary">無効化</button>
-      <button id="sync-status-btn" class="secondary">状態</button>
+      <button id="push-btn">GitHub に push</button>
     </div>
 
     <script>
@@ -110,9 +109,7 @@
       const patInput = $('pat-input');
       const patSaveBtn = $('pat-save-btn');
       const patClearBtn = $('pat-clear-btn');
-      const syncInstallBtn = $('sync-install-btn');
-      const syncUninstallBtn = $('sync-uninstall-btn');
-      const syncStatusBtn = $('sync-status-btn');
+      const pushBtn = $('push-btn');
       const colNameInput = $('col-name');
       const colPopBtn = $('col-pop-btn');
       const mdUploadBtn = $('md-upload-btn');
@@ -323,49 +320,19 @@
           .clearGithubPat();
       });
 
-      syncInstallBtn.addEventListener('click', () => {
-        setBusy(true, '自動同期を有効化中...');
+      pushBtn.addEventListener('click', () => {
+        setBusy(true, 'GitHub に push 中...');
         google.script.run
           .withSuccessHandler((res) => {
             if (res && res.ok) {
-              setBusy(false, '自動同期 ON。シート「' + res.sheetName + '」→ ' + res.repoRef + ' に 2 秒 debounce で commit します。');
+              const sha = res.commitSha ? res.commitSha.slice(0, 7) : '(unknown)';
+              setBusy(false, 'push 完了。commit ' + sha + ' / ' + res.bytes + ' bytes。');
             } else {
               setError(res && res.error);
             }
           })
           .withFailureHandler(failureHandler())
-          .installTestSpecAutoSync(src.value);
-      });
-
-      syncUninstallBtn.addEventListener('click', () => {
-        setBusy(true, '自動同期を無効化中...');
-        google.script.run
-          .withSuccessHandler(() => setBusy(false, '自動同期 OFF。trigger を削除しました。'))
-          .withFailureHandler(failureHandler())
-          .uninstallTestSpecAutoSync();
-      });
-
-      syncStatusBtn.addEventListener('click', () => {
-        setBusy(true, '状態を取得中...');
-        google.script.run
-          .withSuccessHandler((res) => {
-            const parts = [
-              '有効: ' + (res.installed ? 'YES' : 'NO'),
-              'PAT: ' + (res.hasPat ? 'YES' : 'NO'),
-              'sheet: ' + (res.sheetName || '-'),
-              'repo: ' + (res.repoRef || '-'),
-              'state: ' + res.state.kind,
-            ];
-            if (res.state.kind === 'success') {
-              parts.push('@ ' + res.state.syncedAt + ' / sha ' + res.state.commitSha.slice(0, 7));
-            }
-            if (res.state.kind === 'error') {
-              parts.push('@ ' + res.state.failedAt + ' / ' + res.state.reason + ': ' + (res.state.details || ''));
-            }
-            setBusy(false, parts.join(' | '));
-          })
-          .withFailureHandler(failureHandler())
-          .getTestSpecAutoSyncStatus();
+          .pushTestSpecToGithub(src.value);
       });
     </script>
   </body>
