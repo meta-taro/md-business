@@ -40,11 +40,12 @@ googleSheetId: ""
 5. 完了したら「エクスポート」→ サイドバーに編集後の Markdown が表示
 6. それを `.md` にコピペして git commit
 
-## 4. 双方向同期の理想形（v0.2.0 〜）
+## 4. Sheets ⇆ GitHub 同期（v0.7.1 〜）
 
-- frontmatter に `googleSheetId: <ID>` を書く → 自動的に当該 Sheet とリンク
-- Sheet 編集 → onEdit trigger → GitHub API へ commit
-- `.md` 編集 → CI で Sheet を上書き
-- 競合は last-write-wins + `_conflict` シート退避
+- frontmatter に `googleSheetId: <ID>` を書く → 当該 Sheet とリンク
+- frontmatter に `repository: owner/repo@branch:path` を書く → 送信先を宣言
+- サイドバーで PAT（contents: write 権限）を保存
+- Sheet を編集後、サイドバーの **「GitHub に push」ボタン** を押下 → GitHub Contents API 経由で md ファイルに commit（`git push` と同じメンタルモデル）
+- 自動同期は v0.7.1 で廃止（編集中の中間状態で git 履歴が汚れるのを避けるため）
 
-詳細は [`.claude/decisions.md`](../../../.claude/decisions.md) 2026-06-18 行参照。
+詳細は [`.claude/decisions.md`](../../../.claude/decisions.md) 2026-06-18 行および 2026-06-23 行参照。

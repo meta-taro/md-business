@@ -20,7 +20,7 @@
 | `columns` | ✅ | `TestSpecColumn[]` | 列定義（DataValidation / ConditionalFormat の駆動源） |
 | `reviewers` | | `Array<{name, role?}>` | レビュアー |
 | `relatedDocs` | | `string[]` | 関連文書（パス / URL / verbatim） |
-| `googleSheetId` | | string | onEdit 自動同期時の Google Sheets ファイル ID |
+| `googleSheetId` | | string | Workspace Add-on の「GitHub に push」ボタンで Sheets ↔ md 同期する際の Google Sheets ファイル ID |
 | `repository` | | string | GitHub 連動先（`owner/repo@branch:path` 形式） |
 | `theme` | | string | アクセントカラー（プリセット名 または `#rrggbb`） |
 | `fileName` | | string | PDF 保存ファイル名テンプレート |
@@ -76,9 +76,9 @@
         文字色: "#137333"     # OK の文字を緑に
 ```
 
-## GitHub ⇄ Google Sheets 双方向同期
+## GitHub ⇄ Google Sheets 同期
 
-`googleSheetId` と `repository` を指定すると、Google Workspace Add-on の onEdit トリガで Sheets と md ファイルが自動同期される（v0.7.0 から使用可）：
+`googleSheetId` と `repository` を指定すると、Google Workspace Add-on のサイドバーから Sheets と md ファイルを同期できる（v0.7.1 から手動 push 方式に統一）：
 
 ```yaml
 シートID: 1abcDEF_replaceWithYourGoogleSheetsFileId
@@ -87,10 +87,10 @@
 
 | 方向 | トリガ | 動作 |
 |---|---|---|
-| md → Sheets | Add-on サイドバーで「Sheets を生成」 | frontmatter の `列定義` をそのまま DataValidation / ConditionalFormat / SetFrozenRows に展開 |
-| Sheets → md | セル編集（onEdit） | GitHub Contents API 経由で `repository` で指定された md ファイルへ commit |
+| md → Sheets | Add-on サイドバーで「検証シート: セットアップ」 | frontmatter の `列定義` をそのまま DataValidation / ConditionalFormat / SetFrozenRows に展開 |
+| Sheets → md | Add-on サイドバーで「GitHub に push」ボタン押下 | GitHub Contents API 経由で `repository` で指定された md ファイルへ commit（`git push` と同じメンタルモデル） |
 
-`repository` の `@branch` は省略時 `main`。GitHub 認証は OAuth で行う（PAT 不要）。詳細は `apps/google-workspace-addon/` 配下を参照。
+`repository` の `@branch` は省略時 `main`。GitHub 認証はユーザーが PropertiesService に保存する Personal Access Token（contents: write 権限）を使用する。詳細は `apps/google-workspace-addon/` 配下を参照。
 
 ## YAML frontmatter での注意
 
