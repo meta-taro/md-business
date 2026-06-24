@@ -6,6 +6,7 @@ project: md-business
 author: PdM
 createdAt: 2026-06-18
 googleSheetId: ""
+repository: your-name/your-repo@main:docs/specs/login-spec.md
 ---
 
 # ログイン機能 検証シート（サンプル）
@@ -43,7 +44,7 @@ googleSheetId: ""
 ## 4. Sheets ⇆ GitHub 同期（v0.7.1 〜）
 
 - frontmatter に `googleSheetId: <ID>` を書く → 当該 Sheet とリンク
-- frontmatter に `repository: owner/repo@branch:path` を書く → 送信先を宣言
+- frontmatter の `repository: your-name/your-repo@main:docs/specs/login-spec.md` を **自分の repo に書き換え**（push 先の宣言）
 - サイドバーで PAT（contents: write 権限）を保存
 - Sheet を編集後、サイドバーの **「GitHub に push」ボタン** を押下 → GitHub Contents API 経由で md ファイルに commit（`git push` と同じメンタルモデル）
 - 自動同期は v0.7.1 で廃止（編集中の中間状態で git 履歴が汚れるのを避けるため）

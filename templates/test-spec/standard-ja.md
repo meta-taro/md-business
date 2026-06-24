@@ -19,6 +19,7 @@
   - /docs/inventory-spec.md
   - /docs/invoice-spec.md
 シートID: 1abcDEF_replaceWithYourGoogleSheetsFileId
+# repository: owner/repo@branch:path   # 「GitHub に push」ボタンを使う場合に追記（git push の送信先宣言）
 列定義:
   - 名前: 項目
     型: 文字列
