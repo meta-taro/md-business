@@ -23,8 +23,8 @@ Optional fields:
 |------------------|----------------------------|------------------------------------------------------------------------------------|
 | `reviewers`      | `Array<{name, role?}>`     | Same shape as `authors`.                                                           |
 | `relatedDocs`    | `string[]`                 | Paths or URLs, passed through verbatim.                                            |
-| `googleSheetId`  | `string`                   | Required when onEdit auto-sync is enabled. Bound Google Sheets file ID.            |
-| `repository`     | `string`                   | GitHub binding for onEdit auto-sync. Format: `owner/repo@branch:path` (`@branch` optional, defaults to `main`). |
+| `googleSheetId`  | `string`                   | Bound Google Sheets file ID (used by the Workspace Add-on "Push to GitHub" button). |
+| `repository`     | `string`                   | GitHub binding for the Workspace Add-on "Push to GitHub" button. Format: `owner/repo@branch:path` (`@branch` optional, defaults to `main`). |
 | `theme`          | `string`                   | Preset name (`blue`, `red`, …) or `#rrggbb`.                                       |
 | `fileName`       | `string`                   | PDF filename template.                                                             |
 

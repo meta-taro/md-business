@@ -59,7 +59,7 @@
 # 受発注ワークフロー 検証シート
 
 本シートは基幹システム「Order Console」の受発注ワークフロー機能リリース前検証を目的とした検証シートです。
-frontmatter の `列定義` がそのまま Google Sheets の DataValidation / ConditionalFormat / SetFrozenRows に反映され、シート編集 → md 自動 commit のラウンドトリップが成立します。
+frontmatter の `列定義` がそのまま Google Sheets の DataValidation / ConditionalFormat / SetFrozenRows に反映され、シート編集後にサイドバーの「GitHub に push」ボタンを押すと md ファイルへ commit されるラウンドトリップが成立します（`git push` と同じメンタルモデル）。
 
 ## 検証範囲
 
