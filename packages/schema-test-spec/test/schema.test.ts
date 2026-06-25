@@ -1,7 +1,23 @@
 import { describe, it, expect } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { dirname, resolve } from 'node:path';
+import Ajv2020 from 'ajv/dist/2020.js';
+import addFormats from 'ajv-formats';
 import { parseAndValidate } from '@md-business/core/runtime';
-import { testSpecSchema, SCHEMA_VERSION } from '../src/index.js';
+import { testSpecSchema, SCHEMA_VERSION, normalizeTestSpecFrontmatter } from '../src/index.js';
 import type { TestSpec } from '../src/index.js';
+
+const here = dirname(fileURLToPath(import.meta.url));
+const templatesDir = resolve(here, '../../../templates/test-spec');
+
+function loadTemplate(name: string): string {
+  return readFileSync(resolve(templatesDir, name), 'utf8');
+}
+
+const ajv = new (Ajv2020 as unknown as typeof import('ajv').default)({ allErrors: true, strict: false });
+(addFormats as unknown as (ajv: unknown) => void)(ajv);
+const validateTestSpec = ajv.compile(testSpecSchema);
 
 function buildTestSpec(): Record<string, unknown> {
   return {
@@ -35,6 +51,22 @@ function toFrontmatter(data: Record<string, unknown>): string {
     .join('\n');
   return `---\n${yaml}\n---\n`;
 }
+
+describe('templates/test-spec/standard-ja.md', () => {
+  it('parses, normalizes and passes schema validation (OSS template must be ajv-valid as-shipped)', () => {
+    const raw = loadTemplate('standard-ja.md');
+    const result = parseAndValidate<Record<string, unknown>>(raw, { type: 'object' });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const { data, warnings } = normalizeTestSpecFrontmatter(result.frontmatter);
+    expect(warnings).toEqual([]);
+    const valid = validateTestSpec(data);
+    if (!valid) {
+      console.error('templates/test-spec/standard-ja.md validation errors:', validateTestSpec.errors);
+    }
+    expect(valid).toBe(true);
+  });
+});
 
 describe('testSpecSchema constants', () => {
   it('exports the schema as an object', () => {
