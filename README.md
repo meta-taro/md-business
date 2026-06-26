@@ -1,5 +1,11 @@
 # md-business
 
+[![CI](https://github.com/meta-taro/md-business/actions/workflows/ci.yml/badge.svg)](https://github.com/meta-taro/md-business/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-yellow.svg)](./LICENSE)
+[![Node.js 24 LTS](https://img.shields.io/badge/node-24%20LTS-brightgreen.svg)](https://nodejs.org/)
+[![pnpm](https://img.shields.io/badge/pnpm-required-F69220.svg)](https://pnpm.io/)
+[![Chrome Web Store](https://img.shields.io/badge/Chrome%20Web%20Store-published-4285F4.svg)](https://chromewebstore.google.com/detail/lmdplkkfmgapnhombimeohjliinifgjh)
+
 > **English** | [日本語](./README.ja.md)
 
 > AI-native business documents, powered by Markdown as the source of truth.
@@ -161,6 +167,21 @@ Every shipped template uses dummy data — no real company names, registration n
 Open any of these in the Chrome extension viewer or render via `@md-business/renderer-pdf` to produce a print-ready PDF without writing any code.
 
 Future templates may include estimates, meeting notes, contracts, API documents, database design documents, operational checklists, and other business documents.
+
+## Screenshots
+
+Screenshots will be added under [`docs/screenshots/`](./docs/screenshots/). See [`docs/screenshots/README.md`](./docs/screenshots/README.md) for capture specs (1280 × 800 px / PNG) and the list of planned shots:
+
+- Chrome extension viewer rendering a qualified invoice
+- Chrome extension A4 PDF preview
+- Google Workspace Add-on test-spec sheet view
+- Google Workspace Add-on "GitHub push" sidebar action
+
+For now, see the published Chrome Web Store listing for the viewer screenshots: <https://chromewebstore.google.com/detail/lmdplkkfmgapnhombimeohjliinifgjh>.
+
+## Forking & customization
+
+md-business is MIT-licensed and explicitly designed to be forked for in-house, consulting, and per-vendor deployments. See [`docs/fork-guide/`](./docs/fork-guide/README.md) for the recommended fork strategies, upstream sync workflow, per-package customization points, and distribution channel notes.
 
 ## Long-term vision
 
