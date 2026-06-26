@@ -222,6 +222,68 @@ export function applySheetValuesToSpec(
   };
 }
 
+/**
+ * Sheet values の **末尾の空 row** を削除する。
+ *
+ * Why: Google Sheets の新規シートは 1000 行のデフォルト空行を持ち、`SpreadsheetApp`
+ *      の `getDataRange().getValues()` は checkbox 列のデフォルト値 `false` を
+ *      「データあり」と誤判定する。trim せずに md export すると本文 table に
+ *      数百〜千行の空 row が混入し、commit が肥大化する (Issue #44)。
+ *
+ * 仕様:
+ * - header (index 0) は常に保持
+ * - body row を末尾から走査し、すべてのセルが「空」と判定される連続 row を drop
+ * - 中間の空 row (last non-empty より上) は保持
+ * - 空判定:
+ *   - `null` / `undefined` / 空文字列 / 空白のみ文字列
+ *   - checkbox 列のみ: boolean `false` / 文字列 `'FALSE'` / `'false'`
+ *   - その他の型 (boolean false on non-checkbox 列、数値 0 など) はデータあり扱い
+ */
+export function trimTrailingEmptyRows(
+  spec: TestSpec,
+  values: ReadonlyArray<ReadonlyArray<unknown>>,
+): unknown[][] {
+  if (values.length === 0) return [];
+  const result = values.map((row) => row.slice());
+  if (result.length === 1) return result;
+
+  const header = result[0] ?? [];
+  const headerNames = header.map((c) => (c === null || c === undefined ? '' : String(c)));
+  const specByName = new Map(spec.columns.map((c) => [c.name, c]));
+  const checkboxCols = new Set<number>();
+  headerNames.forEach((name, idx) => {
+    if (specByName.get(name)?.type === 'checkbox') checkboxCols.add(idx);
+  });
+
+  let lastNonEmpty = 0; // header row index
+  for (let r = 1; r < result.length; r++) {
+    const row = result[r] ?? [];
+    let isEmpty = true;
+    for (let c = 0; c < row.length; c++) {
+      if (!isCellEmptyForTrim(row[c], checkboxCols.has(c))) {
+        isEmpty = false;
+        break;
+      }
+    }
+    if (!isEmpty) lastNonEmpty = r;
+  }
+  return result.slice(0, lastNonEmpty + 1);
+}
+
+function isCellEmptyForTrim(raw: unknown, isCheckbox: boolean): boolean {
+  if (raw === null || raw === undefined) return true;
+  if (typeof raw === 'string') {
+    if (raw.trim() === '') return true;
+    if (isCheckbox) {
+      const v = raw.trim().toUpperCase();
+      if (v === 'FALSE') return true;
+    }
+    return false;
+  }
+  if (isCheckbox && raw === false) return true;
+  return false;
+}
+
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 const BOOLEAN_STRINGS = new Set(['TRUE', 'FALSE', 'true', 'false', '']);
 

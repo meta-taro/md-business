@@ -7,6 +7,7 @@ import {
 } from './githubApi.js';
 import {
   applySheetValuesToSpec,
+  trimTrailingEmptyRows,
   validateSheetValues,
   type SheetValidationIssue,
 } from './testSpecSheetOps.js';
@@ -50,13 +51,16 @@ export function prepareAutoSyncCommit(input: AutoSyncPrepareInput): AutoSyncPrep
     return { kind: 'skip', reason: 'no_repository' };
   }
 
-  const mutableValues = input.sheetValues.map((row) => row.slice());
-  const issues = validateSheetValues(input.spec, mutableValues);
+  // Sheets デフォルトの末尾空行 (約 1000 行) を trim してから validate / export する。
+  // checkbox 列の false がデータあり判定されると md table に空 row が大量に出力される
+  // ため、validation 前に削る (Issue #44)。
+  const trimmedValues = trimTrailingEmptyRows(input.spec, input.sheetValues);
+  const issues = validateSheetValues(input.spec, trimmedValues);
   if (issues.length > 0) {
     return { kind: 'skip', reason: 'validation_failed', validationIssues: issues };
   }
 
-  const { body } = applySheetValuesToSpec(input.spec, mutableValues);
+  const { body } = applySheetValuesToSpec(input.spec, trimmedValues);
   const markdown = `${input.frontmatterBlock}\n\n${body}\n`;
   const commitMessage = buildAutoCommitMessage(
     input.customMessage === undefined

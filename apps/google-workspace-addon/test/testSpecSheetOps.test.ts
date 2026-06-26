@@ -6,6 +6,7 @@ import {
   applySheetValuesToSpec,
   validateSheetValues,
   resolveSheetName,
+  trimTrailingEmptyRows,
   type SheetWriteOps,
   type SheetValidationIssue,
 } from '../src/lib/testSpecSheetOps.js';
@@ -607,5 +608,138 @@ describe('validateSheetValues', () => {
 
   it('returns empty issues when sheet values are empty', () => {
     expect(validateSheetValues(sampleSpec(), [])).toEqual([]);
+  });
+});
+
+describe('trimTrailingEmptyRows', () => {
+  it('returns input as-is when no trailing empty rows exist', () => {
+    const spec = sampleSpec({
+      columns: [
+        { name: '項目', type: 'text' },
+        { name: '完了', type: 'checkbox' },
+      ],
+    });
+    const trimmed = trimTrailingEmptyRows(spec, [
+      ['項目', '完了'],
+      ['ログイン', true],
+      ['ログアウト', false],
+    ]);
+    expect(trimmed).toEqual([
+      ['項目', '完了'],
+      ['ログイン', true],
+      ['ログアウト', false],
+    ]);
+  });
+
+  it('trims trailing rows where all string cells are empty and checkbox cells are false (Issue #44 root cause)', () => {
+    const spec = sampleSpec();
+    const header = ['項目', '手順', '結果', '実施日', '回数', '完了', '参考リンク'];
+    const data = ['ログイン正常', '入力', 'OK', '2026-06-25', 1, true, 'https://example.com'];
+    const emptyRow = ['', '', '', '', '', false, ''];
+    const trimmed = trimTrailingEmptyRows(spec, [header, data, ...Array(1000).fill(emptyRow)]);
+    expect(trimmed).toEqual([header, data]);
+  });
+
+  it('trims when boolean false appears as the string "FALSE" (Apps Script may stringify)', () => {
+    const spec = sampleSpec({
+      columns: [
+        { name: '項目', type: 'text' },
+        { name: '完了', type: 'checkbox' },
+      ],
+    });
+    const trimmed = trimTrailingEmptyRows(spec, [
+      ['項目', '完了'],
+      ['有効行', 'TRUE'],
+      ['', 'FALSE'],
+      ['', 'false'],
+    ]);
+    expect(trimmed).toEqual([
+      ['項目', '完了'],
+      ['有効行', 'TRUE'],
+    ]);
+  });
+
+  it('preserves header even when all body rows are empty', () => {
+    const spec = sampleSpec({
+      columns: [
+        { name: '項目', type: 'text' },
+        { name: '完了', type: 'checkbox' },
+      ],
+    });
+    const trimmed = trimTrailingEmptyRows(spec, [
+      ['項目', '完了'],
+      ['', false],
+      ['', false],
+    ]);
+    expect(trimmed).toEqual([['項目', '完了']]);
+  });
+
+  it('does NOT trim intermediate empty rows above the last non-empty row', () => {
+    const spec = sampleSpec({
+      columns: [
+        { name: '項目', type: 'text' },
+        { name: '完了', type: 'checkbox' },
+      ],
+    });
+    const trimmed = trimTrailingEmptyRows(spec, [
+      ['項目', '完了'],
+      ['先頭', true],
+      ['', false],
+      ['', false],
+      ['末尾', false],
+      ['', false],
+    ]);
+    expect(trimmed).toEqual([
+      ['項目', '完了'],
+      ['先頭', true],
+      ['', false],
+      ['', false],
+      ['末尾', false],
+    ]);
+  });
+
+  it('treats null / undefined / whitespace-only cells as empty', () => {
+    const spec = sampleSpec({
+      columns: [
+        { name: '項目', type: 'text' },
+        { name: '備考', type: 'text' },
+      ],
+    });
+    const trimmed = trimTrailingEmptyRows(spec, [
+      ['項目', '備考'],
+      ['x', 'y'],
+      [null, undefined],
+      ['   ', '\t'],
+    ]);
+    expect(trimmed).toEqual([
+      ['項目', '備考'],
+      ['x', 'y'],
+    ]);
+  });
+
+  it('keeps row where a non-checkbox cell holds boolean false as data', () => {
+    const spec = sampleSpec({
+      columns: [
+        { name: '項目', type: 'text' },
+        { name: '備考', type: 'text' },
+      ],
+    });
+    const trimmed = trimTrailingEmptyRows(spec, [
+      ['項目', '備考'],
+      ['x', false],
+    ]);
+    expect(trimmed).toEqual([
+      ['項目', '備考'],
+      ['x', false],
+    ]);
+  });
+
+  it('returns empty array when input is empty', () => {
+    expect(trimTrailingEmptyRows(sampleSpec(), [])).toEqual([]);
+  });
+
+  it('returns header-only input as-is', () => {
+    const spec = sampleSpec({ columns: [{ name: '項目', type: 'text' }] });
+    expect(trimTrailingEmptyRows(spec, [['項目']])).toEqual([['項目']]);
   });
 });
