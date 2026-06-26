@@ -141,11 +141,24 @@ They are adapters around the Markdown source of truth.
 
 ## Current templates
 
-| Template           | Schema         |
-| ------------------ | -------------- |
-| Invoice            | `invoice/v1`   |
-| Test specification | `test-spec/v1` |
-| Design document    | `spec/v1`      |
+| Template           | Schema         | Location                                              |
+| ------------------ | -------------- | ----------------------------------------------------- |
+| Invoice            | `invoice/v1`   | [`templates/invoice/`](./templates/invoice/) — 4 variants |
+| Test specification | `test-spec/v1` | [`templates/test-spec/`](./templates/test-spec/)      |
+| Design document    | `spec/v1`      | [`templates/spec/`](./templates/spec/)                |
+
+### Using a template
+
+Every shipped template uses dummy data — no real company names, registration numbers, bank accounts, or invoice numbers. **Copy the file into your own workspace and edit the values in place.**
+
+**Invoice templates** (`templates/invoice/`):
+
+- `standard.md` — English baseline, single item at 10%
+- `standard-ja.md` — Japanese baseline, mixed 10% / 8% tax rates, bank account, and 適格請求書発行事業者 registration number (T + 13-digit dummy)
+- `tax-exempt-ja.md` — 免税事業者 (tax-exempt sole proprietor) variant — no registration number, with the 2023–2029 経過措置 footnote
+- `inbound-eligible.md` — Multi-item invoice exercising both the standard and the reduced tax rate
+
+Open any of these in the Chrome extension viewer or render via `@md-business/renderer-pdf` to produce a print-ready PDF without writing any code.
 
 Future templates may include estimates, meeting notes, contracts, API documents, database design documents, operational checklists, and other business documents.
 
