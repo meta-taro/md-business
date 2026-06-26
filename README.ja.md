@@ -1,5 +1,11 @@
 # md-business
 
+[![CI](https://github.com/meta-taro/md-business/actions/workflows/ci.yml/badge.svg)](https://github.com/meta-taro/md-business/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-yellow.svg)](./LICENSE)
+[![Node.js 24 LTS](https://img.shields.io/badge/node-24%20LTS-brightgreen.svg)](https://nodejs.org/)
+[![pnpm](https://img.shields.io/badge/pnpm-required-F69220.svg)](https://pnpm.io/)
+[![Chrome Web Store](https://img.shields.io/badge/Chrome%20Web%20Store-published-4285F4.svg)](https://chromewebstore.google.com/detail/lmdplkkfmgapnhombimeohjliinifgjh)
+
 > [English](./README.md) | **日本語**
 
 > Markdown を真の正本（source of truth）として扱う、AI ネイティブな業務文書フレームワーク。
@@ -154,6 +160,21 @@ Markdown 正本を取り巻く **アダプター** にすぎません。
 Chrome 拡張ビューワーで開く、または `@md-business/renderer-pdf` でレンダリングすると、コードを書かずに印刷品質の PDF が生成できます。
 
 今後、見積書・議事録・契約書・API 仕様書・DB 設計書・運用チェックリストなど、他の業務文書のテンプレートも追加予定です。
+
+## スクリーンショット
+
+スクリーンショットは [`docs/screenshots/`](./docs/screenshots/) 配下に順次配置します。撮影規格（1280 × 800 px / PNG）と必要画像の一覧は [`docs/screenshots/README.md`](./docs/screenshots/README.md) を参照してください。配置予定:
+
+- Chrome 拡張で適格請求書を表示している様子
+- Chrome 拡張の A4 PDF 出力プレビュー
+- Google Workspace Add-on で検証シートを Sheets 表示
+- Google Workspace Add-on の「GitHub に push」サイドバー操作
+
+現時点では Chrome Web Store の公開ページからビューワー画像を確認できます: <https://chromewebstore.google.com/detail/lmdplkkfmgapnhombimeohjliinifgjh>
+
+## Fork & カスタマイズ
+
+md-business は MIT ライセンスで、企業内 / コンサル案件 / 業種別ホワイトラベル配信のために **fork すること自体を歓迎する設計** です。fork 戦略・上流追従の運用・各サブパッケージのカスタマイズ余地・配布チャネル別の注意点は [`docs/fork-guide/`](./docs/fork-guide/README.md) を参照してください。
 
 ## 長期ビジョン
 
