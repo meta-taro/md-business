@@ -13,6 +13,8 @@ import {
 import {
   buildContentsUrl,
   buildContentsPutPayload,
+  maskPat,
+  parseRepositoryField,
   type RepoRef,
 } from './lib/githubApi.js';
 import {
@@ -428,6 +430,26 @@ export function hasGithubPat(): boolean {
 }
 
 /**
+ * サイドバー初期化時に「PAT は登録済みです」を可視化するためのマスク値を返す。
+ * Why: 投入後に画面に何も出ないと、PdM は「保存できたのか？」を毎回不安になる。
+ *      完全表示は秘密を画面に晒すため不可、頭4 + 末尾4 のみ可視化する。
+ *      未登録時は null（サイドバー側で未設定 UI を出す）。
+ */
+export function getMaskedPat(): string | null {
+  const pat = PropertiesService.getUserProperties().getProperty(KEY_GITHUB_PAT);
+  return maskPat(pat);
+}
+
+/**
+ * サイドバーの textarea 内容から push 先 RepoRef をプレビュー用に抽出する純粒度の API。
+ * Why: 「コミット先リポジトリ」を frontmatter で指定したあと、push 前にユーザが
+ *      「どこに行くのか」を視覚で確認できるようにする。サイドバーから直接呼ぶ。
+ */
+export function previewPushTarget(markdownSource: string): RepoRef | null {
+  return parseRepositoryField(markdownSource);
+}
+
+/**
  * Phase 3E: アイコンパレット UX 用の純粋関数 expose 層。
  * サイドバーが google.script.run 経由で呼び、frontmatter を直書きせず
  * 「列名入力 + アイコンクリック」で columns を編集できるようにする。
@@ -478,6 +500,7 @@ export function validateUploadedMarkdownAction(
 export function pushTestSpecToGithub(markdownSource: string): {
   ok: true;
   commitSha: string;
+  commitUrl: string;
   bytes: number;
 } | {
   ok: false;
@@ -511,7 +534,7 @@ function pushMarkdownToGithub(
   repoRef: RepoRef,
   markdown: string,
   commitMessage: string,
-): { ok: true; commitSha: string; bytes: number } | { ok: false; error: string } {
+): { ok: true; commitSha: string; commitUrl: string; bytes: number } | { ok: false; error: string } {
   const contentBase64 = Utilities.base64Encode(markdown, Utilities.Charset.UTF_8);
   const url = buildContentsUrl(repoRef);
   const headers = {
@@ -578,5 +601,8 @@ function pushMarkdownToGithub(
     // 成功時の commit sha 取得失敗は無視（empty で続行）
   }
   const bytes = Utilities.newBlob(markdown).getBytes().length;
-  return { ok: true, commitSha, bytes };
+  const commitUrl = commitSha
+    ? `https://github.com/${repoRef.owner}/${repoRef.repo}/commit/${commitSha}`
+    : '';
+  return { ok: true, commitSha, commitUrl, bytes };
 }
