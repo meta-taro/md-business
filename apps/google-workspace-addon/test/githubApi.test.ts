@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 
 import {
   parseRepoRef,
+  parseRepositoryField,
+  maskPat,
   buildContentsUrl,
   buildContentsPutPayload,
   extractRepoRefFromSpec,
@@ -179,6 +181,121 @@ describe('extractRepoRefFromSpec', () => {
   it('defaults branch to main when @branch is omitted', () => {
     const spec = buildSpec({ repository: 'o/r:verify.md' });
     expect(extractRepoRefFromSpec(spec)?.branch).toBe('main');
+  });
+});
+
+describe('parseRepositoryField', () => {
+  it('extracts and parses repository from valid frontmatter', () => {
+    const src = `---
+schema: test-spec/v1
+repository: meta-taro/md-business@main:docs/verify.md
+---
+
+# Body
+`;
+    expect(parseRepositoryField(src)).toEqual<RepoRef>({
+      owner: 'meta-taro',
+      repo: 'md-business',
+      branch: 'main',
+      path: 'docs/verify.md',
+    });
+  });
+
+  it('returns null when frontmatter is absent', () => {
+    expect(parseRepositoryField('# just body')).toBeNull();
+  });
+
+  it('returns null when repository key is absent in frontmatter', () => {
+    const src = `---
+schema: test-spec/v1
+---
+body`;
+    expect(parseRepositoryField(src)).toBeNull();
+  });
+
+  it('returns null when repository value is empty', () => {
+    const src = `---
+schema: test-spec/v1
+repository:
+---`;
+    expect(parseRepositoryField(src)).toBeNull();
+  });
+
+  it('returns null when repository value is malformed (parseRepoRef rejects)', () => {
+    const src = `---
+repository: not-a-valid-ref
+---`;
+    expect(parseRepositoryField(src)).toBeNull();
+  });
+
+  it('handles double-quoted string values', () => {
+    const src = `---
+repository: "meta-taro/md-business@main:x.md"
+---`;
+    expect(parseRepositoryField(src)?.owner).toBe('meta-taro');
+  });
+
+  it('handles single-quoted string values', () => {
+    const src = `---
+repository: 'meta-taro/md-business@main:x.md'
+---`;
+    expect(parseRepositoryField(src)?.owner).toBe('meta-taro');
+  });
+
+  it('ignores repository: text in body outside frontmatter', () => {
+    const src = `# Title
+
+repository: o/r@main:x.md
+`;
+    expect(parseRepositoryField(src)).toBeNull();
+  });
+
+  it('returns null when frontmatter YAML is malformed', () => {
+    const src = `---
+repository: o/r@main:x.md
+  bad indent: [
+---`;
+    expect(parseRepositoryField(src)).toBeNull();
+  });
+
+  it('returns null for empty input', () => {
+    expect(parseRepositoryField('')).toBeNull();
+  });
+
+  it('returns null for non-string input', () => {
+    expect(parseRepositoryField(null as unknown as string)).toBeNull();
+    expect(parseRepositoryField(undefined as unknown as string)).toBeNull();
+  });
+});
+
+describe('maskPat', () => {
+  it('masks a typical ghp_ token preserving 4 head + 4 tail chars', () => {
+    expect(maskPat('ghp_abcd12345xyz6789')).toBe('ghp_…••6789');
+  });
+
+  it('masks fine-grained github_pat_ tokens', () => {
+    const pat = 'github_pat_11ABCDEFG0somerandompayloadXYZ';
+    const result = maskPat(pat);
+    expect(result?.startsWith('gith')).toBe(true);
+    expect(result?.endsWith('dXYZ')).toBe(true);
+    expect(result).toContain('…••');
+  });
+
+  it('returns ••••• for short strings (under threshold) to avoid leaking secret', () => {
+    expect(maskPat('short')).toBe('••••');
+    expect(maskPat('abcdefghijk')).toBe('••••'); // 11 chars < 12
+  });
+
+  it('returns null for empty / null / undefined', () => {
+    expect(maskPat('')).toBeNull();
+    expect(maskPat(null)).toBeNull();
+    expect(maskPat(undefined)).toBeNull();
+  });
+
+  it('does not include the middle bytes of the secret', () => {
+    const secret = 'ghp_SECRETmiddleVISIBLE9999';
+    const masked = maskPat(secret);
+    expect(masked).not.toContain('SECRETmiddleVISIBLE');
   });
 });
 
