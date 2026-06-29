@@ -25,7 +25,7 @@ md-business は、Markdown ファースト × 特化ビューワー × 多チャ
 ・Markdown ⇄ Google Sheets 双方向変換: サイドバーに「schema: test-spec/v1」の YAML frontmatter を含む md を貼り付けて「インポート」すると、列スキーマ（型 / enum / 日付 / チェックボックス / URL など）に従って DataValidation と ConditionalFormat が自動適用された Sheets に変換されます。md 本文の表もそのまま行データとして取り込まれます。Sheets を編集して「md 書き出し」を押すと、frontmatter + 表形式の Markdown へラウンドトリップで戻ります。
 ・検証シート（test-spec）の列スキーマ強制: enum 値の制約・日付バリデーション・必須列の検証を Sheets 上で即時フィードバック。サイドバーから「検証」ボタンで未知の列名・enum 違反・型不一致をまとめてレポートします。
 ・そのまま使える列レイアウト: frontmatter の「幅倍率」と「折り返し」指定で、AI が作成した md でも Sheets 化時に「項目=狭め / 手順=広め / 備考=広め」の列幅と複数行折り返しが自動適用されます。Gemini in Sheets と組み合わせると、開いた瞬間から自然な表として認識・整形してもらえます。
-・フリー入力列のエラー抑制: 「必須: false」を指定した列は DataValidation 警告マーカーが付かないため、「実施日 = —」「担当 = TBD」などの自由記述もエラー扱いになりません。
+・未入力セルの寛容処理: 列を「必須: false」で宣言すると、未実施・未確定の行で当該セルを空のままにしてもエラーになりません。未入力は空セルで表現するのが推奨です（OSS 公開のデータセル運用規約に準拠）。
 ・GitHub Push（オプトイン）: ユーザー自身が GitHub Personal Access Token を設定し、frontmatter の「repository: owner/repo@branch:path」で送信先を宣言した上で、サイドバーの「GitHub に push」ボタンを押すと、Sheets の現在の内容を .md として commit します。「git push」と同じメンタルモデルで、保存したいタイミングだけ 1 commit するため、編集中の中間状態で git 履歴が汚れません。コミットメッセージは frontmatter の「documentNumber」から自動生成します。
 ・業務寄りのテンプレート内蔵: 適格請求書 / 基本設計書 / 受発注ワークフロー検証シートのサンプルテンプレを内蔵。Markdown 初心者でも貼り付けるだけで雛形が動きます。
 ・Docs / Sheets / Slides いずれの画面からも、右側パネルからアドオンを呼び出せます。
