@@ -609,6 +609,27 @@ describe('validateSheetValues', () => {
   it('returns empty issues when sheet values are empty', () => {
     expect(validateSheetValues(sampleSpec(), [])).toEqual([]);
   });
+
+  it('treats em-dash / en-dash / horizontal-bar / N/A / TBD as empty cells across all typed columns (#50)', () => {
+    const spec = sampleSpec({
+      columns: [
+        { name: '結果', type: 'enum', values: ['OK', 'NG'] },
+        { name: '実施日', type: 'date' },
+        { name: '回数', type: 'number', min: 1, max: 10 },
+        { name: '参考リンク', type: 'url' },
+      ],
+    });
+    const issues = validateSheetValues(spec, [
+      ['結果', '実施日', '回数', '参考リンク'],
+      ['—', '—', '—', '—'],
+      ['–', '–', '–', '–'],
+      ['―', '―', '―', '―'],
+      ['N/A', 'N/A', 'N/A', 'N/A'],
+      ['TBD', 'TBD', 'TBD', 'TBD'],
+      [' — ', ' N/A ', ' TBD ', ' – '],
+    ]);
+    expect(issues).toEqual([]);
+  });
 });
 
 describe('trimTrailingEmptyRows', () => {

@@ -99,6 +99,10 @@
 - `values:` 配列は YAML フロースタイル `[OK, NG, 保留, 未実施]` でもブロックスタイルでも可
 - `googleSheetId` は Google Sheets URL の `/d/{id}/edit` の `id` 部分のみ抜き出して指定
 
+## データセル運用
+
+未入力 / 未確定 / 未実施のセルは **空のまま** にしてください。`—` / `–` / `―` / `N/A` / `TBD` 等の代替記号は使いません。日付列は空セルのみ許容され、`—` 等を入れると `validateDateCell` が `invalid_date` で push を中断します。詳細: [`docs/data-cell-conventions.md`](../data-cell-conventions.md)。
+
 ## バリデーション例
 
 ### Browser / MV3（推奨・Ajv ランタイム不要）
