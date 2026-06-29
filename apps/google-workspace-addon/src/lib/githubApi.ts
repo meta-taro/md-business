@@ -1,4 +1,6 @@
+import yaml from 'js-yaml';
 import type { TestSpec } from '@md-business/schema-test-spec';
+import { extractFrontmatter } from './frontmatterEdit.js';
 
 export type RepoRef = {
   owner: string;
@@ -92,6 +94,46 @@ export function buildContentsPutPayload(
     payload.committer = input.committer;
   }
   return payload;
+}
+
+/**
+ * Parse the `repository:` field from a full markdown source (frontmatter + body).
+ * Why: sidebar needs to preview the push destination while the user is still
+ *      editing the textarea, before the spec is fully ajv-validated.
+ *      Reads only the frontmatter block — body text containing "repository:"
+ *      must be ignored to avoid misleading the user.
+ */
+export function parseRepositoryField(markdownSource: string): RepoRef | null {
+  if (typeof markdownSource !== 'string' || markdownSource.length === 0) {
+    return null;
+  }
+  const { yaml: yamlStr } = extractFrontmatter(markdownSource);
+  if (yamlStr.trim().length === 0) return null;
+
+  let parsed: unknown;
+  try {
+    parsed = yaml.load(yamlStr, { schema: yaml.JSON_SCHEMA });
+  } catch {
+    return null;
+  }
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    return null;
+  }
+  const repoRaw = (parsed as Record<string, unknown>).repository;
+  if (typeof repoRaw !== 'string') return null;
+  return parseRepoRef(repoRaw);
+}
+
+/**
+ * Mask a GitHub PAT for display in the sidebar.
+ * Why: confirming "the PAT is stored" relieves user anxiety, but echoing the
+ *      full token defeats the purpose. Show first 4 + last 4 only when the
+ *      token is long enough that those edges are not the whole secret.
+ */
+export function maskPat(pat: string | null | undefined): string | null {
+  if (typeof pat !== 'string' || pat.length === 0) return null;
+  if (pat.length < 12) return '••••';
+  return `${pat.slice(0, 4)}…••${pat.slice(-4)}`;
 }
 
 export function extractRepoRefFromSpec(spec: TestSpec): RepoRef | null {

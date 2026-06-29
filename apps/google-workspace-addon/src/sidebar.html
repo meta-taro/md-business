@@ -42,6 +42,37 @@
       .status.err { color: #c5221f; background: #fce8e6; border-color: #f4c7c3; }
       .status:empty { display: none; }
       hr { border: 0; border-top: 1px solid #dadce0; margin: 16px 0; }
+      .info-card {
+        font-size: 12px;
+        padding: 8px 10px;
+        border-radius: 6px;
+        background: #e8f0fe;
+        border: 1px solid #aecbfa;
+        margin: 0 0 10px 0;
+        color: #174ea6;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+        line-height: 1.5;
+      }
+      .info-card.muted { background: #f1f3f4; border-color: #dadce0; color: #5f6368; }
+      .info-card.warn  { background: #fef7e0; border-color: #feefc3; color: #b06000; }
+      .info-card code {
+        background: rgba(0,0,0,0.06);
+        padding: 1px 5px;
+        border-radius: 3px;
+        font-family: 'Roboto Mono', 'Source Code Pro', monospace;
+        word-break: break-all;
+      }
+      .info-card a { color: inherit; text-decoration: underline; }
+      .info-card button.tiny {
+        padding: 2px 8px; font-size: 11px; line-height: 1.4;
+        background: #fff; color: #1a73e8; border: 1px solid #1a73e8; border-radius: 3px;
+      }
+      .info-card.warn button.tiny { color: #b06000; border-color: #b06000; }
+      .pat-form { display: none; }
+      .pat-form.show { display: flex; }
     </style>
   </head>
   <body>
@@ -90,12 +121,15 @@
       frontmatter に <code>repository: owner/repo@branch:path</code> を書いて
       「GitHub に push」を押すと、現在のシート内容を 1 コミットで PUT します
       （<code>git push</code> と同じメンタルモデル）。
-      <strong>PAT は PdM が手作業で登録</strong>してください。
     </p>
-    <div class="actions">
-      <input id="pat-input" type="password" placeholder="ghp_..." style="flex: 1;" />
+
+    <div id="pat-status-card" class="info-card muted">PAT 状態を確認中…</div>
+    <div id="push-target-card" class="info-card muted">push 先プレビュー読み込み中…</div>
+
+    <div class="actions pat-form" id="pat-form">
+      <input id="pat-input" type="password" placeholder="ghp_..." style="flex: 1;" autocomplete="off" />
       <button id="pat-save-btn" class="secondary">PAT を保存</button>
-      <button id="pat-clear-btn" class="secondary">PAT 削除</button>
+      <button id="pat-cancel-btn" class="secondary">キャンセル</button>
     </div>
     <div class="actions">
       <button id="push-btn">GitHub に push</button>
@@ -108,7 +142,10 @@
       const tsExportBtn = $('ts-export-btn');
       const patInput = $('pat-input');
       const patSaveBtn = $('pat-save-btn');
-      const patClearBtn = $('pat-clear-btn');
+      const patCancelBtn = $('pat-cancel-btn');
+      const patForm = $('pat-form');
+      const patStatusCard = $('pat-status-card');
+      const pushTargetCard = $('push-target-card');
       const pushBtn = $('push-btn');
       const colNameInput = $('col-name');
       const colPopBtn = $('col-pop-btn');
@@ -141,6 +178,14 @@
       function failureHandler() {
         return (err) => setError(err && err.message ? err.message : String(err));
       }
+      function escapeHtml(s) {
+        return String(s == null ? '' : s)
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#39;');
+      }
 
       function autoColumnName() {
         const raw = colNameInput.value.trim();
@@ -158,6 +203,7 @@
             .withSuccessHandler((res) => {
               if (res && res.ok) {
                 src.value = res.newSrc;
+                schedulePreview();
                 setBusy(false, 'テンプレ「' + tplKey + '」を適用しました。');
               } else {
                 setError(res && res.error);
@@ -188,6 +234,7 @@
             .withSuccessHandler((res) => {
               if (res && res.ok) {
                 src.value = res.newSrc;
+                schedulePreview();
                 colNameInput.value = '';
                 setBusy(false, '「' + colName + '」(' + colType + ') を追加しました。');
               } else {
@@ -217,6 +264,7 @@
             .withSuccessHandler((res) => {
               if (res && res.ok) {
                 src.value = res.src;
+                schedulePreview();
                 setBusy(false, '「' + fileName + '」を読み込みました（' + res.src.length + ' chars）。');
               } else {
                 setError(res && res.error);
@@ -235,6 +283,7 @@
           .withSuccessHandler((res) => {
             if (res && res.ok) {
               src.value = res.newSrc;
+              schedulePreview();
               setBusy(false, '末尾の列を削除しました。');
             } else {
               setError(res && res.error);
@@ -287,6 +336,7 @@
           .withSuccessHandler((res) => {
             if (res && res.ok) {
               src.value = res.markdown;
+              schedulePreview();
               setBusy(false, '検証シート frontmatter + body を書き出しました。');
             } else {
               setError(res && res.error);
@@ -296,14 +346,68 @@
           .exportTestSpecMarkdown(src.value);
       });
 
+      // ----- PAT 状態カード（投入済か未投入かを視覚で常時表示）------------------
+      // Why: PAT は password 入力直後に画面から消えるため、「保存できたのか？」を
+      //      毎回不安に思う。masked 値を出すことで「これがあなたの登録した PAT」を
+      //      認識してもらう。フル PAT は絶対に画面に出さない。
+      function showPatForm() { patForm.classList.add('show'); }
+      function hidePatForm() { patForm.classList.remove('show'); patInput.value = ''; }
+
+      function renderPatStatus() {
+        google.script.run
+          .withSuccessHandler((masked) => {
+            if (masked) {
+              patStatusCard.className = 'info-card';
+              patStatusCard.innerHTML =
+                '🔐 GitHub PAT 登録済み: <code>' + escapeHtml(masked) + '</code>' +
+                '<button class="tiny" id="pat-change-btn" type="button">変更</button>' +
+                '<button class="tiny" id="pat-delete-btn" type="button">削除</button>';
+              $('pat-change-btn').addEventListener('click', () => {
+                showPatForm();
+                patInput.focus();
+              });
+              $('pat-delete-btn').addEventListener('click', onPatDelete);
+              hidePatForm();
+            } else {
+              patStatusCard.className = 'info-card warn';
+              patStatusCard.innerHTML =
+                '🔓 GitHub PAT 未登録です。下のフォームから PAT を登録してください（push に必要）。';
+              showPatForm();
+            }
+          })
+          .withFailureHandler((err) => {
+            patStatusCard.className = 'info-card warn';
+            patStatusCard.textContent =
+              'PAT 状態の取得に失敗: ' + (err && err.message ? err.message : String(err));
+            showPatForm();
+          })
+          .getMaskedPat();
+      }
+
+      function onPatDelete() {
+        if (!window.confirm('PAT を削除します。よろしいですか？')) return;
+        setBusy(true, 'PAT を削除中...');
+        google.script.run
+          .withSuccessHandler(() => {
+            setBusy(false, 'PAT を削除しました。');
+            renderPatStatus();
+          })
+          .withFailureHandler(failureHandler())
+          .clearGithubPat();
+      }
+
       patSaveBtn.addEventListener('click', () => {
         const pat = patInput.value;
+        if (!pat || pat.trim().length === 0) {
+          setError('PAT を入力してください。');
+          return;
+        }
         setBusy(true, 'PAT を保存中...');
         google.script.run
           .withSuccessHandler((res) => {
             if (res && res.ok) {
-              patInput.value = '';
               setBusy(false, 'PAT を保存しました（UserProperties）。');
+              renderPatStatus();
             } else {
               setError(res && res.error);
             }
@@ -312,13 +416,54 @@
           .setGithubPat(pat);
       });
 
-      patClearBtn.addEventListener('click', () => {
-        setBusy(true, 'PAT を削除中...');
-        google.script.run
-          .withSuccessHandler(() => setBusy(false, 'PAT を削除しました。'))
-          .withFailureHandler(failureHandler())
-          .clearGithubPat();
+      patCancelBtn.addEventListener('click', () => {
+        hidePatForm();
+        setBusy(false, '');
+        // 既に登録済みなら status カードは「変更/削除」表示のままで OK
+        // 未登録ならフォームを閉じても card は warn のまま
       });
+
+      // ----- push 先プレビュー（textarea 編集に追随）------------------------
+      // Why: 「frontmatter で指定したから push 先は分かるよね」とは限らない。
+      //      タイポや忘れで意図しないリポへ push する事故を防ぐため、
+      //      textarea を編集するたびに「ここに行きます」を視覚化する。
+      let previewTimer = null;
+      function schedulePreview() {
+        if (previewTimer) clearTimeout(previewTimer);
+        previewTimer = setTimeout(() => updatePushTargetCard(src.value), 300);
+      }
+      function renderPushTargetRef(ref) {
+        const url =
+          'https://github.com/' + encodeURIComponent(ref.owner) +
+          '/' + encodeURIComponent(ref.repo) +
+          '/blob/' + encodeURIComponent(ref.branch) +
+          '/' + ref.path.split('/').map(encodeURIComponent).join('/');
+        pushTargetCard.className = 'info-card';
+        pushTargetCard.innerHTML =
+          '📤 push 先: <code>' + escapeHtml(ref.owner) + '/' + escapeHtml(ref.repo) +
+          '@' + escapeHtml(ref.branch) + ':' + escapeHtml(ref.path) + '</code> ' +
+          '<a href="' + url + '" target="_blank" rel="noopener noreferrer">GitHub で開く ↗</a>';
+      }
+      function renderPushTargetEmpty() {
+        pushTargetCard.className = 'info-card muted';
+        pushTargetCard.innerHTML =
+          '📤 push 先: 未指定。frontmatter に ' +
+          '<code>repository: owner/repo@branch:path</code> を追記してください。';
+      }
+      function updatePushTargetCard(srcText) {
+        google.script.run
+          .withSuccessHandler((ref) => {
+            if (ref) renderPushTargetRef(ref);
+            else renderPushTargetEmpty();
+          })
+          .withFailureHandler((err) => {
+            pushTargetCard.className = 'info-card warn';
+            pushTargetCard.textContent =
+              'push 先プレビュー取得失敗: ' + (err && err.message ? err.message : String(err));
+          })
+          .previewPushTarget(srcText);
+      }
+      src.addEventListener('input', schedulePreview);
 
       pushBtn.addEventListener('click', () => {
         setBusy(true, 'GitHub に push 中...');
@@ -326,7 +471,15 @@
           .withSuccessHandler((res) => {
             if (res && res.ok) {
               const sha = res.commitSha ? res.commitSha.slice(0, 7) : '(unknown)';
-              setBusy(false, 'push 完了。commit ' + sha + ' / ' + res.bytes + ' bytes。');
+              const url = res.commitUrl || '';
+              const linked = url
+                ? 'commit <a href="' + url + '" target="_blank" rel="noopener noreferrer">' +
+                  escapeHtml(sha) + ' ↗</a>'
+                : 'commit ' + escapeHtml(sha);
+              allBtns.forEach((b) => (b.disabled = false));
+              status.classList.remove('err');
+              status.innerHTML = '✅ push 完了。' + linked + ' / ' + res.bytes + ' bytes。';
+              scrollStatusIntoView();
             } else {
               setError(res && res.error);
             }
@@ -334,6 +487,10 @@
           .withFailureHandler(failureHandler())
           .pushTestSpecToGithub(src.value);
       });
+
+      // ----- 初期化 ----------------------------------------------------------
+      renderPatStatus();
+      updatePushTargetCard(src.value);
     </script>
   </body>
 </html>
