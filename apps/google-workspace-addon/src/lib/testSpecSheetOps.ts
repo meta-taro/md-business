@@ -286,6 +286,7 @@ function isCellEmptyForTrim(raw: unknown, isCheckbox: boolean): boolean {
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 const BOOLEAN_STRINGS = new Set(['TRUE', 'FALSE', 'true', 'false', '']);
+const EMPTY_CELL_PLACEHOLDERS = new Set(['—', '–', '―', 'N/A', 'n/a', 'TBD', 'tbd']);
 
 export function validateSheetValues(
   spec: TestSpec,
@@ -343,6 +344,7 @@ function validateCell(
   col: number,
 ): SheetValidationIssue | null {
   if (raw === null || raw === undefined || raw === '') return null;
+  if (typeof raw === 'string' && EMPTY_CELL_PLACEHOLDERS.has(raw.trim())) return null;
 
   switch (column.type) {
     case 'enum':
