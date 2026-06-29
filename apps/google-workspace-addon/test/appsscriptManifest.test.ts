@@ -8,10 +8,12 @@ const manifestPath = resolve(here, '../appsscript.json');
 
 interface Manifest {
   oauthScopes?: string[];
+  urlFetchWhitelist?: string[];
 }
 
 const manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as Manifest;
 const scopes = new Set<string>(manifest.oauthScopes ?? []);
+const whitelist = new Set<string>(manifest.urlFetchWhitelist ?? []);
 
 describe('apps/google-workspace-addon/appsscript.json oauthScopes', () => {
   it('includes script.external_request (used by pushTestSpecToGithub UrlFetchApp.fetch)', () => {
@@ -31,5 +33,11 @@ describe('apps/google-workspace-addon/appsscript.json oauthScopes', () => {
 
   it('does NOT include script.scriptapp (onEdit installable trigger was removed in #35 push-button refactor; Workspace Add-on context does not allow this scope)', () => {
     expect(scopes.has('https://www.googleapis.com/auth/script.scriptapp')).toBe(false);
+  });
+});
+
+describe('apps/google-workspace-addon/appsscript.json urlFetchWhitelist', () => {
+  it('declares api.github.com (required by Marketplace deploy for Workspace add-ons that use UrlFetchApp)', () => {
+    expect(whitelist.has('https://api.github.com/')).toBe(true);
   });
 });
