@@ -1,6 +1,6 @@
 # プライバシーポリシー — md-business
 
-**最終更新日: 2026-06-24**
+**最終更新日: 2026-06-29**
 
 ## 対象プロダクト
 
@@ -85,16 +85,15 @@ md-business Google Workspace アドオンは、Google Docs / Sheets / Slides の
 
 ## 権限（OAuth スコープ）の利用目的
 
-本アドオンは以下の 6 スコープを要求します。このうち 2 件は Google の **センシティブ（Sensitive）スコープ** に分類され、本アドオンが Google Workspace Marketplace の OAuth 検証申請を受ける根拠となっています。残る 1 件（`script.scriptapp`）は v0.7.0 以前の自動同期機能で使用していましたが、v0.7.1 で手動 push ボタンに移行したため manifest にのみ残置されており、ランタイム上は呼び出されません（次バージョンで削除予定）。
+本アドオンは以下の 5 スコープを要求します。このうち 1 件のみが Google の **センシティブ（Sensitive）スコープ** に分類され、本アドオンが Google Workspace Marketplace の OAuth 検証申請を受ける根拠となっています。
 
 | スコープ | 区分 | 利用目的 |
 |---|---|---|
-| `https://www.googleapis.com/auth/spreadsheets` | **Sensitive** | サイドバーの「GitHub に push」ボタン押下時に、アクティブシートを読み取って `.md` に変換するために必要。`.currentonly` ではアクティブシート以外を扱えないため広いスコープを要求します。 |
+| `https://www.googleapis.com/auth/spreadsheets.currentonly` | 非 Sensitive | サイドバーの「GitHub に push」ボタン押下時に、**現在開いているシートのみ** 読み取って `.md` に変換するために必要。アクティブシート以外には一切アクセスしません。 |
 | `https://www.googleapis.com/auth/documents.currentonly` | 非 Sensitive | 現在開いている Docs の読み書き（章立て変換機能） |
 | `https://www.googleapis.com/auth/presentations.currentonly` | 非 Sensitive | 現在開いている Slides の読み書き（スライド変換機能） |
 | `https://www.googleapis.com/auth/script.container.ui` | 非 Sensitive | サイドバー UI の表示 |
 | `https://www.googleapis.com/auth/script.external_request` | **Sensitive** | GitHub REST API への HTTPS リクエスト（ユーザー設定の GitHub リポジトリへの commit）。**ユーザーが「GitHub に push」ボタンを押した時のみ実際に通信が発生します**。 |
-| `https://www.googleapis.com/auth/script.scriptapp` | Sensitive（legacy） | v0.7.0 以前で onEdit installable trigger の登録・削除に使用していたスコープ。v0.7.1 で手動 push ボタンに移行したため現在は未使用。manifest 上にのみ残置されており、次バージョンで削除予定。 |
 
 ## 第三者へのデータ提供
 
@@ -126,6 +125,7 @@ md-business シリーズの全ソースコードは MIT ライセンスのもと
 
 ## 改訂履歴
 
+- **2026-06-29** — Google Workspace アドオン scope ダウングレード反映: `spreadsheets`（フル）→ `spreadsheets.currentonly` に変更。実装は元々アクティブシートのみアクセスする構造であったため、最小権限原則に整合させた。Sensitive スコープを 2 件 → 1 件（`script.external_request` のみ）に削減。`script.scriptapp` の manifest 残置記述は実体と乖離していたため削除（manifest には元々含まれていない）。
 - **2026-06-24** — Google Workspace アドオン v0.7.1 反映: 自動同期（onEdit installable trigger）を廃止し、サイドバーの「GitHub に push」ボタン押下時に commit する手動 push 方式へ移行。Sensitive スコープを 3 件 → 2 件（`spreadsheets` / `script.external_request`）に整理。`script.scriptapp` は manifest 残置のみ（次バージョンで削除予定）と明記。
 - **2026-06-22** — Google Workspace アドオン v0.7.0 反映: GitHub 自動同期機能の追加に伴い、Sensitive スコープ 3 件（`spreadsheets` / `script.external_request` / `script.scriptapp`）を明示。「外部送信なし」記述を撤回し、ユーザー自身の GitHub リポジトリへの送信仕様を追記。
 - **2026-06-18** — Google Workspace アドオン向けの宣言を追記。Chrome 拡張部分は変更なし。
