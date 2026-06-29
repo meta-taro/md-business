@@ -63,6 +63,10 @@
 ---
 ```
 
+## データセル運用
+
+設計書本文中の Markdown 表セルでは、未入力セルを **空のまま** にしてください。`—` / `–` / `―` / `N/A` / `TBD` 等の代替記号は使いません。詳細: [`docs/data-cell-conventions.md`](../data-cell-conventions.md)。
+
 ## バリデーション例
 
 ### Browser / MV3（推奨・Ajv ランタイム不要）

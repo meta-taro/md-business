@@ -88,3 +88,7 @@ const result = parseAndValidate<Spec>(markdownSource, specSchema);
 ## Sample template
 
 See [`templates/spec/standard-ja.md`](../../templates/spec/standard-ja.md) for a multi-page Japanese design document covering 8 chapters with Mermaid diagrams.
+
+## Data cell convention
+
+Empty cells are the only canonical representation for unfilled rows in body Markdown tables. Do **not** fill them with em-dash (`—`), en-dash (`–`), horizontal-bar (`―`), `N/A`, or `TBD`. See [`docs/data-cell-conventions.md`](../../docs/data-cell-conventions.md).

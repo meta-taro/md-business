@@ -141,3 +141,7 @@ See [`templates/test-spec/standard-ja.md`](../../templates/test-spec/standard-ja
 ## Spec reference
 
 [`docs/spec/test-spec-v1.md`](../../docs/spec/test-spec-v1.md)
+
+## Data cell convention
+
+Empty cells are the only canonical representation for unfilled / pending / not-yet-executed rows. Do **not** fill them with em-dash (`—`), en-dash (`–`), horizontal-bar (`―`), `N/A`, or `TBD`. Date columns are strictly ISO-8601 — placeholders cause `validateDateCell` to abort the push. See [`docs/data-cell-conventions.md`](../../docs/data-cell-conventions.md).

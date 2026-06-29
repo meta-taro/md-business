@@ -35,3 +35,7 @@ if (result.ok) {
 ## Spec reference
 
 [`docs/spec/invoice-v1.md`](../../docs/spec/invoice-v1.md)
+
+## Data cell convention
+
+Empty cells are the only canonical representation for unfilled cells in line items and remarks tables. Do **not** fill them with em-dash (`—`), en-dash (`–`), horizontal-bar (`―`), `N/A`, or `TBD`. See [`docs/data-cell-conventions.md`](../../docs/data-cell-conventions.md).

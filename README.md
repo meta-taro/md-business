@@ -212,6 +212,10 @@ The goal is to make the canonical business document layer open, portable, review
 
 Each spec document includes the JSON Schema link, top-level field table, YAML frontmatter sample, and validation examples.
 
+### Conventions
+
+- [Data cell convention](./docs/data-cell-conventions.md) — Empty cells are the only canonical representation for unfilled data. Do not fill table cells with `—` / `–` / `―` / `N/A` / `TBD`.
+
 ## Quick Start
 
 ```bash
