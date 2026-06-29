@@ -18,11 +18,15 @@ describe('apps/google-workspace-addon/appsscript.json oauthScopes', () => {
     expect(scopes.has('https://www.googleapis.com/auth/script.external_request')).toBe(true);
   });
 
-  it('includes container UI + spreadsheets + currentonly editor scopes (sidebar baseline)', () => {
+  it('includes container UI + all-currentonly editor scopes (sidebar baseline, minimal surface)', () => {
     expect(scopes.has('https://www.googleapis.com/auth/script.container.ui')).toBe(true);
-    expect(scopes.has('https://www.googleapis.com/auth/spreadsheets')).toBe(true);
+    expect(scopes.has('https://www.googleapis.com/auth/spreadsheets.currentonly')).toBe(true);
     expect(scopes.has('https://www.googleapis.com/auth/documents.currentonly')).toBe(true);
     expect(scopes.has('https://www.googleapis.com/auth/presentations.currentonly')).toBe(true);
+  });
+
+  it('does NOT include broad spreadsheets scope (downgraded to .currentonly in #48 to reduce Marketplace sensitive scopes to 1)', () => {
+    expect(scopes.has('https://www.googleapis.com/auth/spreadsheets')).toBe(false);
   });
 
   it('does NOT include script.scriptapp (onEdit installable trigger was removed in #35 push-button refactor; Workspace Add-on context does not allow this scope)', () => {

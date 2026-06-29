@@ -151,18 +151,19 @@ GCP コンソール → 「API とサービス」→「**OAuth 同意画面**」
 
 ### B-3. スコープ宣言
 
-`appsscript.json` の `oauthScopes` と一致させる:
+`appsscript.json` の `oauthScopes` と一致させる（2026-06-29 時点・[Issue #48](https://github.com/meta-taro/md-business/issues/48) で `spreadsheets` フル → `.currentonly` ダウングレード反映済）:
 
 | スコープ | 判定 | 用途 |
 |---|---|---|
-| `https://www.googleapis.com/auth/spreadsheets.currentonly` | 非センシティブ | 現在開いている Sheets のみ操作 |
-| `https://www.googleapis.com/auth/documents.currentonly` | 非センシティブ | 現在開いている Docs のみ操作 |
-| `https://www.googleapis.com/auth/presentations.currentonly` | 非センシティブ | 現在開いている Slides のみ操作 |
-| `https://www.googleapis.com/auth/script.container.ui` | **センシティブ** | サイドバー UI 表示（Workspace アドオン仕様で必須） |
+| `https://www.googleapis.com/auth/spreadsheets.currentonly` | 非センシティブ | 現在開いている Sheets のみ読み書き（インポート / md 書き出し / GitHub push 時の読み取り） |
+| `https://www.googleapis.com/auth/documents.currentonly` | 非センシティブ | 現在開いている Docs のみ読み書き |
+| `https://www.googleapis.com/auth/presentations.currentonly` | 非センシティブ | 現在開いている Slides のみ読み書き |
+| `https://www.googleapis.com/auth/script.container.ui` | 非センシティブ | サイドバー UI 表示（Workspace アドオン仕様で必須） |
+| `https://www.googleapis.com/auth/script.external_request` | **センシティブ** | GitHub REST API への HTTPS リクエスト（「GitHub に push」ボタン押下時のみ通信発生） |
 
-> **訂正（2026-06-18）**: 旧版の本書では「`script.container.ui` を含めすべて非センシティブ」と記載していたが、Google の正式な OAuth scope 分類では `script.container.ui` は **センシティブ scope**。Workspace アドオンとして submit する以上は逃れられないが、Editor アドオンとしての挙動範囲なので Phase E の検証申請ではほぼ自動承認される（用途文書 + デモ動画は必要）。`.currentonly` 3 つは引き続き非センシティブ。
-
-> 将来 GitHub commit 双方向同期を実装する際は `https://www.googleapis.com/auth/script.external_request` 追加 → センシティブ判定の追加 scope となり用途説明文の補強が必要。
+> **訂正（2026-06-29）**: 旧版の本書では `script.container.ui` をセンシティブと記載していたが、Google の現行分類では非センシティブ（Workspace Add-ons の標準 UI scope）。Sensitive 判定は `script.external_request` のみで、Phase E の検証申請はこの 1 件の justification + デモ動画で対応する。
+>
+> **訂正（2026-06-18）**: 旧版では `script.container.ui` を含むすべてのスコープを「非センシティブ」とまとめていたが、当時の分類変動に合わせて一時的にセンシティブ表記にしていた。本日の見直しで現行の Google 公式分類（非センシティブ）に揃え直した。
 
 #### `useLocaleFromApp: true` は要注意（暗黙の `script.locale` 要求）
 
@@ -252,12 +253,14 @@ GCP コンソール → 「API とサービス」→「**Google Workspace Market
 
 ## Phase E — OAuth 検証申請（センシティブ scope の場合）
 
-第一実装の `.currentonly` スコープ群は **「非センシティブ」判定**となるため、検証申請をスキップできる可能性がある。Google から「センシティブ scope を要求している」と通知が来たら以下を実施:
+本アドオンは `script.external_request`（GitHub REST API への HTTPS 通信）を **センシティブ scope 1 件** として要求するため、検証申請は **必須**。他のドキュメント操作 scope はすべて `.currentonly` 系（非センシティブ）にダウングレード済み（Issue #48）。
 
 1. OAuth consent screen → 「アプリを公開」→ 「**確認のために送信**」
-2. 用途説明文（500〜2000 文字、英語推奨）
-3. デモ動画 URL（YouTube unlisted で OK）
-4. 審査期間: 通常 2〜6 週、追加質問があれば長引く
+2. 用途説明文を貼付（[`marketplace-listing.md`](./google-addon-marketplace-listing.md) §OAuth 検証申請 — スコープ用途説明 に英文 1 件を用意済み）
+3. デモ動画 URL（YouTube unlisted で OK・PdM 撮影）
+4. 審査期間: 通常 2〜5 週、追加質問があれば長引く
+
+> **scope ダウングレード履歴**: 旧版（〜2026-06-28）では `spreadsheets`（フル sensitive）+ `script.external_request` の 2 件 sensitive 構成だったが、`main.ts` の実装が `getActiveSpreadsheet().getActiveSheet()` 系のみで `openById` 等を使わないことから `.currentonly` に縮小可能と判明。2026-06-29 にダウングレード（Issue #48 / PR）し、sensitive 1 件構成へ移行。
 
 ---
 
