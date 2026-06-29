@@ -9,6 +9,9 @@
     "https://www.googleapis.com/auth/script.container.ui",
     "https://www.googleapis.com/auth/script.external_request"
   ],
+  "urlFetchWhitelist": [
+    "https://api.github.com/"
+  ],
   "addOns": {
     "common": {
       "name": "md-business",
