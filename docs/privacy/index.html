@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>プライバシーポリシー — md-business</title>
+<meta name="description" content="md-business Chrome 拡張機能および Google Workspace アドオンのプライバシーポリシー。データ収集なし、第三者送信なし、オープンソース MIT。">
+<link rel="canonical" href="https://meta-taro.github.io/md-business/privacy/">
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+
+<header class="doc-header">
+  <div class="crumbs"><a href="../">md-business</a> / プライバシーポリシー</div>
+  <h1>プライバシーポリシー — md-business</h1>
+  <div class="meta">最終更新日: 2026-06-29</div>
+</header>
+
+<main class="doc">
+
+<section>
+  <h2>対象プロダクト</h2>
+  <p>本プライバシーポリシーは、md-business シリーズの以下のソフトウェアを対象とします。</p>
+  <ul>
+    <li><strong>md-business Chrome 拡張機能</strong>（<code>apps/chrome-extension</code>）— Chrome Web Store 配布</li>
+    <li><strong>md-business Google Workspace アドオン</strong>（<code>apps/google-workspace-addon</code>）— Google Workspace Marketplace 配布</li>
+  </ul>
+  <p>両者とも <strong>オープンソース（MIT ライセンス）</strong>で、ソースコードは GitHub で監査可能です: <a href="https://github.com/meta-taro/md-business">https://github.com/meta-taro/md-business</a></p>
+</section>
+
+<section>
+  <h2>共通要約</h2>
+  <ul>
+    <li><strong>Chrome 拡張機能</strong>は、ユーザーのブラウザ内ですべての処理が完結し、外部送信を一切行いません。</li>
+    <li><strong>Google Workspace アドオン</strong>は、原則すべての処理が Google Apps Script ランタイム内で完結します。例外として、ユーザーが <strong>自身の GitHub Personal Access Token（PAT）を明示的に設定し、サイドバーの「GitHub に push」ボタンを押した時に限り</strong>、ユーザー自身の GitHub リポジトリへ Sheets の現在の内容を <code>.md</code> として commit します。送信先はユーザーが設定した GitHub リポジトリのみで、md-business 開発元を含む第三者にデータが渡ることはありません。</li>
+    <li>アナリティクス、トラッキング、テレメトリの送信はいずれのプロダクトでも行いません。</li>
+  </ul>
+</section>
+
+<hr>
+
+<section>
+  <h2>Chrome 拡張機能</h2>
+
+  <h3>要約</h3>
+  <p>md-business Chrome 拡張機能は、ユーザーがローカルに保存している Markdown ファイル（適格請求書スキーマの YAML frontmatter を含むもの）を Chrome 上でプレビュー表示し、ブラウザの印刷機能を通じて PDF として保存できるようにする、オープンソースの Chrome 拡張機能です。</p>
+
+  <h3>本拡張機能が行うこと</h3>
+  <ul>
+    <li>ユーザーが選択したローカルの <code>.md</code> ファイル（<code>file:///</code> 配下）を読み取ります。</li>
+    <li>YAML frontmatter と Markdown 本文をブラウザ内で解析します。</li>
+    <li>解析結果を、印刷可能な請求書としてビューワータブに描画します。</li>
+    <li><code>chrome.storage.session</code> を使い、ポップアップで読み取った Markdown ペイロードをビューワータブに受け渡します。このデータはタブが閉じられた時点で自動的に破棄されます。</li>
+  </ul>
+
+  <h3>本拡張機能が行わないこと</h3>
+  <ul>
+    <li>外部サーバーへのネットワーク通信は一切行いません。</li>
+    <li>アナリティクス、トラッキング、テレメトリの送信は行いません。</li>
+    <li>ユーザーがアクセスする任意のウェブページの内容を読み取ったり送信したりすることはありません。</li>
+    <li>Cookie、広告 ID、フィンガープリント等の識別子の利用は行いません。</li>
+    <li>リモートコード（CDN スクリプト、<code>eval</code>、外部 URL からの動的 <code>import()</code>）の実行は一切行いません。すべての JavaScript / CSS / フォントは拡張機能パッケージ内に同梱されています。</li>
+  </ul>
+
+  <h3>収集するデータ</h3>
+  <p><strong>ありません。</strong>本拡張機能はユーザーのデバイス外にデータを送出しません。したがって、第三者への販売・譲渡・共有も発生しません。</p>
+
+  <h3>権限の利用目的</h3>
+  <table>
+    <thead>
+      <tr><th>権限</th><th>利用目的</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>storage</code></td>
+        <td>ポップアップから読み取った Markdown ペイロードを <code>chrome.storage.session</code> に一時保存し、ビューワータブへ受け渡します。タブを閉じた時点で破棄されます。</td>
+      </tr>
+      <tr>
+        <td><code>host_permissions: file:///*</code></td>
+        <td>ユーザーがローカルに保存している Markdown ファイルを Chrome で開けるようにするために必要です。</td>
+      </tr>
+    </tbody>
+  </table>
+</section>
+
+<hr>
+
+<section>
+  <h2>Google Workspace アドオン</h2>
+
+  <h3>要約</h3>
+  <p>md-business Google Workspace アドオンは、Google Docs / Sheets / Slides のサイドバーから Markdown と Google ドキュメントの双方向変換、および <strong>検証シート（test-spec）を Sheets で編集して、サイドバーの「GitHub に push」ボタンでユーザー自身の GitHub リポジトリへ commit する機能</strong>を提供する、オープンソースのアドオンです（<code>git push</code> と同じメンタルモデル）。</p>
+  <p>処理は原則すべて Google Apps Script ランタイム上で完結します。例外として、ユーザーが <strong>自身の GitHub Personal Access Token（PAT）を明示的に設定し、サイドバーの「GitHub に push」ボタンを押した時に限り</strong>、Sheets の現在の内容を <code>.md</code> としてユーザー自身の GitHub リポジトリへ送信します。</p>
+
+  <h3>本アドオンが行うこと</h3>
+  <ul>
+    <li>ユーザーがサイドバーに貼り付けた Markdown テキストを解析し、現在開いている Google Sheets に書き込みます（インポート）。</li>
+    <li>ユーザーの操作（「md 書き出し」ボタン）に応じて、現在開いている Google Sheets の値を Markdown 形式（YAML frontmatter + 表）に変換し、サイドバーに表示します（エクスポート）。</li>
+    <li><code>schema: test-spec/v1</code> の検証シートを Sheets に取り込んだ際、列スキーマに従い DataValidation / ConditionalFormat / DateValidation を自動適用します。</li>
+    <li><strong>ユーザーがサイドバーの「GitHub に push」ボタンを押した時</strong>、ユーザー設定の GitHub リポジトリ・ブランチ・パスへ md ファイルを commit します（GitHub REST API を <code>UrlFetchApp</code> で呼び出します）。送信先はフロントマターの <code>repository: owner/repo@branch:path</code> でユーザーが宣言します。</li>
+    <li>Apps Script が提供する標準 OAuth 同意フローを通じて、ユーザーに権限を要求します。</li>
+  </ul>
+
+  <h3>本アドオンが行わないこと</h3>
+  <ul>
+    <li>md-business 開発元を含む <strong>第三者サーバへのデータ送信は一切行いません</strong>。GitHub への送信はユーザー自身の設定したリポジトリへのみ行われます。</li>
+    <li>ユーザーの Google アカウント情報・メールアドレス・プロフィール情報を取得・保存しません。</li>
+    <li>アナリティクス、トラッキング、テレメトリの送信は行いません。</li>
+    <li>Cookie、広告 ID、フィンガープリント等の識別子の利用は行いません。</li>
+    <li>リモートコード（CDN スクリプト、<code>eval</code>、外部 URL からの動的 <code>import()</code>）の実行は一切行いません。すべてのコードは Apps Script プロジェクト内に同梱されています。</li>
+  </ul>
+
+  <h3>収集するデータ</h3>
+  <p><strong>ありません。</strong>本アドオンが保存するのは、ユーザー自身が入力した GitHub 接続設定（リポジトリ名・ブランチ・パス・PAT）のみで、Google アカウント内の <code>PropertiesService.getUserProperties()</code> に保管されます。これは Google アカウント内で暗号化され、md-business 開発元からはアクセスできません。</p>
+
+  <h3>権限（OAuth スコープ）の利用目的</h3>
+  <p>本アドオンは以下の 5 スコープを要求します。このうち 1 件のみが Google の <strong>センシティブ（Sensitive）スコープ</strong>に分類され、本アドオンが Google Workspace Marketplace の OAuth 検証申請を受ける根拠となっています。</p>
+  <table>
+    <thead>
+      <tr><th>スコープ</th><th>区分</th><th>利用目的</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>.../auth/spreadsheets.currentonly</code></td>
+        <td>非 Sensitive</td>
+        <td>サイドバーの「GitHub に push」ボタン押下時に、<strong>現在開いているシートのみ</strong>読み取って <code>.md</code> に変換するために必要。アクティブシート以外には一切アクセスしません。</td>
+      </tr>
+      <tr>
+        <td><code>.../auth/documents.currentonly</code></td>
+        <td>非 Sensitive</td>
+        <td>現在開いている Docs の読み書き（章立て変換機能）</td>
+      </tr>
+      <tr>
+        <td><code>.../auth/presentations.currentonly</code></td>
+        <td>非 Sensitive</td>
+        <td>現在開いている Slides の読み書き（スライド変換機能）</td>
+      </tr>
+      <tr>
+        <td><code>.../auth/script.container.ui</code></td>
+        <td>非 Sensitive</td>
+        <td>サイドバー UI の表示</td>
+      </tr>
+      <tr>
+        <td><code>.../auth/script.external_request</code></td>
+        <td><strong>Sensitive</strong></td>
+        <td>GitHub REST API への HTTPS リクエスト（ユーザー設定の GitHub リポジトリへの commit）。<strong>ユーザーが「GitHub に push」ボタンを押した時のみ</strong>実際に通信が発生します。</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>第三者へのデータ提供</h3>
+  <p>ユーザーがサイドバーの「GitHub に push」ボタンを押すと、Sheets の現在の内容はユーザー自身が frontmatter <code>repository:</code> で指定した GitHub リポジトリへ送信されます。<strong>GitHub への送信先・送信内容・送信タイミングはすべてユーザーが自分の設定とボタン操作で決定</strong>します。md-business 開発元はこの通信に介在せず、内容を受け取ることも記録することもありません。</p>
+  <p>GitHub のプライバシーポリシーは GitHub Inc. が定めるものに従います: <a href="https://docs.github.com/site-policy/privacy-policies/github-general-privacy-statement">https://docs.github.com/site-policy/privacy-policies/github-general-privacy-statement</a></p>
+
+  <h3>GitHub Push 機能を使わない場合</h3>
+  <p>GitHub PAT を設定せず、「GitHub に push」ボタンを押さない限り、本アドオンは外部ネットワークと一切通信しません。インポート / エクスポート / 検証 / PDF 出力（Chrome 拡張連携）の基本機能だけを使うこともできます。</p>
+</section>
+
+<hr>
+
+<section>
+  <h2>共通</h2>
+
+  <h3>オープンソース</h3>
+  <p>md-business シリーズの全ソースコードは MIT ライセンスのもと、以下で公開されています:</p>
+  <p><a href="https://github.com/meta-taro/md-business">https://github.com/meta-taro/md-business</a></p>
+  <p>すべての権限利用箇所とネットワーク通信の有無は、コードレベルで監査可能です。</p>
+
+  <h3>お問い合わせ</h3>
+  <p>プライバシーに関するご質問は、以下の GitHub Issue でお問い合わせください:</p>
+  <p><a href="https://github.com/meta-taro/md-business/issues">https://github.com/meta-taro/md-business/issues</a></p>
+
+  <h3>改訂履歴</h3>
+  <ul>
+    <li><strong>2026-06-29</strong> — Google Workspace アドオン scope ダウングレード反映: <code>spreadsheets</code>（フル）→ <code>spreadsheets.currentonly</code> に変更。実装は元々アクティブシートのみアクセスする構造であったため、最小権限原則に整合させた。Sensitive スコープを 2 件 → 1 件（<code>script.external_request</code> のみ）に削減。<code>script.scriptapp</code> の manifest 残置記述は実体と乖離していたため削除（manifest には元々含まれていない）。</li>
+    <li><strong>2026-06-24</strong> — Google Workspace アドオン v0.7.1 反映: 自動同期（onEdit installable trigger）を廃止し、サイドバーの「GitHub に push」ボタン押下時に commit する手動 push 方式へ移行。Sensitive スコープを 3 件 → 2 件（<code>spreadsheets</code> / <code>script.external_request</code>）に整理。<code>script.scriptapp</code> は manifest 残置のみ（次バージョンで削除予定）と明記。</li>
+    <li><strong>2026-06-22</strong> — Google Workspace アドオン v0.7.0 反映: GitHub 自動同期機能の追加に伴い、Sensitive スコープ 3 件（<code>spreadsheets</code> / <code>script.external_request</code> / <code>script.scriptapp</code>）を明示。「外部送信なし」記述を撤回し、ユーザー自身の GitHub リポジトリへの送信仕様を追記。</li>
+    <li><strong>2026-06-18</strong> — Google Workspace アドオン向けの宣言を追記。Chrome 拡張部分は変更なし。</li>
+    <li><strong>2026-06-16</strong> — Chrome 拡張機能のプライバシーポリシー初版公開。</li>
+  </ul>
+
+  <div class="callout note">
+    正本は GitHub の <a href="https://github.com/meta-taro/md-business/blob/main/PRIVACY.md"><code>PRIVACY.md</code></a> です。本ページはその HTML 配信版です。
+  </div>
+</section>
+
+</main>
+
+<footer>
+  &copy; meta-taro · MIT License · <a href="https://github.com/meta-taro/md-business">github.com/meta-taro/md-business</a>
+</footer>
+
+</body>
+</html>
