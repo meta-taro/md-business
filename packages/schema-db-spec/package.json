@@ -1,0 +1,48 @@
+{
+  "name": "@md-business/schema-db-spec",
+  "version": "0.0.0",
+  "private": false,
+  "description": "JSON Schema for RDB design documents (DB 設計書) — frontmatter declares tables / columns / constraints / indexes / foreign keys / migration history for PostgreSQL, MySQL, Aurora, SQLite, Neon, Supabase, Turso, Cloud SQL. Markdown-first authoring.",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./schema": {
+      "types": "./dist/schema.d.ts",
+      "import": "./dist/schema.js"
+    },
+    "./validate": {
+      "types": "./dist/validate.compiled.d.ts",
+      "import": "./dist/validate.compiled.js"
+    },
+    "./schema.json": "./src/db-spec.schema.json"
+  },
+  "files": [
+    "dist",
+    "src",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json && node scripts/build-validate.mjs",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest",
+    "test:run": "vitest run --coverage",
+    "lint": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@md-business/core": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "@vitest/coverage-v8": "^2.1.8",
+    "ajv": "^8.17.1",
+    "ajv-formats": "^3.0.1",
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.8"
+  }
+}

@@ -1,0 +1,158 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://md-business.dev/schemas/db-spec/v1.json",
+  "title": "md-business db-spec (RDB 設計書) frontmatter",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "documentNumber",
+    "title",
+    "version",
+    "issueDate",
+    "status",
+    "engine",
+    "authors",
+    "tables"
+  ],
+  "properties": {
+    "schema": { "const": "db-spec/v1" },
+    "documentNumber": { "type": "string", "minLength": 1 },
+    "title": { "type": "string", "minLength": 1 },
+    "version": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$" },
+    "issueDate": { "type": "string", "format": "date" },
+    "status": { "enum": ["draft", "review", "approved", "deprecated"] },
+    "engine": {
+      "enum": [
+        "postgres",
+        "mysql",
+        "aurora",
+        "sqlite",
+        "neon",
+        "supabase",
+        "turso",
+        "cloudsql"
+      ]
+    },
+    "charset": { "type": "string", "minLength": 1 },
+    "collation": { "type": "string", "minLength": 1 },
+    "authors": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/person" }
+    },
+    "reviewers": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/person" }
+    },
+    "relatedDocs": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "tables": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/table" }
+    },
+    "migrations": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/migration" }
+    },
+    "theme": { "type": "string", "minLength": 1 },
+    "fileName": { "type": "string", "minLength": 1 }
+  },
+  "$defs": {
+    "person": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "role": { "type": "string" }
+      }
+    },
+    "table": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "columns"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "description": { "type": "string" },
+        "columns": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/column" }
+        },
+        "indexes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/index" }
+        },
+        "triggers": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/trigger" }
+        }
+      }
+    },
+    "column": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "type"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "type": { "type": "string", "minLength": 1 },
+        "pk": { "type": "boolean" },
+        "nullable": { "type": "boolean" },
+        "unique": { "type": "boolean" },
+        "default": {
+          "anyOf": [{ "type": "string" }, { "type": "number" }, { "type": "boolean" }]
+        },
+        "fk": { "$ref": "#/$defs/foreignKey" }
+      }
+    },
+    "foreignKey": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["table", "column"],
+      "properties": {
+        "table": { "type": "string", "minLength": 1 },
+        "column": { "type": "string", "minLength": 1 },
+        "onDelete": { "enum": ["cascade", "restrict", "set_null", "no_action"] },
+        "onUpdate": { "enum": ["cascade", "restrict", "set_null", "no_action"] }
+      }
+    },
+    "index": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "columns"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "columns": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "unique": { "type": "boolean" },
+        "using": { "enum": ["btree", "gin", "gist", "hash", "brin"] }
+      }
+    },
+    "trigger": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "on", "action"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "on": { "type": "string", "minLength": 1 },
+        "action": { "type": "string", "minLength": 1 }
+      }
+    },
+    "migration": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "description": { "type": "string" }
+      }
+    }
+  }
+}
