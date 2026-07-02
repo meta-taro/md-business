@@ -200,6 +200,24 @@ describe('translateDbSpecError — common keywords', () => {
     expect(msg).toContain('wildcard');
   });
 
+  it('enum error without an allowed-values hint falls back to generic wording', () => {
+    const msg = translateDbSpecError({
+      path: '/somewhereUnlisted',
+      message: 'must be equal to one of the allowed values',
+      keyword: 'enum',
+    });
+    expect(msg).toContain('許可されていない値');
+  });
+
+  it('additionalProperties without a parsable key falls back to generic wording', () => {
+    const msg = translateDbSpecError({
+      path: '/',
+      message: 'must NOT have additional properties',
+      keyword: 'additionalProperties',
+    });
+    expect(msg).toContain('未知のキーが含まれています');
+  });
+
   it('returns ドキュメント全体 for path "" or "/"', () => {
     const msg = translateDbSpecError({
       path: '',

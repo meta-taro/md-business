@@ -23,6 +23,13 @@ export {
   translateDbSpecWarning,
   translateDbSpecWarnings,
 } from './translateError.js';
+export { renderDbSpecFileName } from './fileName.js';
+export { parseDbSpecMarkdown, parseDbSpecObject } from './parseDbSpec.js';
+export type {
+  DbSpecParseSuccess,
+  DbSpecParseFailure,
+  DbSpecParseResult,
+} from './parseDbSpec.js';
 export {
   DB_SPEC_JA_DICTIONARY,
   STATUS_TRANSLATIONS,

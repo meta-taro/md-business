@@ -10,6 +10,22 @@ describe('autofillDbSpec — input guards', () => {
   });
 });
 
+describe('autofillDbSpec — malformed structure tolerance', () => {
+  it('skips non-object entries in tables / columns / indexes without warnings', () => {
+    const { warnings } = autofillDbSpec({
+      tables: [
+        'not a table',
+        {
+          name: 't',
+          columns: ['not a column', { name: 'id', type: 'integer' }],
+          indexes: ['not an index', { name: 'idx', columns: 'not an array' }],
+        },
+      ],
+    });
+    expect(warnings).toEqual([]);
+  });
+});
+
 describe('autofillDbSpec — defaults', () => {
   it('fills schema / version / status on a bare object', () => {
     const { data, warnings } = autofillDbSpec({});
