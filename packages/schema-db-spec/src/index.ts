@@ -15,6 +15,14 @@ export type {
 } from './types.js';
 export { normalizeDbSpecFrontmatter } from './normalize.js';
 export type { NormalizeWarning, NormalizeResult } from './normalize.js';
+export { autofillDbSpec } from './autofill.js';
+export type { AutofillWarning, AutofillResult } from './autofill.js';
+export {
+  translateDbSpecError,
+  translateDbSpecErrors,
+  translateDbSpecWarning,
+  translateDbSpecWarnings,
+} from './translateError.js';
 export {
   DB_SPEC_JA_DICTIONARY,
   STATUS_TRANSLATIONS,
