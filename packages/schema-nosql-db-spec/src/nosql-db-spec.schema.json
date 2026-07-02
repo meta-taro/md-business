@@ -1,0 +1,194 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://md-business.dev/schemas/nosql-db-spec/v1.json",
+  "title": "md-business nosql-db-spec (NoSQL 設計書) frontmatter",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "documentNumber",
+    "title",
+    "version",
+    "issueDate",
+    "status",
+    "engine",
+    "authors",
+    "collections"
+  ],
+  "properties": {
+    "schema": { "const": "nosql-db-spec/v1" },
+    "documentNumber": { "type": "string", "minLength": 1 },
+    "title": { "type": "string", "minLength": 1 },
+    "version": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$" },
+    "issueDate": { "type": "string", "format": "date" },
+    "status": { "enum": ["draft", "review", "approved", "deprecated"] },
+    "engine": {
+      "enum": [
+        "firestore",
+        "dynamodb",
+        "mongodb",
+        "cosmosdb",
+        "redis",
+        "documentdb",
+        "turso-document"
+      ]
+    },
+    "multiRegion": { "type": "string", "minLength": 1 },
+    "authors": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/person" }
+    },
+    "reviewers": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/person" }
+    },
+    "relatedDocs": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "collections": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/collection" }
+    },
+    "securityRules": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/securityRule" }
+    },
+    "theme": { "type": "string", "minLength": 1 },
+    "fileName": { "type": "string", "minLength": 1 }
+  },
+  "$defs": {
+    "person": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "role": { "type": "string" }
+      }
+    },
+    "collection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "docIdStrategy", "shape"],
+      "properties": {
+        "path": { "type": "string", "minLength": 1 },
+        "description": { "type": "string" },
+        "docIdStrategy": { "enum": ["uuid", "auto", "auth-uid", "composite"] },
+        "partitionKeyField": { "type": "string", "minLength": 1 },
+        "sortKeyField": { "type": "string", "minLength": 1 },
+        "shape": { "$ref": "#/$defs/shape" },
+        "indexes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/index" }
+        },
+        "ttl": { "$ref": "#/$defs/ttl" },
+        "engineSpecific": { "type": "object" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "docIdStrategy": { "const": "composite" } },
+            "required": ["docIdStrategy"]
+          },
+          "then": { "required": ["partitionKeyField"] }
+        }
+      ]
+    },
+    "shape": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": { "$ref": "#/$defs/fieldDef" }
+    },
+    "fieldDef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type"],
+      "properties": {
+        "type": {
+          "enum": [
+            "string",
+            "number",
+            "boolean",
+            "timestamp",
+            "map",
+            "array",
+            "reference",
+            "geopoint",
+            "bytes",
+            "null"
+          ]
+        },
+        "required": { "type": "boolean" },
+        "default": {
+          "anyOf": [{ "type": "string" }, { "type": "number" }, { "type": "boolean" }]
+        },
+        "enum": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
+        },
+        "description": { "type": "string" },
+        "of": { "$ref": "#/$defs/fieldDef" },
+        "shape": { "$ref": "#/$defs/shape" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "type": { "const": "array" } },
+            "required": ["type"]
+          },
+          "then": { "required": ["of"] }
+        },
+        {
+          "if": {
+            "properties": { "type": { "const": "map" } },
+            "required": ["type"]
+          },
+          "then": { "required": ["shape"] }
+        }
+      ]
+    },
+    "index": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["fields"],
+      "properties": {
+        "fields": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "scope": { "enum": ["collection", "collection-group"] },
+        "mode": { "enum": ["ASCENDING", "DESCENDING"] }
+      }
+    },
+    "ttl": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["field"],
+      "properties": {
+        "field": { "type": "string", "minLength": 1 },
+        "enabled": { "type": "boolean" }
+      }
+    },
+    "securityRule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["match", "allow"],
+      "properties": {
+        "match": { "type": "string", "minLength": 1 },
+        "allow": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "enum": ["read", "write", "get", "list", "create", "update", "delete"]
+          }
+        },
+        "if": { "type": "string", "minLength": 1 }
+      }
+    }
+  }
+}
