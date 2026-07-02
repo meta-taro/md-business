@@ -243,7 +243,7 @@ GCP コンソール → 「API とサービス」→「**Google Workspace Market
 | 説明文（詳細） | 4000 文字以内 | AI 草案可（Chrome Web Store 説明文を流用ベース） |
 | カテゴリ | 「ビジネスツール」「生産性向上」 | |
 | スクリーンショット | 1280×800 推奨、最大 6 枚 | AI 撮影スクリプト可 |
-| YouTube デモ動画 | 推奨（必須ではない） | PdM 撮影 |
+| YouTube デモ動画 | **必須**（センシティブ scope 申請時） | PdM 撮影 — [台本](./oauth-verification-demo-video-script.md) |
 | 利用規約 / プライバシー URL | Phase B と同一 | |
 | サポート URL | `https://github.com/meta-taro/md-business/issues` | |
 | 配信地域 | 日本 + 全世界 | |
@@ -257,7 +257,8 @@ GCP コンソール → 「API とサービス」→「**Google Workspace Market
 
 1. OAuth consent screen → 「アプリを公開」→ 「**確認のために送信**」
 2. 用途説明文を貼付（[`marketplace-listing.md`](./google-addon-marketplace-listing.md) §OAuth 検証申請 — スコープ用途説明 に英文 1 件を用意済み）
-3. デモ動画 URL（YouTube unlisted で OK・PdM 撮影）
+3. デモ動画 URL（YouTube unlisted で OK・PdM 撮影 — [撮影台本](./oauth-verification-demo-video-script.md)）
+   - **判明（2026-06-30）**: Auth Platform の「データアクセス」タブで、センシティブ／制限付き scope（本アドオンでは `script.external_request` と `script.container.ui`）の編集画面に「デモ動画」フィールドが存在し、未入力だと "リクエストされたスコープに次のフィールドがありません: デモ動画" エラーで申請ブロックされる。「推奨」ではなく**実質必須**。
 4. 審査期間: 通常 2〜5 週、追加質問があれば長引く
 
 > **scope ダウングレード履歴**: 旧版（〜2026-06-28）では `spreadsheets`（フル sensitive）+ `script.external_request` の 2 件 sensitive 構成だったが、`main.ts` の実装が `getActiveSpreadsheet().getActiveSheet()` 系のみで `openById` 等を使わないことから `.currentonly` に縮小可能と判明。2026-06-29 にダウングレード（Issue #48 / PR）し、sensitive 1 件構成へ移行。
