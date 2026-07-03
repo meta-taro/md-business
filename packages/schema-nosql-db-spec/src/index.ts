@@ -18,6 +18,14 @@ export type {
 } from './types.js';
 export { normalizeNosqlDbSpecFrontmatter } from './normalize.js';
 export type { NormalizeWarning, NormalizeResult } from './normalize.js';
+export { autofillNosqlDbSpec } from './autofill.js';
+export type { AutofillWarning, AutofillResult } from './autofill.js';
+export {
+  translateNosqlDbSpecError,
+  translateNosqlDbSpecErrors,
+  translateNosqlDbSpecWarning,
+  translateNosqlDbSpecWarnings,
+} from './translateError.js';
 export {
   NOSQL_DB_SPEC_JA_DICTIONARY,
   STATUS_TRANSLATIONS,
