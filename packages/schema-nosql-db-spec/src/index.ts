@@ -26,6 +26,16 @@ export {
   translateNosqlDbSpecWarning,
   translateNosqlDbSpecWarnings,
 } from './translateError.js';
+export { renderNosqlDbSpecFileName } from './fileName.js';
+export {
+  parseNosqlDbSpecMarkdown,
+  parseNosqlDbSpecObject,
+} from './parseNosqlDbSpec.js';
+export type {
+  NosqlDbSpecParseSuccess,
+  NosqlDbSpecParseFailure,
+  NosqlDbSpecParseResult,
+} from './parseNosqlDbSpec.js';
 export {
   NOSQL_DB_SPEC_JA_DICTIONARY,
   STATUS_TRANSLATIONS,
