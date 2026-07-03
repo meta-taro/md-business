@@ -221,6 +221,7 @@
     a { color: var(--primary); }
 
     /* スピナー */
+    .spinning { animation: rot 1s linear infinite; }
     .spin::before {
       content: "◌";
       display: inline-block;
@@ -243,7 +244,7 @@
   <main>
     <!-- ============ 作業タブ ============ -->
     <div id="tab-work">
-      <div id="work-content"><!-- JS が状態別に描画 --></div>
+      <div id="work-content"><p class="muted">シートの状態を確認しています…</p></div>
       <div id="work-result" aria-live="polite"></div>
       <!-- v-next: pull button slot（「GitHub から読み込む」は次フェーズでここに入る） -->
       <input type="file" id="md-upload-input" accept=".md,.markdown" class="hidden" />
@@ -310,6 +311,11 @@
     function setBusy(btn, busyLabel) {
       var controls = document.querySelectorAll('button, input, textarea');
       for (var i = 0; i < controls.length; i++) controls[i].disabled = true;
+      if (btn && btn.id === 'refresh-btn') {
+        // 丸アイコンボタンに文言を入れると縦書き崩れするため、↻ 自体を回すだけにする
+        btn.classList.add('spinning');
+        return;
+      }
       if (btn) {
         btn.dataset.label = btn.textContent;
         btn.classList.add('spin');
@@ -323,6 +329,10 @@
       if (busyTimer) { clearTimeout(busyTimer); busyTimer = null; }
       var controls = document.querySelectorAll('button, input, textarea');
       for (var i = 0; i < controls.length; i++) controls[i].disabled = false;
+      if (btn && btn.id === 'refresh-btn') {
+        btn.classList.remove('spinning');
+        return;
+      }
       if (btn && btn.dataset.label) {
         btn.classList.remove('spin');
         btn.textContent = btn.dataset.label;
