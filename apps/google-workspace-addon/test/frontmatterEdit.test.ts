@@ -194,6 +194,31 @@ describe('applyTestSpecTemplate', () => {
     expect(enumCol?.visual).toBeDefined();
   });
 
+  // Issue #25 合意の配色（撮影前 UI fix）と完全テンプレの同期を担保する。
+  // sample.md / standard-ja.md 側だけ刷新されテンプレが旧配色のまま、の再発防止。
+  it('full template visual rules cover all 4 enum values with issue #25 row backgrounds', () => {
+    const out = applyTestSpecTemplate('full');
+    const { yaml: y } = extractFrontmatter(out);
+    const parsed = yaml.load(y) as {
+      columns: Array<{
+        type: string;
+        values?: string[];
+        visual?: Record<string, { row_background?: string }>;
+      }>;
+    };
+    const enumCol = parsed.columns.find((c) => c.type === 'enum');
+    expect(enumCol?.values).toEqual(['OK', 'NG', '保留', '未実施']);
+    expect(enumCol?.visual?.['OK']?.row_background).toBe('#e6f4ea');
+    expect(enumCol?.visual?.['NG']?.row_background).toBe('#fce8e6');
+    expect(enumCol?.visual?.['保留']?.row_background).toBe('#f1f3f4');
+    expect(enumCol?.visual?.['未実施']?.row_background).toBe('#dadce0');
+  });
+
+  it('full template hints the repository key for GitHub push (commented out)', () => {
+    const out = applyTestSpecTemplate('full');
+    expect(out).toContain('# repository: owner/repo@branch:path');
+  });
+
   it('returns an empty string for "clear"', () => {
     expect(applyTestSpecTemplate('clear')).toBe('');
   });
