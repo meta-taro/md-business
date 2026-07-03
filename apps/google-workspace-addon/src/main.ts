@@ -31,6 +31,7 @@ import {
   type ParseForSidebarResult,
 } from './lib/parseTestSpecForSidebar.js';
 import { buildPushPlan } from './lib/pushTestSpec.js';
+import { bindingPropertyKey, buildBindingSummary } from './lib/sheetBinding.js';
 
 const KEY_GITHUB_PAT = 'GITHUB_PAT';
 
@@ -141,6 +142,7 @@ export function setupTestSpecSheet(markdownSource: string): {
   const ops = planSheetWriteOps(parsed.spec, parsed.body);
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
   applyOpsToSheet(sheet, ops);
+  saveBindingForSheet(sheet, markdownSource);
 
   return {
     ok: true,
@@ -397,6 +399,186 @@ function escapeFormulaString(s: string): string {
 }
 
 // ---------------------------------------------------------------------------
+// Sheet ⇔ md binding（Issue 006 UX 改修）
+// ---------------------------------------------------------------------------
+// Why: 実施者（QA・業務担当）は md / frontmatter を直接触らない。セットアップ時に
+//      md ソースを DocumentProperties（シート ID キー）へ保存し、以降の
+//      「入力チェック」「GitHub へ保存」は保存済みソースを正本として textarea なしで動く。
+//      DocumentProperties はスプレッドシート単位の共有ストアなので、実施者が
+//      作成者と別アカウントでもバインディングを引き継げる。
+
+function saveBindingForSheet(
+  sheet: GoogleAppsScript.Spreadsheet.Sheet,
+  markdownSource: string,
+): void {
+  PropertiesService.getDocumentProperties().setProperty(
+    bindingPropertyKey(sheet.getSheetId()),
+    markdownSource,
+  );
+}
+
+function loadBindingForSheet(
+  sheet: GoogleAppsScript.Spreadsheet.Sheet,
+): string | null {
+  return PropertiesService.getDocumentProperties().getProperty(
+    bindingPropertyKey(sheet.getSheetId()),
+  );
+}
+
+export interface SidebarState {
+  bound: boolean;
+  sheetName: string;
+  title: string;
+  documentNumber: string;
+  itemCount: number;
+  repoDisplay: string;
+  repoDetail: string;
+  repoUrl: string;
+  patRegistered: boolean;
+}
+
+/**
+ * サイドバー初期化・↻（表示更新）時に 1 往復で作業タブの状態を返す。
+ * Why: 旧 UI は getMaskedPat + previewPushTarget の 2 往復 + textarea 依存だった。
+ *      状態駆動 UI は「このシートは今どういう状態か」を 1 回で取れる必要がある。
+ */
+export function getSidebarState(): SidebarState {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  const patRegistered = hasGithubPat();
+  const base: SidebarState = {
+    bound: false,
+    sheetName: sheet.getName(),
+    title: '',
+    documentNumber: '',
+    itemCount: 0,
+    repoDisplay: '',
+    repoDetail: '',
+    repoUrl: '',
+    patRegistered,
+  };
+
+  const src = loadBindingForSheet(sheet);
+  if (src === null || src.length === 0) return base;
+
+  const summary = buildBindingSummary(src);
+  const repo = summary?.repository ?? null;
+  return {
+    ...base,
+    bound: true,
+    title: summary?.title ?? '',
+    documentNumber: summary?.documentNumber ?? '',
+    itemCount: Math.max(sheet.getLastRow() - 1, 0),
+    repoDisplay: repo ? `${repo.owner}/${repo.repo}` : '',
+    repoDetail: repo ? `${repo.branch}:${repo.path}` : '',
+    repoUrl: repo
+      ? `https://github.com/${repo.owner}/${repo.repo}/blob/${repo.branch}/${repo.path}`
+      : '',
+  };
+}
+
+/**
+ * 設定タブ「上級者向け」textarea の初期値として、アクティブシートの保存済みソースを返す。
+ */
+export function getBoundSource(): string {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  return loadBindingForSheet(sheet) ?? '';
+}
+
+/**
+ * 未セットアップ状態の「テンプレートから作る」を 1 往復で行う。
+ * Why: 旧 UI はテンプレ適用（textarea 書き戻し）→ セットアップの 2 操作 2 往復。
+ *      実施者フローでは中間の textarea が存在しないため、サーバー側で合成する。
+ */
+export function setupFromTemplate(templateKey: string): ReturnType<typeof setupTestSpecSheet> {
+  const template = applyTestSpecTemplateAction(templateKey);
+  if (!template.ok) return { ok: false, error: template.error };
+  return setupTestSpecSheet(template.newSrc);
+}
+
+/**
+ * 未セットアップ状態の「ファイル(.md)から作る」を 1 往復で行う。
+ */
+export function setupFromUploadedMarkdown(
+  content: string,
+  fileName: string,
+): ReturnType<typeof setupTestSpecSheet> {
+  const uploaded = validateUploadedMarkdown(content, fileName);
+  if (!uploaded.ok) return { ok: false, error: uploaded.error };
+  return setupTestSpecSheet(uploaded.src);
+}
+
+const NOT_BOUND_ERROR =
+  'このシートはまだ検証シートになっていません。作業タブの「テンプレートから作る」または「ファイル(.md)から作る」で表を作ってください。';
+
+/**
+ * 作業タブ「入力チェック」。保存済みソースを正本にアクティブシートを検証する。
+ */
+export function validateBoundSheet(): ReturnType<typeof validateActiveTestSpecSheet> {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  const src = loadBindingForSheet(sheet);
+  if (src === null || src.length === 0) {
+    return { ok: false, error: NOT_BOUND_ERROR };
+  }
+  return validateActiveTestSpecSheet(src);
+}
+
+export type SaveBoundSheetResult =
+  | { ok: true; commitSha: string; commitUrl: string; bytes: number }
+  | { ok: false; stage: 'binding' | 'validate' | 'push'; error: string; issueCount?: number };
+
+/**
+ * 作業タブ「GitHub へ保存」。入力チェック → NG なら中断 → OK なら push を 1 往復で行う。
+ * Why: 「空のまま押してエラー」「チェックせず保存」を UI の順序でなく構造で防ぐ。
+ *      実施者は最悪このボタンだけ押せばよい。push 成功時は保存済みソースを
+ *      push した markdown で更新し、以後の再セットアップが古い本文へ巻き戻らないようにする。
+ */
+export function saveBoundSheetToGithub(): SaveBoundSheetResult {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  const src = loadBindingForSheet(sheet);
+  if (src === null || src.length === 0) {
+    return { ok: false, stage: 'binding', error: NOT_BOUND_ERROR };
+  }
+
+  const validated = validateActiveTestSpecSheet(src);
+  if (!validated.ok) {
+    return { ok: false, stage: 'validate', error: validated.error };
+  }
+  if (validated.issues.length > 0) {
+    return {
+      ok: false,
+      stage: 'validate',
+      error: `入力チェックで ${validated.issues.length} 件の問題がみつかったため、保存していません。`,
+      issueCount: validated.issues.length,
+    };
+  }
+
+  const pat = PropertiesService.getUserProperties().getProperty(KEY_GITHUB_PAT);
+  if (pat === null || pat.length === 0) {
+    return {
+      ok: false,
+      stage: 'push',
+      error: 'GitHub のアクセスキーが登録されていません。設定タブで登録してください。',
+    };
+  }
+  const plan = buildPushPlan({
+    markdownSource: src,
+    sheetValues: sheet.getDataRange().getValues(),
+    sheetName: sheet.getName(),
+    isoTimestamp: new Date().toISOString(),
+    validate: validateTestSpec,
+  });
+  if (!plan.ok) {
+    return { ok: false, stage: 'push', error: plan.error };
+  }
+  const pushed = pushMarkdownToGithub(pat, plan.repoRef, plan.markdown, plan.commitMessage);
+  if (!pushed.ok) {
+    return { ok: false, stage: 'push', error: pushed.error };
+  }
+  saveBindingForSheet(sheet, plan.markdown);
+  return pushed;
+}
+
+// ---------------------------------------------------------------------------
 // GitHub Push (manual button)
 // ---------------------------------------------------------------------------
 // Why: Workspace Add-on context は OAuth scope `script.scriptapp` を許可しない
@@ -526,7 +708,13 @@ export function pushTestSpecToGithub(markdownSource: string): {
   if (!plan.ok) {
     return { ok: false, error: plan.error };
   }
-  return pushMarkdownToGithub(pat, plan.repoRef, plan.markdown, plan.commitMessage);
+  const pushed = pushMarkdownToGithub(pat, plan.repoRef, plan.markdown, plan.commitMessage);
+  if (pushed.ok) {
+    // 上級者経路（textarea）でも push 成功時はバインディングを最新化し、
+    // 作業タブの状態表示と正本ソースがズレないようにする。
+    saveBindingForSheet(sheet, plan.markdown);
+  }
+  return pushed;
 }
 
 function pushMarkdownToGithub(

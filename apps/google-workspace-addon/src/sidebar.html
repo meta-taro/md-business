@@ -1,496 +1,861 @@
 <!DOCTYPE html>
 <html lang="ja">
-  <head>
-    <meta charset="utf-8" />
-    <base target="_top" />
-    <title>md-business</title>
-    <link
-      rel="stylesheet"
-      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20,400,0,0"
-    />
-    <style>
-      body { font-family: 'Roboto', 'Noto Sans JP', sans-serif; margin: 0; padding: 16px; color: #202124; }
-      h1 { font-size: 14px; margin: 0 0 8px 0; }
-      h2 { font-size: 12px; color: #5f6368; margin: 16px 0 6px 0; text-transform: uppercase; letter-spacing: 0.4px; }
-      p  { font-size: 12px; color: #5f6368; margin: 0 0 12px 0; }
-      textarea { width: 100%; height: 200px; font-family: 'Roboto Mono', 'Source Code Pro', monospace;
-        font-size: 12px; padding: 8px; border: 1px solid #dadce0; border-radius: 4px; box-sizing: border-box; }
-      input[type=text], input[type=password] { box-sizing: border-box; padding: 6px 8px;
-        border: 1px solid #dadce0; border-radius: 4px; font-size: 12px; font-family: 'Roboto Mono', monospace; }
-      .actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
-      button { padding: 8px 14px; background: #1a73e8; color: white; border: 0;
-        border-radius: 4px; font-size: 13px; cursor: pointer; }
-      button.secondary { background: #fff; color: #1a73e8; border: 1px solid #1a73e8; }
-      button:disabled { background: #80868b; cursor: progress; }
-      button.secondary:disabled { background: #f1f3f4; color: #80868b; border-color: #dadce0; }
-      .palette { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
-      .palette button.icon { padding: 6px; min-width: 32px; height: 32px; display: inline-flex;
-        align-items: center; justify-content: center; }
-      .palette button.icon .material-symbols-outlined { font-size: 20px; }
-      .col-name-row { display: flex; gap: 6px; margin-top: 6px; }
-      .col-name-row input { flex: 1; }
-      .status {
-        margin-top: 12px;
-        font-size: 12px;
-        color: #137333;
-        white-space: pre-line;
-        padding: 8px 10px;
-        border-radius: 6px;
-        background: #e6f4ea;
-        border: 1px solid #ceead6;
-      }
-      .status.err { color: #c5221f; background: #fce8e6; border-color: #f4c7c3; }
-      .status:empty { display: none; }
-      hr { border: 0; border-top: 1px solid #dadce0; margin: 16px 0; }
-      .info-card {
-        font-size: 12px;
-        padding: 8px 10px;
-        border-radius: 6px;
-        background: #e8f0fe;
-        border: 1px solid #aecbfa;
-        margin: 0 0 10px 0;
-        color: #174ea6;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        flex-wrap: wrap;
-        line-height: 1.5;
-      }
-      .info-card.muted { background: #f1f3f4; border-color: #dadce0; color: #5f6368; }
-      .info-card.warn  { background: #fef7e0; border-color: #feefc3; color: #b06000; }
-      .info-card code {
-        background: rgba(0,0,0,0.06);
-        padding: 1px 5px;
-        border-radius: 3px;
-        font-family: 'Roboto Mono', 'Source Code Pro', monospace;
-        word-break: break-all;
-      }
-      .info-card a { color: inherit; text-decoration: underline; }
-      .info-card button.tiny {
-        padding: 2px 8px; font-size: 11px; line-height: 1.4;
-        background: #fff; color: #1a73e8; border: 1px solid #1a73e8; border-radius: 3px;
-      }
-      .info-card.warn button.tiny { color: #b06000; border-color: #b06000; }
-      .pat-form { display: none; }
-      .pat-form.show { display: flex; }
-    </style>
-  </head>
-  <body>
-    <h1>md-business — 検証シート frontmatter</h1>
-    <p>
-      列名を入れてアイコンを押すと <code>columns</code> に追加されます。
-      テンプレから始めるか、下の textarea を直接編集してから「セットアップ」で適用してください。
-    </p>
+<head>
+  <meta charset="utf-8" />
+  <base target="_top" />
+  <title>md-business</title>
+  <style>
+    :root {
+      --primary: #1a73e8;
+      --primary-dark: #1765cc;
+      --ok-bg: #e6f4ea;
+      --ok-fg: #137333;
+      --warn-bg: #fef7e0;
+      --warn-fg: #b06000;
+      --err-bg: #fce8e6;
+      --err-fg: #c5221f;
+      --border: #dadce0;
+      --muted: #5f6368;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; }
+    body {
+      font-family: 'Roboto', 'Noto Sans JP', sans-serif;
+      font-size: 12px;
+      line-height: 1.5;
+      color: #202124;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+    }
 
-    <h2>テンプレ / ローカル md</h2>
-    <div class="palette" id="tpl-palette">
-      <button class="icon secondary" data-tpl="minimal" title="最小テンプレ"><span class="material-symbols-outlined">description</span></button>
-      <button class="icon secondary" data-tpl="full" title="完全テンプレ"><span class="material-symbols-outlined">checklist</span></button>
-      <button class="icon secondary" data-tpl="clear" title="クリア"><span class="material-symbols-outlined">delete_sweep</span></button>
-      <button class="icon secondary" id="md-upload-btn" title="ローカル md を開く"><span class="material-symbols-outlined">upload_file</span></button>
-      <input type="file" id="md-upload-input" accept=".md,.markdown,text/markdown" hidden />
+    /* ヘッダー / タブ */
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 12px 6px;
+    }
+    header h1 { font-size: 14px; margin: 0; font-weight: 500; }
+    #refresh-btn {
+      border: 1px solid var(--border);
+      background: #fff;
+      border-radius: 50%;
+      width: 26px;
+      height: 26px;
+      cursor: pointer;
+      font-size: 13px;
+      line-height: 1;
+      color: var(--muted);
+      padding: 0;
+    }
+    #refresh-btn:hover:not(:disabled) { background: #f1f3f4; }
+    .tabbar {
+      display: flex;
+      border-bottom: 1px solid var(--border);
+      padding: 0 12px;
+    }
+    .tab {
+      flex: 1;
+      text-align: center;
+      padding: 8px 0;
+      cursor: pointer;
+      border: none;
+      background: none;
+      font-size: 13px;
+      color: var(--muted);
+      border-bottom: 2px solid transparent;
+    }
+    .tab.active {
+      color: var(--primary);
+      border-bottom-color: var(--primary);
+      font-weight: 500;
+    }
+    .tab .badge { font-size: 11px; }
+    .badge-ok { color: var(--ok-fg); }
+    .badge-warn { color: var(--warn-fg); }
+
+    main { flex: 1; padding: 12px; }
+    .hidden { display: none !important; }
+
+    /* カード */
+    .card {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px;
+      margin-bottom: 12px;
+    }
+    .card h2 { font-size: 13px; margin: 0 0 6px; font-weight: 600; }
+    .card p { margin: 4px 0; }
+    .card .line {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .card-ok { background: var(--ok-bg); border-color: #ceead6; }
+    .card-warn { background: var(--warn-bg); border-color: #feefc3; }
+    .card-err { background: var(--err-bg); border-color: #fad2cf; }
+    .card-err h2 { color: var(--err-fg); }
+    .card-warn h2 { color: var(--warn-fg); }
+    .card-ok h2 { color: var(--ok-fg); }
+    .muted { color: var(--muted); font-size: 11px; }
+    .highlight-flash { animation: flash 1.2s ease-out; }
+    @keyframes flash { 0% { background: #e8f0fe; } 100% { background: #fff; } }
+
+    /* ボタン（フル幅縦積み） */
+    .btn {
+      display: block;
+      width: 100%;
+      padding: 10px 8px;
+      margin-bottom: 8px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: #fff;
+      color: #202124;
+      font-size: 13px;
+      cursor: pointer;
+      text-align: center;
+      font-family: inherit;
+    }
+    .btn:hover:not(:disabled) { background: #f8f9fa; }
+    .btn-primary {
+      background: var(--primary);
+      border-color: var(--primary);
+      color: #fff;
+      font-weight: 500;
+    }
+    .btn-primary:hover:not(:disabled) { background: var(--primary-dark); }
+    .btn:disabled { opacity: 0.55; cursor: default; }
+    .btn-inline {
+      display: inline-block;
+      width: auto;
+      padding: 5px 10px;
+      font-size: 12px;
+      margin: 2px 4px 2px 0;
+    }
+    .btn-link {
+      background: none;
+      border: none;
+      color: var(--primary);
+      cursor: pointer;
+      font-size: 12px;
+      padding: 2px 0;
+      text-decoration: underline;
+      font-family: inherit;
+    }
+
+    /* 手順ナビ */
+    .steps { margin: 12px 0; }
+    .steps .steps-title {
+      font-size: 11px;
+      color: var(--muted);
+      letter-spacing: 1px;
+      margin-bottom: 4px;
+    }
+    .steps ol { margin: 0; padding-left: 0; list-style: none; }
+    .steps li { padding: 2px 0; }
+
+    /* 下部固定プライマリバー */
+    #primary-bar {
+      position: sticky;
+      bottom: 0;
+      background: #fff;
+      border-top: 1px solid var(--border);
+      padding: 8px 12px;
+    }
+    #primary-bar .btn { margin-bottom: 0; }
+
+    /* フォーム */
+    input[type="text"], input[type="password"], textarea {
+      width: 100%;
+      padding: 6px;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      font-size: 12px;
+      font-family: inherit;
+    }
+    textarea {
+      font-family: 'Roboto Mono', Consolas, monospace;
+      font-size: 11px;
+      min-height: 180px;
+      resize: vertical;
+    }
+    label.radio-row { display: block; padding: 4px 0; cursor: pointer; text-align: left; }
+
+    details { margin-bottom: 12px; }
+    details > summary {
+      cursor: pointer;
+      font-size: 13px;
+      padding: 6px 0;
+      color: var(--muted);
+      list-style: none;
+    }
+    .detail-raw {
+      font-family: 'Roboto Mono', Consolas, monospace;
+      font-size: 10px;
+      white-space: pre-wrap;
+      word-break: break-all;
+      background: #f8f9fa;
+      border-radius: 4px;
+      padding: 6px;
+    }
+
+    /* 列パレット */
+    .palette { display: flex; flex-wrap: wrap; gap: 4px; margin: 6px 0; }
+    .palette button {
+      flex: 1 0 22%;
+      border: 1px solid var(--border);
+      background: #fff;
+      border-radius: 4px;
+      padding: 4px 2px;
+      font-size: 11px;
+      cursor: pointer;
+      font-family: inherit;
+    }
+    .palette button:hover:not(:disabled) { background: #f1f3f4; }
+    .palette button .pi { display: block; font-size: 13px; }
+    .palette button .pl { display: block; font-size: 9px; color: var(--muted); }
+
+    h3.section { font-size: 12px; color: var(--muted); margin: 16px 0 6px; font-weight: 600; }
+    footer { padding: 8px 0; color: var(--muted); font-size: 11px; }
+    a { color: var(--primary); }
+
+    /* スピナー */
+    .spin::before {
+      content: "◌";
+      display: inline-block;
+      margin-right: 6px;
+      animation: rot 1s linear infinite;
+    }
+    @keyframes rot { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>検証シート</h1>
+    <button id="refresh-btn" title="表示を更新（別のシートに切り替えたとき押してください）">↻</button>
+  </header>
+  <div class="tabbar" role="tablist">
+    <button class="tab active" id="tab-btn-work" role="tab" aria-selected="true">作業</button>
+    <button class="tab" id="tab-btn-settings" role="tab" aria-selected="false">設定 <span class="badge" id="settings-badge"></span></button>
+  </div>
+
+  <main>
+    <!-- ============ 作業タブ ============ -->
+    <div id="tab-work">
+      <div id="work-content"><!-- JS が状態別に描画 --></div>
+      <div id="work-result" aria-live="polite"></div>
+      <!-- v-next: pull button slot（「GitHub から読み込む」は次フェーズでここに入る） -->
+      <input type="file" id="md-upload-input" accept=".md,.markdown" class="hidden" />
     </div>
 
-    <h2>列を追加</h2>
-    <div class="col-name-row">
-      <input type="text" id="col-name" placeholder="列名（空なら「列N」）" />
+    <!-- ============ 設定タブ ============ -->
+    <div id="tab-settings" class="hidden">
+      <h3 class="section">GitHub 連携</h3>
+      <div class="card" id="pat-card"><!-- JS が描画 --></div>
+      <div class="card" id="repo-card"><!-- JS が描画 --></div>
+
+      <details id="advanced">
+        <summary>▸ 上級者向け</summary>
+        <div class="card card-warn">
+          <p>⚠ ここから下はシートの設計を変更する機能です。ふだんの記入作業では使いません。</p>
+        </div>
+        <p class="muted">シートの設計データ</p>
+        <textarea id="src" placeholder="---&#10;schema: test-spec/v1&#10;...&#10;---" spellcheck="false"></textarea>
+        <p class="muted" style="margin-top:8px">テンプレート</p>
+        <div>
+          <button class="btn btn-inline" data-tpl="minimal">▦ 最小</button>
+          <button class="btn btn-inline" data-tpl="full">☑ 完全</button>
+          <button class="btn btn-inline" data-tpl="clear">🗑 クリア</button>
+        </div>
+        <p class="muted" style="margin-top:8px">列の追加（列名を入れて種類を選ぶ）</p>
+        <input type="text" id="col-name" placeholder="列名（例: 備考）" />
+        <div class="palette">
+          <button data-type="text"><span class="pi">T</span><span class="pl">文字</span></button>
+          <button data-type="multiline_text"><span class="pi">¶</span><span class="pl">長文</span></button>
+          <button data-type="enum"><span class="pi">▼</span><span class="pl">選択</span></button>
+          <button data-type="date"><span class="pi">📅</span><span class="pl">日付</span></button>
+          <button data-type="number"><span class="pi">#</span><span class="pl">数値</span></button>
+          <button data-type="checkbox"><span class="pi">☑</span><span class="pl">チェック</span></button>
+          <button data-type="url"><span class="pi">🔗</span><span class="pl">リンク</span></button>
+          <button id="col-pop-btn"><span class="pi">🗑</span><span class="pl">末尾削除</span></button>
+        </div>
+        <button class="btn" id="adv-setup-btn">この設計で表を作り直す</button>
+        <button class="btn" id="adv-export-btn">テキスト形式で書き出す</button>
+        <div id="adv-status" aria-live="polite"></div>
+      </details>
+      <footer>md-business · <a href="https://github.com/meta-taro/md-business" target="_blank" rel="noopener">使い方 ↗</a></footer>
     </div>
-    <div class="palette" id="col-palette">
-      <button class="icon secondary" data-type="text" title="text（自由記述）"><span class="material-symbols-outlined">text_fields</span></button>
-      <button class="icon secondary" data-type="multiline_text" title="multiline_text（複数行）"><span class="material-symbols-outlined">notes</span></button>
-      <button class="icon secondary" data-type="enum" title="enum（候補から選択）"><span class="material-symbols-outlined">arrow_drop_down_circle</span></button>
-      <button class="icon secondary" data-type="date" title="date（日付）"><span class="material-symbols-outlined">calendar_month</span></button>
-      <button class="icon secondary" data-type="number" title="number（数値）"><span class="material-symbols-outlined">tag</span></button>
-      <button class="icon secondary" data-type="checkbox" title="checkbox（チェック）"><span class="material-symbols-outlined">check_box</span></button>
-      <button class="icon secondary" data-type="url" title="url（リンク）"><span class="material-symbols-outlined">link</span></button>
-      <button class="icon secondary" id="col-pop-btn" title="末尾の列を削除"><span class="material-symbols-outlined">delete</span></button>
-    </div>
+  </main>
 
-    <h2>frontmatter / 本文</h2>
-    <textarea id="src" placeholder="（テンプレを選ぶか、アイコンで列を追加してください）"></textarea>
-    <div class="actions">
-      <button id="setup-btn">検証シート: セットアップ</button>
-      <button id="validate-btn" class="secondary">検証</button>
-      <button id="ts-export-btn" class="secondary">md 書き出し</button>
-    </div>
-    <div id="status" class="status" role="status" aria-live="polite"></div>
+  <div id="primary-bar" class="hidden">
+    <button class="btn btn-primary" id="save-btn">☁ GitHub へ保存</button>
+  </div>
 
-    <hr />
-    <h1>GitHub Push</h1>
-    <p>
-      frontmatter に <code>repository: owner/repo@branch:path</code> を書いて
-      「GitHub に push」を押すと、現在のシート内容を 1 コミットで PUT します
-      （<code>git push</code> と同じメンタルモデル）。
-    </p>
+  <script>
+    // ---- 状態 ----
+    var state = null;        // getSidebarState() の最新値
+    var maskedPat = null;    // getMaskedPat() の最新値
+    var busyTimer = null;
 
-    <div id="pat-status-card" class="info-card muted">PAT 状態を確認中…</div>
-    <div id="push-target-card" class="info-card muted">push 先プレビュー読み込み中…</div>
+    function $(id) { return document.getElementById(id); }
 
-    <div class="actions pat-form" id="pat-form">
-      <input id="pat-input" type="password" placeholder="ghp_..." style="flex: 1;" autocomplete="off" />
-      <button id="pat-save-btn" class="secondary">PAT を保存</button>
-      <button id="pat-cancel-btn" class="secondary">キャンセル</button>
-    </div>
-    <div class="actions">
-      <button id="push-btn">GitHub に push</button>
-    </div>
+    function escapeHtml(s) {
+      return String(s)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
 
-    <script>
-      const $ = (id) => document.getElementById(id);
-      const setupBtn = $('setup-btn');
-      const validateBtn = $('validate-btn');
-      const tsExportBtn = $('ts-export-btn');
-      const patInput = $('pat-input');
-      const patSaveBtn = $('pat-save-btn');
-      const patCancelBtn = $('pat-cancel-btn');
-      const patForm = $('pat-form');
-      const patStatusCard = $('pat-status-card');
-      const pushTargetCard = $('push-target-card');
-      const pushBtn = $('push-btn');
-      const colNameInput = $('col-name');
-      const colPopBtn = $('col-pop-btn');
-      const mdUploadBtn = $('md-upload-btn');
-      const mdUploadInput = $('md-upload-input');
-      const src = $('src');
-      const status = $('status');
-
-      const allBtns = Array.from(document.querySelectorAll('button'));
-
-      function setBusy(busy, message) {
-        allBtns.forEach((b) => (b.disabled = busy));
-        status.classList.remove('err');
-        status.textContent = message || '';
-        if (message) scrollStatusIntoView();
+    // ---- busy: 押したボタン自身がスピナー + 進行文言に変わり、全操作を止める ----
+    function setBusy(btn, busyLabel) {
+      var controls = document.querySelectorAll('button, input, textarea');
+      for (var i = 0; i < controls.length; i++) controls[i].disabled = true;
+      if (btn) {
+        btn.dataset.label = btn.textContent;
+        btn.classList.add('spin');
+        btn.textContent = busyLabel;
+        busyTimer = setTimeout(function () {
+          if (btn.classList.contains('spin')) btn.textContent = busyLabel + '（そのままお待ちください）';
+        }, 3000);
       }
-      function setError(message) {
-        allBtns.forEach((b) => (b.disabled = false));
-        status.classList.add('err');
-        status.textContent = message || '不明なエラー';
-        scrollStatusIntoView();
+    }
+    function clearBusy(btn) {
+      if (busyTimer) { clearTimeout(busyTimer); busyTimer = null; }
+      var controls = document.querySelectorAll('button, input, textarea');
+      for (var i = 0; i < controls.length; i++) controls[i].disabled = false;
+      if (btn && btn.dataset.label) {
+        btn.classList.remove('spin');
+        btn.textContent = btn.dataset.label;
+        delete btn.dataset.label;
       }
-      function scrollStatusIntoView() {
-        try {
-          status.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-        } catch (_e) {
-          status.scrollIntoView();
-        }
-      }
-      function failureHandler() {
-        return (err) => setError(err && err.message ? err.message : String(err));
-      }
-      function escapeHtml(s) {
-        return String(s == null ? '' : s)
-          .replace(/&/g, '&amp;')
-          .replace(/</g, '&lt;')
-          .replace(/>/g, '&gt;')
-          .replace(/"/g, '&quot;')
-          .replace(/'/g, '&#39;');
-      }
+    }
 
-      function autoColumnName() {
-        const raw = colNameInput.value.trim();
-        if (raw.length > 0) return raw;
-        const match = (src.value.match(/name:/g) || []).length;
-        return '列' + (match + 1);
+    // ---- 結果カード（成功 / エラー 4 段構造） ----
+    function showResult(html) { $('work-result').innerHTML = html; }
+    function successCard(text, extraHtml) {
+      return '<div class="card card-ok"><p>' + text + '</p>' + (extraHtml || '') + '</div>';
+    }
+    function errorCard(heading, cause, nextStep, opts) {
+      opts = opts || {};
+      var icon = opts.warn ? '⚠' : '✖';
+      var cls = opts.warn ? 'card-warn' : 'card-err';
+      var html = '<div class="card ' + cls + '"><h2>' + icon + ' ' + escapeHtml(heading) + '</h2>' +
+        '<p>' + escapeHtml(cause) + '</p>' +
+        '<p>👉 ' + escapeHtml(nextStep) + '</p>';
+      if (opts.settingsLink) {
+        html += '<button class="btn-link" onclick="openSettingsTab(true)">設定タブを開く →</button>';
       }
+      if (opts.raw) {
+        html += '<details><summary>▸ 詳細情報</summary><div class="detail-raw">' +
+          escapeHtml(opts.raw) + '</div></details>';
+      }
+      html += '</div>';
+      return html;
+    }
 
-      // テンプレ
-      document.querySelectorAll('#tpl-palette button[data-tpl]').forEach((btn) => {
-        btn.addEventListener('click', () => {
-          const tplKey = btn.getAttribute('data-tpl');
-          setBusy(true, 'テンプレを適用中...');
-          google.script.run
-            .withSuccessHandler((res) => {
-              if (res && res.ok) {
-                src.value = res.newSrc;
-                schedulePreview();
-                setBusy(false, 'テンプレ「' + tplKey + '」を適用しました。');
-              } else {
-                setError(res && res.error);
-              }
-            })
-            .withFailureHandler(failureHandler())
-            .applyTestSpecTemplateAction(tplKey);
-        });
+    // push 系の生エラーを人間語の 4 段カードへ変換する
+    function githubErrorCard(raw) {
+      var r = String(raw);
+      if (r.indexOf('401') >= 0) {
+        return errorCard('保存できませんでした',
+          'GitHub のアクセスキーが無効になっています（期限切れの可能性があります）。',
+          '設定タブでアクセスキーを登録し直してください。',
+          { settingsLink: true, raw: r });
+      }
+      if (r.indexOf('403') >= 0 || r.indexOf('404') >= 0) {
+        return errorCard('保存できませんでした',
+          '保存先（' + (state && state.repoDisplay ? state.repoDisplay : '指定先') + '）が見つからないか、書き込む権限がありません。',
+          '保存先の綴りと、あなたのアカウントの権限を管理者に確認してください。',
+          { raw: r });
+      }
+      if (r.indexOf('409') >= 0) {
+        return errorCard('保存できませんでした',
+          'GitHub 側のファイルが、ほかの人によって先に更新されています。',
+          'そのまま保存すると相手の変更が消える可能性があります。管理者に相談してください。',
+          { raw: r });
+      }
+      if (r.indexOf('アクセスキー') >= 0 || r.indexOf('PAT') >= 0) {
+        return errorCard('保存できませんでした',
+          'GitHub のアクセスキーが登録されていません。',
+          '設定タブでアクセスキーを登録してください。',
+          { settingsLink: true, raw: r });
+      }
+      return errorCard('保存できませんでした',
+        '通信に失敗しました。一時的な問題の可能性があります。',
+        '少し待ってから、もう一度「GitHub へ保存」を押してください。2 回続けて失敗する場合は管理者に連絡してください。',
+        { raw: r });
+    }
+
+    // ---- タブ ----
+    function switchTab(name) {
+      var work = name === 'work';
+      $('tab-work').classList.toggle('hidden', !work);
+      $('tab-settings').classList.toggle('hidden', work);
+      $('tab-btn-work').classList.toggle('active', work);
+      $('tab-btn-settings').classList.toggle('active', !work);
+      $('tab-btn-work').setAttribute('aria-selected', work ? 'true' : 'false');
+      $('tab-btn-settings').setAttribute('aria-selected', work ? 'false' : 'true');
+      $('primary-bar').classList.toggle('hidden', !work || !(state && state.bound));
+    }
+    function openSettingsTab(highlightPat) {
+      switchTab('settings');
+      if (highlightPat) {
+        var card = $('pat-card');
+        card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        card.classList.remove('highlight-flash');
+        void card.offsetWidth;
+        card.classList.add('highlight-flash');
+      }
+    }
+    $('tab-btn-work').addEventListener('click', function () { switchTab('work'); });
+    $('tab-btn-settings').addEventListener('click', function () { switchTab('settings'); });
+
+    // ---- 設定タブバッジ: アクセスキー + 保存先が両方 OK なら ✓、欠けたら ⚠ ----
+    function renderBadge() {
+      var el = $('settings-badge');
+      if (!state) { el.textContent = ''; return; }
+      var patOk = state.patRegistered;
+      var repoOk = !state.bound || state.repoDisplay !== '';
+      if (patOk && repoOk) { el.textContent = '✓'; el.className = 'badge badge-ok'; }
+      else { el.textContent = '⚠'; el.className = 'badge badge-warn'; }
+    }
+
+    // ---- 作業タブ描画（状態駆動） ----
+    function renderWorkTab() {
+      var c = $('work-content');
+      if (!state) {
+        c.innerHTML = '<div class="card card-warn"><h2>⚠ 状態を確認できませんでした</h2>' +
+          '<p>シートの状態を読み取れませんでした。</p>' +
+          '<p>👉 右上の ↻ でもう一度お試しください。直らない場合はシートを開き直してください。</p></div>';
+        $('primary-bar').classList.add('hidden');
+        renderBadge();
+        renderRepoCard();
+        return;
+      }
+      if (!state.bound) {
+        renderUnbound(c);
+      } else {
+        renderBound(c);
+      }
+      renderBadge();
+      renderRepoCard();
+    }
+
+    // 状態 A: 未セットアップ
+    function renderUnbound(c) {
+      c.innerHTML =
+        '<div class="card" style="text-align:center; padding:18px 10px;">' +
+        '<div style="font-size:34px;">📋</div>' +
+        '<h2>このシートはまだ検証シートになっていません</h2>' +
+        '<p class="muted">シート: ' + escapeHtml(state.sheetName) + '</p>' +
+        '</div>' +
+        '<p>検証シートにするには:</p>' +
+        '<button class="btn btn-primary" id="tpl-open-btn">▦ テンプレートから作る</button>' +
+        '<div id="tpl-picker" class="hidden card">' +
+        '<label class="radio-row"><input type="radio" name="tpl" value="full" checked /> 標準（結果・実施日つき / おすすめ）</label>' +
+        '<label class="radio-row"><input type="radio" name="tpl" value="minimal" /> シンプル（項目だけの最小構成）</label>' +
+        '<button class="btn btn-primary" id="tpl-create-btn">この内容で表を作る</button>' +
+        '</div>' +
+        '<button class="btn" id="upload-open-btn">⬆ ファイル(.md)から作る</button>' +
+        '<!-- v-next: 「GitHub から読み込んで作る」ボタンはここに入る -->' +
+        '<p class="muted">作り方がわからないときは、シートの管理者に相談してください。</p>';
+      $('primary-bar').classList.add('hidden');
+
+      $('tpl-open-btn').addEventListener('click', function () {
+        $('tpl-picker').classList.toggle('hidden');
       });
-
-      // 列追加
-      document.querySelectorAll('#col-palette button[data-type]').forEach((btn) => {
-        btn.addEventListener('click', () => {
-          const colType = btn.getAttribute('data-type');
-          const colName = autoColumnName();
-          let values = null;
-          if (colType === 'enum') {
-            const raw = window.prompt('enum の候補値を CSV で入力（例: OK,NG,保留）', 'OK,NG');
-            if (raw === null) return;
-            values = raw.split(',').map((s) => s.trim()).filter((s) => s.length > 0);
-            if (values.length === 0) {
-              setError('enum には値が 1 つ以上必要です。');
+      $('tpl-create-btn').addEventListener('click', function () {
+        var key = document.querySelector('input[name="tpl"]:checked').value;
+        var btn = $('tpl-create-btn');
+        setBusy(btn, '表を作っています…');
+        google.script.run
+          .withSuccessHandler(function (res) {
+            clearBusy(btn);
+            if (!res.ok) {
+              showResult(errorCard('表を作れませんでした', '設計データに問題がありました。',
+                'もう一度お試しください。直らない場合は管理者に連絡してください。', { raw: res.error }));
               return;
             }
+            showResult(successCard('✅ 検証シートができました。シートに結果を記入したら「GitHub へ保存」を押してください。'));
+            refreshState(null);
+          })
+          .withFailureHandler(function (err) {
+            clearBusy(btn);
+            showResult(errorCard('表を作れませんでした', '処理中にエラーが発生しました。',
+              'もう一度お試しください。', { raw: String(err) }));
+          })
+          .setupFromTemplate(key);
+      });
+      $('upload-open-btn').addEventListener('click', function () {
+        $('md-upload-input').value = '';
+        $('md-upload-input').click();
+      });
+    }
+
+    // 状態 B / B': セットアップ済み
+    function renderBound(c) {
+      var repoOk = state.repoDisplay !== '';
+      var patOk = state.patRegistered;
+      var canSave = repoOk && patOk;
+
+      var html =
+        '<div class="card card-ok">' +
+        '<h2>✅ 検証シート準備OK</h2>' +
+        '<p class="line"><strong>' + escapeHtml(state.title || state.sheetName) + '</strong></p>' +
+        '<p class="line">全 ' + state.itemCount + ' 項目 · シート: ' + escapeHtml(state.sheetName) + '</p>' +
+        (repoOk
+          ? '<p class="line">保存先: <a href="' + escapeHtml(state.repoUrl) + '" target="_blank" rel="noopener">' + escapeHtml(state.repoDisplay) + ' ↗</a></p>'
+          : '') +
+        '</div>';
+
+      if (!repoOk) {
+        html += '<div class="card card-warn"><h2>⚠ 保存先が決まっていません</h2>' +
+          '<p>このシートには GitHub 上の保存先が指定されていません。</p>' +
+          '<p>👉 シートを作った管理者に「保存先の設定」を依頼してください。</p></div>';
+      } else if (!patOk) {
+        html += '<div class="card card-warn"><h2>⚠ GitHub とつながっていません</h2>' +
+          '<p>保存には GitHub のアクセスキーが必要です。</p>' +
+          '<p>👉 設定タブでアクセスキーを登録してください。</p>' +
+          '<button class="btn-link" onclick="openSettingsTab(true)">設定タブを開く →</button></div>';
+      }
+
+      html +=
+        '<div class="steps"><div class="steps-title">―― ふだんの流れ ――</div><ol>' +
+        '<li>① シートに結果を記入する</li>' +
+        '<li>② 入力チェックをする</li>' +
+        '<li>③ GitHub へ保存する</li>' +
+        '</ol></div>' +
+        '<button class="btn" id="validate-btn">✔ 入力チェック</button>';
+
+      c.innerHTML = html;
+
+      var saveBtn = $('save-btn');
+      saveBtn.disabled = !canSave;
+      saveBtn.textContent = canSave ? '☁ GitHub へ保存' : '☁ GitHub へ保存（要設定）';
+      var onWorkTab = !$('tab-work').classList.contains('hidden');
+      $('primary-bar').classList.toggle('hidden', !onWorkTab);
+
+      $('validate-btn').addEventListener('click', runValidate);
+    }
+
+    function runValidate() {
+      var btn = $('validate-btn');
+      setBusy(btn, 'チェックしています…');
+      google.script.run
+        .withSuccessHandler(function (res) {
+          clearBusy(btn);
+          if (!res.ok) {
+            showResult(errorCard('このシートはチェックできません',
+              '表示中のシートが検証シートとして認識できませんでした。',
+              '右上の ↻ を押して表示を更新するか、正しいシートに切り替えてください。', { raw: res.error }));
+            return;
           }
-          setBusy(true, '「' + colName + '」(' + colType + ') を追加中...');
+          if (res.issues.length === 0) {
+            showResult(successCard('✅ 入力チェック OK。問題はありませんでした。'));
+          } else {
+            showResult(errorCard('入力チェックで ' + res.issues.length + ' 件みつかりました',
+              '問題のあるセルにメモを付けました。',
+              'シート上のメモ付きセルを直してから、もう一度「入力チェック」を押してください。'));
+          }
+        })
+        .withFailureHandler(function (err) {
+          clearBusy(btn);
+          showResult(errorCard('チェックできませんでした', '処理中にエラーが発生しました。',
+            'もう一度お試しください。', { raw: String(err) }));
+        })
+        .validateBoundSheet();
+    }
+
+    $('save-btn').addEventListener('click', function () {
+      var btn = $('save-btn');
+      setBusy(btn, 'チェックして保存しています…');
+      google.script.run
+        .withSuccessHandler(function (res) {
+          clearBusy(btn);
+          if (!res.ok) {
+            if (res.stage === 'validate' && res.issueCount) {
+              showResult(errorCard('保存を中断しました',
+                '入力チェックで ' + res.issueCount + ' 件の問題がみつかったため、保存していません。',
+                'シート上のメモ付きセルを直してから、もう一度押してください。'));
+            } else {
+              showResult(githubErrorCard(res.error));
+            }
+            return;
+          }
+          var link = res.commitUrl
+            ? '<p><a href="' + escapeHtml(res.commitUrl) + '" target="_blank" rel="noopener">記録を見る ↗</a></p>'
+            : '';
+          var detail = '<details><summary>▸ 詳細情報</summary><div class="detail-raw">commit: ' +
+            escapeHtml(res.commitSha) + '\n' + res.bytes + ' bytes</div></details>';
+          showResult(successCard('✅ GitHub へ保存しました。', link + detail));
+        })
+        .withFailureHandler(function (err) {
+          clearBusy(btn);
+          showResult(githubErrorCard(String(err)));
+        })
+        .saveBoundSheetToGithub();
+    });
+
+    // ---- ファイル(.md)から作る ----
+    $('md-upload-input').addEventListener('change', function () {
+      var file = this.files && this.files[0];
+      if (!file) return;
+      var reader = new FileReader();
+      reader.onload = function () {
+        var uploadBtn = $('upload-open-btn');
+        setBusy(uploadBtn, 'ファイルを読み込んでいます…');
+        google.script.run
+          .withSuccessHandler(function (res) {
+            clearBusy(uploadBtn);
+            if (!res.ok) {
+              showResult(errorCard('ファイルを読み込めませんでした',
+                'このファイルは検証シートの形式（test-spec）ではないようです。',
+                'ファイルの作成者に「md-business の検証シート形式か」を確認してください。', { raw: res.error }));
+              return;
+            }
+            showResult(successCard('✅ 検証シートができました（全 ' + res.bodyRows + ' 項目）。シートに結果を記入したら「GitHub へ保存」を押してください。'));
+            refreshState(null);
+          })
+          .withFailureHandler(function (err) {
+            clearBusy(uploadBtn);
+            showResult(errorCard('ファイルを読み込めませんでした', '処理中にエラーが発生しました。',
+              'もう一度お試しください。', { raw: String(err) }));
+          })
+          .setupFromUploadedMarkdown(String(reader.result), file.name);
+      };
+      reader.onerror = function () {
+        showResult(errorCard('ファイルを読み込めませんでした', 'ファイルの読み取りに失敗しました。',
+          'もう一度ファイルを選び直してください。'));
+      };
+      reader.readAsText(file);
+    });
+
+    // ---- 設定タブ: アクセスキー（PAT）カード ----
+    function renderPatCard() {
+      var card = $('pat-card');
+      if (maskedPat) {
+        card.innerHTML =
+          '<h2>🔑 アクセスキー <span class="badge-ok">✓登録済み</span></h2>' +
+          '<p class="line">' + escapeHtml(maskedPat) + '</p>' +
+          '<button class="btn btn-inline" id="pat-change-btn">変更</button>' +
+          '<button class="btn btn-inline" id="pat-delete-btn">削除</button>' +
+          '<div id="pat-form" class="hidden"></div>';
+        $('pat-change-btn').addEventListener('click', function () { showPatForm('このキーに変更する'); });
+        $('pat-delete-btn').addEventListener('click', function () {
+          if (!window.confirm('アクセスキーを削除しますか？削除すると GitHub へ保存できなくなります。')) return;
+          var btn = $('pat-delete-btn');
+          setBusy(btn, '削除しています…');
           google.script.run
-            .withSuccessHandler((res) => {
-              if (res && res.ok) {
-                src.value = res.newSrc;
-                schedulePreview();
-                colNameInput.value = '';
-                setBusy(false, '「' + colName + '」(' + colType + ') を追加しました。');
-              } else {
-                setError(res && res.error);
-              }
+            .withSuccessHandler(function () {
+              clearBusy(btn);
+              maskedPat = null;
+              if (state) state.patRegistered = false;
+              renderPatCard();
+              renderWorkTab();
             })
-            .withFailureHandler(failureHandler())
-            .appendTestSpecColumn(src.value, colName, colType, values);
+            .withFailureHandler(function () { clearBusy(btn); })
+            .clearGithubPat();
         });
-      });
-
-      // ローカル md アップロード
-      mdUploadBtn.addEventListener('click', () => {
-        mdUploadInput.value = '';
-        mdUploadInput.click();
-      });
-      mdUploadInput.addEventListener('change', () => {
-        const file = mdUploadInput.files && mdUploadInput.files[0];
-        if (!file) return;
-        const fileName = file.name;
-        setBusy(true, '「' + fileName + '」を読み込み中...');
-        const reader = new FileReader();
-        reader.onerror = () => setError('ファイル読み込み失敗: ' + (reader.error && reader.error.message));
-        reader.onload = () => {
-          const content = typeof reader.result === 'string' ? reader.result : '';
-          google.script.run
-            .withSuccessHandler((res) => {
-              if (res && res.ok) {
-                src.value = res.src;
-                schedulePreview();
-                setBusy(false, '「' + fileName + '」を読み込みました（' + res.src.length + ' chars）。');
-              } else {
-                setError(res && res.error);
-              }
-            })
-            .withFailureHandler(failureHandler())
-            .validateUploadedMarkdownAction(content, fileName);
-        };
-        reader.readAsText(file, 'utf-8');
-      });
-
-      // 末尾列削除
-      colPopBtn.addEventListener('click', () => {
-        setBusy(true, '末尾の列を削除中...');
-        google.script.run
-          .withSuccessHandler((res) => {
-            if (res && res.ok) {
-              src.value = res.newSrc;
-              schedulePreview();
-              setBusy(false, '末尾の列を削除しました。');
-            } else {
-              setError(res && res.error);
-            }
-          })
-          .withFailureHandler(failureHandler())
-          .removeLastTestSpecColumn(src.value);
-      });
-
-      setupBtn.addEventListener('click', () => {
-        setBusy(true, '検証シートをセットアップ中...');
-        google.script.run
-          .withSuccessHandler((res) => {
-            if (res && res.ok) {
-              setBusy(false,
-                res.columns + ' 列 / 本文 ' + res.bodyRows + ' 行 / DataValidation ' +
-                res.dataValidations + ' 件 / ConditionalFormat ' + res.conditionalFormats +
-                ' 件 / 列幅 ' + res.columnWidths + ' 件 / 折り返し ' + res.columnWraps +
-                ' 件 を適用しました。');
-            } else {
-              setError(res && res.error);
-            }
-          })
-          .withFailureHandler(failureHandler())
-          .setupTestSpecSheet(src.value);
-      });
-
-      validateBtn.addEventListener('click', () => {
-        setBusy(true, '検証実行中...');
-        google.script.run
-          .withSuccessHandler((res) => {
-            if (res && res.ok) {
-              if (res.issues.length === 0) {
-                setBusy(false, '問題なし — すべてのセルが frontmatter columns に適合しています。');
-              } else {
-                setError(res.issues.length +
-                  ' 件の問題を検出しました（該当セルに setNote で詳細を記載）。');
-              }
-            } else {
-              setError(res && res.error);
-            }
-          })
-          .withFailureHandler(failureHandler())
-          .validateActiveTestSpecSheet(src.value);
-      });
-
-      tsExportBtn.addEventListener('click', () => {
-        setBusy(true, 'Markdown 書き出し中...');
-        google.script.run
-          .withSuccessHandler((res) => {
-            if (res && res.ok) {
-              src.value = res.markdown;
-              schedulePreview();
-              setBusy(false, '検証シート frontmatter + body を書き出しました。');
-            } else {
-              setError(res && res.error);
-            }
-          })
-          .withFailureHandler(failureHandler())
-          .exportTestSpecMarkdown(src.value);
-      });
-
-      // ----- PAT 状態カード（投入済か未投入かを視覚で常時表示）------------------
-      // Why: PAT は password 入力直後に画面から消えるため、「保存できたのか？」を
-      //      毎回不安に思う。masked 値を出すことで「これがあなたの登録した PAT」を
-      //      認識してもらう。フル PAT は絶対に画面に出さない。
-      function showPatForm() { patForm.classList.add('show'); }
-      function hidePatForm() { patForm.classList.remove('show'); patInput.value = ''; }
-
-      function renderPatStatus() {
-        google.script.run
-          .withSuccessHandler((masked) => {
-            if (masked) {
-              patStatusCard.className = 'info-card';
-              patStatusCard.innerHTML =
-                '🔐 GitHub PAT 登録済み: <code>' + escapeHtml(masked) + '</code>' +
-                '<button class="tiny" id="pat-change-btn" type="button">変更</button>' +
-                '<button class="tiny" id="pat-delete-btn" type="button">削除</button>';
-              $('pat-change-btn').addEventListener('click', () => {
-                showPatForm();
-                patInput.focus();
-              });
-              $('pat-delete-btn').addEventListener('click', onPatDelete);
-              hidePatForm();
-            } else {
-              patStatusCard.className = 'info-card warn';
-              patStatusCard.innerHTML =
-                '🔓 GitHub PAT 未登録です。下のフォームから PAT を登録してください（push に必要）。';
-              showPatForm();
-            }
-          })
-          .withFailureHandler((err) => {
-            patStatusCard.className = 'info-card warn';
-            patStatusCard.textContent =
-              'PAT 状態の取得に失敗: ' + (err && err.message ? err.message : String(err));
-            showPatForm();
-          })
-          .getMaskedPat();
+      } else {
+        card.innerHTML =
+          '<h2>🔑 アクセスキー <span class="badge-warn">⚠未登録</span></h2>' +
+          '<p class="muted">GitHub アカウント設定で発行した Personal Access Token を貼り付けてください。キーはこの Google アカウントにのみ保存され、他の人には見えません。</p>' +
+          '<div id="pat-form"></div>' +
+          '<p class="muted"><a href="https://github.com/settings/tokens" target="_blank" rel="noopener">発行方法を見る ↗</a></p>';
+        showPatForm('登録する');
       }
-
-      function onPatDelete() {
-        if (!window.confirm('PAT を削除します。よろしいですか？')) return;
-        setBusy(true, 'PAT を削除中...');
-        google.script.run
-          .withSuccessHandler(() => {
-            setBusy(false, 'PAT を削除しました。');
-            renderPatStatus();
-          })
-          .withFailureHandler(failureHandler())
-          .clearGithubPat();
-      }
-
-      patSaveBtn.addEventListener('click', () => {
-        const pat = patInput.value;
+    }
+    function showPatForm(submitLabel) {
+      var form = $('pat-form');
+      form.classList.remove('hidden');
+      form.innerHTML =
+        '<input type="password" id="pat-input" placeholder="ghp_..." autocomplete="off" style="margin:6px 0;" />' +
+        '<button class="btn" id="pat-save-btn">' + escapeHtml(submitLabel) + '</button>' +
+        '<div id="pat-status" class="muted" aria-live="polite"></div>';
+      $('pat-save-btn').addEventListener('click', function () {
+        var pat = $('pat-input').value;
         if (!pat || pat.trim().length === 0) {
-          setError('PAT を入力してください。');
+          $('pat-status').textContent = 'キーが空です。貼り付けてから押してください。';
           return;
         }
-        setBusy(true, 'PAT を保存中...');
+        var btn = $('pat-save-btn');
+        setBusy(btn, 'キーを登録しています…');
         google.script.run
-          .withSuccessHandler((res) => {
-            if (res && res.ok) {
-              setBusy(false, 'PAT を保存しました（UserProperties）。');
-              renderPatStatus();
-            } else {
-              setError(res && res.error);
+          .withSuccessHandler(function (res) {
+            if (!res.ok) {
+              clearBusy(btn);
+              $('pat-status').textContent = res.error;
+              return;
             }
+            google.script.run.withSuccessHandler(function (m) {
+              clearBusy(btn);
+              maskedPat = m;
+              if (state) state.patRegistered = true;
+              renderPatCard();
+              renderWorkTab();
+              showResult(successCard('✅ アクセスキーを登録しました。作業タブから保存できるようになりました。'));
+            }).getMaskedPat();
           })
-          .withFailureHandler(failureHandler())
+          .withFailureHandler(function (err) {
+            clearBusy(btn);
+            $('pat-status').textContent = '登録に失敗しました: ' + String(err);
+          })
           .setGithubPat(pat);
       });
+    }
 
-      patCancelBtn.addEventListener('click', () => {
-        hidePatForm();
-        setBusy(false, '');
-        // 既に登録済みなら status カードは「変更/削除」表示のままで OK
-        // 未登録ならフォームを閉じても card は warn のまま
-      });
+    // ---- 設定タブ: 保存先カード ----
+    function renderRepoCard() {
+      var card = $('repo-card');
+      if (!state || !state.bound) {
+        card.innerHTML = '<h2>📁 保存先</h2><p class="muted">このシートはまだ検証シートになっていないため、保存先はありません。</p>';
+        return;
+      }
+      if (state.repoDisplay === '') {
+        card.innerHTML =
+          '<h2>📁 保存先 <span class="badge-warn">⚠未設定</span></h2>' +
+          '<p>シートの設計データに保存先の指定がありません。</p>' +
+          '<p class="muted">👉 シートの管理者に確認してください。（管理者向け: 下の「上級者向け」で設計データに repository: owner/repo@branch:path を追記し「この設計で表を作り直す」を実行）</p>';
+        return;
+      }
+      card.innerHTML =
+        '<h2>📁 保存先 <span class="badge-ok">✓設定済み</span></h2>' +
+        '<p class="line">' + escapeHtml(state.repoDisplay) + '</p>' +
+        '<details><summary>▸ 詳細（ブランチ・ファイル）</summary><p class="line muted">' + escapeHtml(state.repoDetail) + '</p></details>' +
+        '<p><a href="' + escapeHtml(state.repoUrl) + '" target="_blank" rel="noopener">GitHub で開く ↗</a></p>';
+    }
 
-      // ----- push 先プレビュー（textarea 編集に追随）------------------------
-      // Why: 「frontmatter で指定したから push 先は分かるよね」とは限らない。
-      //      タイポや忘れで意図しないリポへ push する事故を防ぐため、
-      //      textarea を編集するたびに「ここに行きます」を視覚化する。
-      let previewTimer = null;
-      function schedulePreview() {
-        if (previewTimer) clearTimeout(previewTimer);
-        previewTimer = setTimeout(() => updatePushTargetCard(src.value), 300);
-      }
-      function renderPushTargetRef(ref) {
-        const url =
-          'https://github.com/' + encodeURIComponent(ref.owner) +
-          '/' + encodeURIComponent(ref.repo) +
-          '/blob/' + encodeURIComponent(ref.branch) +
-          '/' + ref.path.split('/').map(encodeURIComponent).join('/');
-        pushTargetCard.className = 'info-card';
-        pushTargetCard.innerHTML =
-          '📤 push 先: <code>' + escapeHtml(ref.owner) + '/' + escapeHtml(ref.repo) +
-          '@' + escapeHtml(ref.branch) + ':' + escapeHtml(ref.path) + '</code> ' +
-          '<a href="' + url + '" target="_blank" rel="noopener noreferrer">GitHub で開く ↗</a>';
-      }
-      function renderPushTargetEmpty() {
-        pushTargetCard.className = 'info-card muted';
-        pushTargetCard.innerHTML =
-          '📤 push 先: 未指定。frontmatter に ' +
-          '<code>repository: owner/repo@branch:path</code> を追記してください。';
-      }
-      function updatePushTargetCard(srcText) {
+    // ---- 設定タブ: 上級者向け ----
+    function advStatus(html) { $('adv-status').innerHTML = html; }
+
+    $('advanced').addEventListener('toggle', function () {
+      if (!this.open) return;
+      var src = $('src');
+      if (src.value.trim().length > 0) return;
+      google.script.run.withSuccessHandler(function (stored) {
+        if (stored && src.value.trim().length === 0) src.value = stored;
+      }).getBoundSource();
+    });
+
+    var tplButtons = document.querySelectorAll('button[data-tpl]');
+    for (var t = 0; t < tplButtons.length; t++) {
+      tplButtons[t].addEventListener('click', function () {
+        var key = this.getAttribute('data-tpl');
+        if (key === 'clear' && $('src').value.trim().length > 0) {
+          if (!window.confirm('設計データを消去しますか？')) return;
+        }
+        var btn = this;
+        setBusy(btn, '適用中…');
         google.script.run
-          .withSuccessHandler((ref) => {
-            if (ref) renderPushTargetRef(ref);
-            else renderPushTargetEmpty();
+          .withSuccessHandler(function (res) {
+            clearBusy(btn);
+            if (res.ok) { $('src').value = res.newSrc; advStatus(''); }
+            else advStatus('<p class="badge-warn">' + escapeHtml(res.error) + '</p>');
           })
-          .withFailureHandler((err) => {
-            pushTargetCard.className = 'info-card warn';
-            pushTargetCard.textContent =
-              'push 先プレビュー取得失敗: ' + (err && err.message ? err.message : String(err));
-          })
-          .previewPushTarget(srcText);
-      }
-      src.addEventListener('input', schedulePreview);
-
-      pushBtn.addEventListener('click', () => {
-        setBusy(true, 'GitHub に push 中...');
-        google.script.run
-          .withSuccessHandler((res) => {
-            if (res && res.ok) {
-              const sha = res.commitSha ? res.commitSha.slice(0, 7) : '(unknown)';
-              const url = res.commitUrl || '';
-              const linked = url
-                ? 'commit <a href="' + url + '" target="_blank" rel="noopener noreferrer">' +
-                  escapeHtml(sha) + ' ↗</a>'
-                : 'commit ' + escapeHtml(sha);
-              allBtns.forEach((b) => (b.disabled = false));
-              status.classList.remove('err');
-              status.innerHTML = '✅ push 完了。' + linked + ' / ' + res.bytes + ' bytes。';
-              scrollStatusIntoView();
-            } else {
-              setError(res && res.error);
-            }
-          })
-          .withFailureHandler(failureHandler())
-          .pushTestSpecToGithub(src.value);
+          .withFailureHandler(function (err) { clearBusy(btn); advStatus('<p class="badge-warn">' + escapeHtml(String(err)) + '</p>'); })
+          .applyTestSpecTemplateAction(key);
       });
+    }
 
-      // ----- 初期化 ----------------------------------------------------------
-      renderPatStatus();
-      updatePushTargetCard(src.value);
-    </script>
-  </body>
+    var typeButtons = document.querySelectorAll('.palette button[data-type]');
+    for (var p = 0; p < typeButtons.length; p++) {
+      typeButtons[p].addEventListener('click', function () {
+        var colType = this.getAttribute('data-type');
+        var colName = $('col-name').value.trim();
+        if (colName.length === 0) { advStatus('<p class="badge-warn">列名を入れてから種類を選んでください。</p>'); return; }
+        var values = null;
+        if (colType === 'enum') {
+          var csv = window.prompt('選択肢をカンマ区切りで入力してください（例: OK,NG,保留）');
+          if (csv === null) return;
+          values = csv.split(',').map(function (v) { return v.trim(); }).filter(function (v) { return v.length > 0; });
+        }
+        var btn = this;
+        setBusy(btn, '…');
+        google.script.run
+          .withSuccessHandler(function (res) {
+            clearBusy(btn);
+            if (res.ok) { $('src').value = res.newSrc; $('col-name').value = ''; advStatus(''); }
+            else advStatus('<p class="badge-warn">' + escapeHtml(res.error) + '</p>');
+          })
+          .withFailureHandler(function (err) { clearBusy(btn); advStatus('<p class="badge-warn">' + escapeHtml(String(err)) + '</p>'); })
+          .appendTestSpecColumn($('src').value, colName, colType, values);
+      });
+    }
+
+    $('col-pop-btn').addEventListener('click', function () {
+      var btn = this;
+      setBusy(btn, '…');
+      google.script.run
+        .withSuccessHandler(function (res) {
+          clearBusy(btn);
+          if (res.ok) { $('src').value = res.newSrc; advStatus(''); }
+          else advStatus('<p class="badge-warn">' + escapeHtml(res.error) + '</p>');
+        })
+        .withFailureHandler(function (err) { clearBusy(btn); advStatus('<p class="badge-warn">' + escapeHtml(String(err)) + '</p>'); })
+        .removeLastTestSpecColumn($('src').value);
+    });
+
+    $('adv-setup-btn').addEventListener('click', function () {
+      var btn = this;
+      setBusy(btn, '表を作っています…');
+      google.script.run
+        .withSuccessHandler(function (res) {
+          clearBusy(btn);
+          if (!res.ok) {
+            advStatus('<div class="card card-err"><h2>✖ 設計データにエラーがあります</h2><p>👉 直前の編集内容を見直してください。</p><details><summary>▸ 詳細情報</summary><div class="detail-raw">' + escapeHtml(res.error) + '</div></details></div>');
+            return;
+          }
+          advStatus('<p class="badge-ok">✅ 表を作り直しました（' + res.columns + ' 列）。</p>');
+          refreshState(null);
+        })
+        .withFailureHandler(function (err) {
+          clearBusy(btn);
+          advStatus('<p class="badge-warn">' + escapeHtml(String(err)) + '</p>');
+        })
+        .setupTestSpecSheet($('src').value);
+    });
+
+    $('adv-export-btn').addEventListener('click', function () {
+      var btn = this;
+      setBusy(btn, '書き出しています…');
+      google.script.run
+        .withSuccessHandler(function (res) {
+          clearBusy(btn);
+          if (!res.ok) { advStatus('<p class="badge-warn">' + escapeHtml(res.error) + '</p>'); return; }
+          $('src').value = res.markdown;
+          advStatus('<p class="badge-ok">✅ 現在のシートをテキスト形式（Markdown）に書き出しました。上の設計データ欄に表示しています。</p>');
+        })
+        .withFailureHandler(function (err) { clearBusy(btn); advStatus('<p class="badge-warn">' + escapeHtml(String(err)) + '</p>'); })
+        .exportTestSpecMarkdown($('src').value);
+    });
+
+    // ---- 状態取得（初期化・↻） ----
+    function refreshState(btn) {
+      if (btn) setBusy(btn, '確認中…');
+      google.script.run
+        .withSuccessHandler(function (s) {
+          state = s;
+          if (btn) clearBusy(btn);
+          renderWorkTab();
+        })
+        .withFailureHandler(function () {
+          state = null;
+          if (btn) clearBusy(btn);
+          renderWorkTab();
+        })
+        .getSidebarState();
+    }
+    $('refresh-btn').addEventListener('click', function () {
+      showResult('');
+      refreshState($('refresh-btn'));
+    });
+
+    // ---- 初期化: 状態 + マスク済みキーを取得して描画 ----
+    google.script.run.withSuccessHandler(function (m) {
+      maskedPat = m;
+      renderPatCard();
+    }).getMaskedPat();
+    refreshState(null);
+  </script>
+</body>
 </html>
