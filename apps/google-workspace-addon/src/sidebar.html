@@ -190,6 +190,8 @@
       color: var(--muted);
       list-style: none;
     }
+    details > summary::before { content: '▸ '; }
+    details[open] > summary::before { content: '▾ '; }
     .detail-raw {
       font-family: 'Roboto Mono', Consolas, monospace;
       font-size: 10px;
@@ -257,7 +259,7 @@
       <div class="card" id="repo-card"><!-- JS が描画 --></div>
 
       <details id="advanced">
-        <summary>▸ 上級者向け</summary>
+        <summary>上級者向け</summary>
         <div class="card card-warn">
           <p>⚠ ここから下はシートの設計を変更する機能です。ふだんの記入作業では使いません。</p>
         </div>
@@ -353,19 +355,33 @@
         '<p>' + escapeHtml(cause) + '</p>' +
         '<p>👉 ' + escapeHtml(nextStep) + '</p>';
       if (opts.settingsLink) {
-        html += '<button class="btn-link" onclick="openSettingsTab(true)">設定タブを開く →</button>';
+        html += '<button class="btn-link" onclick="openSettingsTab(\'pat\')">設定タブを開く →</button>';
       }
       if (opts.raw) {
-        html += '<details><summary>▸ 詳細情報</summary><div class="detail-raw">' +
+        html += '<details><summary>詳細情報</summary><div class="detail-raw">' +
           escapeHtml(opts.raw) + '</div></details>';
       }
       html += '</div>';
       return html;
     }
 
+    // google.script.run のセッション切れ（長時間開いたサイドバー / 複数アカウント同時ログイン）
+    // は NetworkError: HTTP 403 として全サーバー呼び出しに出る。開き直しで直る。
+    function isTransportError(raw) {
+      var r = String(raw);
+      return r.indexOf('NetworkError') >= 0 || r.indexOf('接続できませんでした') >= 0;
+    }
+    function transportErrorCard(raw) {
+      return errorCard('通信が切れました',
+        'Google とサイドバーの接続が切れています。サイドバーを長時間開いたままにしたときや、複数の Google アカウントに同時ログインしているときに起きます。シートの入力内容は消えていません。',
+        'サイドバーの × を押して閉じ、メニュー「拡張機能 → md-business」からもう一度開いてください。',
+        { raw: String(raw) });
+    }
+
     // push 系の生エラーを人間語の 4 段カードへ変換する
     function githubErrorCard(raw) {
       var r = String(raw);
+      if (isTransportError(r)) return transportErrorCard(r);
       if (r.indexOf('401') >= 0) {
         return errorCard('保存できませんでした',
           'GitHub のアクセスキーが無効になっています（期限切れの可能性があります）。',
@@ -407,10 +423,10 @@
       $('tab-btn-settings').setAttribute('aria-selected', work ? 'false' : 'true');
       $('primary-bar').classList.toggle('hidden', !work || !(state && state.bound));
     }
-    function openSettingsTab(highlightPat) {
+    function openSettingsTab(target) {
       switchTab('settings');
-      if (highlightPat) {
-        var card = $('pat-card');
+      var card = target === 'repo' ? $('repo-card') : target === 'pat' ? $('pat-card') : null;
+      if (card) {
         card.scrollIntoView({ behavior: 'smooth', block: 'start' });
         card.classList.remove('highlight-flash');
         void card.offsetWidth;
@@ -491,6 +507,7 @@
           })
           .withFailureHandler(function (err) {
             clearBusy(btn);
+            if (isTransportError(err)) { showResult(transportErrorCard(err)); return; }
             showResult(errorCard('表を作れませんでした', '処理中にエラーが発生しました。',
               'もう一度お試しください。', { raw: String(err) }));
           })
@@ -521,12 +538,13 @@
       if (!repoOk) {
         html += '<div class="card card-warn"><h2>⚠ 保存先が決まっていません</h2>' +
           '<p>このシートには GitHub 上の保存先が指定されていません。</p>' +
-          '<p>👉 シートを作った管理者に「保存先の設定」を依頼してください。</p></div>';
+          '<p>👉 設定タブの「保存先」で入力できます。わからないときはシートの管理者に確認してください。</p>' +
+          '<button class="btn-link" onclick="openSettingsTab(\'repo\')">設定タブを開く →</button></div>';
       } else if (!patOk) {
         html += '<div class="card card-warn"><h2>⚠ GitHub とつながっていません</h2>' +
           '<p>保存には GitHub のアクセスキーが必要です。</p>' +
           '<p>👉 設定タブでアクセスキーを登録してください。</p>' +
-          '<button class="btn-link" onclick="openSettingsTab(true)">設定タブを開く →</button></div>';
+          '<button class="btn-link" onclick="openSettingsTab(\'pat\')">設定タブを開く →</button></div>';
       }
 
       html +=
@@ -570,6 +588,7 @@
         })
         .withFailureHandler(function (err) {
           clearBusy(btn);
+          if (isTransportError(err)) { showResult(transportErrorCard(err)); return; }
           showResult(errorCard('チェックできませんでした', '処理中にエラーが発生しました。',
             'もう一度お試しください。', { raw: String(err) }));
         })
@@ -595,7 +614,7 @@
           var link = res.commitUrl
             ? '<p><a href="' + escapeHtml(res.commitUrl) + '" target="_blank" rel="noopener">記録を見る ↗</a></p>'
             : '';
-          var detail = '<details><summary>▸ 詳細情報</summary><div class="detail-raw">commit: ' +
+          var detail = '<details><summary>詳細情報</summary><div class="detail-raw">commit: ' +
             escapeHtml(res.commitSha) + '\n' + res.bytes + ' bytes</div></details>';
           showResult(successCard('✅ GitHub へ保存しました。', link + detail));
         })
@@ -628,6 +647,7 @@
           })
           .withFailureHandler(function (err) {
             clearBusy(uploadBtn);
+            if (isTransportError(err)) { showResult(transportErrorCard(err)); return; }
             showResult(errorCard('ファイルを読み込めませんでした', '処理中にエラーが発生しました。',
               'もう一度お試しください。', { raw: String(err) }));
           })
@@ -663,7 +683,10 @@
               renderPatCard();
               renderWorkTab();
             })
-            .withFailureHandler(function () { clearBusy(btn); })
+            .withFailureHandler(function (err) {
+              clearBusy(btn);
+              if (isTransportError(err)) showResult(transportErrorCard(err));
+            })
             .clearGithubPat();
         });
       } else {
@@ -708,6 +731,7 @@
           })
           .withFailureHandler(function (err) {
             clearBusy(btn);
+            if (isTransportError(err)) { $('pat-status').textContent = ''; showResult(transportErrorCard(err)); return; }
             $('pat-status').textContent = '登録に失敗しました: ' + String(err);
           })
           .setGithubPat(pat);
@@ -724,15 +748,57 @@
       if (state.repoDisplay === '') {
         card.innerHTML =
           '<h2>📁 保存先 <span class="badge-warn">⚠未設定</span></h2>' +
-          '<p>シートの設計データに保存先の指定がありません。</p>' +
-          '<p class="muted">👉 シートの管理者に確認してください。（管理者向け: 下の「上級者向け」で設計データに repository: owner/repo@branch:path を追記し「この設計で表を作り直す」を実行）</p>';
+          '<p class="muted">結果を保存する GitHub 上のファイルを owner/repo@branch:path の形で指定します（例: meta-taro/md-business@main:docs/test-spec/sample.md）。わからないときはシートの管理者に確認してください。</p>' +
+          '<div id="repo-form"></div>';
+        showRepoForm('この保存先を設定する');
         return;
       }
       card.innerHTML =
         '<h2>📁 保存先 <span class="badge-ok">✓設定済み</span></h2>' +
         '<p class="line">' + escapeHtml(state.repoDisplay) + '</p>' +
-        '<details><summary>▸ 詳細（ブランチ・ファイル）</summary><p class="line muted">' + escapeHtml(state.repoDetail) + '</p></details>' +
-        '<p><a href="' + escapeHtml(state.repoUrl) + '" target="_blank" rel="noopener">GitHub で開く ↗</a></p>';
+        '<details><summary>詳細（ブランチ・ファイル）</summary><p class="line muted">' + escapeHtml(state.repoDetail) + '</p></details>' +
+        '<p><a href="' + escapeHtml(state.repoUrl) + '" target="_blank" rel="noopener">GitHub で開く ↗</a></p>' +
+        '<button class="btn btn-inline" id="repo-change-btn">変更</button>' +
+        '<div id="repo-form" class="hidden"></div>';
+      $('repo-change-btn').addEventListener('click', function () {
+        showRepoForm('この保存先に変更する');
+      });
+    }
+    function showRepoForm(submitLabel) {
+      var form = $('repo-form');
+      form.classList.remove('hidden');
+      form.innerHTML =
+        '<input type="text" id="repo-input" placeholder="owner/repo@branch:path/to/file.md" autocomplete="off" style="margin:6px 0;" />' +
+        '<button class="btn" id="repo-save-btn">' + escapeHtml(submitLabel) + '</button>' +
+        '<div id="repo-status" class="muted" aria-live="polite"></div>';
+      $('repo-save-btn').addEventListener('click', function () {
+        var value = $('repo-input').value.trim();
+        if (value.length === 0) {
+          $('repo-status').textContent = '保存先が空です。owner/repo@branch:path の形で入力してください。';
+          return;
+        }
+        var btn = $('repo-save-btn');
+        setBusy(btn, '設定しています…');
+        google.script.run
+          .withSuccessHandler(function (res) {
+            clearBusy(btn);
+            if (!res.ok) {
+              $('repo-status').textContent = res.error;
+              return;
+            }
+            state.repoDisplay = res.repoDisplay;
+            state.repoDetail = res.repoDetail;
+            state.repoUrl = res.repoUrl;
+            renderWorkTab();
+            showResult(successCard('✅ 保存先を設定しました。作業タブから保存できるようになりました。'));
+          })
+          .withFailureHandler(function (err) {
+            clearBusy(btn);
+            if (isTransportError(err)) { $('repo-status').textContent = ''; showResult(transportErrorCard(err)); return; }
+            $('repo-status').textContent = '設定に失敗しました: ' + String(err);
+          })
+          .setRepositoryForBoundSheet(value);
+      });
     }
 
     // ---- 設定タブ: 上級者向け ----
@@ -812,7 +878,7 @@
         .withSuccessHandler(function (res) {
           clearBusy(btn);
           if (!res.ok) {
-            advStatus('<div class="card card-err"><h2>✖ 設計データにエラーがあります</h2><p>👉 直前の編集内容を見直してください。</p><details><summary>▸ 詳細情報</summary><div class="detail-raw">' + escapeHtml(res.error) + '</div></details></div>');
+            advStatus('<div class="card card-err"><h2>✖ 設計データにエラーがあります</h2><p>👉 直前の編集内容を見直してください。</p><details><summary>詳細情報</summary><div class="detail-raw">' + escapeHtml(res.error) + '</div></details></div>');
             return;
           }
           advStatus('<p class="badge-ok">✅ 表を作り直しました（' + res.columns + ' 列）。</p>');

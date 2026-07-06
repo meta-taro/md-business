@@ -1,6 +1,6 @@
 import yaml from 'js-yaml';
 
-import { extractFrontmatter } from './frontmatterEdit.js';
+import { extractFrontmatter, replaceFrontmatter } from './frontmatterEdit.js';
 import { parseRepoRef, type RepoRef } from './githubApi.js';
 
 /**
@@ -61,4 +61,65 @@ function pickString(data: Record<string, unknown>, ...keys: string[]): string {
     if (typeof value === 'string') return value;
   }
   return '';
+}
+
+/**
+ * ヘッダーを除いた getValues() の結果から「記入済み行数」を数える。
+ * Why: getLastRow() はテンプレセットアップで流し込んだ checkbox の false や
+ *      データバリデーションの範囲まで拾い、実機で「全 999 項目」と誤表示した。
+ *      false と空文字（空白のみ含む）は未記入として扱う。
+ */
+export function countFilledRows(values: ReadonlyArray<ReadonlyArray<unknown>>): number {
+  let count = 0;
+  for (const row of values) {
+    if (row.some(isFilledCell)) count += 1;
+  }
+  return count;
+}
+
+function isFilledCell(cell: unknown): boolean {
+  if (typeof cell === 'string') return cell.trim().length > 0;
+  if (typeof cell === 'number') return true;
+  if (typeof cell === 'boolean') return cell;
+  return cell !== null && cell !== undefined;
+}
+
+export type UpsertRepositoryResult =
+  | { ok: true; newSrc: string; repo: RepoRef }
+  | { ok: false; error: string };
+
+/**
+ * 保存済み md ソースの frontmatter に repository 行を追加・置換する。
+ * Why: テンプレートから作った直後は保存先が未設定で、旧動線は「上級者向けで
+ *      設計データを直接編集」しかなかった。設定タブの保存先カードから 1 入力で
+ *      設定できるようにするためのロジック層。YAML を round-trip すると
+ *      コメント・書式が壊れるため、行単位のテキスト操作で frontmatter を保つ。
+ */
+export function upsertRepositoryField(src: string, repoInput: string): UpsertRepositoryResult {
+  const repo = parseRepoRef(repoInput);
+  if (!repo) {
+    return {
+      ok: false,
+      error:
+        '保存先の形式が正しくありません。owner/repo@branch:path の形で入力してください（例: meta-taro/md-business@main:docs/test-spec/sample.md）。',
+    };
+  }
+  const { yaml: yamlStr } = extractFrontmatter(src);
+  if (yamlStr.trim().length === 0) {
+    return { ok: false, error: '設計データに frontmatter がありません。' };
+  }
+
+  const canonical = `repository: ${repo.owner}/${repo.repo}@${repo.branch}:${repo.path}`;
+  const lines = yamlStr.split('\n');
+  const repoIndex = lines.findIndex((line) => /^repository:\s/.test(line));
+  const hintIndex = lines.findIndex((line) => /^#\s*repository:/.test(line));
+  if (repoIndex >= 0) {
+    lines[repoIndex] = canonical;
+  } else if (hintIndex >= 0) {
+    lines[hintIndex] = canonical;
+  } else {
+    const schemaIndex = lines.findIndex((line) => /^(schema|スキーマ):/.test(line));
+    lines.splice(schemaIndex >= 0 ? schemaIndex + 1 : 0, 0, canonical);
+  }
+  return { ok: true, newSrc: replaceFrontmatter(src, lines.join('\n')), repo };
 }

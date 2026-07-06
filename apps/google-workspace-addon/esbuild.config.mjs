@@ -39,6 +39,7 @@ const TRIGGER_NAMES = [
   'validateBoundSheet',
   'saveBoundSheetToGithub',
   'getMaskedPat',
+  'setRepositoryForBoundSheet',
 ];
 // (...args) 転送必須: appendTestSpecColumn 等は複数引数。(e) 1 引数転送だと実機だけで壊れる。
 // リスト漏れは test/appsScriptEntrypoints.test.ts が検出する（sidebar.html ⊆ TRIGGER_NAMES）。

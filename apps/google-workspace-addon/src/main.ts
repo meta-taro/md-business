@@ -31,7 +31,12 @@ import {
   type ParseForSidebarResult,
 } from './lib/parseTestSpecForSidebar.js';
 import { buildPushPlan } from './lib/pushTestSpec.js';
-import { bindingPropertyKey, buildBindingSummary } from './lib/sheetBinding.js';
+import {
+  bindingPropertyKey,
+  buildBindingSummary,
+  countFilledRows,
+  upsertRepositoryField,
+} from './lib/sheetBinding.js';
 
 const KEY_GITHUB_PAT = 'GITHUB_PAT';
 
@@ -462,12 +467,19 @@ export function getSidebarState(): SidebarState {
 
   const summary = buildBindingSummary(src);
   const repo = summary?.repository ?? null;
+  // getLastRow() は checkbox の false やバリデーション範囲まで拾って
+  // 「全 999 項目」と誤表示するため、実際に記入のある行だけ数える
+  const lastRow = sheet.getLastRow();
+  const bodyValues =
+    lastRow > 1
+      ? sheet.getRange(2, 1, lastRow - 1, Math.max(sheet.getLastColumn(), 1)).getValues()
+      : [];
   return {
     ...base,
     bound: true,
     title: summary?.title ?? '',
     documentNumber: summary?.documentNumber ?? '',
-    itemCount: Math.max(sheet.getLastRow() - 1, 0),
+    itemCount: countFilledRows(bodyValues),
     repoDisplay: repo ? `${repo.owner}/${repo.repo}` : '',
     repoDetail: repo ? `${repo.branch}:${repo.path}` : '',
     repoUrl: repo
@@ -509,6 +521,34 @@ export function setupFromUploadedMarkdown(
 
 const NOT_BOUND_ERROR =
   'このシートはまだ検証シートになっていません。作業タブの「テンプレートから作る」または「ファイル(.md)から作る」で表を作ってください。';
+
+export type SetRepositoryResult =
+  | { ok: true; repoDisplay: string; repoDetail: string; repoUrl: string }
+  | { ok: false; error: string };
+
+/**
+ * 設定タブ「保存先」カードからの保存先設定。保存済みソースの frontmatter に
+ * repository 行を追加・置換して binding を更新する。
+ * Why: テンプレートから作った直後は保存先が未設定で、旧動線（上級者向けで
+ *      設計データを直接編集 → 表を作り直す）は実施者・管理者双方に重すぎた。
+ */
+export function setRepositoryForBoundSheet(repoInput: string): SetRepositoryResult {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  const src = loadBindingForSheet(sheet);
+  if (src === null || src.length === 0) {
+    return { ok: false, error: NOT_BOUND_ERROR };
+  }
+  const result = upsertRepositoryField(src, repoInput);
+  if (!result.ok) return { ok: false, error: result.error };
+  saveBindingForSheet(sheet, result.newSrc);
+  const repo = result.repo;
+  return {
+    ok: true,
+    repoDisplay: `${repo.owner}/${repo.repo}`,
+    repoDetail: `${repo.branch}:${repo.path}`,
+    repoUrl: `https://github.com/${repo.owner}/${repo.repo}/blob/${repo.branch}/${repo.path}`,
+  };
+}
 
 /**
  * 作業タブ「入力チェック」。保存済みソースを正本にアクティブシートを検証する。
