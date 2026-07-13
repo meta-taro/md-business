@@ -138,6 +138,8 @@ const MINIMAL_TEMPLATE = [
   '---',
 ].join('\n');
 
+// 配色は Issue #25 合意（Material 50/100/300 系・全値 行背景色）。
+// templates/test-spec/standard-ja.md / docs/test-spec/sample.md と同期を保つこと。
 const FULL_TEMPLATE = [
   '---',
   'schema: test-spec/v1',
@@ -147,6 +149,7 @@ const FULL_TEMPLATE = [
   'status: executing',
   'authors:',
   '  - { name: 担当, role: PdM }',
+  '# repository: owner/repo@branch:path   # 「GitHub に push」を使う場合はコメントを外して自分の repo に書き換え',
   'columns:',
   '  - { name: 項目, type: text }',
   '  - { name: 手順, type: multiline_text }',
@@ -154,9 +157,10 @@ const FULL_TEMPLATE = [
   '    type: enum',
   '    values: [OK, NG, 保留, 未実施]',
   '    visual:',
+  '      OK: { row_background: "#e6f4ea" }',
   '      NG: { row_background: "#fce8e6" }',
-  '      保留: { background: "#fef7e0" }',
-  '      OK: { color: "#1e7e34" }',
+  '      保留: { row_background: "#f1f3f4" }',
+  '      未実施: { row_background: "#dadce0" }',
   '  - { name: 実施日, type: date }',
   '  - { name: 回数, type: number, min: 1, max: 10 }',
   '  - { name: 完了, type: checkbox }',

@@ -32,8 +32,20 @@ const TRIGGER_NAMES = [
   'clearGithubPat',
   'hasGithubPat',
   'pushTestSpecToGithub',
+  'getSidebarState',
+  'getBoundSource',
+  'setupFromTemplate',
+  'setupFromUploadedMarkdown',
+  'validateBoundSheet',
+  'saveBoundSheetToGithub',
+  'getMaskedPat',
+  'setRepositoryForBoundSheet',
 ];
-const footer = TRIGGER_NAMES.map((name) => `function ${name}(e){return mdb.${name}(e);}`).join('\n');
+// (...args) 転送必須: appendTestSpecColumn 等は複数引数。(e) 1 引数転送だと実機だけで壊れる。
+// リスト漏れは test/appsScriptEntrypoints.test.ts が検出する（sidebar.html ⊆ TRIGGER_NAMES）。
+const footer = TRIGGER_NAMES.map(
+  (name) => `function ${name}(...args){return mdb.${name}(...args);}`,
+).join('\n');
 
 const buildOptions = {
   entryPoints: [resolve(SRC, 'main.ts')],
