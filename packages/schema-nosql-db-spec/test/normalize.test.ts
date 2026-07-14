@@ -181,6 +181,22 @@ describe('normalizeNosqlDbSpecFrontmatter — shape / fieldDef scope', () => {
     });
   });
 
+  it('does not pollute prototypes via a __proto__ shape field name', () => {
+    const malicious = JSON.parse(
+      '{"コレクション":[{"パス":"users","形状":{"__proto__":{"型":"文字列"}}}]}',
+    );
+    const { data } = normalizeNosqlDbSpecFrontmatter(malicious);
+    const collections = data['collections'] as Array<Record<string, unknown>>;
+    const shape = collections[0]?.['shape'] as Record<string, unknown>;
+    // global prototype must stay clean
+    expect(({} as Record<string, unknown>).型).toBeUndefined();
+    // shape's own prototype must not be swapped by the __proto__ field
+    expect(Object.getPrototypeOf(shape)).toBe(Object.prototype);
+    // the field is preserved as an own data property (no silent data loss)
+    expect(Object.prototype.hasOwnProperty.call(shape, '__proto__')).toBe(true);
+    expect((shape['__proto__'] as Record<string, unknown>)['type']).toBe('string');
+  });
+
   it.each([
     ['文字列', 'string'],
     ['数値', 'number'],

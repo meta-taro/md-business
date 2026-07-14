@@ -17,8 +17,11 @@ import type { NosqlDbSpec } from './types.js';
  * Falls back to the default rule `NoSQL設計書_{文書番号}_v{版}` when no
  * template is provided.
  *
- * Windows-forbidden characters (/ \ : * ? " < > |) are replaced with `_`
- * after substitution so the resulting name is always safe to save.
+ * Windows-forbidden characters (/ \ : * ? " < > |), NUL and C0/DEL control
+ * characters are replaced with `_` after substitution; Windows reserved device
+ * names (CON, PRN, AUX, NUL, COM1-9, LPT1-9) are prefixed with `_`; and an
+ * empty result falls back to `untitled` — so the resulting name is always
+ * safe to save.
  */
 export function renderNosqlDbSpecFileName(
   nosqlDbSpec: NosqlDbSpec,
@@ -47,7 +50,9 @@ export function renderNosqlDbSpecFileName(
   };
   const rendered = tpl.replace(/\{([^}]+)\}/g, (_, raw: string) => {
     const key = raw.trim();
-    return tokens[key] ?? '';
+    // hasOwnProperty guard: a `{__proto__}` token must resolve to the empty
+    // string, not to the inherited `Object.prototype` accessor value.
+    return Object.prototype.hasOwnProperty.call(tokens, key) ? tokens[key] ?? '' : '';
   });
   return sanitizeFileName(rendered);
 }
@@ -66,12 +71,22 @@ function todayLocal(): { iso: string; ymd: string } {
   return { iso: `${y}-${m}-${day}`, ymd: `${y}${m}${day}` };
 }
 
-const FORBIDDEN = /[\\/:*?"<>|\r\n\t]/g;
+// Windows-forbidden characters plus NUL / C0 control chars (\x00-\x1f) and DEL
+// (\x7f). An embedded NUL in particular can truncate a filename at the OS layer,
+// so it must never survive into a name the caller treats as "safe to save".
+const FORBIDDEN = /[\x00-\x1f\x7f\\/:*?"<>|]/g;
+
+// Windows reserved device names (case-insensitive, matched on the stem before
+// any extension). Saving a file literally named e.g. `CON` fails on Windows.
+const RESERVED_DEVICE_NAME = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])$/i;
 
 function sanitizeFileName(name: string): string {
-  return name
+  const stripped = name
     .replace(FORBIDDEN, '_')
     .replace(/\s+/g, ' ')
     .replace(/_+/g, '_')
     .replace(/^[._\s]+|[._\s]+$/g, '');
+  if (stripped.length === 0) return 'untitled';
+  const stem = stripped.split('.')[0] ?? stripped;
+  return RESERVED_DEVICE_NAME.test(stem) ? `_${stripped}` : stripped;
 }

@@ -75,3 +75,31 @@ describe('renderNosqlDbSpecFileName — sanitize', () => {
     expect(renderNosqlDbSpecFileName(sparse, 'X{文書番号}{タイトル}{版}{エンジン}Y')).toBe('XY');
   });
 });
+
+describe('renderNosqlDbSpecFileName — security hardening', () => {
+  it('strips NUL and C0 control characters from the rendered name', () => {
+    const title = `a${String.fromCharCode(0)}b${String.fromCharCode(1)}c${String.fromCharCode(127)}d`;
+    const name = renderNosqlDbSpecFileName({ ...SPEC, title }, '{タイトル}');
+    expect(name).not.toMatch(/[\x00-\x1f\x7f]/);
+    expect(name).toBe('a_b_c_d');
+  });
+
+  it('avoids Windows reserved device names by prefixing an underscore', () => {
+    expect(renderNosqlDbSpecFileName({ ...SPEC, documentNumber: 'CON' }, '{文書番号}')).toBe('_CON');
+    expect(renderNosqlDbSpecFileName({ ...SPEC, documentNumber: 'nul' }, '{文書番号}')).toBe('_nul');
+    expect(renderNosqlDbSpecFileName({ ...SPEC, documentNumber: 'LPT9' }, '{文書番号}')).toBe('_LPT9');
+  });
+
+  it('does not treat non-reserved names as reserved', () => {
+    expect(renderNosqlDbSpecFileName({ ...SPEC, documentNumber: 'console' }, '{文書番号}')).toBe('console');
+  });
+
+  it('falls back to a default when the sanitized name is empty', () => {
+    expect(renderNosqlDbSpecFileName(SPEC, '///')).toBe('untitled');
+    expect(renderNosqlDbSpecFileName(SPEC, '...')).toBe('untitled');
+  });
+
+  it('does not resolve {__proto__} to a stringified prototype', () => {
+    expect(renderNosqlDbSpecFileName(SPEC, 'A{__proto__}B')).toBe('AB');
+  });
+});
