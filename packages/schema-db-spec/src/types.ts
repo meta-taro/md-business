@@ -32,7 +32,7 @@ export interface DbSpecColumn {
   /**
    * Engine-native type expression, verbatim (e.g. `varchar(255)`, `timestamptz`,
    * `numeric(12,2)`). Strict SQL-like notation is canonical (PdM decision B-2);
-   * synonym absorption (`文字列` etc.) happens in the normalize layer, not here.
+   * type values are never translated — the normalize layer only maps keys.
    */
   type: string;
   pk?: boolean;
