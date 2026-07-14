@@ -52,7 +52,12 @@ function translateScope(
   const out: Record<string, unknown> = {};
 
   for (const [rawKey, rawValue] of Object.entries(value)) {
-    const targetKey = dict[rawKey] ?? rawKey;
+    // hasOwnProperty guard: a raw key of `__proto__` must NOT resolve to the
+    // inherited `Object.prototype` accessor value from the dictionary lookup.
+    const mapped = Object.prototype.hasOwnProperty.call(dict, rawKey)
+      ? dict[rawKey]
+      : undefined;
+    const targetKey = mapped ?? rawKey;
     const childPath = path ? `${path}.${targetKey}` : targetKey;
 
     if (Object.prototype.hasOwnProperty.call(out, targetKey)) {
@@ -63,9 +68,25 @@ function translateScope(
     }
 
     const childScope = childScopeFor(scope, targetKey);
-    out[targetKey] = translateLeaf(scope, targetKey, rawValue, childScope, childPath, warnings);
+    safeSet(out, targetKey, translateLeaf(scope, targetKey, rawValue, childScope, childPath, warnings));
   }
   return out;
+}
+
+/**
+ * Assign `value` under `key` as an own data property, even when `key` is
+ * `__proto__`. Plain `out[key] = value` would invoke the `__proto__` accessor
+ * and swap the object's prototype (prototype pollution) instead of storing the
+ * value. `Object.defineProperty` stores it non-destructively — no pollution,
+ * and no silent data loss for a legitimately (if unusually) named field.
+ */
+function safeSet(target: Record<string, unknown>, key: string, value: unknown): void {
+  Object.defineProperty(target, key, {
+    value,
+    enumerable: true,
+    writable: true,
+    configurable: true,
+  });
 }
 
 function translateLeaf(

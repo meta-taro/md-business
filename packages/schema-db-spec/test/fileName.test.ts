@@ -103,3 +103,34 @@ describe('renderDbSpecFileName — sanitization', () => {
     expect(name).toBe('XY');
   });
 });
+
+describe('renderDbSpecFileName — security hardening', () => {
+  it('strips NUL and C0 control characters from the rendered name', () => {
+    const title = `a${String.fromCharCode(0)}b${String.fromCharCode(1)}c${String.fromCharCode(127)}d`;
+    const name = renderDbSpecFileName(buildDbSpec({ title }), '{タイトル}');
+    expect(name).not.toMatch(/[\x00-\x1f\x7f]/);
+    expect(name).toBe('a_b_c_d');
+  });
+
+  it('avoids Windows reserved device names by prefixing an underscore', () => {
+    expect(renderDbSpecFileName(buildDbSpec({ documentNumber: 'CON' }), '{文書番号}')).toBe('_CON');
+    expect(renderDbSpecFileName(buildDbSpec({ documentNumber: 'nul' }), '{文書番号}')).toBe('_nul');
+    expect(renderDbSpecFileName(buildDbSpec({ documentNumber: 'COM1' }), '{文書番号}')).toBe('_COM1');
+    expect(renderDbSpecFileName(buildDbSpec({ documentNumber: 'LPT9' }), '{文書番号}')).toBe('_LPT9');
+  });
+
+  it('does not treat non-reserved names as reserved', () => {
+    expect(renderDbSpecFileName(buildDbSpec({ documentNumber: 'console' }), '{文書番号}')).toBe('console');
+    expect(renderDbSpecFileName(buildDbSpec({ documentNumber: 'COM0' }), '{文書番号}')).toBe('COM0');
+  });
+
+  it('falls back to a default when the sanitized name is empty', () => {
+    expect(renderDbSpecFileName(buildDbSpec(), '///')).toBe('untitled');
+    expect(renderDbSpecFileName(buildDbSpec(), '...')).toBe('untitled');
+  });
+
+  it('does not resolve {__proto__} to a stringified prototype', () => {
+    const name = renderDbSpecFileName(buildDbSpec(), 'A{__proto__}B');
+    expect(name).toBe('AB');
+  });
+});

@@ -55,6 +55,18 @@ describe('normalizeDbSpecFrontmatter — root scope', () => {
     expect(data.tables).toEqual([]);
   });
 
+  it('does not pollute Object.prototype via a __proto__ frontmatter key', () => {
+    const malicious = JSON.parse('{"__proto__": {"polluted": true}, "文書番号": "DB-1"}');
+    const { data } = normalizeDbSpecFrontmatter(malicious);
+    // global prototype must stay clean
+    expect(({} as Record<string, unknown>).polluted).toBeUndefined();
+    // the returned object's prototype must not be swapped
+    expect(Object.getPrototypeOf(data)).toBe(Object.prototype);
+    expect((data as Record<string, unknown>).polluted).toBeUndefined();
+    // benign keys still translate
+    expect(data.documentNumber).toBe('DB-1');
+  });
+
   it.each([['マイグレーション'], ['移行履歴'], ['migrations']])(
     'maps root key "%s" → migrations',
     (key) => {
