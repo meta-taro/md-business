@@ -26,3 +26,12 @@ export {
   THEME_VALUE_TRANSLATIONS,
 } from './dictionary.ja.js';
 export type { ApiSpecDictionaryScope, ApiSpecDictionary } from './dictionary.ja.js';
+export { autofillApiSpec } from './autofill.js';
+export type { AutofillWarning, AutofillResult } from './autofill.js';
+export { renderApiSpecFileName } from './fileName.js';
+export {
+  translateApiSpecError,
+  translateApiSpecErrors,
+  translateApiSpecWarning,
+  translateApiSpecWarnings,
+} from './translateError.js';
