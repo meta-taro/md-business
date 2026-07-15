@@ -14,3 +14,15 @@ export type {
   ApiSpecEndpoint,
   ApiSpecError,
 } from './types.js';
+export { normalizeApiSpecFrontmatter } from './normalize.js';
+export type { NormalizeWarning, NormalizeResult } from './normalize.js';
+export {
+  API_SPEC_JA_DICTIONARY,
+  STATUS_TRANSLATIONS,
+  PROTOCOL_TRANSLATIONS,
+  AUTH_TRANSLATIONS,
+  METHOD_TRANSLATIONS,
+  FIELD_TYPE_TRANSLATIONS,
+  THEME_VALUE_TRANSLATIONS,
+} from './dictionary.ja.js';
+export type { ApiSpecDictionaryScope, ApiSpecDictionary } from './dictionary.ja.js';
