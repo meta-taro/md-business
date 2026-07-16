@@ -16,6 +16,10 @@
       "types": "./dist/schema.d.ts",
       "import": "./dist/schema.js"
     },
+    "./validate": {
+      "types": "./dist/validate.compiled.d.ts",
+      "import": "./dist/validate.compiled.js"
+    },
     "./schema.json": "./src/api-spec.schema.json"
   },
   "files": [
@@ -24,7 +28,7 @@
     "README.md"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.build.json",
+    "build": "tsc -p tsconfig.build.json && node scripts/build-validate.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest",
     "test:run": "vitest run --coverage",
