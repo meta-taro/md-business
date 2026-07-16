@@ -9,6 +9,16 @@ export { renderTestSpecHtml, type RenderTestSpecHtmlOptions } from './renderTest
 export { renderDbSpecBody, type RenderDbSpecBodyOptions } from './dbSpecTemplate.js';
 export { renderDbSpecHtml, type RenderDbSpecHtmlOptions } from './renderDbSpecHtml.js';
 export {
+  renderNosqlDbSpecBody,
+  type RenderNosqlDbSpecBodyOptions,
+} from './nosqlDbSpecTemplate.js';
+export {
+  renderNosqlDbSpecHtml,
+  type RenderNosqlDbSpecHtmlOptions,
+} from './renderNosqlDbSpecHtml.js';
+export { renderApiSpecBody, type RenderApiSpecBodyOptions } from './apiSpecTemplate.js';
+export { renderApiSpecHtml, type RenderApiSpecHtmlOptions } from './renderApiSpecHtml.js';
+export {
   renderStampSvg,
   inferStampShape,
   extractStampChars,

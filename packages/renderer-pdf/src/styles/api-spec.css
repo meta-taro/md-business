@@ -1,0 +1,490 @@
+/*
+ * API spec (API 詳細設計書 / REST · RPC · GraphQL) print styles — A4 portrait,
+ * Japanese-aware. Cover page + endpoint catalog (request/response field tables)
+ * + error catalog layout for Paged.js. Mirrors db-spec.css / nosql-db-spec.css
+ * so every design document type shares one design vocabulary.
+ *
+ * Theme color: set `--mdb-color-accent` on `.mdb-api-spec` via inline style or
+ * preset (see apiSpecTemplate.ts). All accent surfaces inherit.
+ */
+
+@page {
+  size: A4 portrait;
+  margin: 20mm 18mm 22mm 18mm;
+}
+
+/* 表紙ページは余白 0。`.mdb-api-spec__cover` 自体が左カラーバー + 内側 padding
+   を持つので、@page margin で更に削るとレイアウトが二重に縮む。 */
+@page :first {
+  margin: 0;
+}
+
+:root {
+  --mdb-color-fg: #111;
+  --mdb-color-muted: #666;
+  --mdb-color-border: #d4d4d8;
+  --mdb-color-accent: #2a4d7a;
+  --mdb-color-accent-soft: #e0e7f0;
+  --mdb-color-code-bg: #f5f5f4;
+  --mdb-font-base: 'Noto Sans JP', 'Hiragino Kaku Gothic ProN', 'Yu Gothic', sans-serif;
+  --mdb-font-mono: 'JetBrains Mono', 'Noto Sans Mono CJK JP', 'Consolas', monospace;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  font-family: var(--mdb-font-base);
+  color: var(--mdb-color-fg);
+  font-size: 10.5pt;
+  line-height: 1.7;
+  -webkit-font-smoothing: antialiased;
+}
+
+.mdb-api-spec {
+  margin: 0;
+}
+
+/* ─────────────────────── Cover page ─────────────────────── */
+
+.mdb-api-spec__cover {
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  width: 100%;
+  min-height: 297mm;
+  max-height: 297mm;
+  padding: 0;
+  margin: 0;
+  page-break-after: always;
+  break-after: page;
+  background: linear-gradient(135deg, var(--mdb-color-accent-soft) 0%, #ffffff 60%);
+  border-left: 6mm solid var(--mdb-color-accent);
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.mdb-api-spec__cover-inner {
+  padding: 24mm 22mm 14mm 22mm;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.mdb-api-spec__status {
+  display: inline-block;
+  padding: 2mm 6mm;
+  font-size: 9pt;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  border: 1.2pt solid var(--mdb-color-accent);
+  border-radius: 999px;
+  color: var(--mdb-color-accent);
+  background: #ffffff;
+  margin-bottom: 10mm;
+}
+
+.mdb-api-spec__status--approved {
+  background: var(--mdb-color-accent);
+  color: #ffffff;
+}
+
+.mdb-api-spec__status--draft {
+  border-style: dashed;
+}
+
+.mdb-api-spec__status--deprecated {
+  border-style: dotted;
+  color: var(--mdb-color-muted);
+  border-color: var(--mdb-color-muted);
+}
+
+.mdb-api-spec__title {
+  font-size: 26pt;
+  font-weight: 700;
+  line-height: 1.3;
+  margin: 0 0 12mm 0;
+  color: var(--mdb-color-fg);
+  letter-spacing: 0.02em;
+}
+
+.mdb-api-spec__meta {
+  display: grid;
+  grid-template-columns: 28mm 1fr;
+  row-gap: 2.5mm;
+  column-gap: 6mm;
+  margin: 0 0 10mm 0;
+  padding: 0;
+  font-size: 11pt;
+}
+
+.mdb-api-spec__meta dt {
+  font-weight: 600;
+  color: var(--mdb-color-muted);
+  margin: 0;
+}
+
+.mdb-api-spec__meta dd {
+  margin: 0;
+  color: var(--mdb-color-fg);
+}
+
+.mdb-api-spec__meta code {
+  font-family: var(--mdb-font-mono);
+  font-size: 10pt;
+  background: transparent;
+  padding: 0;
+  word-break: break-all;
+}
+
+.mdb-api-spec__people,
+.mdb-api-spec__related {
+  margin: 0 0 10mm 0;
+}
+
+.mdb-api-spec__people h2,
+.mdb-api-spec__related h2 {
+  font-size: 11pt;
+  font-weight: 600;
+  color: var(--mdb-color-accent);
+  margin: 0 0 3mm 0;
+  padding: 0 0 1.5mm 0;
+  border-bottom: 0.6pt solid var(--mdb-color-accent);
+  letter-spacing: 0.04em;
+}
+
+.mdb-api-spec__people ul,
+.mdb-api-spec__related ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.mdb-api-spec__people li,
+.mdb-api-spec__related li {
+  padding: 1mm 0;
+  font-size: 10.5pt;
+}
+
+.mdb-api-spec__role {
+  font-size: 9.5pt;
+  color: var(--mdb-color-muted);
+  margin-left: 1mm;
+}
+
+/* ─────────────────────── Endpoint catalog ─────────────────────── */
+
+.mdb-api-spec__body {
+  padding: 4mm 0 0 0;
+  max-width: 174mm;
+  margin: 0 auto;
+}
+
+.mdb-api-spec__endpoint {
+  margin: 0 0 10mm 0;
+  page-break-inside: avoid;
+  break-inside: avoid;
+}
+
+.mdb-api-spec__endpoint-head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 3mm;
+  font-size: 12pt;
+  margin: 0 0 2mm 0;
+  padding: 0 0 1.5mm 0;
+  border-bottom: 1.2pt solid var(--mdb-color-accent);
+  page-break-after: avoid;
+  break-after: avoid;
+}
+
+.mdb-api-spec__method {
+  display: inline-block;
+  padding: 0.6mm 3mm;
+  font-family: var(--mdb-font-mono);
+  font-size: 9pt;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: #ffffff;
+  background: var(--mdb-color-muted);
+  border-radius: 1.5mm;
+  white-space: nowrap;
+}
+
+/* HTTP verb color coding — conventional REST palette. */
+.mdb-api-spec__method--get {
+  background: #1d6fb8;
+}
+.mdb-api-spec__method--post {
+  background: #2e8540;
+}
+.mdb-api-spec__method--put,
+.mdb-api-spec__method--patch {
+  background: #b8860b;
+}
+.mdb-api-spec__method--delete {
+  background: #b91c1c;
+}
+.mdb-api-spec__method--head,
+.mdb-api-spec__method--options {
+  background: #6d28d9;
+}
+
+.mdb-api-spec__path {
+  font-weight: 700;
+  color: var(--mdb-color-fg);
+  word-break: break-all;
+}
+
+.mdb-api-spec__path code {
+  font-family: var(--mdb-font-mono);
+  background: transparent;
+  padding: 0;
+}
+
+.mdb-api-spec__deprecated-badge {
+  display: inline-block;
+  padding: 0.4mm 2.5mm;
+  font-size: 8pt;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: var(--mdb-color-muted);
+  border: 1pt dotted var(--mdb-color-muted);
+  border-radius: 999px;
+}
+
+.mdb-api-spec__endpoint-summary {
+  margin: 0 0 2.5mm 0;
+  color: var(--mdb-color-muted);
+  font-size: 10pt;
+}
+
+.mdb-api-spec__endpoint-meta {
+  display: grid;
+  grid-template-columns: 28mm 1fr;
+  row-gap: 1.2mm;
+  column-gap: 4mm;
+  margin: 0 0 3mm 0;
+  padding: 0;
+  font-size: 9.5pt;
+}
+
+.mdb-api-spec__endpoint-meta dt {
+  font-weight: 600;
+  color: var(--mdb-color-muted);
+  margin: 0;
+}
+
+.mdb-api-spec__endpoint-meta dd {
+  margin: 0;
+}
+
+.mdb-api-spec__endpoint-meta code {
+  font-family: var(--mdb-font-mono);
+  font-size: 9pt;
+  background: transparent;
+  padding: 0;
+}
+
+.mdb-api-spec__request,
+.mdb-api-spec__responses {
+  margin: 3mm 0 0 0;
+}
+
+.mdb-api-spec__request > h3,
+.mdb-api-spec__responses > h3 {
+  font-size: 11pt;
+  font-weight: 700;
+  color: var(--mdb-color-accent);
+  margin: 0 0 2mm 0;
+  page-break-after: avoid;
+  break-after: avoid;
+}
+
+.mdb-api-spec__sub {
+  margin: 0 0 3mm 4mm;
+}
+
+.mdb-api-spec__sub h4 {
+  display: flex;
+  align-items: baseline;
+  gap: 3mm;
+  font-size: 10pt;
+  font-weight: 600;
+  color: var(--mdb-color-muted);
+  margin: 2mm 0 1.5mm 0;
+  page-break-after: avoid;
+  break-after: avoid;
+}
+
+.mdb-api-spec__content-type code,
+.mdb-api-spec__format,
+.mdb-api-spec__dbref code {
+  font-family: var(--mdb-font-mono);
+  font-size: 8.5pt;
+  color: var(--mdb-color-muted);
+  word-break: break-all;
+}
+
+.mdb-api-spec__response {
+  margin: 0 0 3mm 0;
+}
+
+.mdb-api-spec__response h4 {
+  display: flex;
+  align-items: baseline;
+  gap: 3mm;
+  flex-wrap: wrap;
+  font-size: 10pt;
+  font-weight: 600;
+  margin: 2mm 0 1.5mm 4mm;
+  page-break-after: avoid;
+  break-after: avoid;
+}
+
+.mdb-api-spec__status-code {
+  font-family: var(--mdb-font-mono);
+  font-weight: 700;
+  color: var(--mdb-color-accent);
+}
+
+.mdb-api-spec__response-desc {
+  color: var(--mdb-color-fg);
+  font-weight: 400;
+}
+
+.mdb-api-spec__errorref {
+  font-size: 8.5pt;
+  color: var(--mdb-color-muted);
+  font-weight: 400;
+}
+
+.mdb-api-spec__errorref code {
+  font-family: var(--mdb-font-mono);
+  background: transparent;
+  padding: 0;
+}
+
+/* ─────────────────────── Field tables ─────────────────────── */
+
+.mdb-api-spec__fields {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0 0 3mm 0;
+  font-size: 9.5pt;
+  page-break-inside: avoid;
+  break-inside: avoid;
+}
+
+.mdb-api-spec__fields th,
+.mdb-api-spec__fields td {
+  border: 0.6pt solid var(--mdb-color-border);
+  padding: 1.5mm 2.5mm;
+  text-align: left;
+  vertical-align: top;
+}
+
+.mdb-api-spec__fields thead th {
+  background: var(--mdb-color-accent-soft);
+  color: var(--mdb-color-fg);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.mdb-api-spec__fields code {
+  font-family: var(--mdb-font-mono);
+  font-size: 9pt;
+  background: transparent;
+  padding: 0;
+  word-break: break-all;
+}
+
+/* Nested array element / object member fields are indented by depth to convey
+   hierarchy. Depth 0 is a top-level field; each level nudges the name cell right. */
+.mdb-api-spec__field--depth-1 .mdb-api-spec__field-name {
+  padding-left: 6mm;
+}
+.mdb-api-spec__field--depth-2 .mdb-api-spec__field-name {
+  padding-left: 10mm;
+}
+.mdb-api-spec__field--depth-3 .mdb-api-spec__field-name {
+  padding-left: 14mm;
+}
+.mdb-api-spec__field--depth-4 .mdb-api-spec__field-name {
+  padding-left: 18mm;
+}
+.mdb-api-spec__field[data-depth]:not([data-depth='0']) .mdb-api-spec__field-name code {
+  color: var(--mdb-color-muted);
+}
+
+.mdb-api-spec__field-flag {
+  text-align: center;
+  white-space: nowrap;
+}
+
+.mdb-api-spec__mark {
+  color: var(--mdb-color-accent);
+  font-weight: 700;
+}
+
+.mdb-api-spec__field-desc {
+  font-size: 9pt;
+}
+
+/* ─────────────────────── Error catalog ─────────────────────── */
+
+.mdb-api-spec__errors {
+  margin: 8mm 0 0 0;
+}
+
+.mdb-api-spec__errors h2 {
+  font-size: 13pt;
+  font-weight: 700;
+  color: var(--mdb-color-accent);
+  margin: 0 0 3mm 0;
+  padding: 0 0 1.5mm 0;
+  border-bottom: 1.2pt solid var(--mdb-color-accent);
+}
+
+.mdb-api-spec__error-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0 0 3mm 0;
+  font-size: 9.5pt;
+  page-break-inside: avoid;
+  break-inside: avoid;
+}
+
+.mdb-api-spec__error-table th,
+.mdb-api-spec__error-table td {
+  border: 0.6pt solid var(--mdb-color-border);
+  padding: 1.5mm 2.5mm;
+  text-align: left;
+  vertical-align: top;
+}
+
+.mdb-api-spec__error-table thead th {
+  background: var(--mdb-color-accent-soft);
+  color: var(--mdb-color-fg);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.mdb-api-spec__error-table code {
+  font-family: var(--mdb-font-mono);
+  font-size: 9pt;
+  background: transparent;
+  padding: 0;
+  word-break: break-all;
+}
+
+/* 画面プレビュー時のシャドウ / 余分なマージンは付与しない（spec.css と同方針）。 */
+@media screen {
+  .mdb-api-spec {
+    background: #ffffff;
+  }
+  .mdb-api-spec__cover {
+    margin: -18mm -16mm 0 -16mm;
+    width: calc(100% + 32mm);
+  }
+}
