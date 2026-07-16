@@ -35,3 +35,9 @@ export {
   translateApiSpecWarning,
   translateApiSpecWarnings,
 } from './translateError.js';
+export { parseApiSpecMarkdown, parseApiSpecObject } from './parseApiSpec.js';
+export type {
+  ApiSpecParseSuccess,
+  ApiSpecParseFailure,
+  ApiSpecParseResult,
+} from './parseApiSpec.js';
