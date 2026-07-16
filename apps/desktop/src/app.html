@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>md-business</title>
+    <!--
+      FOUC 回避: ペイント前に保存済みテーマ（なければ OS 設定）を data-theme へ反映する。
+      トークンは data-theme=light|dark で切り替わる（DESIGN.md §8）。
+    -->
+    <script>
+      (() => {
+        try {
+          const saved = localStorage.getItem('mdb-theme');
+          const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+          const theme = saved === 'light' || saved === 'dark' ? saved : prefersDark ? 'dark' : 'light';
+          document.documentElement.dataset.theme = theme;
+        } catch (_) {
+          document.documentElement.dataset.theme = 'light';
+        }
+      })();
+    </script>
+    %sveltekit.head%
+  </head>
+  <body data-sveltekit-preload-data="hover">
+    <div style="display: contents">%sveltekit.body%</div>
+  </body>
+</html>
