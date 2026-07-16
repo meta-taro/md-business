@@ -23,6 +23,7 @@
     "@codemirror/view": "^6.43.1",
     "@md-business/core": "workspace:*",
     "@md-business/renderer-pdf": "workspace:*",
+    "@md-business/schema-db-spec": "workspace:*",
     "@md-business/schema-invoice": "workspace:*",
     "@md-business/schema-spec": "workspace:*",
     "@md-business/schema-test-spec": "workspace:*",

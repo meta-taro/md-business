@@ -1,0 +1,324 @@
+/*
+ * DB spec (DB 設計書 / RDB) print styles — A4 portrait, Japanese-aware.
+ * Cover page + table catalog (column definition tables) layout for Paged.js.
+ *
+ * Theme color: set `--mdb-color-accent` on `.mdb-db-spec` via inline style or
+ * preset (see dbSpecTemplate.ts). All accent surfaces inherit from it.
+ */
+
+@page {
+  size: A4 portrait;
+  margin: 20mm 18mm 22mm 18mm;
+}
+
+/* 表紙ページは余白 0。`.mdb-db-spec__cover` 自体が左カラーバー + 内側 padding を
+   持つので、@page margin で更に削るとレイアウトが二重に縮む。 */
+@page :first {
+  margin: 0;
+}
+
+:root {
+  --mdb-color-fg: #111;
+  --mdb-color-muted: #666;
+  --mdb-color-border: #d4d4d8;
+  --mdb-color-accent: #2a4d7a;
+  --mdb-color-accent-soft: #e0e7f0;
+  --mdb-color-code-bg: #f5f5f4;
+  --mdb-font-base: 'Noto Sans JP', 'Hiragino Kaku Gothic ProN', 'Yu Gothic', sans-serif;
+  --mdb-font-mono: 'JetBrains Mono', 'Noto Sans Mono CJK JP', 'Consolas', monospace;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  font-family: var(--mdb-font-base);
+  color: var(--mdb-color-fg);
+  font-size: 10.5pt;
+  line-height: 1.7;
+  -webkit-font-smoothing: antialiased;
+}
+
+.mdb-db-spec {
+  margin: 0;
+}
+
+/* ─────────────────────── Cover page ─────────────────────── */
+
+.mdb-db-spec__cover {
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  width: 100%;
+  min-height: 297mm;
+  max-height: 297mm;
+  padding: 0;
+  margin: 0;
+  page-break-after: always;
+  break-after: page;
+  background: linear-gradient(135deg, var(--mdb-color-accent-soft) 0%, #ffffff 60%);
+  border-left: 6mm solid var(--mdb-color-accent);
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.mdb-db-spec__cover-inner {
+  padding: 24mm 22mm 14mm 22mm;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.mdb-db-spec__status {
+  display: inline-block;
+  padding: 2mm 6mm;
+  font-size: 9pt;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  border: 1.2pt solid var(--mdb-color-accent);
+  border-radius: 999px;
+  color: var(--mdb-color-accent);
+  background: #ffffff;
+  margin-bottom: 10mm;
+}
+
+.mdb-db-spec__status--approved {
+  background: var(--mdb-color-accent);
+  color: #ffffff;
+}
+
+.mdb-db-spec__status--draft {
+  border-style: dashed;
+}
+
+.mdb-db-spec__status--deprecated {
+  border-style: dotted;
+  color: var(--mdb-color-muted);
+  border-color: var(--mdb-color-muted);
+}
+
+.mdb-db-spec__title {
+  font-size: 26pt;
+  font-weight: 700;
+  line-height: 1.3;
+  margin: 0 0 12mm 0;
+  color: var(--mdb-color-fg);
+  letter-spacing: 0.02em;
+}
+
+.mdb-db-spec__meta {
+  display: grid;
+  grid-template-columns: 28mm 1fr;
+  row-gap: 2.5mm;
+  column-gap: 6mm;
+  margin: 0 0 10mm 0;
+  padding: 0;
+  font-size: 11pt;
+}
+
+.mdb-db-spec__meta dt {
+  font-weight: 600;
+  color: var(--mdb-color-muted);
+  margin: 0;
+}
+
+.mdb-db-spec__meta dd {
+  margin: 0;
+  color: var(--mdb-color-fg);
+}
+
+.mdb-db-spec__people,
+.mdb-db-spec__related {
+  margin: 0 0 10mm 0;
+}
+
+.mdb-db-spec__people h2,
+.mdb-db-spec__related h2 {
+  font-size: 11pt;
+  font-weight: 600;
+  color: var(--mdb-color-accent);
+  margin: 0 0 3mm 0;
+  padding: 0 0 1.5mm 0;
+  border-bottom: 0.6pt solid var(--mdb-color-accent);
+  letter-spacing: 0.04em;
+}
+
+.mdb-db-spec__people ul,
+.mdb-db-spec__related ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.mdb-db-spec__people li,
+.mdb-db-spec__related li {
+  padding: 1mm 0;
+  font-size: 10.5pt;
+}
+
+.mdb-db-spec__role {
+  font-size: 9.5pt;
+  color: var(--mdb-color-muted);
+  margin-left: 1mm;
+}
+
+/* ─────────────────────── Table catalog ─────────────────────── */
+
+.mdb-db-spec__body {
+  padding: 4mm 0 0 0;
+  max-width: 174mm;
+  margin: 0 auto;
+}
+
+.mdb-db-spec__table {
+  margin: 0 0 9mm 0;
+  page-break-inside: avoid;
+  break-inside: avoid;
+}
+
+.mdb-db-spec__table-name {
+  font-size: 13pt;
+  font-weight: 700;
+  color: var(--mdb-color-accent);
+  margin: 0 0 2mm 0;
+  padding: 0 0 1.5mm 2mm;
+  border-left: 3pt solid var(--mdb-color-accent);
+  page-break-after: avoid;
+  break-after: avoid;
+}
+
+.mdb-db-spec__table-name code {
+  font-family: var(--mdb-font-mono);
+  background: transparent;
+  padding: 0;
+}
+
+.mdb-db-spec__table-desc {
+  margin: 0 0 2.5mm 0;
+  color: var(--mdb-color-muted);
+  font-size: 10pt;
+}
+
+.mdb-db-spec__columns,
+.mdb-db-spec__indexes,
+.mdb-db-spec__triggers {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0 0 3mm 0;
+  font-size: 9.5pt;
+  page-break-inside: avoid;
+  break-inside: avoid;
+}
+
+.mdb-db-spec__columns th,
+.mdb-db-spec__columns td,
+.mdb-db-spec__indexes th,
+.mdb-db-spec__indexes td,
+.mdb-db-spec__triggers th,
+.mdb-db-spec__triggers td {
+  border: 0.6pt solid var(--mdb-color-border);
+  padding: 1.5mm 2.5mm;
+  text-align: left;
+  vertical-align: top;
+}
+
+.mdb-db-spec__columns thead th,
+.mdb-db-spec__indexes thead th,
+.mdb-db-spec__triggers thead th {
+  background: var(--mdb-color-accent-soft);
+  color: var(--mdb-color-fg);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.mdb-db-spec__columns code,
+.mdb-db-spec__indexes code,
+.mdb-db-spec__triggers code {
+  font-family: var(--mdb-font-mono);
+  font-size: 9pt;
+  background: transparent;
+  padding: 0;
+  word-break: break-all;
+}
+
+.mdb-db-spec__col-flag {
+  text-align: center;
+  white-space: nowrap;
+}
+
+.mdb-db-spec__mark {
+  color: var(--mdb-color-accent);
+  font-weight: 700;
+}
+
+.mdb-db-spec__col-fk {
+  font-size: 9pt;
+  word-break: break-all;
+}
+
+.mdb-db-spec__fk-action {
+  color: var(--mdb-color-muted);
+  font-size: 8.5pt;
+}
+
+.mdb-db-spec__sub {
+  margin: 0 0 3mm 4mm;
+}
+
+.mdb-db-spec__sub h4 {
+  font-size: 10pt;
+  font-weight: 600;
+  color: var(--mdb-color-muted);
+  margin: 2mm 0 1.5mm 0;
+  page-break-after: avoid;
+  break-after: avoid;
+}
+
+/* ─────────────────────── Migrations ─────────────────────── */
+
+.mdb-db-spec__migrations {
+  margin: 8mm 0 0 0;
+}
+
+.mdb-db-spec__migrations h2 {
+  font-size: 13pt;
+  font-weight: 700;
+  color: var(--mdb-color-accent);
+  margin: 0 0 3mm 0;
+  padding: 0 0 1.5mm 0;
+  border-bottom: 1.2pt solid var(--mdb-color-accent);
+}
+
+.mdb-db-spec__migrations ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.mdb-db-spec__migrations li {
+  padding: 1mm 0;
+  font-size: 10pt;
+}
+
+.mdb-db-spec__migrations code {
+  font-family: var(--mdb-font-mono);
+  font-size: 9.5pt;
+  background: var(--mdb-color-code-bg);
+  padding: 0.2mm 1.5mm;
+  border-radius: 1mm;
+}
+
+.mdb-db-spec__migration-desc {
+  color: var(--mdb-color-muted);
+  margin-left: 2mm;
+}
+
+/* 画面プレビュー時のシャドウ / 余分なマージンは付与しない（spec.css と同方針）。 */
+@media screen {
+  .mdb-db-spec {
+    background: #ffffff;
+  }
+  .mdb-db-spec__cover {
+    margin: -18mm -16mm 0 -16mm;
+    width: calc(100% + 32mm);
+  }
+}
