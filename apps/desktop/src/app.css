@@ -1,0 +1,29 @@
+/* グローバルベース。トークンを読み込み、body に UI 既定を敷く。 */
+@import './lib/styles/tokens.css';
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  font-family: var(--font-ui);
+  font-size: var(--text-sm-size);
+  line-height: var(--text-sm-line);
+  color: var(--text-primary);
+  background: var(--bg-app);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Tauri webview 由来のテキスト選択・ドラッグの既定を業務アプリ向けに整える。 */
+button {
+  font-family: inherit;
+}
