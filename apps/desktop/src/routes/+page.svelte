@@ -1,78 +1,121 @@
 <script lang="ts">
   import { onMount } from 'svelte';
 
-  // Phase 1a の疎通確認用プレースホルダ。Tauri webview が SvelteKit(SPA) を
-  // ロードできているかを画面で確認する。実アプリシェルは Phase 1b で置き換える。
+  // 中央 = 左右 2 分割（DESIGN §6）。Phase 1b は骨格＝空状態の 2 ペイン。
+  // 左＝Markdown エディター（Phase 2 で CodeMirror 6）、右＝ビューワー（Phase 1c で
+  // renderer-pdf の HTML を iframe 埋め込み）。分割比のドラッグ調整・永続化は後続フェーズ。
   let tauriReady = $state<'checking' | 'ready' | 'browser'>('checking');
 
-  onMount(async () => {
-    try {
-      // @tauri-apps/api は Tauri webview 内でのみ __TAURI_INTERNALS__ を持つ。
-      // ブラウザ（vite dev 直開き）では未定義なので分岐して表示を変える。
-      const isTauri = '__TAURI_INTERNALS__' in window;
-      tauriReady = isTauri ? 'ready' : 'browser';
-    } catch {
-      tauriReady = 'browser';
-    }
+  onMount(() => {
+    // Tauri webview 内かどうかを表示（疎通確認・Phase 1a から継続）。
+    tauriReady = '__TAURI_INTERNALS__' in window ? 'ready' : 'browser';
   });
 </script>
 
-<main>
-  <h1>md-business <span class="tag">desktop</span></h1>
-  <p class="lead">Tauri 2 + SvelteKit scaffold — Phase 1a</p>
-  <p class="status" data-state={tauriReady}>
-    {#if tauriReady === 'checking'}
-      環境を確認中…
-    {:else if tauriReady === 'ready'}
-      ✓ Tauri webview で動作中
-    {:else}
-      ブラウザで動作中（Tauri 外）
-    {/if}
-  </p>
-</main>
+<div class="split">
+  <section class="pane editor" aria-label="Markdown エディター">
+    <div class="pane-head">エディター</div>
+    <div class="pane-empty">
+      <p class="hint">左に Markdown、右にビューワー。<br />編集するとプレビューが即同期します。</p>
+    </div>
+  </section>
+
+  <section class="pane preview" aria-label="ビューワー（プレビュー）">
+    <div class="pane-head">プレビュー</div>
+    <div class="pane-empty">
+      <p class="hint">文書を開くと用途別ビューワーが起動します</p>
+      <span class="env" data-state={tauriReady}>
+        {#if tauriReady === 'checking'}
+          環境を確認中…
+        {:else if tauriReady === 'ready'}
+          ✓ Tauri webview で動作中
+        {:else}
+          ブラウザで動作中（Tauri 外）
+        {/if}
+      </span>
+    </div>
+  </section>
+</div>
 
 <style>
-  main {
-    min-height: 100vh;
+  .split {
+    height: 100%;
+    display: grid;
+    grid-template-columns: minmax(var(--pane-min), 1fr) minmax(var(--pane-min), 1fr);
+    min-height: 0;
+  }
+
+  .pane {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .pane.editor {
+    border-right: 1px solid var(--border);
+  }
+
+  .pane-head {
+    height: 34px;
+    display: flex;
+    align-items: center;
+    padding: 0 var(--space-4);
+    flex: none;
+    font-size: var(--text-2xs-size);
+    font-weight: var(--text-2xs-weight);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--text-tertiary);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .pane-empty {
+    flex: 1;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 0.75rem;
-    font-family:
-      system-ui,
-      -apple-system,
-      'Segoe UI',
-      sans-serif;
-    color: #1c1c22;
-    background: #ffffff;
+    gap: var(--space-4);
+    padding: var(--space-6);
+    text-align: center;
   }
-  :global(html[data-theme='dark']) main {
-    color: #ececf0;
-    background: #0f0f13;
+
+  .editor .pane-empty {
+    font-family: var(--font-mono);
   }
-  h1 {
-    font-size: 2rem;
-    font-weight: 650;
-    letter-spacing: -0.01em;
+
+  .hint {
     margin: 0;
+    font-size: var(--text-sm-size);
+    line-height: 1.7;
+    color: var(--text-tertiary);
   }
-  .tag {
-    font-size: 0.9rem;
-    font-weight: 600;
-    color: #5b5bd6;
-    vertical-align: super;
+
+  .env {
+    font-size: var(--text-xs-size);
+    padding: var(--space-1) var(--space-3);
+    border-radius: var(--radius-full);
+    background: var(--accent-subtle);
+    color: var(--accent);
   }
-  .lead {
-    margin: 0;
-    opacity: 0.7;
+
+  .env[data-state='browser'] {
+    background: var(--neutral-bg);
+    color: var(--neutral-fg);
   }
-  .status {
-    margin: 0;
-    font-size: 0.9rem;
-    padding: 0.4rem 0.8rem;
-    border-radius: 8px;
-    background: rgba(91, 91, 214, 0.08);
-    color: #5b5bd6;
+
+  /* < 768px: 左右分割をやめ縦積み（DESIGN §7.1・簡易対応。タブ切替は後続） */
+  @media (max-width: 767px) {
+    .split {
+      grid-template-columns: minmax(0, 1fr);
+      grid-template-rows: 1fr 1fr;
+    }
+
+    .pane.editor {
+      border-right: none;
+      border-bottom: 1px solid var(--border);
+    }
   }
 </style>
