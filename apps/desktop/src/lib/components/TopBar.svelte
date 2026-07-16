@@ -1,11 +1,19 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
   import { themeController } from '$lib/theme.svelte';
+  import { titlebarController } from '$lib/window/titlebar.svelte';
 
-  // Phase 1b は骨格。文書タイトル / status バッジ / PDF・⌘K・設定は
-  // 後続フェーズ（1c ビューワー疎通・2 エディター・4 PDF）で実データに置き換える。
+  // フレームレス（decorations:false）のため、この TopBar 自体が OS タイトルバーを兼ねる。
+  // ヘッダー地＝ドラッグ領域（data-tauri-drag-region）、右端に自作のウィンドウコントロール。
+  // .lead / .center は pointer-events:none で地に貫通させ、どこを掴んでも窓を動かせる。
+  // ボタン群（.right 配下）は pointer-events 有効＝クリック可能。
+  // 文書タイトル / status バッジ / PDF・⌘K・設定は後続フェーズで実データに置き換える。
+  onMount(() => {
+    titlebarController.init();
+  });
 </script>
 
-<header class="topbar">
+<header class="topbar" data-tauri-drag-region>
   <div class="lead">
     <span class="brand-dot" aria-hidden="true"></span>
     <span class="brand">md-business</span>
@@ -15,23 +23,61 @@
     <span class="doc-title">文書を選択してください</span>
   </div>
 
-  <div class="actions">
-    <button class="btn ghost" type="button" disabled title="PDF 出力（Phase 4）">PDF</button>
-    <button class="btn ghost kbd" type="button" disabled title="コマンドパレット（後続フェーズ）">
-      ⌘K
-    </button>
-    <button
-      class="btn ghost icon"
-      type="button"
-      onclick={() => themeController.toggle()}
-      title={themeController.value === 'dark' ? 'ライトテーマに切替' : 'ダークテーマに切替'}
-      aria-label="テーマ切替"
-    >
-      {themeController.value === 'dark' ? '☾' : '◐'}
-    </button>
-    <button class="btn ghost icon" type="button" disabled title="設定（後続フェーズ）" aria-label="設定">
-      ⚙
-    </button>
+  <div class="right">
+    <div class="actions">
+      <button class="btn ghost" type="button" disabled title="PDF 出力（Phase 4）">PDF</button>
+      <button class="btn ghost kbd" type="button" disabled title="コマンドパレット（後続フェーズ）">
+        ⌘K
+      </button>
+      <button
+        class="btn ghost icon"
+        type="button"
+        onclick={() => themeController.toggle()}
+        title={themeController.value === 'dark' ? 'ライトテーマに切替' : 'ダークテーマに切替'}
+        aria-label="テーマ切替"
+      >
+        {themeController.value === 'dark' ? '☾' : '◐'}
+      </button>
+      <button
+        class="btn ghost icon"
+        type="button"
+        disabled
+        title="設定（後続フェーズ）"
+        aria-label="設定"
+      >
+        ⚙
+      </button>
+    </div>
+
+    <div class="window-controls">
+      <button
+        class="wc"
+        type="button"
+        onclick={() => titlebarController.minimize()}
+        title="最小化"
+        aria-label="最小化"
+      >
+        ─
+      </button>
+      <button
+        class="wc"
+        type="button"
+        onclick={() => titlebarController.toggleMaximize()}
+        title={titlebarController.maxLabel}
+        aria-label={titlebarController.maxLabel}
+      >
+        {titlebarController.maxGlyph}
+      </button>
+      <button
+        class="wc close"
+        type="button"
+        onclick={() => titlebarController.close()}
+        title="閉じる"
+        aria-label="閉じる"
+      >
+        ✕
+      </button>
+    </div>
   </div>
 </header>
 
@@ -42,10 +88,17 @@
     grid-template-columns: 1fr auto 1fr;
     align-items: center;
     gap: var(--space-3);
-    padding: 0 var(--space-4);
+    /* 右端はウィンドウコントロールを角まで寄せるため padding を持たない */
+    padding: 0 0 0 var(--space-4);
     background: var(--bg-subtle);
     border-bottom: 1px solid var(--border);
     user-select: none;
+  }
+
+  /* 地に貫通させてドラッグ可能に（ボタンは .right 側で pointer-events 有効） */
+  .lead,
+  .center {
+    pointer-events: none;
   }
 
   .lead {
@@ -83,11 +136,19 @@
     text-overflow: ellipsis;
   }
 
-  .actions {
+  .right {
     justify-self: end;
+    align-self: stretch;
+    display: flex;
+    align-items: center;
+    min-width: 0;
+  }
+
+  .actions {
     display: flex;
     align-items: center;
     gap: var(--space-1);
+    padding-right: var(--space-2);
   }
 
   .btn {
@@ -102,7 +163,9 @@
     color: var(--text-secondary);
     font-size: var(--text-sm-size);
     cursor: pointer;
-    transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+    transition:
+      background var(--dur-fast) var(--ease),
+      color var(--dur-fast) var(--ease);
   }
 
   .btn.icon {
@@ -129,5 +192,44 @@
   .btn:disabled {
     opacity: 0.45;
     cursor: default;
+  }
+
+  /* ── ウィンドウコントロール（Windows 慣習：右上角に密着・フル高） ── */
+  .window-controls {
+    display: flex;
+    align-items: stretch;
+    align-self: stretch;
+  }
+
+  .wc {
+    width: 46px;
+    border: none;
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: 13px;
+    line-height: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition:
+      background var(--dur-fast) var(--ease),
+      color var(--dur-fast) var(--ease);
+  }
+
+  .wc:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+  }
+
+  .wc.close:hover {
+    background: var(--danger-fg);
+    color: #ffffff;
+  }
+
+  .wc:focus-visible {
+    outline: none;
+    box-shadow: inset 0 0 0 2px var(--accent);
+    color: var(--text-primary);
   }
 </style>
