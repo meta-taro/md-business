@@ -1,0 +1,30 @@
+[package]
+name = "md-business-desktop"
+version = "0.0.0"
+description = "md-business desktop app (Tauri 2 + SvelteKit)"
+authors = ["meta-taro"]
+license = "MIT"
+repository = "https://github.com/meta-taro/md-business"
+edition = "2021"
+rust-version = "1.77.2"
+
+# Tauri は main バイナリと、テスト/モバイルで共有する lib の両構成を取る。
+[lib]
+name = "md_business_desktop_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# リリースビルドはサイズ最適化（デスクトップ配布容量を抑える）。
+[profile.release]
+opt-level = "s"
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true

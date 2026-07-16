@@ -1,0 +1,29 @@
+{
+  "name": "@md-business/desktop",
+  "version": "0.0.0",
+  "private": true,
+  "description": "md-business デスクトップアプリ（Tauri 2 + SvelteKit）— 6 種の業務文書を用途別ビューワーで開き、Markdown を左右 2 画面でライブ編集・PDF 出力する本命プロダクト。",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "dev": "vite dev",
+    "build": "vite build",
+    "preview": "vite preview",
+    "tauri": "tauri",
+    "typecheck": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+    "lint": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^2.1.1"
+  },
+  "devDependencies": {
+    "@sveltejs/adapter-static": "^3.0.6",
+    "@sveltejs/kit": "^2.9.0",
+    "@sveltejs/vite-plugin-svelte": "^4.0.2",
+    "@tauri-apps/cli": "^2.1.0",
+    "svelte": "^5.12.0",
+    "svelte-check": "^4.1.1",
+    "typescript": "^5.6.3",
+    "vite": "^5.4.11"
+  }
+}
