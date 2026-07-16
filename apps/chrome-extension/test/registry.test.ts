@@ -3,6 +3,7 @@ import { PluginRegistry } from '../src/plugins/registry.js';
 import { invoicePlugin } from '../src/plugins/invoice.js';
 import { specPlugin } from '../src/plugins/spec.js';
 import { testSpecPlugin } from '../src/plugins/test-spec.js';
+import { dbSpecPlugin } from '../src/plugins/db-spec.js';
 import { createDefaultRegistry } from '../src/plugins/index.js';
 import type { SchemaPlugin } from '../src/plugins/types.js';
 
@@ -135,12 +136,41 @@ describe('testSpecPlugin.detect', () => {
   });
 });
 
+describe('dbSpecPlugin.detect', () => {
+  it('claims documents with the RDB table marker (English / Japanese)', () => {
+    expect(dbSpecPlugin.detect?.({ tables: [] })).toBe(true);
+    expect(dbSpecPlugin.detect?.({ テーブル: [] })).toBe(true);
+  });
+
+  it('does not claim unrelated documents', () => {
+    expect(dbSpecPlugin.detect?.({ title: 'note' })).toBe(false);
+    expect(dbSpecPlugin.detect?.({ 請求書番号: 'INV-1' })).toBe(false);
+  });
+
+  it('does not steal documents with only documentNumber / reviewers (spec keeps them)', () => {
+    // A DB 設計書 also carries documentNumber / reviewers, so db-spec must key
+    // off `tables` / `テーブル` alone — otherwise it would poach plain 基本設計書.
+    expect(dbSpecPlugin.detect?.({ documentNumber: 'X' })).toBe(false);
+    expect(dbSpecPlugin.detect?.({ reviewers: [] })).toBe(false);
+    expect(dbSpecPlugin.detect?.({ 文書番号: 'X' })).toBe(false);
+    expect(dbSpecPlugin.detect?.({ レビュアー: [] })).toBe(false);
+  });
+});
+
 describe('createDefaultRegistry', () => {
-  it('ships with the invoice, test-spec, and spec plugins (test-spec before spec for detect order)', () => {
+  it('ships with invoice, test-spec, db-spec, and spec plugins (db-spec/test-spec before spec for detect order)', () => {
     const r = createDefaultRegistry();
     expect(r.get('invoice')).toBe(invoicePlugin);
     expect(r.get('test-spec')).toBe(testSpecPlugin);
+    expect(r.get('db-spec')).toBe(dbSpecPlugin);
     expect(r.get('spec')).toBe(specPlugin);
-    expect(r.list().map((p) => p.id)).toEqual(['invoice', 'test-spec', 'spec']);
+    expect(r.list().map((p) => p.id)).toEqual(['invoice', 'test-spec', 'db-spec', 'spec']);
+  });
+
+  it('routes a Japanese-keyed DB 設計書 to db-spec, not spec', () => {
+    const r = createDefaultRegistry();
+    // Has both `文書番号` (spec claims it) and `テーブル` (db-spec claims it):
+    // db-spec is registered first, so it must win.
+    expect(r.resolve({ 文書番号: 'DB-1', テーブル: [] })?.id).toBe('db-spec');
   });
 });

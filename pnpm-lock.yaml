@@ -38,6 +38,9 @@ importers:
       '@md-business/renderer-pdf':
         specifier: workspace:*
         version: link:../../packages/renderer-pdf
+      '@md-business/schema-db-spec':
+        specifier: workspace:*
+        version: link:../../packages/schema-db-spec
       '@md-business/schema-invoice':
         specifier: workspace:*
         version: link:../../packages/schema-invoice
@@ -173,6 +176,9 @@ importers:
 
   packages/renderer-pdf:
     dependencies:
+      '@md-business/schema-db-spec':
+        specifier: workspace:*
+        version: link:../schema-db-spec
       '@md-business/schema-invoice':
         specifier: workspace:*
         version: link:../schema-invoice

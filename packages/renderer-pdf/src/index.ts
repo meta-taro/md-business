@@ -6,6 +6,8 @@ export { renderSpecBody, type RenderSpecBodyOptions } from './specTemplate.js';
 export { renderSpecHtml, type RenderSpecHtmlOptions } from './renderSpecHtml.js';
 export { renderTestSpecBody, type RenderTestSpecBodyOptions } from './testSpecTemplate.js';
 export { renderTestSpecHtml, type RenderTestSpecHtmlOptions } from './renderTestSpecHtml.js';
+export { renderDbSpecBody, type RenderDbSpecBodyOptions } from './dbSpecTemplate.js';
+export { renderDbSpecHtml, type RenderDbSpecHtmlOptions } from './renderDbSpecHtml.js';
 export {
   renderStampSvg,
   inferStampShape,
