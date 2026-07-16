@@ -19,7 +19,8 @@
     "./styles/invoice.css": "./src/styles/invoice.css",
     "./styles/spec.css": "./src/styles/spec.css",
     "./styles/test-spec.css": "./src/styles/test-spec.css",
-    "./styles/db-spec.css": "./src/styles/db-spec.css"
+    "./styles/db-spec.css": "./src/styles/db-spec.css",
+    "./styles/nosql-db-spec.css": "./src/styles/nosql-db-spec.css"
   },
   "files": [
     "dist",
@@ -37,6 +38,7 @@
   "dependencies": {
     "@md-business/schema-db-spec": "workspace:*",
     "@md-business/schema-invoice": "workspace:*",
+    "@md-business/schema-nosql-db-spec": "workspace:*",
     "@md-business/schema-spec": "workspace:*",
     "@md-business/schema-test-spec": "workspace:*"
   },

@@ -4,6 +4,7 @@ import { invoicePlugin } from '../src/plugins/invoice.js';
 import { specPlugin } from '../src/plugins/spec.js';
 import { testSpecPlugin } from '../src/plugins/test-spec.js';
 import { dbSpecPlugin } from '../src/plugins/db-spec.js';
+import { nosqlDbSpecPlugin } from '../src/plugins/nosql-db-spec.js';
 import { createDefaultRegistry } from '../src/plugins/index.js';
 import type { SchemaPlugin } from '../src/plugins/types.js';
 
@@ -155,16 +156,52 @@ describe('dbSpecPlugin.detect', () => {
     expect(dbSpecPlugin.detect?.({ 文書番号: 'X' })).toBe(false);
     expect(dbSpecPlugin.detect?.({ レビュアー: [] })).toBe(false);
   });
+
+  it('does not claim the nosql collection marker (disjoint from db-spec)', () => {
+    expect(dbSpecPlugin.detect?.({ collections: [] })).toBe(false);
+    expect(dbSpecPlugin.detect?.({ コレクション: [] })).toBe(false);
+  });
+});
+
+describe('nosqlDbSpecPlugin.detect', () => {
+  it('claims documents with the document-store collection marker (English / Japanese)', () => {
+    expect(nosqlDbSpecPlugin.detect?.({ collections: [] })).toBe(true);
+    expect(nosqlDbSpecPlugin.detect?.({ コレクション: [] })).toBe(true);
+  });
+
+  it('does not claim unrelated documents', () => {
+    expect(nosqlDbSpecPlugin.detect?.({ title: 'note' })).toBe(false);
+    expect(nosqlDbSpecPlugin.detect?.({ 請求書番号: 'INV-1' })).toBe(false);
+  });
+
+  it('does not steal documents with only documentNumber / reviewers (spec keeps them)', () => {
+    expect(nosqlDbSpecPlugin.detect?.({ documentNumber: 'X' })).toBe(false);
+    expect(nosqlDbSpecPlugin.detect?.({ reviewers: [] })).toBe(false);
+    expect(nosqlDbSpecPlugin.detect?.({ 文書番号: 'X' })).toBe(false);
+    expect(nosqlDbSpecPlugin.detect?.({ レビュアー: [] })).toBe(false);
+  });
+
+  it('does not claim the RDB table marker (disjoint from nosql-db-spec)', () => {
+    expect(nosqlDbSpecPlugin.detect?.({ tables: [] })).toBe(false);
+    expect(nosqlDbSpecPlugin.detect?.({ テーブル: [] })).toBe(false);
+  });
 });
 
 describe('createDefaultRegistry', () => {
-  it('ships with invoice, test-spec, db-spec, and spec plugins (db-spec/test-spec before spec for detect order)', () => {
+  it('ships invoice, test-spec, db-spec, nosql-db-spec, spec (specific markers before spec for detect order)', () => {
     const r = createDefaultRegistry();
     expect(r.get('invoice')).toBe(invoicePlugin);
     expect(r.get('test-spec')).toBe(testSpecPlugin);
     expect(r.get('db-spec')).toBe(dbSpecPlugin);
+    expect(r.get('nosql-db-spec')).toBe(nosqlDbSpecPlugin);
     expect(r.get('spec')).toBe(specPlugin);
-    expect(r.list().map((p) => p.id)).toEqual(['invoice', 'test-spec', 'db-spec', 'spec']);
+    expect(r.list().map((p) => p.id)).toEqual([
+      'invoice',
+      'test-spec',
+      'db-spec',
+      'nosql-db-spec',
+      'spec',
+    ]);
   });
 
   it('routes a Japanese-keyed DB 設計書 to db-spec, not spec', () => {
@@ -172,5 +209,12 @@ describe('createDefaultRegistry', () => {
     // Has both `文書番号` (spec claims it) and `テーブル` (db-spec claims it):
     // db-spec is registered first, so it must win.
     expect(r.resolve({ 文書番号: 'DB-1', テーブル: [] })?.id).toBe('db-spec');
+  });
+
+  it('routes a Japanese-keyed NoSQL 設計書 to nosql-db-spec, not spec', () => {
+    const r = createDefaultRegistry();
+    // Has both `文書番号` (spec claims it) and `コレクション` (nosql-db-spec claims it):
+    // nosql-db-spec is registered before spec, so it must win.
+    expect(r.resolve({ 文書番号: 'NDB-1', コレクション: [] })?.id).toBe('nosql-db-spec');
   });
 });

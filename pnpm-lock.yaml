@@ -44,6 +44,9 @@ importers:
       '@md-business/schema-invoice':
         specifier: workspace:*
         version: link:../../packages/schema-invoice
+      '@md-business/schema-nosql-db-spec':
+        specifier: workspace:*
+        version: link:../../packages/schema-nosql-db-spec
       '@md-business/schema-spec':
         specifier: workspace:*
         version: link:../../packages/schema-spec
@@ -182,6 +185,9 @@ importers:
       '@md-business/schema-invoice':
         specifier: workspace:*
         version: link:../schema-invoice
+      '@md-business/schema-nosql-db-spec':
+        specifier: workspace:*
+        version: link:../schema-nosql-db-spec
       '@md-business/schema-spec':
         specifier: workspace:*
         version: link:../schema-spec

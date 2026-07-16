@@ -23,7 +23,7 @@ async function copySchemaCss() {
   const stylesDir = resolve(ROOT, '..', '..', 'packages', 'renderer-pdf', 'src', 'styles');
   const destDir = resolve(DIST, 'styles');
   await ensureDir(destDir);
-  for (const file of ['invoice.css', 'spec.css', 'test-spec.css', 'db-spec.css']) {
+  for (const file of ['invoice.css', 'spec.css', 'test-spec.css', 'db-spec.css', 'nosql-db-spec.css']) {
     await copyFile(resolve(stylesDir, file), resolve(destDir, file));
     console.log(`[post-build] copied ${file}`);
   }
