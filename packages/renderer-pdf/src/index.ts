@@ -16,6 +16,8 @@ export {
   renderNosqlDbSpecHtml,
   type RenderNosqlDbSpecHtmlOptions,
 } from './renderNosqlDbSpecHtml.js';
+export { renderApiSpecBody, type RenderApiSpecBodyOptions } from './apiSpecTemplate.js';
+export { renderApiSpecHtml, type RenderApiSpecHtmlOptions } from './renderApiSpecHtml.js';
 export {
   renderStampSvg,
   inferStampShape,
