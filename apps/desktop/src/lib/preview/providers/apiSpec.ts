@@ -40,6 +40,7 @@ export const apiSpecProvider = createSchemaPreview<ApiSpec>({
   translateWarnings: translateApiSpecWarnings,
   withPreviewDefaults,
   documentTitle: (data) => data.title || `API 設計書 ${data.documentNumber ?? ''}`.trim(),
-  renderBody: renderApiSpecBody,
+  // データ駆動スキーマは frontmatter のみで描くため body は無視する。
+  renderBody: (data) => renderApiSpecBody(data),
   css: apiSpecCss,
 });

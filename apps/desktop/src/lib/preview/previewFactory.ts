@@ -46,7 +46,13 @@ export interface SchemaPreviewConfig<T> {
   /** autofill が保証しない identity / 配列シェルを空で補い、renderBody 可能にする。 */
   withPreviewDefaults: (data: Record<string, unknown>) => T;
   documentTitle: (data: T) => string;
-  renderBody: (data: T) => string;
+  /**
+   * body 断片を生成する。第 2 引数 `body` は Markdown 本文（frontmatter 除去済み）。
+   * prose スキーマ（spec / test-spec）はこれを HTML 化・sanitize して本文に描く。
+   * データ駆動スキーマは frontmatter のみで描くため body を無視する（`(data) => …`
+   * のままでも代入可能）。
+   */
+  renderBody: (data: T, body: string) => string;
   /** renderer-pdf の文書別 CSS（?raw インポート）。 */
   css: string;
 }
@@ -81,7 +87,11 @@ export interface RenderPreviewOptions {
 }
 
 export interface PreviewProvider extends PreviewProviderMeta {
-  render(frontmatter: Record<string, unknown>, options?: RenderPreviewOptions): PreviewResult;
+  render(
+    frontmatter: Record<string, unknown>,
+    body?: string,
+    options?: RenderPreviewOptions,
+  ): PreviewResult;
 }
 
 function messageOf(error: unknown): string {
@@ -95,7 +105,11 @@ export function createSchemaPreview<T>(config: SchemaPreviewConfig<T>): PreviewP
     id: meta.id,
     label: meta.label,
     markers: meta.markers,
-    render(frontmatter: Record<string, unknown>, options: RenderPreviewOptions = {}): PreviewResult {
+    render(
+      frontmatter: Record<string, unknown>,
+      body = '',
+      options: RenderPreviewOptions = {},
+    ): PreviewResult {
       const { theme } = options;
 
       const normalized = config.normalize(frontmatter);
@@ -109,7 +123,7 @@ export function createSchemaPreview<T>(config: SchemaPreviewConfig<T>): PreviewP
 
       let bodyHtml: string;
       try {
-        bodyHtml = config.renderBody(safe);
+        bodyHtml = config.renderBody(safe, body);
       } catch (error: unknown) {
         return {
           ok: true,
