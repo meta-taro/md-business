@@ -67,6 +67,26 @@ export function gridWidgets(columns: ParsedHeader[]): CellWidget[] {
   return columns.map((header) => widgetForColumn(header));
 }
 
+/** `checkbox` 列のセルに書き込む正本トークン（`validateTsv` が許す `TRUE` / `FALSE`）。 */
+export const CHECKBOX_TRUE = 'TRUE';
+export const CHECKBOX_FALSE = 'FALSE';
+
+/**
+ * `<input type="checkbox">` の `checked`（boolean）を checkbox 列のセル文字列へ写像する。
+ * 検証層が許す値は `TRUE` / `FALSE` / 空のみ。編集で明示した状態は `TRUE` / `FALSE` で残す。
+ */
+export function checkboxToCell(checked: boolean): string {
+  return checked ? CHECKBOX_TRUE : CHECKBOX_FALSE;
+}
+
+/**
+ * checkbox 列のセル文字列を `checked`（boolean）へ写像する。
+ * `TRUE` のみを真とし、空（未入力＝正本）・`FALSE`・その他はすべて未チェック扱い。
+ */
+export function cellToCheckbox(value: string): boolean {
+  return value === CHECKBOX_TRUE;
+}
+
 /**
  * 指定セル（`row` 行 `col` 列・いずれも 0 始まり）を `value` へ更新した
  * **新しい** ドキュメントを返す（入力は不変）。

@@ -1,6 +1,12 @@
 import { describe, it, expect } from 'vitest';
 import type { ParsedHeader, TsvDocument } from '@md-business/schema-test-spec-tsv';
-import { widgetForColumn, gridWidgets, setCell } from './gridModel';
+import {
+  widgetForColumn,
+  gridWidgets,
+  setCell,
+  checkboxToCell,
+  cellToCheckbox,
+} from './gridModel';
 
 /**
  * TSV グリッドの純モデル（Issue 010・Block TSV-7）。
@@ -105,6 +111,41 @@ describe('gridWidgets', () => {
 
   it('returns an empty list for no columns', () => {
     expect(gridWidgets([])).toEqual([]);
+  });
+});
+
+describe('checkboxToCell / cellToCheckbox', () => {
+  // checkbox 列の有効セル値は validateTsv 上 'TRUE' / 'FALSE' / 空 のみ。
+  // Svelte の <input type="checkbox"> の checked (boolean) と相互変換する純写像。
+  it('maps a checked box to the TRUE token', () => {
+    expect(checkboxToCell(true)).toBe('TRUE');
+  });
+
+  it('maps an unchecked box to the FALSE token', () => {
+    expect(checkboxToCell(false)).toBe('FALSE');
+  });
+
+  it('reads the TRUE token as checked', () => {
+    expect(cellToCheckbox('TRUE')).toBe(true);
+  });
+
+  it('reads the FALSE token as unchecked', () => {
+    expect(cellToCheckbox('FALSE')).toBe(false);
+  });
+
+  it('reads an empty cell (未入力＝正本) as unchecked', () => {
+    expect(cellToCheckbox('')).toBe(false);
+  });
+
+  it('treats any non-TRUE value as unchecked (TRUE のみを真とする)', () => {
+    expect(cellToCheckbox('true')).toBe(false);
+    expect(cellToCheckbox('1')).toBe(false);
+    expect(cellToCheckbox('はい')).toBe(false);
+  });
+
+  it('round-trips checked/unchecked through a cell token', () => {
+    expect(cellToCheckbox(checkboxToCell(true))).toBe(true);
+    expect(cellToCheckbox(checkboxToCell(false))).toBe(false);
   });
 });
 
