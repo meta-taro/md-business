@@ -4,6 +4,9 @@
   import { apiSpecSample } from '$lib/samples/apiSpecSample';
   import CodeMirrorEditor from '$lib/editor/CodeMirrorEditor.svelte';
   import { debounce } from '$lib/util/debounce';
+  import { parseTsv, serializeTsv, type TsvDocument } from '@md-business/schema-test-spec-tsv';
+  import { isTsvSource } from '$lib/tsv/detect';
+  import TsvGrid from '$lib/tsv/TsvGrid.svelte';
 
   // 中央 = 左右 2 分割（DESIGN §6）。左＝Markdown エディター（CodeMirror 6・
   // Phase 2）、右＝ビューワー（Phase 1c で renderer-pdf の HTML を iframe 隔離）。
@@ -31,6 +34,19 @@
   const preview = $derived(
     renderPreview(debouncedSource, { theme: themeController.value }),
   );
+
+  // カスタム TSV 検証シートは読み取りプレビューでなく編集グリッド（本命 UI・Issue 010）で開く。
+  // 先頭マジック行で判定し、TSV なら parseTsv した doc をグリッドへ渡す。
+  const isTsv = $derived(isTsvSource(debouncedSource));
+  const tsvDoc = $derived(isTsv ? parseTsv(debouncedSource) : null);
+
+  // グリッド編集 → serializeTsv で source（＝正本）へ書き戻し、エディターと即同期する。
+  // debouncedSource も即更新して doc を再導出し、グリッドを遅延なく反映する。
+  function handleGridChange(next: TsvDocument): void {
+    const text = serializeTsv(next);
+    source = text;
+    debouncedSource = text;
+  }
 </script>
 
 <div class="split">
@@ -40,6 +56,12 @@
   </section>
 
   <section class="pane preview" aria-label="ビューワー（プレビュー）">
+    {#if isTsv && tsvDoc}
+      <div class="pane-head">検証シート — グリッド編集</div>
+      <div class="grid-wrap">
+        <TsvGrid doc={tsvDoc} onChange={handleGridChange} />
+      </div>
+    {:else}
     <div class="pane-head">プレビュー{#if preview.ok} — {preview.label}{/if}</div>
     {#if preview.ok}
       <iframe class="viewer" srcdoc={preview.srcdoc} title="{preview.label}プレビュー"></iframe>
@@ -58,6 +80,7 @@
         <p class="hint">{preview.reason}</p>
         <span class="env">請求書 / 検証シート / 基本設計書 / DB 設計書 / NoSQL 設計書 / API 設計書 を開いてください</span>
       </div>
+    {/if}
     {/if}
   </section>
 </div>
@@ -113,6 +136,12 @@
     width: 100%;
     border: none;
     background: var(--bg-app);
+  }
+
+  /* TSV グリッド編集の器。TsvGrid は height:100% で内部スクロールするため高さを与える。 */
+  .grid-wrap {
+    flex: 1;
+    min-height: 0;
   }
 
   .notices {
