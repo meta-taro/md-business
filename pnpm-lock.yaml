@@ -102,6 +102,15 @@ importers:
 
   apps/desktop:
     dependencies:
+      '@md-business/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+      '@md-business/renderer-pdf':
+        specifier: workspace:*
+        version: link:../../packages/renderer-pdf
+      '@md-business/schema-api-spec':
+        specifier: workspace:*
+        version: link:../../packages/schema-api-spec
       '@tauri-apps/api':
         specifier: ^2.1.1
         version: 2.11.1
