@@ -44,6 +44,7 @@ export const nosqlDbSpecProvider = createSchemaPreview<NosqlDbSpec>({
   translateWarnings: translateNosqlDbSpecWarnings,
   withPreviewDefaults,
   documentTitle: (data) => data.title || `NoSQL 設計書 ${data.documentNumber ?? ''}`.trim(),
-  renderBody: renderNosqlDbSpecBody,
+  // データ駆動スキーマは frontmatter のみで描くため body は無視する。
+  renderBody: (data) => renderNosqlDbSpecBody(data),
   css: nosqlDbSpecCss,
 });

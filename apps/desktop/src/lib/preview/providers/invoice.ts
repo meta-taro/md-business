@@ -49,6 +49,7 @@ export const invoiceProvider = createSchemaPreview<Invoice>({
   translateWarnings: translateInvoiceWarnings,
   withPreviewDefaults,
   documentTitle: (data) => `請求書 ${data.invoiceNumber}`,
-  renderBody: renderInvoiceBody,
+  // データ駆動スキーマは frontmatter のみで描くため body は無視する。
+  renderBody: (data) => renderInvoiceBody(data),
   css: invoiceCss,
 });

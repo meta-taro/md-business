@@ -19,8 +19,13 @@ export function renderPreview(
   options: RenderPreviewOptions = {},
 ): PreviewResult {
   let frontmatter: Record<string, unknown>;
+  let body: string;
   try {
-    frontmatter = parseMarkdown(source).data;
+    const parsed = parseMarkdown(source);
+    frontmatter = parsed.data;
+    // prose スキーマ（spec / test-spec）は本文を HTML 化して描くため body も渡す。
+    // データ駆動 4 スキーマは body を無視する。
+    body = parsed.body;
   } catch (error: unknown) {
     return { ok: false, reason: `frontmatter を解析できませんでした: ${messageOf(error)}` };
   }
@@ -30,11 +35,11 @@ export function renderPreview(
     return {
       ok: false,
       reason:
-        '対応するスキーマが見つかりません（invoice / db-spec / nosql-db-spec / api-spec）。',
+        '対応するスキーマが見つかりません（請求書 / 検証シート / 基本設計書 / DB 設計書 / NoSQL 設計書 / API 設計書）。',
     };
   }
 
-  return provider.render(frontmatter, options);
+  return provider.render(frontmatter, body, options);
 }
 
 export type { PreviewResult, RenderPreviewOptions } from './previewFactory';

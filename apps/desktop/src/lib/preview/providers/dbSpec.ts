@@ -44,6 +44,7 @@ export const dbSpecProvider = createSchemaPreview<DbSpec>({
   translateWarnings: translateDbSpecWarnings,
   withPreviewDefaults,
   documentTitle: (data) => data.title || `DB 設計書 ${data.documentNumber ?? ''}`.trim(),
-  renderBody: renderDbSpecBody,
+  // データ駆動スキーマは frontmatter のみで描くため body は無視する。
+  renderBody: (data) => renderDbSpecBody(data),
   css: dbSpecCss,
 });
