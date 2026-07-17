@@ -2,29 +2,39 @@
   import { themeController } from '$lib/theme.svelte';
   import { renderApiSpecPreview } from '$lib/preview/apiSpecPreview';
   import { apiSpecSample } from '$lib/samples/apiSpecSample';
+  import CodeMirrorEditor from '$lib/editor/CodeMirrorEditor.svelte';
+  import { debounce } from '$lib/util/debounce';
 
-  // 中央 = 左右 2 分割（DESIGN §6）。左＝Markdown エディター（Phase 2 で
-  // CodeMirror 6）、右＝ビューワー（Phase 1c で renderer-pdf の HTML を iframe 隔離）。
+  // 中央 = 左右 2 分割（DESIGN §6）。左＝Markdown エディター（CodeMirror 6・
+  // Phase 2）、右＝ビューワー（Phase 1c で renderer-pdf の HTML を iframe 隔離）。
   //
-  // ファイルオープン（Phase 3）・エディター（Phase 2）が未実装の間は、正本テンプレを
-  // seed として表示し、api-spec ビューワーが実際に描画されることを示す。source は
-  // Phase 2 で CodeMirror に双方向バインドする（今はエディター側は読み取り表示のみ）。
+  // ファイルオープン（Phase 3）が未実装の間は、正本テンプレを seed として開く。
+  // source が編集の唯一の真実。エディター編集 → debounce → 再描画（§6.2）。
   let source = $state(apiSpecSample);
+  // debounce 後の値。プレビューはこちらから描画し、タイプ中の再描画連打を抑える。
+  let debouncedSource = $state(apiSpecSample);
+
+  // §6.2 既定 200ms。最後の入力から 200ms 静止で 1 回だけプレビューへ反映。
+  const pushToPreview = debounce((value: string) => {
+    debouncedSource = value;
+  }, 200);
+
+  function handleEditorChange(value: string): void {
+    source = value;
+    pushToPreview(value);
+  }
 
   // テーマ変更に追従して iframe 内 <html data-theme> も一致させる（別ドキュメントなので
-  // アプリの data-theme は継承されない）。$derived で source / theme の変化に即再描画。
-  const preview = $derived(renderApiSpecPreview(source, { theme: themeController.value }));
+  // アプリの data-theme は継承されない）。debouncedSource / theme の変化で即再描画。
+  const preview = $derived(
+    renderApiSpecPreview(debouncedSource, { theme: themeController.value }),
+  );
 </script>
 
 <div class="split">
   <section class="pane editor" aria-label="Markdown エディター">
-    <div class="pane-head">エディター（Phase 2 で編集可能化）</div>
-    <textarea
-      class="editor-seed"
-      bind:value={source}
-      spellcheck="false"
-      aria-label="Markdown ソース"
-    ></textarea>
+    <div class="pane-head">エディター — Markdown</div>
+    <CodeMirrorEditor value={source} onChange={handleEditorChange} />
   </section>
 
   <section class="pane preview" aria-label="ビューワー（プレビュー）">
@@ -93,28 +103,6 @@
     gap: var(--space-4);
     padding: var(--space-6);
     text-align: center;
-  }
-
-  /* Phase 1c 暫定エディター：Phase 2 で CodeMirror 6 に置換。今は seed を編集して
-     プレビュー即同期を確認できる素の textarea。 */
-  .editor-seed {
-    flex: 1;
-    min-height: 0;
-    width: 100%;
-    resize: none;
-    border: none;
-    outline: none;
-    padding: var(--space-4);
-    background: var(--bg-app);
-    color: var(--text-primary);
-    font-family: var(--font-mono);
-    font-size: var(--text-xs-size);
-    line-height: 1.6;
-    tab-size: 2;
-  }
-
-  .editor-seed:focus-visible {
-    box-shadow: inset 0 0 0 2px var(--accent-subtle);
   }
 
   .viewer {
