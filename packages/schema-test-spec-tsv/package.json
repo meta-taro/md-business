@@ -18,6 +18,9 @@
     "src",
     "README.md"
   ],
+  "dependencies": {
+    "@md-business/schema-test-spec": "workspace:*"
+  },
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
