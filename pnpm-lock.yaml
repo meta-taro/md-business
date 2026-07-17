@@ -141,6 +141,12 @@ importers:
       '@md-business/schema-nosql-db-spec':
         specifier: workspace:^
         version: link:../../packages/schema-nosql-db-spec
+      '@md-business/schema-spec':
+        specifier: workspace:^
+        version: link:../../packages/schema-spec
+      '@md-business/schema-test-spec':
+        specifier: workspace:^
+        version: link:../../packages/schema-test-spec
       '@tauri-apps/api':
         specifier: ^2.1.1
         version: 2.11.1

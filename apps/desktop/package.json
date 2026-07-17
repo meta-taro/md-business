@@ -29,6 +29,8 @@
     "@md-business/schema-db-spec": "workspace:^",
     "@md-business/schema-invoice": "workspace:^",
     "@md-business/schema-nosql-db-spec": "workspace:^",
+    "@md-business/schema-spec": "workspace:^",
+    "@md-business/schema-test-spec": "workspace:^",
     "@tauri-apps/api": "^2.1.1",
     "codemirror": "^6.0.2",
     "dompurify": "^3.2.0"

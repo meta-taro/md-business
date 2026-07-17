@@ -56,7 +56,7 @@
     {:else}
       <div class="pane-empty">
         <p class="hint">{preview.reason}</p>
-        <span class="env">請求書 / DB 設計書 / NoSQL 設計書 / API 設計書 を開いてください</span>
+        <span class="env">請求書 / 検証シート / 基本設計書 / DB 設計書 / NoSQL 設計書 / API 設計書 を開いてください</span>
       </div>
     {/if}
   </section>
