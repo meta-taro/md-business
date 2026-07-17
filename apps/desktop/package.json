@@ -30,13 +30,15 @@
     "@md-business/schema-invoice": "workspace:^",
     "@md-business/schema-nosql-db-spec": "workspace:^",
     "@tauri-apps/api": "^2.1.1",
-    "codemirror": "^6.0.2"
+    "codemirror": "^6.0.2",
+    "dompurify": "^3.2.0"
   },
   "devDependencies": {
     "@sveltejs/adapter-static": "^3.0.6",
     "@sveltejs/kit": "^2.9.0",
     "@sveltejs/vite-plugin-svelte": "^4.0.2",
     "@tauri-apps/cli": "^2.1.0",
+    "jsdom": "^29.1.1",
     "svelte": "^5.12.0",
     "svelte-check": "^4.1.1",
     "typescript": "^5.6.3",
