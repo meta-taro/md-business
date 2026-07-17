@@ -462,6 +462,10 @@ importers:
         version: 2.1.9(@types/node@22.19.21)(happy-dom@20.10.5)(jsdom@29.1.1)
 
   packages/schema-test-spec-tsv:
+    dependencies:
+      '@md-business/schema-test-spec':
+        specifier: workspace:*
+        version: link:../schema-test-spec
     devDependencies:
       '@types/node':
         specifier: ^22.10.0
