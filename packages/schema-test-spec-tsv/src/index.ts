@@ -2,6 +2,7 @@ export { escapeCell, unescapeCell } from './escape.js';
 export { parseTypedHeader } from './header.js';
 export { classifyLine } from './classify.js';
 export { parseTsv } from './parse.js';
+export { serializeTsv, serializeHeader } from './serialize.js';
 export { validateTsv } from './validate.js';
 export type { ColumnType, ColumnUiHint, ParsedHeader } from './types.js';
 export type { LineKind } from './classify.js';
