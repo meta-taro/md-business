@@ -16,6 +16,9 @@
     "test:run": "vitest run"
   },
   "dependencies": {
+    "@md-business/core": "workspace:*",
+    "@md-business/renderer-pdf": "workspace:*",
+    "@md-business/schema-api-spec": "workspace:*",
     "@tauri-apps/api": "^2.1.1"
   },
   "devDependencies": {
