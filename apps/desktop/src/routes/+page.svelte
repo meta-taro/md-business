@@ -1,6 +1,6 @@
 <script lang="ts">
   import { themeController } from '$lib/theme.svelte';
-  import { renderApiSpecPreview } from '$lib/preview/apiSpecPreview';
+  import { renderPreview } from '$lib/preview/renderPreview';
   import { apiSpecSample } from '$lib/samples/apiSpecSample';
   import CodeMirrorEditor from '$lib/editor/CodeMirrorEditor.svelte';
   import { debounce } from '$lib/util/debounce';
@@ -24,10 +24,12 @@
     pushToPreview(value);
   }
 
-  // テーマ変更に追従して iframe 内 <html data-theme> も一致させる（別ドキュメントなので
-  // アプリの data-theme は継承されない）。debouncedSource / theme の変化で即再描画。
+  // frontmatter を registry で振り分け、該当スキーマのビューワーで描画する（6 スキーマ
+  // 自動判定・Phase 2b）。テーマ変更に追従して iframe 内 <html data-theme> も一致させる
+  // （別ドキュメントなのでアプリの data-theme は継承されない）。debouncedSource / theme の
+  // 変化で即再描画。
   const preview = $derived(
-    renderApiSpecPreview(debouncedSource, { theme: themeController.value }),
+    renderPreview(debouncedSource, { theme: themeController.value }),
   );
 </script>
 
@@ -38,9 +40,9 @@
   </section>
 
   <section class="pane preview" aria-label="ビューワー（プレビュー）">
-    <div class="pane-head">プレビュー — API 設計書</div>
+    <div class="pane-head">プレビュー{#if preview.ok} — {preview.label}{/if}</div>
     {#if preview.ok}
-      <iframe class="viewer" srcdoc={preview.srcdoc} title="API 設計書プレビュー"></iframe>
+      <iframe class="viewer" srcdoc={preview.srcdoc} title="{preview.label}プレビュー"></iframe>
       {#if preview.errors.length > 0 || preview.warnings.length > 0}
         <div class="notices" role="status">
           {#each preview.errors as err (err)}
@@ -54,7 +56,7 @@
     {:else}
       <div class="pane-empty">
         <p class="hint">{preview.reason}</p>
-        <span class="env">API 設計書（endpoints / エンドポイント）を開いてください</span>
+        <span class="env">請求書 / DB 設計書 / NoSQL 設計書 / API 設計書 を開いてください</span>
       </div>
     {/if}
   </section>
