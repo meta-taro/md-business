@@ -8,6 +8,7 @@
 import { parseMarkdown } from '@md-business/core';
 import { resolveProvider } from './registry';
 import { PROVIDERS } from './providers';
+import { renderMarkdownFallback } from './providers/markdownFallback';
 import type { PreviewResult, RenderPreviewOptions } from './previewFactory';
 
 function messageOf(error: unknown): string {
@@ -32,11 +33,9 @@ export function renderPreview(
 
   const provider = resolveProvider(frontmatter, PROVIDERS);
   if (!provider) {
-    return {
-      ok: false,
-      reason:
-        '対応するスキーマが見つかりません（請求書 / 検証シート / 基本設計書 / DB 設計書 / NoSQL 設計書 / API 設計書）。',
-    };
+    // 業務スキーマ非該当は空表示にせず、GitHub のように素の Markdown を描く。
+    // frontmatter が解析できた（＝描画対象になる）ケースのみここへ来る。
+    return renderMarkdownFallback(body, options);
   }
 
   return provider.render(frontmatter, body, options);

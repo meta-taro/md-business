@@ -1,3 +1,8 @@
+// @vitest-environment jsdom
+//
+// 業務スキーマ非該当は Markdown フォールバックへ回り、本文を HTML 化・sanitize
+// （DOMPurify）して描くため window が要る。よって本ファイルは jsdom で回す
+// （データ駆動スキーマの描画も jsdom 上で問題なく動く）。
 import { describe, it, expect } from 'vitest';
 import { renderPreview } from './renderPreview';
 // 正本テンプレ（複製せず単一ソース）。valid な完成文書として errors=0 を検証する。
@@ -55,16 +60,29 @@ describe('renderPreview（オーケストレーター）', () => {
     expect(r.srcdoc).toContain('<!doctype html>');
   });
 
-  it('対応スキーマ無しは not-applicable（理由付き）', () => {
-    const r = renderPreview('---\nfoo: bar\n---\n本文だけ');
-    expect(r.ok).toBe(false);
-    if (r.ok) return;
-    expect(r.reason).toContain('対応するスキーマ');
+  it('対応スキーマ無しは標準 Markdown フォールバックで描画する（label=Markdown）', () => {
+    // 業務スキーマに当たらない普通の .md（README 等）は空表示にせず素の Markdown を描く。
+    const r = renderPreview('---\nfoo: bar\n---\n# 見出し\n\n本文だけ');
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.label).toBe('Markdown');
+    expect(r.srcdoc).toContain('見出し');
+    expect(r.srcdoc).toContain('本文だけ');
   });
 
-  it('frontmatter 解析不能は not-applicable（理由付き）', () => {
+  it('frontmatter 完全に無いプレーン Markdown もフォールバックで描画する', () => {
+    const r = renderPreview('# ただの README\n\n説明文。');
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.label).toBe('Markdown');
+    expect(r.srcdoc).toContain('ただの README');
+  });
+
+  it('frontmatter 解析不能は not-applicable（理由付き・フォールバックにも回さない）', () => {
     const r = renderPreview('---\n: : : invalid yaml : :\n  - broken\n---\n');
-    // gray-matter が throw する場合は解析不能理由、通る場合はスキーマ無し理由。
+    // gray-matter が throw する解析不能ケースは、描画対象にできないため ok:false のまま。
     expect(r.ok).toBe(false);
+    if (r.ok) return;
+    expect(r.reason).toContain('解析できませんでした');
   });
 });
