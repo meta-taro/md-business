@@ -7,7 +7,7 @@
   // ヘッダー地＝ドラッグ領域（data-tauri-drag-region）、右端に自作のウィンドウコントロール。
   // .lead / .center は pointer-events:none で地に貫通させ、どこを掴んでも窓を動かせる。
   // ボタン群（.right 配下）は pointer-events 有効＝クリック可能。
-  // 文書タイトル / status バッジ / PDF・⌘K・設定は後続フェーズで実データに置き換える。
+  // 文書タイトル / status バッジ / PDF・Ctrl K・設定は後続フェーズで実データに置き換える。
   onMount(() => {
     titlebarController.init();
   });
@@ -26,8 +26,10 @@
   <div class="right">
     <div class="actions">
       <button class="btn ghost" type="button" disabled title="PDF 出力（Phase 4）">PDF</button>
+      <!-- Windows 主対象（隣のウィンドウコントロールも Windows 慣習）なので Ctrl 表記。
+           クロスプラットフォームでの ⌘/Ctrl 出し分けはコマンドパレット実装時に対応する。 -->
       <button class="btn ghost kbd" type="button" disabled title="コマンドパレット（後続フェーズ）">
-        ⌘K
+        Ctrl K
       </button>
       <button
         class="btn ghost icon"
