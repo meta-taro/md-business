@@ -7,6 +7,13 @@
   import { parseTsv, serializeTsv, type TsvDocument } from '@md-business/schema-test-spec-tsv';
   import { isTsvSource } from '$lib/tsv/detect';
   import TsvGrid from '$lib/tsv/TsvGrid.svelte';
+  import { browser } from '$app/environment';
+  import {
+    DEFAULT_SPLIT_RATIO,
+    ratioFromPointer,
+    parseStoredRatio,
+    stepRatio,
+  } from '$lib/layout/splitRatio';
 
   // 中央 = 左右 2 分割（DESIGN §6）。左＝Markdown エディター（CodeMirror 6・
   // Phase 2）、右＝ビューワー（Phase 1c で renderer-pdf の HTML を iframe 隔離）。
@@ -47,13 +54,108 @@
     source = text;
     debouncedSource = text;
   }
+
+  // ── 中央ディバイダ（左右幅比のドラッグ調整 + 50/50 リセット・DESIGN §6）──
+  // 左ペイン占有率 0〜1。localStorage から復元し、変更のたびに永続化する。
+  const SPLIT_STORAGE_KEY = 'md-business:desktop:split-ratio';
+  const DIVIDER_W = 6; // px。CSS の .divider 幅と一致させる。
+  const KEY_STEP_PX = 24; // 矢印キー 1 回の移動量（px 相当）。
+
+  let splitRatio = $state(
+    browser ? parseStoredRatio(localStorage.getItem(SPLIT_STORAGE_KEY)) : DEFAULT_SPLIT_RATIO,
+  );
+  let splitEl = $state<HTMLDivElement>();
+  let dragging = $state(false);
+
+  // grid-template-columns 文字列。カスタムプロパティ経由で渡し、狭幅時は
+  // メディアクエリ側の縦積みで上書きできるようにする（インライン直書きしない）。
+  function dividerColumns(ratio: number): string {
+    return `${ratio}fr ${DIVIDER_W}px ${1 - ratio}fr`;
+  }
+
+  function persistRatio(): void {
+    if (browser) localStorage.setItem(SPLIT_STORAGE_KEY, String(splitRatio));
+  }
+
+  function startDrag(event: PointerEvent): void {
+    if (!splitEl) return;
+    dragging = true;
+    (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
+    event.preventDefault();
+  }
+
+  function onDrag(event: PointerEvent): void {
+    if (!dragging || !splitEl) return;
+    const rect = splitEl.getBoundingClientRect();
+    splitRatio = ratioFromPointer(event.clientX, rect.left, rect.width);
+  }
+
+  function endDrag(event: PointerEvent): void {
+    if (!dragging) return;
+    dragging = false;
+    const el = event.currentTarget as HTMLElement;
+    if (el.hasPointerCapture(event.pointerId)) el.releasePointerCapture(event.pointerId);
+    persistRatio();
+  }
+
+  function resetSplit(): void {
+    splitRatio = DEFAULT_SPLIT_RATIO;
+    persistRatio();
+  }
+
+  function onDividerKey(event: KeyboardEvent): void {
+    if (!splitEl) return;
+    const width = splitEl.getBoundingClientRect().width;
+    switch (event.key) {
+      case 'ArrowLeft':
+        splitRatio = stepRatio(splitRatio, -1, width, KEY_STEP_PX);
+        break;
+      case 'ArrowRight':
+        splitRatio = stepRatio(splitRatio, 1, width, KEY_STEP_PX);
+        break;
+      case 'Home':
+      case 'Enter':
+        resetSplit();
+        break;
+      default:
+        return;
+    }
+    persistRatio();
+    event.preventDefault();
+  }
 </script>
 
-<div class="split">
+<div
+  class="split"
+  class:dragging
+  bind:this={splitEl}
+  style="--split-cols: {dividerColumns(splitRatio)}"
+>
   <section class="pane editor" aria-label="Markdown エディター">
     <div class="pane-head">エディター — Markdown</div>
     <CodeMirrorEditor value={source} onChange={handleEditorChange} />
   </section>
+
+  <!-- ドラッグで幅調整・ダブルクリック / Home / Enter で 50/50・矢印キーで微調整 -->
+  <!-- WAI-ARIA "Window Splitter" は role="separator" + tabindex + キーボード操作が正規の
+       対話パターン。svelte-check は separator を非対話と見なすため、当該2規則のみ抑制する。 -->
+  <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+  <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+  <div
+    class="divider"
+    role="separator"
+    aria-orientation="vertical"
+    aria-label="エディターとプレビューの幅を調整（ダブルクリックで 50/50 に戻す）"
+    aria-valuenow={Math.round(splitRatio * 100)}
+    aria-valuemin={0}
+    aria-valuemax={100}
+    tabindex="0"
+    onpointerdown={startDrag}
+    onpointermove={onDrag}
+    onpointerup={endDrag}
+    ondblclick={resetSplit}
+    onkeydown={onDividerKey}
+  ></div>
 
   <section class="pane preview" aria-label="ビューワー（プレビュー）">
     {#if isTsv && tsvDoc}
@@ -89,8 +191,19 @@
   .split {
     height: 100%;
     display: grid;
-    grid-template-columns: minmax(var(--pane-min), 1fr) minmax(var(--pane-min), 1fr);
+    /* 比率はインラインの --split-cols で駆動。未設定時（SSR 初期）は 50/50 相当。 */
+    grid-template-columns: var(--split-cols, 1fr 6px 1fr);
     min-height: 0;
+  }
+
+  /* ドラッグ中は iframe がポインタを奪わないよう無効化し、全体を col-resize に。 */
+  .split.dragging {
+    cursor: col-resize;
+    user-select: none;
+  }
+
+  .split.dragging .viewer {
+    pointer-events: none;
   }
 
   .pane {
@@ -101,8 +214,25 @@
     overflow: hidden;
   }
 
-  .pane.editor {
-    border-right: 1px solid var(--border);
+  /* 中央ディバイダ。6px の実体 + 疑似要素で当たり判定を左右に広げる。 */
+  .divider {
+    position: relative;
+    background: var(--border);
+    cursor: col-resize;
+    touch-action: none; /* タッチのスクロール発火を止めドラッグ専有 */
+    transition: background 120ms ease;
+  }
+
+  .divider::before {
+    content: '';
+    position: absolute;
+    inset: 0 -4px; /* 上下いっぱい・左右 +4px の掴みしろ */
+  }
+
+  .divider:hover,
+  .divider:focus-visible {
+    background: var(--accent);
+    outline: none;
   }
 
   .pane-head {
@@ -184,15 +314,19 @@
     color: var(--accent);
   }
 
-  /* < 768px: 左右分割をやめ縦積み（DESIGN §7.1・簡易対応。タブ切替は後続） */
+  /* < 768px: 左右分割をやめ縦積み（DESIGN §7.1・簡易対応。タブ切替は後続）。
+     縦積みでは横幅ドラッグが無意味なのでディバイダを隠し、比率も無効化する。 */
   @media (max-width: 767px) {
     .split {
       grid-template-columns: minmax(0, 1fr);
       grid-template-rows: 1fr 1fr;
     }
 
+    .divider {
+      display: none;
+    }
+
     .pane.editor {
-      border-right: none;
       border-bottom: 1px solid var(--border);
     }
   }
