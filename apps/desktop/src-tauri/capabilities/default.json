@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "メインウィンドウの既定権限。フレームレスの自作タイトルバー用にウィンドウ操作権限を付与する。Git/フォージ/PDF/MCP の command 権限は各 Phase で追加する。",
+  "description": "メインウィンドウの既定権限。フレームレスの自作タイトルバー用にウィンドウ操作権限を付与する。フォルダを開く導線として dialog の open のみ許可する（走査/読込は自作コマンドで root 配下の md/tsv に限定）。Git/フォージ/PDF/MCP の command 権限は各 Phase で追加する。",
   "windows": ["main"],
   "permissions": [
     "core:default",
@@ -9,6 +9,7 @@
     "core:window:allow-toggle-maximize",
     "core:window:allow-close",
     "core:window:allow-start-dragging",
-    "core:window:allow-is-maximized"
+    "core:window:allow-is-maximized",
+    "dialog:allow-open"
   ]
 }
