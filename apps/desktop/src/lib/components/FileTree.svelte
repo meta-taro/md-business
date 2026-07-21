@@ -70,13 +70,35 @@
             title={node.path}
           >
             {#if node.kind === 'folder'}
-              <span class="caret" class:open={workspace.expanded.has(node.path)} aria-hidden="true"
-                >▸</span
-              >
-              <span class="ico folder" aria-hidden="true">▪</span>
+              {@const open = workspace.expanded.has(node.path)}
+              <!-- 開閉シェブロン（回転で状態を示す）。状態クラスは expanded。
+                   ※ open だと空状態ボタン .open（枠・角丸・地つき）と衝突し、
+                   展開フォルダの caret がカプセル化する（旧「謎の白丸」の正体）。 -->
+              <svg class="caret" class:expanded={open} viewBox="0 0 16 16" aria-hidden="true">
+                <path d="M6 4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.6"
+                  stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+              <!-- フォルダ（開/閉で口を変える）。開はバック板 + 前面トレイの 2 ピースで
+                   「開いた口」を表す。旧・単一パスは右下が塗られず欠けて見えた。 -->
+              <svg class="ico folder" viewBox="0 0 16 16" aria-hidden="true">
+                {#if open}
+                  <path d="M1.5 4A1.3 1.3 0 012.8 2.7h2.9l1.3 1.5H12.6A1.3 1.3 0 0113.9 5.5V7H5.5a1.6 1.6 0 00-1.55 1.18L2.6 12.2H1.5z"
+                    fill="currentColor" opacity="0.9" />
+                  <path d="M3.4 13l1.4-4.9A1 1 0 015.76 7.4H14.6a.8.8 0 01.77 1.02L14.1 12.4a1 1 0 01-.96.72z"
+                    fill="currentColor" opacity="0.9" />
+                {:else}
+                  <path d="M1.5 4A1.5 1.5 0 013 2.5h3.3l1.2 1.4H13A1.5 1.5 0 0114.5 5.4v6.1A1.5 1.5 0 0113 13H3a1.5 1.5 0 01-1.5-1.5z"
+                    fill="currentColor" opacity="0.9" />
+                {/if}
+              </svg>
             {:else}
               <span class="caret spacer" aria-hidden="true"></span>
-              <span class="ico file {node.ext}" aria-hidden="true">●</span>
+              <!-- ファイル（折れ角つき文書・拡張子で色分け: .md / .tsv） -->
+              <svg class="ico file {node.ext}" viewBox="0 0 16 16" aria-hidden="true">
+                <path d="M4 1.5h5l3 3v9A0.5 0.5 0 0111.5 14h-7A0.5 0.5 0 014 13.5v-11A0.5 0.5 0 014 1.5z"
+                  fill="currentColor" opacity="0.9" />
+                <path d="M9 1.5v3h3" fill="none" stroke="var(--bg-subtle)" stroke-width="1" />
+              </svg>
             {/if}
             <span class="name">{node.name}</span>
           </button>
@@ -219,26 +241,48 @@
     color: var(--accent);
   }
 
+  /* クリック/キーボードで選択中の行。WebView 既定のフォーカス枠を打ち消し、
+     アプリ調のアクセント枠に統一する。 */
+  .row:focus-visible {
+    outline: none;
+    box-shadow: inset 0 0 0 2px var(--accent);
+  }
+
   .caret {
-    width: 12px;
+    width: 14px;
+    height: 14px;
     flex: none;
-    font-size: 9px;
     color: var(--text-tertiary);
     transition: transform 120ms ease;
   }
 
-  .caret.open {
+  .caret.expanded {
     transform: rotate(90deg);
   }
 
-  /* .caret.spacer はファイル行の桁合わせ用。追加スタイル不要（.caret の幅を流用）。 */
+  /* ファイル行はシェブロン非表示。span.spacer は .caret の幅で桁を合わせる。 */
+  span.caret.spacer {
+    display: inline-block;
+  }
 
   .ico {
-    width: 12px;
+    width: 16px;
+    height: 16px;
     flex: none;
-    font-size: 9px;
-    text-align: center;
     color: var(--text-tertiary);
+  }
+
+  /* フォルダは 1 段目立たせる。ファイルは拡張子で色分け（Phase D 先取り）。 */
+  .ico.folder {
+    color: var(--accent);
+  }
+
+  .ico.file.md {
+    color: #4c8bf5; /* Markdown = 青系 */
+  }
+
+  .ico.file.tsv {
+    color: #3fa66a; /* TSV（表データ）= 緑系 */
   }
 
   .name {
