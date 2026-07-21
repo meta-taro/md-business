@@ -1,13 +1,14 @@
 <script lang="ts">
+  import { untrack } from 'svelte';
   import { themeController } from '$lib/theme.svelte';
   import { renderPreview } from '$lib/preview/renderPreview';
-  import { apiSpecSample } from '$lib/samples/apiSpecSample';
   import CodeMirrorEditor from '$lib/editor/CodeMirrorEditor.svelte';
   import { debounce } from '$lib/util/debounce';
   import { parseTsv, serializeTsv, type TsvDocument } from '@md-business/schema-test-spec-tsv';
   import { isTsvSource } from '$lib/tsv/detect';
   import TsvGrid from '$lib/tsv/TsvGrid.svelte';
   import { browser } from '$app/environment';
+  import { workspace } from '$lib/workspace/workspace.svelte';
   import {
     DEFAULT_SPLIT_RATIO,
     ratioFromPointer,
@@ -15,22 +16,29 @@
     stepRatio,
   } from '$lib/layout/splitRatio';
 
-  // 中央 = 左右 2 分割（DESIGN §6）。左＝Markdown エディター（CodeMirror 6・
-  // Phase 2）、右＝ビューワー（Phase 1c で renderer-pdf の HTML を iframe 隔離）。
+  // 中央 = 左右 2 分割（DESIGN §6）。左＝Markdown エディター（CodeMirror 6）、
+  // 右＝ビューワー（renderer-pdf の HTML を iframe 隔離）。
   //
-  // ファイルオープン（Phase 3）が未実装の間は、正本テンプレを seed として開く。
-  // source が編集の唯一の真実。エディター編集 → debounce → 再描画（§6.2）。
-  let source = $state(apiSpecSample);
+  // source は共有 workspace ストアが唯一の真実（§2.1）。左レールで開いたファイルも、
+  // ここでの編集も同じ source を指す。ファイル未オープン時は seed テンプレ。
+  const source = $derived(workspace.source);
   // debounce 後の値。プレビューはこちらから描画し、タイプ中の再描画連打を抑える。
-  let debouncedSource = $state(apiSpecSample);
+  let debouncedSource = $state(workspace.source);
 
   // §6.2 既定 200ms。最後の入力から 200ms 静止で 1 回だけプレビューへ反映。
   const pushToPreview = debounce((value: string) => {
     debouncedSource = value;
   }, 200);
 
+  // ファイルを開いた瞬間（loadSeq 変化）はプレビューへ即反映する。source を untrack して
+  // 依存を loadSeq だけに絞り、タイプ中の debounce を壊さない。
+  $effect(() => {
+    workspace.loadSeq;
+    debouncedSource = untrack(() => workspace.source);
+  });
+
   function handleEditorChange(value: string): void {
-    source = value;
+    workspace.setSource(value);
     pushToPreview(value);
   }
 
@@ -51,7 +59,7 @@
   // debouncedSource も即更新して doc を再導出し、グリッドを遅延なく反映する。
   function handleGridChange(next: TsvDocument): void {
     const text = serializeTsv(next);
-    source = text;
+    workspace.setSource(text);
     debouncedSource = text;
   }
 
