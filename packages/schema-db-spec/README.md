@@ -54,7 +54,7 @@ Authors write Japanese; `normalizeDbSpecFrontmatter` translates to the canonical
 ステータス: 承認済
 エンジン: PostgreSQL
 作成者:
-  - 名前: 田中 雅友
+  - 名前: 伊藤 太郎
     役割: PdM
 テーブル:
   - 名前: users

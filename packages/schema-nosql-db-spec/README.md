@@ -62,7 +62,7 @@ Authors write Japanese; `normalizeNosqlDbSpecFrontmatter` translates to the cano
 ステータス: 承認済
 エンジン: Firestore
 作成者:
-  - 名前: 田中 雅友
+  - 名前: 伊藤 太郎
     役割: PdM
 コレクション:
   - パス: users/{userId}

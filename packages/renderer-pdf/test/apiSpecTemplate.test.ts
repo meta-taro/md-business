@@ -59,7 +59,7 @@ describe('renderApiSpecBody — cover', () => {
 
   it('renders authors, reviewers, and related docs', () => {
     const html = renderApiSpecBody(standardApiSpec());
-    expect(html).toContain('田中 雅友');
+    expect(html).toContain('伊藤 太郎');
     expect(html).toContain('佐藤 太郎');
     expect(html).toContain('/docs/architecture.md');
   });

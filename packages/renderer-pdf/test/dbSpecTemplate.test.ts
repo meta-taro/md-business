@@ -43,7 +43,7 @@ describe('renderDbSpecBody — cover page', () => {
 
   it('lists authors and reviewers with roles', () => {
     const html = renderDbSpecBody(standardDbSpec());
-    expect(html).toContain('田中 雅友');
+    expect(html).toContain('伊藤 太郎');
     expect(html).toContain('（PdM）');
     expect(html).toContain('佐藤 太郎');
     expect(html).toMatch(/レビュアー/);

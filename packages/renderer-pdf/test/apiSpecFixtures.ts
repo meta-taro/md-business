@@ -19,7 +19,7 @@ export function standardApiSpec(overrides: Partial<ApiSpec> = {}): ApiSpec {
     auth: 'bearer',
     baseUrl: 'https://api.example.com/v1',
     authors: [
-      { name: '田中 雅友', role: 'PdM' },
+      { name: '伊藤 太郎', role: 'PdM' },
       { name: '山田 花子', role: 'テックリード' },
     ],
     reviewers: [{ name: '佐藤 太郎', role: '部長' }],

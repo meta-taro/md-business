@@ -9,7 +9,7 @@ export function standardSpec(overrides: Partial<Spec> = {}): Spec {
     issueDate: '2026-06-17',
     status: 'review',
     authors: [
-      { name: '田中 雅友', role: 'PdM' },
+      { name: '伊藤 太郎', role: 'PdM' },
       { name: '山田 花子', role: 'テックリード' },
     ],
     reviewers: [{ name: '佐藤 太郎', role: '部長' }],

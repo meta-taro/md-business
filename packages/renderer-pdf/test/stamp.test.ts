@@ -7,7 +7,7 @@ import {
 
 describe('inferStampShape', () => {
   it('returns square for 株式会社 prefix', () => {
-    expect(inferStampShape('株式会社Dokokade')).toBe('square');
+    expect(inferStampShape('株式会社Example')).toBe('square');
   });
 
   it('returns square for 合同会社', () => {
@@ -24,14 +24,14 @@ describe('inferStampShape', () => {
   });
 
   it('returns round for an individual name', () => {
-    expect(inferStampShape('田中甫朋')).toBe('round');
+    expect(inferStampShape('伊藤太郎')).toBe('round');
     expect(inferStampShape('高橋')).toBe('round');
   });
 });
 
 describe('extractStampChars', () => {
   it('strips 株式会社 prefix and keeps body', () => {
-    expect(extractStampChars('株式会社Dokokade')).toEqual(['D', 'o', 'k', 'o']);
+    expect(extractStampChars('株式会社Example')).toEqual(['E', 'x', 'a', 'm']);
   });
 
   it('strips 株式会社 prefix from CJK company name', () => {
@@ -39,7 +39,7 @@ describe('extractStampChars', () => {
   });
 
   it('passes a personal name through, capped at 4 chars', () => {
-    expect(extractStampChars('田中甫朋')).toEqual(['田', '中', '甫', '朋']);
+    expect(extractStampChars('伊藤太郎')).toEqual(['伊', '藤', '太', '郎']);
     expect(extractStampChars('高橋')).toEqual(['高', '橋']);
     expect(extractStampChars('田中')).toEqual(['田', '中']);
   });
@@ -81,7 +81,7 @@ describe('renderStampSvg', () => {
   });
 
   it('auto-detects personal -> round frame', () => {
-    const out = renderStampSvg({ text: '田中甫朋' });
+    const out = renderStampSvg({ text: '伊藤太郎' });
     expect(out).not.toBeNull();
     expect(out!.shape).toBe('round');
     expect(out!.svg).toContain('<circle');
@@ -94,12 +94,12 @@ describe('renderStampSvg', () => {
   });
 
   it('renders a single-row Latin layout when text is ASCII', () => {
-    const out = renderStampSvg({ text: '株式会社Dokokade' });
+    const out = renderStampSvg({ text: '株式会社Example' });
     expect(out).not.toBeNull();
     // Latin path emits exactly one <text> element with the uppercased string.
     const matches = out!.svg.match(/<text /g);
     expect(matches?.length).toBe(1);
-    expect(out!.svg).toContain('DOKO');
+    expect(out!.svg).toContain('EXAM');
   });
 
   it('respects a custom font family swap-point', () => {

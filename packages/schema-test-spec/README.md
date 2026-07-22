@@ -68,7 +68,7 @@ Authors write Japanese; `normalizeTestSpecFrontmatter` translates to the canonic
 ステータス: 実施中
 テーマ: 青
 作成者:
-  - 名前: 田中 雅友
+  - 名前: 伊藤 太郎
     役割: PdM
 シートID: 1abcDEF_replaceWithYourGoogleSheetsFileId
 列定義:

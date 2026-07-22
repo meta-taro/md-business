@@ -16,7 +16,7 @@ export function standardNosqlDbSpec(overrides: Partial<NosqlDbSpec> = {}): Nosql
     engine: 'firestore',
     multiRegion: 'nam5',
     authors: [
-      { name: '田中 雅友', role: 'PdM' },
+      { name: '伊藤 太郎', role: 'PdM' },
       { name: '山田 花子', role: 'テックリード' },
     ],
     reviewers: [{ name: '佐藤 太郎', role: '部長' }],

@@ -24,7 +24,7 @@ describe('renderSpecBody — cover page', () => {
 
   it('lists authors with their roles', () => {
     const html = renderSpecBody(standardSpec());
-    expect(html).toContain('田中 雅友');
+    expect(html).toContain('伊藤 太郎');
     expect(html).toContain('（PdM）');
     expect(html).toContain('山田 花子');
     expect(html).toContain('（テックリード）');

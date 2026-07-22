@@ -57,7 +57,7 @@ describe('renderNosqlDbSpecBody — cover', () => {
 
   it('renders authors, reviewers, and related docs', () => {
     const html = renderNosqlDbSpecBody(standardNosqlDbSpec());
-    expect(html).toContain('田中 雅友');
+    expect(html).toContain('伊藤 太郎');
     expect(html).toContain('佐藤 太郎');
     expect(html).toContain('/docs/architecture.md');
   });

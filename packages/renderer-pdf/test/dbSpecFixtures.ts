@@ -12,7 +12,7 @@ export function standardDbSpec(overrides: Partial<DbSpec> = {}): DbSpec {
     charset: 'UTF8',
     collation: 'ja_JP.UTF-8',
     authors: [
-      { name: '田中 雅友', role: 'PdM' },
+      { name: '伊藤 太郎', role: 'PdM' },
       { name: '山田 花子', role: 'テックリード' },
     ],
     reviewers: [{ name: '佐藤 太郎', role: '部長' }],

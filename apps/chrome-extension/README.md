@@ -95,7 +95,7 @@ export const designDocPlugin: SchemaPlugin<DesignDoc> = {
 ## Chrome Web Store 提出（参考）
 
 Issue #10 を参照。掲載アイコン・スクリーンショット（1280×800 × 3〜5）・PRIVACY.md は別途準備します。
-申請は人間（PdM・Dokokade アカウント）が行います（baseline 項目15）。
+申請は人間（PdM・パブリッシャーアカウント）が行います（baseline 項目15）。
 
 ## ライセンス
 

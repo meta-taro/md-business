@@ -77,7 +77,7 @@ Authors write Japanese; `normalizeApiSpecFrontmatter` translates to the canonica
 プロトコル: REST
 認証: Bearer
 作成者:
-  - 名前: 田中 正智
+  - 名前: 伊藤 太郎
     役割: API 設計担当
 エンドポイント:
   - オペレーションID: listOrders

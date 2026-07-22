@@ -19,7 +19,7 @@ function sampleSpec(overrides: Partial<TestSpec> = {}): TestSpec {
     version: '0.1.0',
     issueDate: '2026-06-18',
     status: 'executing',
-    authors: [{ name: '田中 雅友', role: 'PdM' }],
+    authors: [{ name: '伊藤 太郎', role: 'PdM' }],
     columns: [
       { name: '項目', type: 'text' },
       { name: '手順', type: 'multiline_text' },
