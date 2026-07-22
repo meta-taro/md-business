@@ -1,3 +1,4 @@
+mod git;
 mod workspace;
 
 /// アプリのエントリポイント。main / モバイル entry から共有される。
@@ -11,7 +12,8 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             workspace::scan_documents,
             workspace::read_document,
-            workspace::write_document
+            workspace::write_document,
+            git::git_status
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
