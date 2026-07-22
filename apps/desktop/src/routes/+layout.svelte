@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import '../app.css';
   import { themeController } from '$lib/theme.svelte';
+  import { workspace } from '$lib/workspace/workspace.svelte';
   import TopBar from '$lib/components/TopBar.svelte';
   import StatusBar from '$lib/components/StatusBar.svelte';
   import FileTree from '$lib/components/FileTree.svelte';
@@ -13,12 +14,23 @@
   // Git / AI / MCP パネルは既定で畳む（DESIGN §6・エディター↔プレビューを広く）。
   let panelOpen = $state(false);
 
+  // Ctrl+S / Cmd+S で保存。ブラウザ既定（ページ保存ダイアログ）を抑止し、
+  // 保存可能なときだけ workspace.save() を呼ぶ（未オープン / 未変更時は no-op）。
+  function onKeydown(event: KeyboardEvent): void {
+    if ((event.ctrlKey || event.metaKey) && !event.altKey && event.key.toLowerCase() === 's') {
+      event.preventDefault();
+      if (workspace.canSave) void workspace.save();
+    }
+  }
+
   onMount(() => {
     // app.html が paint 前に data-theme を確定済み。ここで反応状態を種づけして
     // トグルボタンの表示を実テーマに一致させる（DESIGN §8）。
     themeController.init();
   });
 </script>
+
+<svelte:window onkeydown={onKeydown} />
 
 <div class="shell">
   <TopBar />

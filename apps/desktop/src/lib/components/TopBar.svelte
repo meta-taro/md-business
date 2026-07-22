@@ -2,15 +2,22 @@
   import { onMount } from 'svelte';
   import { themeController } from '$lib/theme.svelte';
   import { titlebarController } from '$lib/window/titlebar.svelte';
+  import { workspace } from '$lib/workspace/workspace.svelte';
 
   // フレームレス（decorations:false）のため、この TopBar 自体が OS タイトルバーを兼ねる。
   // ヘッダー地＝ドラッグ領域（data-tauri-drag-region）、右端に自作のウィンドウコントロール。
   // .lead / .center は pointer-events:none で地に貫通させ、どこを掴んでも窓を動かせる。
   // ボタン群（.right 配下）は pointer-events 有効＝クリック可能。
-  // 文書タイトル / status バッジ / PDF・Ctrl K・設定は後続フェーズで実データに置き換える。
   onMount(() => {
     titlebarController.init();
   });
+
+  // 中央に開いているファイル名（相対パスの末尾）を表示。未オープンは案内文。
+  const docName = $derived(
+    workspace.activePath === null
+      ? '文書を選択してください'
+      : (workspace.activePath.split('/').pop() ?? workspace.activePath),
+  );
 </script>
 
 <header class="topbar" data-tauri-drag-region>
@@ -20,14 +27,27 @@
   </div>
 
   <div class="center">
-    <span class="doc-title">文書を選択してください</span>
+    {#if workspace.dirty}
+      <!-- 未保存の印（VSCode 風の白丸）。data-tauri-drag-region 内なので装飾のみ。 -->
+      <span class="dirty-dot" title="未保存の変更があります" aria-label="未保存"></span>
+    {/if}
+    <span class="doc-title" class:is-dirty={workspace.dirty}>{docName}</span>
   </div>
 
   <div class="right">
     <div class="actions">
-      <!-- PDF 出力 / コマンドパレット（Ctrl K）/ 設定は未実装のダミーだったため、
-           内々配布に備えて一旦非表示にする。各機能の実装フェーズで復活させる。
-           テーマ切替は実働するので残す。 -->
+      <!-- 保存（Ctrl+S と等価）。未オープン / 未変更 / 保存中は不活性。
+           PDF 出力 / コマンドパレット（Ctrl K）/ 設定は各実装フェーズで復活させる。 -->
+      <button
+        class="btn ghost"
+        type="button"
+        onclick={() => workspace.save()}
+        disabled={!workspace.canSave}
+        title={workspace.saving ? '保存中…' : '保存（Ctrl+S）'}
+        aria-label="保存"
+      >
+        {workspace.saving ? '保存中…' : '保存'}
+      </button>
       <button
         class="btn ghost icon"
         type="button"
@@ -116,6 +136,9 @@
   .center {
     justify-self: center;
     min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
   }
 
   .doc-title {
@@ -124,6 +147,19 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+  }
+
+  .doc-title.is-dirty {
+    color: var(--text-primary);
+  }
+
+  /* 未保存インジケータ。開いた文書に差分があるときだけ点灯する。 */
+  .dirty-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: var(--radius-full);
+    background: var(--accent);
+    flex: none;
   }
 
   .right {
