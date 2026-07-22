@@ -4,6 +4,7 @@ import {
   initialExpandedPaths,
   toggleExpanded,
   flattenVisible,
+  computeDirty,
   type VisibleRow,
 } from './workspaceLogic';
 
@@ -79,5 +80,19 @@ describe('flattenVisible', () => {
       '1:folder:a/b',
       '2:file:a/b/c.md',
     ]);
+  });
+});
+
+describe('computeDirty', () => {
+  it('ファイル未オープン（activePath=null）は常に false（seed 編集は保存対象外）', () => {
+    expect(computeDirty(null, 'seed 本文を編集した', 'ディスク上の別内容')).toBe(false);
+  });
+
+  it('オープン中で source と savedSource が一致すれば false', () => {
+    expect(computeDirty('a.md', '# 同じ', '# 同じ')).toBe(false);
+  });
+
+  it('オープン中で source が savedSource と異なれば true', () => {
+    expect(computeDirty('a.md', '# 編集後', '# 保存済み')).toBe(true);
   });
 });

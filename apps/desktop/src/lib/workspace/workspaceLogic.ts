@@ -31,6 +31,20 @@ export function toggleExpanded(expanded: ReadonlySet<string>, path: string): Set
 }
 
 /**
+ * 未保存編集（dirty）判定。ファイル未オープン（`activePath === null`）は seed テンプレ
+ * を編集しているだけで保存対象がないため、常に false。オープン中は編集中本文（source）が
+ * 直近ディスク内容（savedSource）と異なるときだけ true。
+ */
+export function computeDirty(
+  activePath: string | null,
+  source: string,
+  savedSource: string,
+): boolean {
+  if (activePath === null) return false;
+  return source !== savedSource;
+}
+
+/**
  * 展開集合に従い可視ノードを深さ優先で平坦化する。
  * フォルダはその `path` が `expanded` に含まれる時だけ children を辿る。
  */

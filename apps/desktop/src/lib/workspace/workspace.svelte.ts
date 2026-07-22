@@ -12,7 +12,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { open } from '@tauri-apps/plugin-dialog';
 import { apiSpecSample } from '$lib/samples/apiSpecSample';
 import { buildTree, type DocEntry, type TreeNode } from './fileTree';
-import { initialExpandedPaths, toggleExpanded } from './workspaceLogic';
+import { initialExpandedPaths, toggleExpanded, computeDirty } from './workspaceLogic';
 
 /** Rust `scan_documents` の戻り（serde camelCase）。 */
 interface ScanResult {
@@ -37,6 +37,10 @@ class WorkspaceStore {
   activePath = $state<string | null>(null);
   /** 編集の唯一の真実。既定は seed テンプレ（ファイル未オープン時）。 */
   source = $state<string>(apiSpecSample);
+  /** 直近にディスクへ反映された内容（read 直後 / save 成功時に同期）。dirty 判定の基準。 */
+  savedSource = $state<string>(apiSpecSample);
+  /** 保存中フラグ（多重 save 抑止・UI の保存インジケータ用）。 */
+  saving = $state<boolean>(false);
   /** 走査が深さ / 件数上限で打ち切られたか（警告表示用）。 */
   truncated = $state<boolean>(false);
   /** 直近の走査 / 読込エラー（左レールに表示）。 */
@@ -94,6 +98,7 @@ class WorkspaceStore {
     try {
       const content = await invoke<string>('read_document', { root: this.root, relPath });
       this.source = content;
+      this.savedSource = content; // 開いた直後は未編集（dirty=false）
       this.activePath = relPath;
       this.loadSeq += 1;
       this.error = null;
@@ -105,6 +110,37 @@ class WorkspaceStore {
   /** エディター / グリッド編集からの source 書き戻し。 */
   setSource(value: string): void {
     this.source = value;
+  }
+
+  /** 未保存編集があるか（保存ボタン活性・タイトルの dirty ドット用）。 */
+  get dirty(): boolean {
+    return computeDirty(this.activePath, this.source, this.savedSource);
+  }
+
+  /** 保存可能か（ファイルを開いていて、未保存差分があり、保存処理中でない）。 */
+  get canSave(): boolean {
+    return this.activePath !== null && this.dirty && !this.saving;
+  }
+
+  /**
+   * 編集中 source を開いているファイルへ書き戻す。ファイル未オープン時・保存中は no-op。
+   * 保存する内容は呼び出し時点で固定し、成功時に savedSource をそのスナップショットへ
+   * 同期する（保存中にタイプが進んでも取りこぼさない）。失敗時はエラー表示のみ。
+   */
+  async save(): Promise<void> {
+    if (this.root === null || this.activePath === null || this.saving) return;
+    const relPath = this.activePath;
+    const snapshot = this.source;
+    this.saving = true;
+    try {
+      await invoke('write_document', { root: this.root, relPath, content: snapshot });
+      this.savedSource = snapshot;
+      this.error = null;
+    } catch (e) {
+      this.error = errorMessage(e);
+    } finally {
+      this.saving = false;
+    }
   }
 }
 
