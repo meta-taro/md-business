@@ -23,6 +23,9 @@ class GitStore {
   /** 直近の git 状態。未オープン / 非リポジトリは emptyGitStatus。 */
   status = $state<GitStatus>(emptyGitStatus());
 
+  /** ローカルブランチ名一覧（切替ポップオーバー用）。非リポジトリは空。 */
+  branches = $state<string[]>([]);
+
   /** files を relPath（repo root 基準）→ state に索引化。ツリー照合の O(1) 化。 */
   private statusMap = $derived(buildStatusMap(this.status));
 
@@ -73,9 +76,28 @@ class GitStore {
     }
   }
 
+  /** ローカルブランチ一覧を取得して反映する。失敗時は空（UI は切替不可表示）。 */
+  async loadBranches(root: string): Promise<void> {
+    try {
+      this.branches = await invoke<string[]>('git_branches', { root });
+    } catch {
+      this.branches = [];
+    }
+  }
+
+  /**
+   * ブランチを切り替え、返却された最新ステータスを反映する。
+   * 失敗（未コミット変更との衝突・不明ブランチ）は Rust の Err が例外として飛ぶので、
+   * 呼び出し側（workspace / StatusBar）で捕捉してユーザーへ表示する。
+   */
+  async switchBranch(root: string, branch: string): Promise<void> {
+    this.status = await invoke<GitStatus>('git_switch', { root, branch });
+  }
+
   /** フォルダを閉じた / 未オープンへ戻すときに状態を空へ。 */
   reset(): void {
     this.status = emptyGitStatus();
+    this.branches = [];
   }
 }
 

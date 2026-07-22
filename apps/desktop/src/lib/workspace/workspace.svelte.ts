@@ -13,7 +13,12 @@ import { open } from '@tauri-apps/plugin-dialog';
 import { apiSpecSample } from '$lib/samples/apiSpecSample';
 import { git } from '$lib/git/git.svelte';
 import { buildTree, type DocEntry, type TreeNode } from './fileTree';
-import { initialExpandedPaths, toggleExpanded, computeDirty } from './workspaceLogic';
+import {
+  initialExpandedPaths,
+  toggleExpanded,
+  computeDirty,
+  shouldReopenFile,
+} from './workspaceLogic';
 
 /** Rust `scan_documents` の戻り（serde camelCase）。 */
 interface ScanResult {
@@ -81,8 +86,9 @@ class WorkspaceStore {
       this.activePath = null;
       this.truncated = result.truncated;
       this.error = null;
-      // 開いたフォルダの git 状態を取得（非リポジトリでも無害。await せず fire-and-forget）。
+      // 開いたフォルダの git 状態とブランチ一覧を取得（非リポジトリでも無害・fire-and-forget）。
       void git.refresh(root);
+      void git.loadBranches(root);
     } catch (e) {
       this.error = errorMessage(e);
     } finally {
@@ -93,6 +99,36 @@ class WorkspaceStore {
   /** フォルダの開閉トグル。 */
   toggle(path: string): void {
     this.expanded = toggleExpanded(this.expanded, path);
+  }
+
+  /** ツリー全体のファイル relPath を平坦に集める（切替後の再オープン判定用）。 */
+  private allFilePaths(): string[] {
+    const paths: string[] = [];
+    const walk = (nodes: readonly TreeNode[]): void => {
+      for (const node of nodes) {
+        if (node.kind === 'file') paths.push(node.path);
+        else walk(node.children);
+      }
+    };
+    walk(this.tree);
+    return paths;
+  }
+
+  /**
+   * ブランチを切り替える（StatusBar の切替ポップオーバーから呼ぶ）。
+   * git_switch は `-f` なしなので未コミット変更と衝突すると失敗し、例外が伝播する
+   * （その場合ディスクは無変更＝呼び出し側でエラー表示する）。成功時はツリーを再走査し、
+   * 直前に開いていたファイルが新ブランチにも在れば内容を読み直す。
+   */
+  async switchBranch(branch: string): Promise<void> {
+    if (this.root === null) return;
+    const prevActive = this.activePath;
+    await git.switchBranch(this.root, branch); // 衝突時はここで throw（再走査しない）
+    await this.scan(this.root); // ツリー再構築・activePath は null にリセットされる
+    if (shouldReopenFile(prevActive, this.allFilePaths())) {
+      // shouldReopenFile が true なら prevActive は非 null。
+      await this.select(prevActive as string);
+    }
   }
 
   /** ファイルを読み込み source に反映する。失敗時はエラー表示のみ・前回内容を保持（§3.4）。 */

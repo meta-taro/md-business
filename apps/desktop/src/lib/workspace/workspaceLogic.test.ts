@@ -5,6 +5,7 @@ import {
   toggleExpanded,
   flattenVisible,
   computeDirty,
+  shouldReopenFile,
   type VisibleRow,
 } from './workspaceLogic';
 
@@ -94,5 +95,19 @@ describe('computeDirty', () => {
 
   it('オープン中で source が savedSource と異なれば true', () => {
     expect(computeDirty('a.md', '# 編集後', '# 保存済み')).toBe(true);
+  });
+});
+
+describe('shouldReopenFile', () => {
+  it('切替前のファイルが新ツリーにも在れば true（開き直す）', () => {
+    expect(shouldReopenFile('docs/a.md', ['docs/a.md', 'z.md'])).toBe(true);
+  });
+
+  it('新ツリーに無ければ false（新ブランチで消えた＝選択解除のまま）', () => {
+    expect(shouldReopenFile('docs/only-on-old.md', ['docs/a.md'])).toBe(false);
+  });
+
+  it('未オープン（activePath=null）は false', () => {
+    expect(shouldReopenFile(null, ['docs/a.md'])).toBe(false);
   });
 });

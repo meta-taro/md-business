@@ -45,6 +45,18 @@ export function computeDirty(
 }
 
 /**
+ * ブランチ切替後、直前に開いていたファイルを開き直すべきか。
+ * 新ツリーのファイルパス集合に同じ relPath が在れば true（内容を読み直す）。
+ * 無ければ false（新ブランチにファイルが無い＝選択解除のまま read エラーを避ける）。
+ */
+export function shouldReopenFile(
+  prevActivePath: string | null,
+  filePaths: readonly string[],
+): boolean {
+  return prevActivePath !== null && filePaths.includes(prevActivePath);
+}
+
+/**
  * 展開集合に従い可視ノードを深さ優先で平坦化する。
  * フォルダはその `path` が `expanded` に含まれる時だけ children を辿る。
  */
