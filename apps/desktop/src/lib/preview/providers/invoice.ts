@@ -51,5 +51,8 @@ export const invoiceProvider = createSchemaPreview<Invoice>({
   documentTitle: (data) => `請求書 ${data.invoiceNumber}`,
   // データ駆動スキーマは frontmatter のみで描くため body は無視する。
   renderBody: (data) => renderInvoiceBody(data),
-  css: invoiceCss,
+  // 画面プレビューだけ用紙が端に詰まって見えるため、@media screen で余白を足す。
+  // 印刷（PDF 出力）は @page margin が効くので screen 限定にし、正本の invoice.css
+  // （PDF / chrome-extension 共用）には手を入れない。
+  css: `${invoiceCss}\n@media screen { body { padding: 28px 24px; } }`,
 });
