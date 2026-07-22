@@ -1,7 +1,8 @@
 <script lang="ts">
-  import { untrack } from 'svelte';
+  import { untrack, onMount, onDestroy } from 'svelte';
   import { themeController } from '$lib/theme.svelte';
   import { renderPreview } from '$lib/preview/renderPreview';
+  import { pdfExport } from '$lib/preview/pdfExport.svelte';
   import CodeMirrorEditor from '$lib/editor/CodeMirrorEditor.svelte';
   import { debounce } from '$lib/util/debounce';
   import { parseTsv, serializeTsv, type TsvDocument } from '@md-business/schema-test-spec-tsv';
@@ -49,6 +50,25 @@
   const preview = $derived(
     renderPreview(debouncedSource, { theme: themeController.value }),
   );
+
+  // PDF 出力（§6.4）。プレビュー iframe を print-to-PDF する関数を共有コントローラへ
+  // 登録し、Top bar の [PDF] から起動する。iframe の srcdoc は renderer-pdf の @page
+  // CSS を内包するので、印刷（→「PDF として保存」）で画面と 1:1 の A4 正本になる。
+  let viewerFrame = $state<HTMLIFrameElement | undefined>(undefined);
+  onMount(() => {
+    pdfExport.register(() => {
+      const win = viewerFrame?.contentWindow;
+      if (!win) return;
+      win.focus();
+      win.print();
+    });
+  });
+  onDestroy(() => pdfExport.unregister());
+  // schema / Markdown ビューワー描画中だけ [PDF] を活性化する。TSV 編集グリッドは
+  // 印刷対象の iframe を持たないため対象外。
+  $effect(() => {
+    pdfExport.setReady(preview.ok && !isTsv);
+  });
 
   // カスタム TSV 検証シートは読み取りプレビューでなく編集グリッド（本命 UI・Issue 010）で開く。
   // 先頭マジック行で判定し、TSV なら parseTsv した doc をグリッドへ渡す。
@@ -174,7 +194,12 @@
     {:else}
     <div class="pane-head">プレビュー{#if preview.ok} — {preview.label}{/if}</div>
     {#if preview.ok}
-      <iframe class="viewer" srcdoc={preview.srcdoc} title="{preview.label}プレビュー"></iframe>
+      <iframe
+        class="viewer"
+        bind:this={viewerFrame}
+        srcdoc={preview.srcdoc}
+        title="{preview.label}プレビュー"
+      ></iframe>
       {#if preview.errors.length > 0 || preview.warnings.length > 0}
         <div class="notices" role="status">
           {#each preview.errors as err (err)}

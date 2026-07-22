@@ -3,6 +3,7 @@
   import { themeController } from '$lib/theme.svelte';
   import { titlebarController } from '$lib/window/titlebar.svelte';
   import { workspace } from '$lib/workspace/workspace.svelte';
+  import { pdfExport } from '$lib/preview/pdfExport.svelte';
 
   // フレームレス（decorations:false）のため、この TopBar 自体が OS タイトルバーを兼ねる。
   // ヘッダー地＝ドラッグ領域（data-tauri-drag-region）、右端に自作のウィンドウコントロール。
@@ -47,6 +48,18 @@
         aria-label="保存"
       >
         {workspace.saving ? '保存中…' : '保存'}
+      </button>
+      <!-- PDF 出力（§6.4）。プレビュー描画中だけ活性。押すと WebView の印刷
+           （→「PDF として保存」）でプレビュー見た目のまま A4 出力する。 -->
+      <button
+        class="btn ghost"
+        type="button"
+        onclick={() => pdfExport.run()}
+        disabled={!pdfExport.canExport}
+        title="PDF 出力（プレビューを A4 で印刷／保存）"
+        aria-label="PDF 出力"
+      >
+        PDF
       </button>
       <button
         class="btn ghost icon"
