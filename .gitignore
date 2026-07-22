@@ -54,6 +54,8 @@ pnpm-debug.log*
 
 # Per-company real data (must not land in OSS upstream)
 # 各社の実データ（請求先名・登録番号・金額・印影など）は本家にコミットしない
+# /.tmp/ は実スプレ等の PII を一時マスク検証する作業場（絶対に上流へ出さない）
+/.tmp/
 /private/
 /.local/
 *.private.md
