@@ -6,6 +6,9 @@
   import { workspace } from '$lib/workspace/workspace.svelte';
   import { flattenVisible } from '$lib/workspace/workspaceLogic';
 
+  // 折り畳み（右 SidePanel と対称）。畳み状態と切替はレイアウトが所有し、props で受ける。
+  let { collapsed = false, ontoggle }: { collapsed?: boolean; ontoggle?: () => void } = $props();
+
   // 展開状態 or ツリー変化で可視行を再導出する。
   const rows = $derived(flattenVisible(workspace.tree, workspace.expanded));
 
@@ -18,9 +21,32 @@
   }
 </script>
 
-<nav class="filetree" aria-label="ファイルツリー">
+<nav class="filetree" class:collapsed aria-label="ファイルツリー">
+  {#if collapsed}
+    <!-- 折り畳み時は縦レールのみ。› で開く（SidePanel の ‹ › と対称）。 -->
+    <button
+      class="rail-toggle"
+      type="button"
+      onclick={ontoggle}
+      title="エクスプローラーを開く"
+      aria-label="エクスプローラーを開く"
+    >
+      ›
+    </button>
+  {:else}
   <div class="head">
-    <span class="title">エクスプローラー</span>
+    <div class="head-left">
+      <button
+        class="collapse"
+        type="button"
+        onclick={ontoggle}
+        title="エクスプローラーを畳む"
+        aria-label="エクスプローラーを畳む"
+      >
+        ‹
+      </button>
+      <span class="title">エクスプローラー</span>
+    </div>
     {#if workspace.root !== null}
       <button
         class="reopen"
@@ -110,6 +136,7 @@
       <p class="banner warn" role="status">一部のみ表示（上限に達したため打ち切りました）</p>
     {/if}
   {/if}
+  {/if}
 </nav>
 
 <style>
@@ -122,13 +149,74 @@
     overflow: hidden;
   }
 
+  /* 折り畳み時は縦レール（40px）。右 SidePanel と対称。 */
+  .rail-toggle {
+    width: 100%;
+    height: 40px;
+    border: none;
+    background: transparent;
+    color: var(--text-tertiary);
+    font-size: 16px;
+    line-height: 1;
+    cursor: pointer;
+    transition:
+      background var(--dur-fast) var(--ease),
+      color var(--dur-fast) var(--ease);
+  }
+
+  .rail-toggle:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+  }
+
+  .rail-toggle:focus-visible {
+    outline: none;
+    box-shadow: inset 0 0 0 2px var(--accent);
+    color: var(--text-primary);
+  }
+
   .head {
     height: 34px;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 0 var(--space-3) 0 var(--space-4);
+    padding: 0 var(--space-3) 0 var(--space-2);
     flex: none;
+  }
+
+  .head-left {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    min-width: 0;
+  }
+
+  /* ヘッダーの畳みボタン（開いている状態から ‹ で畳む）。 */
+  .collapse {
+    width: 22px;
+    height: 22px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--text-tertiary);
+    font-size: 14px;
+    line-height: 1;
+    cursor: pointer;
+    flex: none;
+  }
+
+  .collapse:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+  }
+
+  .collapse:focus-visible {
+    outline: none;
+    box-shadow: inset 0 0 0 2px var(--accent);
+    color: var(--text-primary);
   }
 
   .title {
@@ -209,15 +297,19 @@
   .tree {
     flex: 1;
     min-height: 0;
-    overflow-y: auto;
+    /* 深い階層は省略記号で潰さず横スクロールで見せる（縦横 auto）。 */
+    overflow: auto;
     list-style: none;
     margin: 0;
     padding: var(--space-1) 0;
   }
 
   .row {
-    /* インデントは depth に比例。ファイル名は省略記号で切る。 */
-    width: 100%;
+    /* インデントは depth に比例。行は内容幅（max-content）まで伸び、
+       パネルより深い階層は .tree の横スクロールで辿れる。min-width:100% で
+       浅い行のホバー地はパネル全幅に届かせる。 */
+    width: max-content;
+    min-width: 100%;
     display: flex;
     align-items: center;
     gap: var(--space-1);
@@ -286,9 +378,7 @@
   }
 
   .name {
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    /* 省略記号で切らず、深い階層は横スクロールで全名を見せる。 */
     white-space: nowrap;
   }
 </style>

@@ -1,18 +1,107 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import '../app.css';
+  import { browser } from '$app/environment';
   import { themeController } from '$lib/theme.svelte';
   import { workspace } from '$lib/workspace/workspace.svelte';
   import TopBar from '$lib/components/TopBar.svelte';
   import StatusBar from '$lib/components/StatusBar.svelte';
   import FileTree from '$lib/components/FileTree.svelte';
   import SidePanel from '$lib/components/SidePanel.svelte';
+  import {
+    DEFAULT_FILETREE_W,
+    MIN_FILETREE_W,
+    MAX_FILETREE_W,
+    widthFromPointer,
+    parseStoredWidth,
+    stepWidth,
+  } from '$lib/layout/railWidth';
 
   // Svelte 5 runes: 子ルート（+page）はエディター↔プレビュー分割を描画する。
   let { children } = $props();
 
   // Git / AI / MCP パネルは既定で畳む（DESIGN §6・エディター↔プレビューを広く）。
   let panelOpen = $state(false);
+
+  // ── 左レール（エクスプローラー）の幅リサイズ + 折り畳み（右 SidePanel と対称）──
+  // 幅は絶対 px（railWidth.ts の純ロジックでクランプ）。開いた幅と畳み状態を localStorage に永続化。
+  const EXPLORER_W_KEY = 'md-business:desktop:explorer-width';
+  const EXPLORER_COLLAPSED_KEY = 'md-business:desktop:explorer-collapsed';
+  const RAIL_W = 40; // 折り畳み時のレール幅（SidePanel の 40px と一致）。
+  const DIVIDER_W = 6; // px。CSS の .rail-divider 幅と一致させる。
+  const KEY_STEP_PX = 24; // 矢印キー 1 回の移動量。
+
+  let explorerWidth = $state(
+    browser ? parseStoredWidth(localStorage.getItem(EXPLORER_W_KEY)) : DEFAULT_FILETREE_W,
+  );
+  let explorerCollapsed = $state(
+    browser ? localStorage.getItem(EXPLORER_COLLAPSED_KEY) === '1' : false,
+  );
+  let bodyEl = $state<HTMLDivElement>();
+  let draggingRail = $state(false);
+
+  // grid-template-columns 文字列。左レール | (ディバイダ) | 中央 | 右パネル。
+  // 折り畳み時はレール固定幅にしディバイダを畳む。
+  function bodyColumns(width: number, collapsed: boolean): string {
+    return collapsed
+      ? `${RAIL_W}px minmax(0, 1fr) auto`
+      : `${width}px ${DIVIDER_W}px minmax(0, 1fr) auto`;
+  }
+
+  function persistWidth(): void {
+    if (browser) localStorage.setItem(EXPLORER_W_KEY, String(explorerWidth));
+  }
+
+  function toggleExplorer(): void {
+    explorerCollapsed = !explorerCollapsed;
+    if (browser) localStorage.setItem(EXPLORER_COLLAPSED_KEY, explorerCollapsed ? '1' : '0');
+  }
+
+  function startRailDrag(event: PointerEvent): void {
+    if (!bodyEl) return;
+    draggingRail = true;
+    (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
+    event.preventDefault();
+  }
+
+  function onRailDrag(event: PointerEvent): void {
+    if (!draggingRail || !bodyEl) return;
+    // レール左端（= body 左端）からポインタまでの距離をそのまま幅にする。
+    const left = bodyEl.getBoundingClientRect().left;
+    explorerWidth = widthFromPointer(event.clientX, left);
+  }
+
+  function endRailDrag(event: PointerEvent): void {
+    if (!draggingRail) return;
+    draggingRail = false;
+    const el = event.currentTarget as HTMLElement;
+    if (el.hasPointerCapture(event.pointerId)) el.releasePointerCapture(event.pointerId);
+    persistWidth();
+  }
+
+  function resetRail(): void {
+    explorerWidth = DEFAULT_FILETREE_W;
+    persistWidth();
+  }
+
+  function onRailKey(event: KeyboardEvent): void {
+    switch (event.key) {
+      case 'ArrowLeft':
+        explorerWidth = stepWidth(explorerWidth, -1, KEY_STEP_PX);
+        break;
+      case 'ArrowRight':
+        explorerWidth = stepWidth(explorerWidth, 1, KEY_STEP_PX);
+        break;
+      case 'Home':
+      case 'Enter':
+        resetRail();
+        break;
+      default:
+        return;
+    }
+    persistWidth();
+    event.preventDefault();
+  }
 
   // Ctrl+S / Cmd+S で保存。ブラウザ既定（ページ保存ダイアログ）を抑止し、
   // 保存可能なときだけ workspace.save() を呼ぶ（未オープン / 未変更時は no-op）。
@@ -35,8 +124,36 @@
 <div class="shell">
   <TopBar />
 
-  <div class="body">
-    <FileTree />
+  <div
+    class="body"
+    class:dragging={draggingRail}
+    bind:this={bodyEl}
+    style="--body-cols: {bodyColumns(explorerWidth, explorerCollapsed)}"
+  >
+    <FileTree collapsed={explorerCollapsed} ontoggle={toggleExplorer} />
+
+    {#if !explorerCollapsed}
+      <!-- 左レールの幅ドラッグ・ダブルクリックで初期幅・矢印キーで微調整（WAI-ARIA Window Splitter）。
+           svelte-check は separator を非対話と見なすため当該 2 規則のみ抑制する。 -->
+      <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+      <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+      <div
+        class="rail-divider"
+        role="separator"
+        aria-orientation="vertical"
+        aria-label="エクスプローラーの幅を調整（ダブルクリックで初期幅に戻す）"
+        aria-valuenow={Math.round(explorerWidth)}
+        aria-valuemin={MIN_FILETREE_W}
+        aria-valuemax={MAX_FILETREE_W}
+        tabindex="0"
+        onpointerdown={startRailDrag}
+        onpointermove={onRailDrag}
+        onpointerup={endRailDrag}
+        ondblclick={resetRail}
+        onkeydown={onRailKey}
+      ></div>
+    {/if}
+
     <main class="center">
       {@render children()}
     </main>
@@ -58,8 +175,40 @@
 
   .body {
     display: grid;
-    grid-template-columns: var(--filetree-w) minmax(0, 1fr) auto;
+    /* 列はインラインの --body-cols で駆動（左レール幅 + 畳み状態）。未設定時は既定レイアウト。 */
+    grid-template-columns: var(--body-cols, var(--filetree-w) minmax(0, 1fr) auto);
     min-height: 0;
+  }
+
+  /* ドラッグ中は中央 iframe がポインタを奪わないよう無効化し、全体を col-resize に。 */
+  .body.dragging {
+    cursor: col-resize;
+    user-select: none;
+  }
+
+  .body.dragging :global(iframe) {
+    pointer-events: none;
+  }
+
+  /* 左レールの幅ディバイダ。6px の実体 + 疑似要素で当たり判定を左右に広げる（中央分割と同流儀）。 */
+  .rail-divider {
+    position: relative;
+    background: var(--border);
+    cursor: col-resize;
+    touch-action: none;
+    transition: background 120ms ease;
+  }
+
+  .rail-divider::before {
+    content: '';
+    position: absolute;
+    inset: 0 -4px;
+  }
+
+  .rail-divider:hover,
+  .rail-divider:focus-visible {
+    background: var(--accent);
+    outline: none;
   }
 
   .center {
