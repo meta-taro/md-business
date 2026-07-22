@@ -16,7 +16,13 @@
     parseStoredRatio,
     stepRatio,
   } from '$lib/layout/splitRatio';
-  import { targetScrollTop } from '$lib/layout/scrollSync';
+  import {
+    candidateLines,
+    extractSearchTokens,
+    pickNearestY,
+    scrollFraction,
+    type EditorFocusInfo,
+  } from '$lib/layout/scrollSync';
 
   // 中央 = 左右 2 分割（DESIGN §6）。左＝Markdown エディター（CodeMirror 6）、
   // 右＝ビューワー（renderer-pdf の HTML を iframe 隔離）。
@@ -44,28 +50,131 @@
     pushToPreview(value);
   }
 
-  // ── エディター → プレビューのスクロール追従（scrollSync）──
-  // エディターのスクロール割合をプレビュー iframe へ写す。カーソル移動で画面外へ
-  // 出た場合も CodeMirror の自動スクロールで発火するため「フォーカス位置追従」になる。
-  // 割合は保持し、編集で srcdoc が再生成された（iframe onload）後も同じ割合へ復元する。
-  let previewFraction = $state(0);
+  // ── エディター → プレビューのフォーカス追従（scrollSync・田中さん案）──
+  // 見出しアンカー方式はデータ駆動スキーマ（本文に見出しが無い）で破綻したので破棄。
+  // 代わりに「フォーカス行（カーソル行／スクロール時は先頭可視行）の文言をプレビュー内で
+  // 検索し、その位置へ合わせる」。行の値がプレビューにも逐語で現れる（フィールド名・ID 等）
+  // 性質を使うため、全スキーマで対応が取れる。行の語がプレビューに無ければ近傍行へ順に
+  // フォールバックし、どれも無ければ割合同期へ退避する。
+  let lastFocus: EditorFocusInfo | null = null;
   let scrollRaf = 0;
+  // プレビューを目標位置へ滑らかに寄せるフォローループの状態。
+  let followRaf = 0;
+  let scrollTarget = 0;
 
-  function applyPreviewScroll(): void {
-    const doc = viewerFrame?.contentDocument?.scrollingElement;
-    const win = viewerFrame?.contentWindow;
-    if (!doc || !win) return;
-    win.scrollTo(0, targetScrollTop(previewFraction, doc.scrollHeight, doc.clientHeight));
+  // preview 内で token に一致する text node の内容座標 Y を集める（複数ヒットは後で絞る）。
+  function findPreviewYs(doc: Document, token: string, limit = 16): number[] {
+    // documentElement の getBoundingClientRect().top は -scrollTop なので、これを基準に
+    // 引くと一致位置のスクロール込み絶対 Y（内容座標）になる。
+    const base = doc.documentElement.getBoundingClientRect().top;
+    const walker = doc.createTreeWalker(doc.body, NodeFilter.SHOW_TEXT);
+    const ys: number[] = [];
+    let node: Node | null;
+    while ((node = walker.nextNode())) {
+      const text = node.nodeValue ?? '';
+      const idx = text.indexOf(token);
+      if (idx < 0) continue;
+      const range = doc.createRange();
+      range.setStart(node, idx);
+      range.setEnd(node, Math.min(idx + token.length, text.length));
+      ys.push(range.getBoundingClientRect().top - base);
+      if (ys.length >= limit) break;
+    }
+    return ys;
   }
 
-  function handleEditorScroll(fraction: number): void {
-    previewFraction = fraction;
-    // iframe への適用も 1 フレーム 1 回に間引く（連続スクロールでの過剰 scrollTo を抑える）。
+  function applyPreviewScroll(): void {
+    const info = lastFocus;
+    const doc = viewerFrame?.contentDocument;
+    const win = viewerFrame?.contentWindow;
+    const scroller = doc?.scrollingElement;
+    if (!info || !doc || !win || !scroller) return;
+
+    const previewMax = scroller.scrollHeight - scroller.clientHeight;
+    if (previewMax <= 0) return;
+
+    // 割合位置＝当たりが無いときのフォールバック、かつ複数ヒットの絞り込み基準。
+    const expectedY =
+      scrollFraction(info.scrollTop, info.scrollHeight, info.clientHeight) * previewMax;
+
+    const lines = source.split('\n');
+    let targetY: number | null = null;
+    for (const lineNo of candidateLines(info.focusLine, lines.length)) {
+      for (const token of extractSearchTokens(lines[lineNo - 1] ?? '')) {
+        const y = pickNearestY(findPreviewYs(doc, token), expectedY);
+        if (y !== null) {
+          targetY = y;
+          break;
+        }
+      }
+      if (targetY !== null) break;
+    }
+
+    // フォーカス行の文言をプレビュー上端付近へ（先頭行にフォーカスがある前提・少し余白）。
+    const finalY = Math.max(0, Math.min((targetY ?? expectedY) - 8, previewMax));
+    followTo(finalY);
+  }
+
+  // 目標位置へ即ジャンプすると毎フレーム段差＝「かくかく」する。代わりにイージングで
+  // 現在位置から目標へ滑らかに寄せる（にゅーん）。目標はスクロール中に更新され続けるので、
+  // ループは常に最新の scrollTarget を追い、追い付いたら止める。iframe は毎フレーム引き直す
+  // ので srcdoc 再生成後も破綻しない。
+  function followTo(target: number): void {
+    scrollTarget = target;
+    if (followRaf !== 0) return; // 既に追従中（更新後の目標をそのまま追う）
+    const step = (): void => {
+      const win = viewerFrame?.contentWindow;
+      const scroller = viewerFrame?.contentDocument?.scrollingElement;
+      if (!win || !scroller) {
+        followRaf = 0;
+        return;
+      }
+      const current = scroller.scrollTop;
+      const delta = scrollTarget - current;
+      if (Math.abs(delta) < 1) {
+        win.scrollTo(0, scrollTarget); // 端数を詰めて停止
+        followRaf = 0;
+        return;
+      }
+      win.scrollTo(0, current + delta * 0.18); // 毎フレーム残差の一定割合だけ寄せる
+      followRaf = requestAnimationFrame(step);
+    };
+    followRaf = requestAnimationFrame(step);
+  }
+
+  function handleEditorSync(info: EditorFocusInfo): void {
+    lastFocus = info;
+    // 目標の再計算は 1 フレーム 1 回に間引く（追従アニメーションは followTo が別途回す）。
     if (scrollRaf !== 0) return;
     scrollRaf = requestAnimationFrame(() => {
       scrollRaf = 0;
       applyPreviewScroll();
     });
+  }
+
+  // 追従グライドを中断する（プレビューをユーザーが操作したとき用）。次のエディター操作で
+  // 再び followTo が呼ばれれば追従は再開する＝ドライバはあくまでエディター側。
+  function cancelFollow(): void {
+    if (followRaf !== 0) {
+      cancelAnimationFrame(followRaf);
+      followRaf = 0;
+    }
+  }
+
+  // iframe ロード時: プレビュー側のユーザースクロールを検知して追従を止めるリスナーを張り、
+  // 直近フォーカスへ 1 度だけ位置合わせする。srcdoc 再生成のたびに document が入れ替わり
+  // リスナーも一緒に消えるので、毎ロードで張り直す（リーク無し）。
+  function onPreviewLoad(): void {
+    const win = viewerFrame?.contentWindow;
+    if (win) {
+      // wheel / タッチ / スクロールバー掴み / スクロール系キー＝ユーザーの操作意図。
+      // プログラムの scrollTo はこれらを発火しないので誤検知しない。
+      win.addEventListener('wheel', cancelFollow, { passive: true });
+      win.addEventListener('touchstart', cancelFollow, { passive: true });
+      win.addEventListener('pointerdown', cancelFollow, { passive: true });
+      win.addEventListener('keydown', cancelFollow);
+    }
+    applyPreviewScroll();
   }
 
   // frontmatter を registry で振り分け、該当スキーマのビューワーで描画する（6 スキーマ
@@ -91,6 +200,7 @@
   onDestroy(() => {
     pdfExport.unregister();
     if (scrollRaf !== 0) cancelAnimationFrame(scrollRaf);
+    if (followRaf !== 0) cancelAnimationFrame(followRaf);
   });
   // schema / Markdown ビューワー描画中だけ [PDF] を活性化する。TSV 編集グリッドは
   // 印刷対象の iframe を持たないため対象外。
@@ -189,7 +299,7 @@
 >
   <section class="pane editor" aria-label="Markdown エディター">
     <div class="pane-head">エディター — Markdown</div>
-    <CodeMirrorEditor value={source} onChange={handleEditorChange} onScroll={handleEditorScroll} />
+    <CodeMirrorEditor value={source} onChange={handleEditorChange} onSync={handleEditorSync} />
   </section>
 
   <!-- ドラッグで幅調整・ダブルクリック / Home / Enter で 50/50・矢印キーで微調整 -->
@@ -227,7 +337,7 @@
         bind:this={viewerFrame}
         srcdoc={preview.srcdoc}
         title="{preview.label}プレビュー"
-        onload={applyPreviewScroll}
+        onload={onPreviewLoad}
       ></iframe>
       {#if preview.errors.length > 0 || preview.warnings.length > 0}
         <div class="notices" role="status">

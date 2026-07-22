@@ -19,7 +19,7 @@ import { markdown } from '@codemirror/lang-markdown';
 import { yamlFrontmatter } from '@codemirror/lang-yaml';
 import { HighlightStyle, syntaxHighlighting } from '@codemirror/language';
 import { tags as t } from '@lezer/highlight';
-import { scrollFraction } from '$lib/layout/scrollSync';
+import type { EditorFocusInfo } from '$lib/layout/scrollSync';
 
 export interface MarkdownEditorOptions {
   /** マウント先の要素。 */
@@ -29,10 +29,12 @@ export interface MarkdownEditorOptions {
   /** ユーザー編集でドキュメントが変わるたびに呼ばれる（プログラム更新では発火しない）。 */
   onChange: (value: string) => void;
   /**
-   * スクロールのたびに 0..1 の割合で呼ばれる（プレビュー追従用）。rAF で 1 フレーム 1 回に
-   * 間引く。カーソル移動で画面外へ出た場合も CodeMirror の自動スクロールで発火する。
+   * フォーカス位置が変わるたびに「フォーカス行＋スクロール寸法」を渡す（プレビュー追従用）。
+   * - スクロール時: 表示領域の先頭行を focusLine とする（rAF で 1 フレーム 1 回に間引き）。
+   * - カーソル移動時: カーソルのある行を focusLine とする。
+   * 親側（+page）がこの行の文言をプレビューで検索して位置合わせする（[[scrollSync]]）。
    */
-  onScroll?: (fraction: number) => void;
+  onSync?: (info: EditorFocusInfo) => void;
 }
 
 export interface MarkdownEditorHandle {
@@ -123,15 +125,34 @@ function baseExtensions(): Extension {
 }
 
 export function createMarkdownEditor(options: MarkdownEditorOptions): MarkdownEditorHandle {
-  const { parent, doc, onChange, onScroll } = options;
+  const { parent, doc, onChange, onSync } = options;
 
   // プログラム更新（setDoc）中は onChange を抑止し、外部差し替え→再描画の
   // 無限ループを避ける。
   let settingDoc = false;
 
+  // view 生成後に代入。updateListener が構築中に発火しても TDZ に触れないよう前方宣言。
+  let scroller: HTMLElement | null = null;
+
+  // フォーカス行＋スクロール寸法を親へ渡す共通処理。focusLine は 1 始まり。
+  const emit = (focusLine: number): void => {
+    if (!scroller) return; // 構築中の初回発火（scroller 未設定）はスキップ＝先頭のまま
+    onSync?.({
+      focusLine,
+      scrollTop: scroller.scrollTop,
+      scrollHeight: scroller.scrollHeight,
+      clientHeight: scroller.clientHeight,
+    });
+  };
+
   const updateListener = EditorView.updateListener.of((update) => {
     if (update.docChanged && !settingDoc) {
       onChange(update.state.doc.toString());
+    }
+    // カーソル移動（選択変更）のたびにカーソル行を親へ通知。プログラム更新中は除く。
+    if (update.selectionSet && !settingDoc && onSync) {
+      const head = update.state.selection.main.head;
+      emit(update.state.doc.lineAt(head).number);
     }
   });
 
@@ -143,19 +164,24 @@ export function createMarkdownEditor(options: MarkdownEditorOptions): MarkdownEd
     }),
   });
 
-  // スクロール割合の通知。scrollDOM の scroll を rAF で 1 フレーム 1 回に間引き、
-  // 純ロジック scrollFraction で 0..1 に換算して親（プレビュー側）へ渡す。
-  const scroller = view.scrollDOM;
+  // スクロール追従: scrollDOM の scroll を rAF で 1 フレーム 1 回に間引き、表示領域の
+  // 先頭行（＝田中さん案「スクロール時はフォーカス＝先頭行」）を focusLine として通知する。
+  scroller = view.scrollDOM;
   let rafId = 0;
+  const topVisibleLine = (): number => {
+    // lineBlockAtHeight は内容座標での高さ→行ブロック。scrollTop は表示領域上端の内容座標。
+    const block = view.lineBlockAtHeight(view.scrollDOM.scrollTop);
+    return view.state.doc.lineAt(block.from).number;
+  };
   const emitScroll = (): void => {
     rafId = 0;
-    onScroll?.(scrollFraction(scroller.scrollTop, scroller.scrollHeight, scroller.clientHeight));
+    emit(topVisibleLine());
   };
   const handleScroll = (): void => {
     if (rafId !== 0) return; // 既に次フレームで発火予約済み
     rafId = requestAnimationFrame(emitScroll);
   };
-  if (onScroll) scroller.addEventListener('scroll', handleScroll, { passive: true });
+  if (onSync) scroller.addEventListener('scroll', handleScroll, { passive: true });
 
   return {
     view,
@@ -171,7 +197,7 @@ export function createMarkdownEditor(options: MarkdownEditorOptions): MarkdownEd
       return view.state.doc.toString();
     },
     destroy(): void {
-      if (onScroll) scroller.removeEventListener('scroll', handleScroll);
+      scroller?.removeEventListener('scroll', handleScroll);
       if (rafId !== 0) cancelAnimationFrame(rafId);
       view.destroy();
     },

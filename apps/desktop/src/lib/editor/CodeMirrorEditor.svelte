@@ -1,15 +1,16 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
   import { createMarkdownEditor, type MarkdownEditorHandle } from './markdownEditor';
+  import type { EditorFocusInfo } from '$lib/layout/scrollSync';
 
   // 親から初期値を受け取り、編集は onChange で親へ返す（一方向）。source の
   // 外部差し替え（Phase 3 ファイルオープン）は $effect で setDoc に反映する。
   interface Props {
     value: string;
     onChange: (value: string) => void;
-    onScroll?: (fraction: number) => void;
+    onSync?: (info: EditorFocusInfo) => void;
   }
-  const { value, onChange, onScroll }: Props = $props();
+  const { value, onChange, onSync }: Props = $props();
 
   let host = $state<HTMLDivElement | null>(null);
   let editor: MarkdownEditorHandle | undefined;
@@ -20,7 +21,7 @@
       parent: host,
       doc: value,
       onChange,
-      onScroll,
+      onSync,
     });
   });
 
