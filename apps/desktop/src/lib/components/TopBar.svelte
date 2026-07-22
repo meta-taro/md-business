@@ -4,6 +4,7 @@
   import { titlebarController } from '$lib/window/titlebar.svelte';
   import { workspace } from '$lib/workspace/workspace.svelte';
   import { pdfExport } from '$lib/preview/pdfExport.svelte';
+  import { documentDisplayName } from '$lib/window/docTitle';
   import HelpButton from './HelpButton.svelte';
 
   // フレームレス（decorations:false）のため、この TopBar 自体が OS タイトルバーを兼ねる。
@@ -14,12 +15,13 @@
     titlebarController.init();
   });
 
-  // 中央に開いているファイル名（相対パスの末尾）を表示。未オープンは案内文。
-  const docName = $derived(
-    workspace.activePath === null
-      ? '文書を選択してください'
-      : (workspace.activePath.split('/').pop() ?? workspace.activePath),
-  );
+  // 中央の表示名。文書種別が判るときは frontmatter / TSV メタから意味のある名前を組み、
+  // 該当しなければファイル名（相対パス末尾）へフォールバック（docTitle 純ロジック）。未オープンは案内文。
+  const docName = $derived.by(() => {
+    if (workspace.activePath === null) return '文書を選択してください';
+    const fileName = workspace.activePath.split('/').pop() ?? workspace.activePath;
+    return documentDisplayName(workspace.source, fileName);
+  });
 </script>
 
 <header class="topbar" data-tauri-drag-region>
