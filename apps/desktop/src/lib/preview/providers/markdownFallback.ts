@@ -67,16 +67,52 @@ code {
 }
 pre {
   padding: 14px 16px;
-  overflow: auto;
+  /* コードフェンスは折り返す。印刷（PDF）は紙で横スクロールできないため、
+     長い行を右端で欠落させず必ず改行して見せる（画面 = PDF の 1:1 を保つ）。 */
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-wrap: anywhere;
   background: var(--md-code-bg);
   border-radius: 8px;
 }
-pre code { padding: 0; background: none; }
-table { border-collapse: collapse; display: block; overflow: auto; }
+pre code { padding: 0; background: none; white-space: inherit; }
+/* 表は画面では広いと横スクロール（GitHub 流）。印刷時は @media print 側で
+   セルを折り返し、列が右端で切れないようにする。 */
+table { border-collapse: collapse; display: block; max-width: 100%; overflow: auto; }
 th, td { padding: 6px 13px; border: 1px solid var(--md-border); }
 th { font-weight: 600; }
 img { max-width: 100%; }
 hr { height: 1px; margin: 1.5em 0; border: 0; background: var(--md-border); }
+
+/* PDF 出力（§6.4）。A4 縦・実務的な余白。WebView の印刷（→「PDF として保存」）で
+   画面プレビューと 1:1 の A4 正本になる。 */
+@page {
+  size: A4 portrait;
+  margin: 16mm;
+}
+
+@media print {
+  body {
+    padding: 0;
+    max-width: none;
+    font-size: 11pt;
+  }
+  /* 印刷は横スクロール不可。表をブロック解除して通常フローに載せ、セルを
+     折り返して全列を紙幅に収める（右端での列欠落を防ぐ）。 */
+  table {
+    display: table;
+    width: 100%;
+    overflow: visible;
+    table-layout: fixed;
+  }
+  th, td {
+    word-break: break-word;
+    overflow-wrap: anywhere;
+  }
+  /* コードフェンス・見出し・表・画像はページ境界で不自然に割れないようにする。 */
+  pre, blockquote, table, img { break-inside: avoid; }
+  h1, h2, h3, h4, h5, h6 { break-after: avoid; }
+}
 `;
 
 /** 先頭の ATX 見出し（# 見出し）をタイトルに採る。無ければ 'Markdown'。 */
