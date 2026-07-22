@@ -37,29 +37,84 @@
 
   <div class="right">
     <div class="actions">
-      <!-- 保存（Ctrl+S と等価）。未オープン / 未変更 / 保存中は不活性。
-           PDF 出力 / コマンドパレット（Ctrl K）/ 設定は各実装フェーズで復活させる。 -->
+      <!-- 保存（Ctrl+S / ⌘S と等価）。未オープン / 未変更 / 保存中は不活性。
+           フロッピー＝保存の普遍アイコン（拡張子非依存で意味が通る）。 -->
       <button
-        class="btn ghost"
+        class="btn ghost with-icon"
         type="button"
         onclick={() => workspace.save()}
         disabled={!workspace.canSave}
-        title={workspace.saving ? '保存中…' : '保存（Ctrl+S）'}
+        title={workspace.saving ? '保存中…' : '保存（Ctrl+S / ⌘S）'}
         aria-label="保存"
       >
-        {workspace.saving ? '保存中…' : '保存'}
+        <svg class="btn-ico" viewBox="0 0 16 16" aria-hidden="true">
+          <path
+            d="M2.75 1.75h7.5L14.25 5.5v8.25a.5.5 0 0 1-.5.5H2.75a.5.5 0 0 1-.5-.5V2.25a.5.5 0 0 1 .5-.5z"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.2"
+            stroke-linejoin="round"
+          />
+          <path
+            d="M5 1.75v3.25h4.5V1.75"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.2"
+            stroke-linejoin="round"
+          />
+          <rect
+            x="4.5"
+            y="8.75"
+            width="7"
+            height="5"
+            rx="0.5"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.2"
+          />
+        </svg>
+        <span>{workspace.saving ? '保存中…' : '保存'}</span>
       </button>
-      <!-- PDF 出力（§6.4）。プレビュー描画中だけ活性。押すと WebView の印刷
-           （→「PDF として保存」）でプレビュー見た目のまま A4 出力する。 -->
+      <!-- PDF 出力（§6.4・Ctrl+P / ⌘P と等価）。プレビュー描画中だけ活性。押すと
+           WebView の印刷（→「PDF として保存」）でプレビュー見た目のまま A4 出力する。
+           プリンタ＝印刷の普遍アイコン。 -->
       <button
-        class="btn ghost"
+        class="btn ghost with-icon"
         type="button"
         onclick={() => pdfExport.run()}
         disabled={!pdfExport.canExport}
-        title="PDF 出力（プレビューを A4 で印刷／保存）"
+        title="PDF 出力（Ctrl+P / ⌘P・プレビューを A4 で印刷／保存）"
         aria-label="PDF 出力"
       >
-        PDF
+        <svg class="btn-ico" viewBox="0 0 16 16" aria-hidden="true">
+          <path
+            d="M4 6V2.25h8V6"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.2"
+            stroke-linejoin="round"
+          />
+          <path
+            d="M4 11.5H2.75A1.25 1.25 0 0 1 1.5 10.25V7.5A1.25 1.25 0 0 1 2.75 6.25h10.5A1.25 1.25 0 0 1 14.5 7.5v2.75A1.25 1.25 0 0 1 13.25 11.5H12"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.2"
+            stroke-linejoin="round"
+          />
+          <rect
+            x="4"
+            y="9.75"
+            width="8"
+            height="4.5"
+            rx="0.5"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.2"
+            stroke-linejoin="round"
+          />
+          <circle cx="11.9" cy="8.1" r="0.7" fill="currentColor" />
+        </svg>
+        <span>PDF</span>
       </button>
       <button
         class="btn ghost icon"
@@ -211,6 +266,18 @@
     width: 28px;
     padding: 0;
     font-size: 15px;
+  }
+
+  /* アイコン + ラベルのアクション（保存 / PDF）。線画 SVG は currentColor 追従で
+     テーマに馴染む。ラベルは残し、業務ユーザーに動作を明示する。 */
+  .btn.with-icon {
+    gap: var(--space-1);
+  }
+
+  .btn-ico {
+    width: 15px;
+    height: 15px;
+    flex: none;
   }
 
   .btn:hover:not(:disabled) {
