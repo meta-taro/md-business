@@ -57,6 +57,56 @@ export function shouldReopenFile(
 }
 
 /**
+ * ツリーをクエリで絞り込む（エクスプローラーのフィルタ検索）。
+ * ファイル名 or パスにクエリ（大文字小文字無視）を含むファイルを残し、その祖先フォルダも
+ * 文脈として保持する。フォルダ名自体がマッチした場合は配下を丸ごと残す。空・空白のみの
+ * クエリは元のツリーを **同一参照のまま** 返す（呼び出し側で通常表示に分岐しやすくする）。
+ * 入力ツリーは破壊せず、絞り込んだフォルダは children を差し替えた新ノードを返す。
+ */
+export function filterTree(tree: readonly TreeNode[], query: string): TreeNode[] {
+  const q = query.trim().toLowerCase();
+  if (q === '') return tree as TreeNode[];
+  const walk = (nodes: readonly TreeNode[]): TreeNode[] => {
+    const out: TreeNode[] = [];
+    for (const node of nodes) {
+      const selfMatch =
+        node.name.toLowerCase().includes(q) || node.path.toLowerCase().includes(q);
+      if (node.kind === 'folder') {
+        if (selfMatch) {
+          // フォルダ名がヒット → 配下すべてを残す（元ノードをそのまま参照）。
+          out.push(node);
+        } else {
+          const kids = walk(node.children);
+          if (kids.length > 0) out.push({ ...node, children: kids });
+        }
+      } else if (selfMatch) {
+        out.push(node);
+      }
+    }
+    return out;
+  };
+  return walk(tree);
+}
+
+/**
+ * ツリー内の全フォルダ path を深さ優先で列挙する（ファイルは含めない）。
+ * 絞り込み表示では「全フォルダ展開」で使う（マッチした深い階層を漏れなく見せる）。
+ */
+export function collectFolderPaths(tree: readonly TreeNode[]): string[] {
+  const paths: string[] = [];
+  const walk = (nodes: readonly TreeNode[]): void => {
+    for (const node of nodes) {
+      if (node.kind === 'folder') {
+        paths.push(node.path);
+        walk(node.children);
+      }
+    }
+  };
+  walk(tree);
+  return paths;
+}
+
+/**
  * 展開集合に従い可視ノードを深さ優先で平坦化する。
  * フォルダはその `path` が `expanded` に含まれる時だけ children を辿る。
  */

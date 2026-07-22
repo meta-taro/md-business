@@ -6,6 +6,8 @@ import {
   flattenVisible,
   computeDirty,
   shouldReopenFile,
+  filterTree,
+  collectFolderPaths,
   type VisibleRow,
 } from './workspaceLogic';
 
@@ -109,5 +111,68 @@ describe('shouldReopenFile', () => {
 
   it('未オープン（activePath=null）は false', () => {
     expect(shouldReopenFile(null, ['docs/a.md'])).toBe(false);
+  });
+});
+
+describe('filterTree', () => {
+  it('空クエリは元のツリーをそのまま返す', () => {
+    const tree = buildTree(entries('docs/a.md', 'z.md'));
+    expect(filterTree(tree, '')).toBe(tree);
+    expect(filterTree(tree, '   ')).toBe(tree);
+  });
+
+  it('ファイル名にマッチする行だけを残し、祖先フォルダは保持する', () => {
+    const tree = buildTree(entries('docs/spec/report.md', 'docs/spec/other.md', 'z.md'));
+    const filtered = filterTree(tree, 'report');
+    // docs / docs/spec は文脈として残り、other.md と z.md は落ちる。
+    expect(rowLabels(flattenVisible(filtered, new Set(collectFolderPaths(filtered))))).toEqual([
+      '0:folder:docs',
+      '1:folder:docs/spec',
+      '2:file:docs/spec/report.md',
+    ]);
+  });
+
+  it('大文字小文字を無視する', () => {
+    const tree = buildTree(entries('docs/README.md', 'docs/a.md'));
+    const filtered = filterTree(tree, 'readme');
+    expect(rowLabels(flattenVisible(filtered, new Set(collectFolderPaths(filtered))))).toEqual([
+      '0:folder:docs',
+      '1:file:docs/README.md',
+    ]);
+  });
+
+  it('フォルダ名がマッチしたら配下を丸ごと残す', () => {
+    const tree = buildTree(entries('spec/a.md', 'spec/b.md', 'other/c.md'));
+    const filtered = filterTree(tree, 'spec');
+    expect(rowLabels(flattenVisible(filtered, new Set(collectFolderPaths(filtered))))).toEqual([
+      '0:folder:spec',
+      '1:file:spec/a.md',
+      '1:file:spec/b.md',
+    ]);
+  });
+
+  it('どれにもマッチしなければ空配列', () => {
+    const tree = buildTree(entries('docs/a.md', 'z.md'));
+    expect(filterTree(tree, 'zzz-none')).toEqual([]);
+  });
+
+  it('入力ツリーを破壊しない（絞り込みは新ノードを返す）', () => {
+    const tree = buildTree(entries('docs/a.md', 'docs/b.md'));
+    filterTree(tree, 'a.md');
+    // 元の docs フォルダは children 2 件のまま。
+    const docs = tree.find((n) => n.path === 'docs');
+    expect(docs?.children.length).toBe(2);
+  });
+});
+
+describe('collectFolderPaths', () => {
+  it('全階層のフォルダ path を返す（ファイルは含めない）', () => {
+    const tree = buildTree(entries('a/b/c.md', 'a/d.md', 'z.md'));
+    expect(collectFolderPaths(tree).sort()).toEqual(['a', 'a/b']);
+  });
+
+  it('フォルダが無ければ空配列', () => {
+    const tree = buildTree(entries('x.md', 'y.md'));
+    expect(collectFolderPaths(tree)).toEqual([]);
   });
 });

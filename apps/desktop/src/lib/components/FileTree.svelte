@@ -4,7 +4,11 @@
   // 平坦化は workspaceLogic の純関数（単体テスト済み）に委譲する。スキーマ別アイコン色・
   // 選択ハイライトの仕上げは Phase D。
   import { workspace } from '$lib/workspace/workspace.svelte';
-  import { flattenVisible } from '$lib/workspace/workspaceLogic';
+  import {
+    flattenVisible,
+    filterTree,
+    collectFolderPaths,
+  } from '$lib/workspace/workspaceLogic';
   import { git } from '$lib/git/git.svelte';
   import { gitMarkLetter, type GitFileState } from '$lib/git/gitStatus';
 
@@ -21,14 +25,32 @@
   // 折り畳み（右 SidePanel と対称）。畳み状態と切替はレイアウトが所有し、props で受ける。
   let { collapsed = false, ontoggle }: { collapsed?: boolean; ontoggle?: () => void } = $props();
 
-  // 展開状態 or ツリー変化で可視行を再導出する。
-  const rows = $derived(flattenVisible(workspace.tree, workspace.expanded));
+  // エクスプローラーのフィルタ検索。入力がある間は絞り込みツリーを全展開で描画し、
+  // 空なら通常（展開状態に従う）描画へ戻す。純ロジックは workspaceLogic に委譲（テスト済み）。
+  let filterQuery = $state('');
+  const filtering = $derived(filterQuery.trim() !== '');
+  const filteredTree = $derived(filterTree(workspace.tree, filterQuery));
+
+  // 展開状態 or ツリー変化 or フィルタで可視行を再導出する。
+  const rows = $derived(
+    filtering
+      ? flattenVisible(filteredTree, new Set(collectFolderPaths(filteredTree)))
+      : flattenVisible(workspace.tree, workspace.expanded),
+  );
 
   function onRowClick(path: string, kind: 'folder' | 'file'): void {
     if (kind === 'folder') {
       workspace.toggle(path);
     } else {
       void workspace.select(path);
+    }
+  }
+
+  // Esc でフィルタをクリア（入力が空なら何もしない）。
+  function onFilterKeydown(e: KeyboardEvent): void {
+    if (e.key === 'Escape' && filterQuery !== '') {
+      e.preventDefault();
+      filterQuery = '';
     }
   }
 </script>
@@ -72,6 +94,37 @@
     {/if}
   </div>
 
+  {#if workspace.root !== null}
+    <!-- ファイル名フィルタ（エクスプローラーヘッダー直下）。入力中は絞り込みツリーを全展開表示。 -->
+    <div class="filter" class:active={filtering}>
+      <svg class="filter-ico" viewBox="0 0 16 16" aria-hidden="true">
+        <circle cx="7" cy="7" r="4.2" fill="none" stroke="currentColor" stroke-width="1.2" />
+        <path d="M10.2 10.2L14 14" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" />
+      </svg>
+      <input
+        class="filter-input"
+        type="text"
+        bind:value={filterQuery}
+        placeholder="ファイル名で絞り込み"
+        spellcheck="false"
+        autocomplete="off"
+        aria-label="ファイル名で絞り込み"
+        onkeydown={onFilterKeydown}
+      />
+      {#if filterQuery !== ''}
+        <button
+          class="filter-clear"
+          type="button"
+          onclick={() => (filterQuery = '')}
+          title="フィルタをクリア（Esc）"
+          aria-label="フィルタをクリア"
+        >
+          ✕
+        </button>
+      {/if}
+    </div>
+  {/if}
+
   {#if workspace.error !== null}
     <p class="banner err" role="alert">{workspace.error}</p>
   {/if}
@@ -90,9 +143,13 @@
       </button>
     </div>
   {:else if rows.length === 0}
-    <!-- 空フォルダ -->
+    <!-- フィルタで 0 件 か 空フォルダ かで文言を分ける。 -->
     <div class="empty">
-      <p class="hint">.md / .tsv が<br />見つかりませんでした</p>
+      {#if filtering}
+        <p class="hint">「{filterQuery.trim()}」に<br />一致するファイルがありません</p>
+      {:else}
+        <p class="hint">.md / .tsv が<br />見つかりませんでした</p>
+      {/if}
     </div>
   {:else}
     <ul class="tree">
@@ -257,6 +314,75 @@
   }
 
   .reopen:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+  }
+
+  /* ── ファイル名フィルタ ───────────────────────────────────── */
+  .filter {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    height: 28px;
+    margin: 0 var(--space-2) var(--space-1);
+    padding: 0 var(--space-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--bg-app);
+    flex: none;
+    transition:
+      border-color var(--dur-fast) var(--ease),
+      box-shadow var(--dur-fast) var(--ease);
+  }
+
+  .filter:focus-within {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-subtle);
+  }
+
+  .filter.active:not(:focus-within) {
+    border-color: var(--border-strong);
+  }
+
+  .filter-ico {
+    width: 13px;
+    height: 13px;
+    flex: none;
+    color: var(--text-tertiary);
+  }
+
+  .filter-input {
+    flex: 1;
+    min-width: 0;
+    height: 100%;
+    border: none;
+    background: transparent;
+    color: var(--text-primary);
+    font-size: var(--text-xs-size);
+    outline: none;
+  }
+
+  .filter-input::placeholder {
+    color: var(--text-tertiary);
+  }
+
+  .filter-clear {
+    flex: none;
+    width: 16px;
+    height: 16px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    border-radius: var(--radius-full);
+    background: transparent;
+    color: var(--text-tertiary);
+    font-size: 10px;
+    line-height: 1;
+    cursor: pointer;
+  }
+
+  .filter-clear:hover {
     background: var(--bg-hover);
     color: var(--text-primary);
   }
