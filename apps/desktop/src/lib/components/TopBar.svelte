@@ -4,6 +4,7 @@
   import { titlebarController } from '$lib/window/titlebar.svelte';
   import { workspace } from '$lib/workspace/workspace.svelte';
   import { pdfExport } from '$lib/preview/pdfExport.svelte';
+  import HelpButton from './HelpButton.svelte';
 
   // フレームレス（decorations:false）のため、この TopBar 自体が OS タイトルバーを兼ねる。
   // ヘッダー地＝ドラッグ領域（data-tauri-drag-region）、右端に自作のウィンドウコントロール。
@@ -116,15 +117,40 @@
         </svg>
         <span>PDF</span>
       </button>
+      <!-- テーマ切替（保存 / PDF と同じアイコン + ラベル体裁に統一）。現在テーマを表す線画を出す。
+           ダーク時は月・ライト時は太陽。押すと反対テーマへ切替。 -->
       <button
-        class="btn ghost icon"
+        class="btn ghost with-icon"
         type="button"
         onclick={() => themeController.toggle()}
         title={themeController.value === 'dark' ? 'ライトテーマに切替' : 'ダークテーマに切替'}
         aria-label="テーマ切替"
       >
-        {themeController.value === 'dark' ? '☾' : '◐'}
+        {#if themeController.value === 'dark'}
+          <svg class="btn-ico" viewBox="0 0 16 16" aria-hidden="true">
+            <path
+              d="M13 9.6A5.4 5.4 0 1 1 6.4 3a4.3 4.3 0 0 0 6.6 6.6z"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.2"
+              stroke-linejoin="round"
+            />
+          </svg>
+        {:else}
+          <svg class="btn-ico" viewBox="0 0 16 16" aria-hidden="true">
+            <circle cx="8" cy="8" r="3.1" fill="none" stroke="currentColor" stroke-width="1.2" />
+            <path
+              d="M8 1.4v1.8M8 12.8v1.8M1.4 8h1.8M12.8 8h1.8M3.3 3.3l1.27 1.27M11.43 11.43l1.27 1.27M12.7 3.3l-1.27 1.27M4.57 11.43L3.3 12.7"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.2"
+              stroke-linecap="round"
+            />
+          </svg>
+        {/if}
+        <span>テーマ</span>
       </button>
+      <HelpButton />
     </div>
 
     <div class="window-controls">
@@ -262,14 +288,8 @@
       color var(--dur-fast) var(--ease);
   }
 
-  .btn.icon {
-    width: 28px;
-    padding: 0;
-    font-size: 15px;
-  }
-
-  /* アイコン + ラベルのアクション（保存 / PDF）。線画 SVG は currentColor 追従で
-     テーマに馴染む。ラベルは残し、業務ユーザーに動作を明示する。 */
+  /* アイコン + ラベルのアクション（保存 / PDF / テーマ / ヘルプ）。線画 SVG は currentColor
+     追従でテーマに馴染む。ラベルは残し、業務ユーザーに動作を明示する。 */
   .btn.with-icon {
     gap: var(--space-1);
   }
