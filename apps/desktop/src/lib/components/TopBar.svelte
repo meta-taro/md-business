@@ -25,12 +25,9 @@
 
   <div class="right">
     <div class="actions">
-      <button class="btn ghost" type="button" disabled title="PDF 出力（Phase 4）">PDF</button>
-      <!-- Windows 主対象（隣のウィンドウコントロールも Windows 慣習）なので Ctrl 表記。
-           クロスプラットフォームでの ⌘/Ctrl 出し分けはコマンドパレット実装時に対応する。 -->
-      <button class="btn ghost kbd" type="button" disabled title="コマンドパレット（後続フェーズ）">
-        Ctrl K
-      </button>
+      <!-- PDF 出力 / コマンドパレット（Ctrl K）/ 設定は未実装のダミーだったため、
+           内々配布に備えて一旦非表示にする。各機能の実装フェーズで復活させる。
+           テーマ切替は実働するので残す。 -->
       <button
         class="btn ghost icon"
         type="button"
@@ -39,15 +36,6 @@
         aria-label="テーマ切替"
       >
         {themeController.value === 'dark' ? '☾' : '◐'}
-      </button>
-      <button
-        class="btn ghost icon"
-        type="button"
-        disabled
-        title="設定（後続フェーズ）"
-        aria-label="設定"
-      >
-        ⚙
       </button>
     </div>
 
@@ -174,10 +162,6 @@
     width: 28px;
     padding: 0;
     font-size: 15px;
-  }
-
-  .btn.kbd {
-    font-variant-numeric: tabular-nums;
   }
 
   .btn:hover:not(:disabled) {
