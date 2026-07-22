@@ -115,7 +115,8 @@
                   </div>
                 {:else if widget.kind === 'multiline'}
                   <textarea
-                    rows="2"
+                    class="multiline"
+                    rows="1"
                     value={value}
                     oninput={(e) => commit(r, c, e.currentTarget.value)}
                   ></textarea>
@@ -160,7 +161,8 @@
 </div>
 
 <style>
-  /* DESIGN §5.3: 行の水平ヘアラインのみ・縦罫なし・空セルは空のまま。 */
+  /* DESIGN §5.8: 検証グリッドはスプレッドシート（Excel / Sheets）調。罫線＝セル境界、
+     セルは枠なし透明でその場編集、アクティブセルは選択リング。§5.3 の読み取り表とは別仕様。 */
   .tsv-grid {
     height: 100%;
     overflow: auto;
@@ -169,16 +171,26 @@
 
   table {
     border-collapse: collapse;
-    width: 100%;
+    /* 内容幅で伸ばしつつ最低でも全幅。多列時は横スクロールで縦罫が途切れない。 */
+    width: max-content;
+    min-width: 100%;
     font-size: var(--text-sm-size);
+  }
+
+  /* 縦横の罫線＝セル境界（スプレッドシート）。全セルの右・下に 1px。 */
+  th,
+  td {
+    border-right: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
   }
 
   thead th {
     position: sticky;
     top: 0;
-    z-index: 1;
+    z-index: 2;
     text-align: left;
-    padding: var(--space-2) var(--space-3);
+    padding: var(--space-1) var(--space-3);
+    height: 30px;
     white-space: nowrap;
     font-weight: var(--text-2xs-weight);
     color: var(--text-secondary);
@@ -187,22 +199,27 @@
   }
 
   tbody td {
-    padding: var(--space-1) var(--space-3);
-    border-bottom: 1px solid var(--border);
-    vertical-align: top;
+    padding: 0; /* 入力ウィジェットがセルいっぱいに敷くので td 自身は余白ゼロ */
+    height: 30px;
+    vertical-align: middle;
   }
 
+  /* 行番号列＝横スクロールでも固定（sticky left）。左上隅も固定。 */
   .rownum {
-    width: 2.5rem;
-    text-align: right;
+    width: 2.75rem;
+    min-width: 2.75rem;
+    text-align: center;
     color: var(--text-tertiary);
     font-variant-numeric: tabular-nums;
-    background: var(--bg-subtle);
     font-weight: var(--text-2xs-weight);
+    background: var(--bg-subtle);
+    position: sticky;
+    left: 0;
+    z-index: 1;
   }
 
-  tbody .rownum {
-    border-bottom: 1px solid var(--border);
+  thead .rownum {
+    z-index: 3; /* 隅は行番号（left sticky）とヘッダ（top sticky）の交点で最前面 */
   }
 
   .req {
@@ -210,11 +227,19 @@
     margin-left: 2px;
   }
 
+  /* 検証エラー: 左内側マーカー + 淡い赤地。フォーカスリングとは併存する。 */
   td.invalid {
     background: var(--danger-subtle, rgba(220, 38, 38, 0.08));
-    box-shadow: inset 2px 0 0 var(--danger-fg);
+    box-shadow: inset 3px 0 0 var(--danger-fg);
   }
 
+  /* アクティブセル＝選択リング（Excel の選択枠相当）。地は微かに敷く。 */
+  tbody td:focus-within {
+    box-shadow: inset 0 0 0 2px var(--accent);
+    background: var(--accent-subtle);
+  }
+
+  /* 入力ウィジェットは枠なし・角丸なし・透明でセルいっぱい（罫線がセルを区切る）。 */
   input[type='text'],
   input[type='url'],
   input[type='number'],
@@ -223,33 +248,62 @@
   select,
   textarea {
     width: 100%;
-    min-width: 6rem;
+    min-width: 7rem;
+    height: 100%;
     box-sizing: border-box;
-    padding: var(--space-1) var(--space-2);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
-    background: var(--bg-elevated);
+    padding: var(--space-1) var(--space-3);
+    border: none;
+    border-radius: 0;
+    background: transparent;
     color: var(--text-primary);
     font: inherit;
-  }
-
-  textarea {
-    resize: vertical;
-    line-height: 1.5;
   }
 
   input:focus,
   select:focus,
   textarea:focus {
     outline: none;
-    border-color: var(--accent);
-    box-shadow: 0 0 0 2px var(--accent-subtle);
+  }
+
+  /* 数値列は右寄せ（表計算の慣習）。 */
+  input[type='number'] {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* 複数行セル: 既定は 1 行でクリップ（行を詰める）。フォーカス時だけ縦に開いて全文編集。 */
+  textarea.multiline {
+    resize: none;
+    line-height: 1.5;
+    overflow: hidden;
+    white-space: pre;
+    min-height: 30px;
+  }
+
+  textarea.multiline:focus {
+    min-height: 4.5em;
+    overflow: auto;
+    white-space: pre-wrap;
+    box-shadow: inset 0 0 0 2px var(--accent);
+    background: var(--bg-elevated);
+  }
+
+  /* チェックボックス / ラジオはセル中央に。 */
+  td:has(> input[type='checkbox']),
+  td:has(> .radio-group) {
+    text-align: center;
+  }
+
+  input[type='checkbox'] {
+    margin: 0 auto;
   }
 
   .radio-group {
     display: flex;
     flex-wrap: wrap;
-    gap: var(--space-2) var(--space-3);
+    gap: 2px var(--space-3);
+    justify-content: center;
+    padding: 0 var(--space-2);
   }
 
   .radio {
@@ -260,6 +314,8 @@
   }
 
   .plain {
+    display: block;
+    padding: var(--space-1) var(--space-3);
     color: var(--text-primary);
   }
 
