@@ -409,6 +409,97 @@ pub fn git_pull(root: String) -> Result<GitStatus, String> {
     git_pull_impl(Path::new(&root))
 }
 
+/// 未追跡ファイルの内容から「全行追加」の合成 unified diff を作る（Tauri 非依存の純関数）。
+/// 未追跡ファイルは HEAD に存在せず `git diff` が空を返すため、GitHub 同様に新規全行を
+/// `+` 行として見せる。ヘッダは自前形式（`new file: <path>`）で、フロントの parseUnifiedDiff が
+/// meta / hunk / add に分類できる並びにする。末尾改行の有無で "No newline" マーカーを付ける。
+pub fn build_untracked_diff(rel_path: &str, content: &str) -> String {
+    let mut lines: Vec<&str> = Vec::new();
+    let mut trailing_nl = false;
+    if !content.is_empty() {
+        lines = content.split('\n').collect();
+        // 末尾改行由来の最終空要素だけを 1 つ落とし、「末尾改行あり」と記録する。
+        if lines.last() == Some(&"") {
+            lines.pop();
+            trailing_nl = true;
+        }
+    }
+    let n = lines.len();
+    let mut out = String::new();
+    out.push_str(&format!("new file: {rel_path}\n"));
+    out.push_str(&format!("@@ -0,0 +{},{} @@\n", if n == 0 { 0 } else { 1 }, n));
+    for line in &lines {
+        out.push('+');
+        out.push_str(line);
+        out.push('\n');
+    }
+    // 末尾改行が無い実ファイルは git と同じく No newline マーカーを添える。
+    if !trailing_nl && n > 0 {
+        out.push_str("\\ No newline at end of file\n");
+    }
+    out
+}
+
+/// 1 ファイルの「HEAD からの変更」を unified diff テキストで返す（Tauri 非依存の実体）。
+///
+/// - `rel_path` は **リポジトリ root 基準**（git status が返すパスと同じ）。
+/// - 追跡済みの変更は `git diff HEAD -- <path>`（ステージ済み + 未ステージの合算）。
+///   HEAD が無い（コミット皆無の）リポジトリでは `git diff -- <path>` へフォールバック。
+/// - 差分が空で、かつ未追跡（ls-files に無い）なら、ファイル内容から全行追加を合成する。
+/// - 追跡済みで差分が無い（保存前 = ディスク未変更）ときは空文字列を返す（UI が「差分なし」表示）。
+///
+/// `git` はリポジトリ root を cwd（`-C`）にして実行するので、pathspec は root 基準でそのまま解釈される。
+pub fn git_diff_impl(root: &Path, rel_path: &str) -> Result<String, String> {
+    if rel_path.is_empty() || rel_path.contains('\0') {
+        return Err("不正なパスです".to_string());
+    }
+    // 開いたフォルダがサブディレクトリでも root 基準の pathspec を使えるよう、repo root を解決する。
+    let toplevel = run_git(root, &["rev-parse", "--show-toplevel"])
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+        .ok_or_else(|| "git リポジトリではありません".to_string())?;
+    let repo_root = Path::new(&toplevel);
+
+    // 追跡済みの変更（HEAD 比・ステージ有無を問わず合算）。HEAD 無しは通常 diff へ退避。
+    let tracked = run_git(repo_root, &["diff", "HEAD", "--", rel_path])
+        .filter(|s| !s.is_empty())
+        .or_else(|| run_git(repo_root, &["diff", "--", rel_path]).filter(|s| !s.is_empty()));
+    if let Some(diff) = tracked {
+        return Ok(diff);
+    }
+
+    // 差分が空。追跡済みなら「変更なし」（空文字列）。未追跡ならファイル内容を全行追加で合成。
+    let is_tracked = run_git(repo_root, &["ls-files", "--error-unmatch", "--", rel_path]).is_some();
+    if is_tracked {
+        return Ok(String::new());
+    }
+    read_untracked_diff(repo_root, rel_path)
+}
+
+/// 未追跡ファイルを repo root 配下で安全に読み、合成 diff を返す。
+/// canonicalize 後に root 配下判定でパストラバーサルを封じる（read_document_impl と同流儀）。
+/// 非 UTF-8（バイナリ）は内容を出さず、その旨の 1 行 meta を返す。
+fn read_untracked_diff(repo_root: &Path, rel_path: &str) -> Result<String, String> {
+    let canon_root = std::fs::canonicalize(repo_root).map_err(|e| format!("ルート解決失敗: {e}"))?;
+    let canon = std::fs::canonicalize(repo_root.join(rel_path))
+        .map_err(|e| format!("ファイル解決失敗: {e}"))?;
+    if !canon.starts_with(&canon_root) {
+        return Err("ルート外へのアクセスは拒否されます".to_string());
+    }
+    let bytes = std::fs::read(&canon).map_err(|e| format!("読み取り失敗: {e}"))?;
+    match String::from_utf8(bytes) {
+        Ok(content) => Ok(build_untracked_diff(rel_path, &content)),
+        Err(_) => Ok(format!("new file: {rel_path}\n(バイナリファイルのため差分は表示できません)\n")),
+    }
+}
+
+/// フロントから `invoke("git_diff", { root, relPath })` で呼ぶラッパ。
+/// 成功で unified diff テキスト（空文字列 = 差分なし）、非リポジトリ・不正パスは Err(メッセージ)。
+#[tauri::command]
+pub fn git_diff(root: String, rel_path: String) -> Result<String, String> {
+    git_diff_impl(Path::new(&root), &rel_path)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -638,5 +729,62 @@ mod tests {
         let dir = std::env::temp_dir();
         assert!(git_commit_impl(&dir, "").is_err());
         assert!(git_commit_impl(&dir, "   ").is_err());
+    }
+
+    // ── build_untracked_diff（未追跡ファイルの合成 diff）──────────────────────
+
+    #[test]
+    fn untracked_diff_複数行を全て追加行にする() {
+        let out = build_untracked_diff("notes.md", "行1\n行2\n");
+        assert_eq!(
+            out,
+            "new file: notes.md\n@@ -0,0 +1,2 @@\n+行1\n+行2\n",
+            "末尾改行ありは No newline マーカーを付けない"
+        );
+    }
+
+    #[test]
+    fn untracked_diff_末尾改行なしはマーカーを付ける() {
+        let out = build_untracked_diff("a.txt", "只一行");
+        assert_eq!(
+            out,
+            "new file: a.txt\n@@ -0,0 +1,1 @@\n+只一行\n\\ No newline at end of file\n"
+        );
+    }
+
+    #[test]
+    fn untracked_diff_空ファイルは_0行ハンク_マーカーなし() {
+        let out = build_untracked_diff("empty.md", "");
+        assert_eq!(out, "new file: empty.md\n@@ -0,0 +0,0 @@\n");
+    }
+
+    #[test]
+    fn untracked_diff_中間の空行も追加行として保持する() {
+        let out = build_untracked_diff("g.md", "x\n\ny\n");
+        assert_eq!(out, "new file: g.md\n@@ -0,0 +1,3 @@\n+x\n+\n+y\n");
+    }
+
+    // ── git_diff_impl（事前バリデーション / 非リポジトリ）─────────────────────
+
+    #[test]
+    fn git_diff_不正パスは_git実行前にエラー() {
+        // 空・NUL 入りはバリデーションで弾き、git を起動しない。
+        let dir = std::env::temp_dir();
+        assert!(git_diff_impl(&dir, "").is_err());
+        assert!(git_diff_impl(&dir, "a\0b").is_err());
+    }
+
+    #[test]
+    fn git_diff_非リポジトリはエラー() {
+        // git 管理外の temp ディレクトリ。rev-parse が失敗し Err になる。
+        use std::sync::atomic::{AtomicU32, Ordering};
+        static N: AtomicU32 = AtomicU32::new(0);
+        let n = N.fetch_add(1, Ordering::SeqCst);
+        let dir =
+            std::env::temp_dir().join(format!("mdbiz_gitdiffnone_{}_{}", std::process::id(), n));
+        std::fs::create_dir_all(&dir).expect("temp 作成");
+        let r = git_diff_impl(&dir, "notes.md");
+        let _ = std::fs::remove_dir_all(&dir);
+        assert!(r.is_err());
     }
 }
