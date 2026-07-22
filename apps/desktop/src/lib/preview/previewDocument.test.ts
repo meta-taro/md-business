@@ -62,4 +62,25 @@ describe('buildPreviewDocument', () => {
     expect(html).toContain('<meta charset="utf-8">');
     expect(html).toContain('name="viewport"');
   });
+
+  // iframe にフォーカスがある状態の Ctrl+P は親 window へ伝播しないため、iframe 自身にも
+  // ショートカット処理を仕込む。Ctrl/Cmd+P はプレビュー自身を印刷（アプリ全体でなく）、
+  // Ctrl/Cmd+S は親へ postMessage して保存させる（DOC-SPEC §6.4 の穴を塞ぐ）。
+  it('iframe 内ショートカット処理スクリプトを埋め込む（keydown を横取り）', () => {
+    const html = buildPreviewDocument(base);
+    expect(html).toContain('<script>');
+    expect(html).toContain("addEventListener('keydown'");
+    expect(html).toContain('preventDefault');
+  });
+
+  it('Ctrl/Cmd+P は iframe 自身を印刷する（window.print）', () => {
+    const html = buildPreviewDocument(base);
+    expect(html).toContain('window.print()');
+  });
+
+  it('Ctrl/Cmd+S は親へ保存を postMessage する（プロトコル source 付き）', () => {
+    const html = buildPreviewDocument(base);
+    expect(html).toContain('md-business-preview');
+    expect(html).toContain('parent.postMessage');
+  });
 });

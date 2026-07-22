@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { matchShortcut, type ShortcutEvent } from './shortcuts';
+import {
+  matchShortcut,
+  resolvePreviewMessage,
+  PREVIEW_MESSAGE_SOURCE,
+  type ShortcutEvent,
+} from './shortcuts';
 
 /** KeyboardEvent 互換の最小オブジェクトを組む（修飾キーは既定 false）。 */
 function ev(partial: Partial<ShortcutEvent>): ShortcutEvent {
@@ -43,5 +48,36 @@ describe('matchShortcut — 修飾キー + 文字からアクションを解決'
   it('割り当ての無いキーは null', () => {
     expect(matchShortcut(ev({ ctrlKey: true, key: 'a' }))).toBeNull();
     expect(matchShortcut(ev({ ctrlKey: true, key: 'k' }))).toBeNull();
+  });
+});
+
+describe('resolvePreviewMessage — プレビュー iframe からの postMessage を解決', () => {
+  it('正しい source + action=save は save', () => {
+    expect(
+      resolvePreviewMessage({ source: PREVIEW_MESSAGE_SOURCE, action: 'save' }),
+    ).toBe('save');
+  });
+
+  it('正しい source + action=pdf は pdf', () => {
+    expect(
+      resolvePreviewMessage({ source: PREVIEW_MESSAGE_SOURCE, action: 'pdf' }),
+    ).toBe('pdf');
+  });
+
+  it('source が一致しなければ null（他フレーム/拡張のメッセージを無視）', () => {
+    expect(resolvePreviewMessage({ source: 'other', action: 'save' })).toBeNull();
+    expect(resolvePreviewMessage({ action: 'save' })).toBeNull();
+  });
+
+  it('未知の action は null', () => {
+    expect(
+      resolvePreviewMessage({ source: PREVIEW_MESSAGE_SOURCE, action: 'delete' }),
+    ).toBeNull();
+  });
+
+  it('オブジェクト以外（null / 文字列 / undefined）は null', () => {
+    expect(resolvePreviewMessage(null)).toBeNull();
+    expect(resolvePreviewMessage('save')).toBeNull();
+    expect(resolvePreviewMessage(undefined)).toBeNull();
   });
 });

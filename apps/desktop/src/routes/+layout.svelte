@@ -5,7 +5,11 @@
   import { themeController } from '$lib/theme.svelte';
   import { workspace } from '$lib/workspace/workspace.svelte';
   import { pdfExport } from '$lib/preview/pdfExport.svelte';
-  import { matchShortcut } from '$lib/layout/shortcuts';
+  import {
+    matchShortcut,
+    resolvePreviewMessage,
+    type ShortcutAction,
+  } from '$lib/layout/shortcuts';
   import TopBar from '$lib/components/TopBar.svelte';
   import StatusBar from '$lib/components/StatusBar.svelte';
   import FileTree from '$lib/components/FileTree.svelte';
@@ -105,19 +109,33 @@
     event.preventDefault();
   }
 
-  // ショートカット（Win/Linux は Ctrl・Mac は Cmd で共通）。matchShortcut で解決し、
-  // WebView 既定（ページ保存 / OS 印刷ダイアログ）を抑止して自前の動作へ差し替える。
+  // ショートカットの実行（発火経路に依らず共通）。
   //  - save（Ctrl/Cmd+S）: 保存可能なときだけ workspace.save()（未オープン/未変更は no-op）
   //  - pdf （Ctrl/Cmd+P）: プレビュー iframe を A4 印刷（アプリ全体でなくプレビューを刷る）
-  function onKeydown(event: KeyboardEvent): void {
-    const action = matchShortcut(event);
-    if (action === null) return;
-    event.preventDefault();
+  function runAction(action: ShortcutAction): void {
     if (action === 'save') {
       if (workspace.canSave) void workspace.save();
     } else if (action === 'pdf') {
       if (pdfExport.canExport) pdfExport.run();
     }
+  }
+
+  // 親 window にフォーカスがある時のショートカット（Win/Linux は Ctrl・Mac は Cmd で共通）。
+  // WebView 既定（ページ保存 / OS 印刷ダイアログ）を抑止して自前の動作へ差し替える。
+  function onKeydown(event: KeyboardEvent): void {
+    const action = matchShortcut(event);
+    if (action === null) return;
+    event.preventDefault();
+    runAction(action);
+  }
+
+  // プレビュー iframe にフォーカスがある時の keydown は親へ伝播しない。iframe 側で横取りした
+  // ショートカットは postMessage で届くので、source を検証してから同じ runAction に流す
+  // （Ctrl/Cmd+P は iframe 自身で print 済み。ここへ来るのは主に保存）。
+  function onMessage(event: MessageEvent): void {
+    const action = resolvePreviewMessage(event.data);
+    if (action === null) return;
+    runAction(action);
   }
 
   onMount(() => {
@@ -127,7 +145,7 @@
   });
 </script>
 
-<svelte:window onkeydown={onKeydown} />
+<svelte:window onkeydown={onKeydown} onmessage={onMessage} />
 
 <div class="shell">
   <TopBar />

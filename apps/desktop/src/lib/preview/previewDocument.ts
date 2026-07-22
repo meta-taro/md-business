@@ -43,6 +43,34 @@ function escapeHtml(value: string): string {
     .replace(/'/g, '&#39;');
 }
 
+/**
+ * iframe 内で走らせるショートカット横取りスクリプト。
+ *
+ * iframe（プレビュー）にフォーカスがある時の keydown は親 window の
+ * `svelte:window onkeydown` へ伝播しないため、親側の Ctrl+P / Ctrl+S ハンドラが
+ * 発火せず、WebView2 ネイティブの Ctrl+P が「アプリ全体」を印刷してしまう。
+ * これを塞ぐため iframe 自身にも同じ判定を仕込む:
+ *   - Ctrl/Cmd+P → iframe 自身を print（＝プレビュー A4 のみ。PDF ボタンと同じ挙動）
+ *   - Ctrl/Cmd+S → 親へ postMessage して保存を委譲（iframe から直接は保存できない）
+ * source を固定文字列にして、親側 resolvePreviewMessage が他フレーム由来を弾けるようにする。
+ */
+const PREVIEW_SHORTCUT_SCRIPT = `<script>
+(function () {
+  function primary(e) { return (e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey; }
+  window.addEventListener('keydown', function (e) {
+    if (!primary(e)) return;
+    var k = (e.key || '').toLowerCase();
+    if (k === 'p') {
+      e.preventDefault();
+      window.print();
+    } else if (k === 's') {
+      e.preventDefault();
+      parent.postMessage({ source: 'md-business-preview', action: 'save' }, '*');
+    }
+  });
+})();
+</script>`;
+
 export function buildPreviewDocument(input: PreviewDocumentInput): string {
   const { bodyHtml, css, title = '', theme = 'light', lang = 'ja' } = input;
 
@@ -56,6 +84,7 @@ export function buildPreviewDocument(input: PreviewDocumentInput): string {
 </head>
 <body>
 ${bodyHtml}
+${PREVIEW_SHORTCUT_SCRIPT}
 </body>
 </html>`;
 }
