@@ -1,12 +1,22 @@
 <script lang="ts">
-  // Phase 1b 骨格。Git 変更数 / Commit / forge 種別 / MCP は後続フェーズ
-  // （3 Git・フォージ / 4 以降 MCP）で実データに置き換える。
-  // Push は baseline §6 / DESIGN §7.4 により「人間のみ」の視覚シグナルを固定で表現する。
+  // Git は共有ストアの実データを描画する（フェーズ3 Git・フォージ）。MCP はフェーズ4で実装。
+  // Commit / Push は baseline §6 により「人間のみ」の視覚シグナルとして無効固定
+  //（push はアプリからは実行しない。⚠ で人間ゲートを明示）。
+  import { git } from '$lib/git/git.svelte';
+  import { forgeLabel } from '$lib/git/gitStatus';
 </script>
 
 <footer class="statusbar">
   <div class="left">
-    <span class="muted">リポジトリ未接続</span>
+    {#if git.isRepo}
+      <span class="ind"><span class="dot ok" aria-hidden="true"></span>{git.branch ?? 'detached'}</span>
+      {#if git.ahead > 0 || git.behind > 0}
+        <span class="muted" title="リモートとの先行 / 遅延コミット数">↑{git.ahead} ↓{git.behind}</span>
+      {/if}
+      <span class="muted">変更 {git.changeCount}</span>
+    {:else}
+      <span class="muted">リポジトリ未接続</span>
+    {/if}
     <button class="chip" type="button" disabled title="コミット（Git 連携フェーズ）">Commit</button>
     <button
       class="chip push"
@@ -19,7 +29,10 @@
   </div>
 
   <div class="right">
-    <span class="ind"><span class="dot neutral" aria-hidden="true"></span>forge: 未判定</span>
+    <span class="ind"
+      ><span class="dot" class:ok={git.forge !== null} class:neutral={git.forge === null} aria-hidden="true"
+      ></span>forge: {forgeLabel(git.forge)}</span
+    >
     <span class="ind"><span class="dot neutral" aria-hidden="true"></span>MCP: 未接続</span>
   </div>
 </footer>
@@ -91,5 +104,10 @@
 
   .dot.neutral {
     background: var(--text-tertiary);
+  }
+
+  /* 接続済み（リポジトリ配下 / forge 判定済み）を示す緑ドット。 */
+  .dot.ok {
+    background: var(--success-fg, #4ca66a);
   }
 </style>
