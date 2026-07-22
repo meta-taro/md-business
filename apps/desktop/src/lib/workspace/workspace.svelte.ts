@@ -11,6 +11,7 @@
 import { invoke } from '@tauri-apps/api/core';
 import { open } from '@tauri-apps/plugin-dialog';
 import { apiSpecSample } from '$lib/samples/apiSpecSample';
+import { git } from '$lib/git/git.svelte';
 import { buildTree, type DocEntry, type TreeNode } from './fileTree';
 import { initialExpandedPaths, toggleExpanded, computeDirty } from './workspaceLogic';
 
@@ -80,6 +81,8 @@ class WorkspaceStore {
       this.activePath = null;
       this.truncated = result.truncated;
       this.error = null;
+      // 開いたフォルダの git 状態を取得（非リポジトリでも無害。await せず fire-and-forget）。
+      void git.refresh(root);
     } catch (e) {
       this.error = errorMessage(e);
     } finally {
@@ -136,6 +139,8 @@ class WorkspaceStore {
       await invoke('write_document', { root: this.root, relPath, content: snapshot });
       this.savedSource = snapshot;
       this.error = null;
+      // 保存でファイルの git 状態（modified など）が変わるので再取得する。
+      void git.refresh(this.root);
     } catch (e) {
       this.error = errorMessage(e);
     } finally {
