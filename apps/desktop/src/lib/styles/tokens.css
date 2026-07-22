@@ -10,6 +10,11 @@
  */
 
 :root {
+  /* WebView（Chromium/WebView2）のネイティブ UI（スクロールバー・フォーム部品）を
+     テーマへ追従させる。data-theme と同期して切り替え、ダークで白いスクロールバーが
+     残らないようにする（ダーク側は下の [data-theme='dark'] で dark に上書き）。 */
+  color-scheme: light;
+
   /* ── §2.1 ブランドアクセント（ライト） ─────────────────────── */
   --accent: #5b5bd6;
   --accent-hover: #4f4fc9;
@@ -122,6 +127,9 @@
 
 /* ── ダーク（同等パリティ・値だけ差し替え） ─────────────────── */
 :root[data-theme='dark'] {
+  /* ネイティブ UI（スクロールバー等）をダークに（:root の light を上書き）。 */
+  color-scheme: dark;
+
   /* §2.1 アクセント */
   --accent: #7c7cf0;
   --accent-hover: #8f8ff5;

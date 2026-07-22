@@ -11,6 +11,12 @@
  * iframe 内 `<html>` に `data-theme` を刻印する必要がある（api-spec.css の
  * ダーク上書きが iframe 内でも効くようにするため）。
  *
+ * さらに `color-scheme` も theme に合わせて刻む。これが無いと WebView は文書を
+ * ライト既定として扱い、背景無指定の要素の下にある canvas（ルート背景）を白で塗る。
+ * そこへダークの文字色（ほぼ白）が乗ると「白地に白文字」で読めなくなる（背景を明示
+ * 指定したコードブロックだけ読める、という崩れ方になる）。ネイティブ UI（スクロール
+ * バー・フォーム部品）のダーク化も兼ねる。
+ *
  * bodyHtml は renderer-pdf 側で値がすべて escape 済みの「断片」なので、ここでは
  * 二重エスケープしない。外から来るのは title / lang / theme のみで、これらは
  * 属性・テキストとして escape する。
@@ -80,6 +86,7 @@ export function buildPreviewDocument(input: PreviewDocumentInput): string {
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${escapeHtml(title)}</title>
+<style>:root { color-scheme: ${escapeHtml(theme)}; }</style>
 <style>${css}</style>
 </head>
 <body>

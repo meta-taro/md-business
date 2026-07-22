@@ -52,6 +52,15 @@ describe('buildPreviewDocument', () => {
     expect(html).toMatch(/<html[^>]*data-theme="light"/);
   });
 
+  it('color-scheme を theme に一致させる（ダークで白いスクロールバーを残さない）', () => {
+    // iframe 内のネイティブ UI（スクロールバー等）をテーマへ追従させる。data-theme だけでは
+    // WebView がライトのスクロールバーを描くため、color-scheme も刻む必要がある。
+    expect(buildPreviewDocument({ ...base, theme: 'dark' })).toContain('color-scheme: dark');
+    expect(buildPreviewDocument({ ...base, theme: 'light' })).toContain('color-scheme: light');
+    // 既定（未指定）は light。
+    expect(buildPreviewDocument(base)).toContain('color-scheme: light');
+  });
+
   it('lang は既定 ja、指定で上書きできる', () => {
     expect(buildPreviewDocument(base)).toMatch(/<html[^>]*lang="ja"/);
     expect(buildPreviewDocument({ ...base, lang: 'en' })).toMatch(/<html[^>]*lang="en"/);
