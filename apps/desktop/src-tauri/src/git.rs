@@ -278,6 +278,79 @@ pub fn git_status(root: String) -> GitStatus {
     git_status_impl(Path::new(&root))
 }
 
+/// `run_git` の Result 版。失敗時は stderr（無ければ終了コード）を Err で返す。
+/// switch のようにユーザーへ失敗理由を見せたい操作で使う。
+fn run_git_result(root: &Path, args: &[&str]) -> Result<String, String> {
+    let output = Command::new("git")
+        .arg("-C")
+        .arg(root)
+        .arg("--no-optional-locks")
+        .args(args)
+        .output()
+        .map_err(|e| format!("git を実行できません: {e}"))?;
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+        return Err(if stderr.is_empty() {
+            format!("git が失敗しました (code {:?})", output.status.code())
+        } else {
+            stderr
+        });
+    }
+    Ok(String::from_utf8_lossy(&output.stdout).into_owned())
+}
+
+/// `git branch --format=%(refname:short)` の出力をローカルブランチ名一覧へ。
+/// 空行・前後空白を除く（Tauri 非依存の純関数）。
+pub fn parse_branches(stdout: &str) -> Vec<String> {
+    stdout
+        .lines()
+        .map(|l| l.trim())
+        .filter(|l| !l.is_empty())
+        .map(|l| l.to_string())
+        .collect()
+}
+
+/// ブランチ名として受け付けてよいか（引数注入・空・空白・制御文字を弾く防御）。
+/// 一覧は git 由来だが、switch へ渡す前に外部入力として最小限バリデートする。
+/// 先頭 '-' はオプション注入（例 "-f"）防止のため拒否する。
+pub fn is_safe_branch_name(name: &str) -> bool {
+    !name.is_empty()
+        && !name.starts_with('-')
+        && !name.contains('\0')
+        && !name.chars().any(char::is_whitespace)
+}
+
+/// ローカルブランチ一覧を取得する（Tauri 非依存の実体）。失敗時は空。
+pub fn git_branches_impl(root: &Path) -> Vec<String> {
+    match run_git(root, &["branch", "--format=%(refname:short)"]) {
+        Some(s) => parse_branches(&s),
+        None => Vec::new(),
+    }
+}
+
+/// フロントから `invoke("git_branches", { root })` で呼ぶラッパ。非リポジトリ等は空一覧。
+#[tauri::command]
+pub fn git_branches(root: String) -> Vec<String> {
+    git_branches_impl(Path::new(&root))
+}
+
+/// ブランチを切り替え、成功時は最新の GitStatus を返す。失敗時は git の stderr を Err で返す。
+/// `-f` は使わない = 未コミット変更で衝突するなら失敗させ、作業ツリーを破壊しない（§6 の安全側）。
+pub fn git_switch_impl(root: &Path, branch: &str) -> Result<GitStatus, String> {
+    if !is_safe_branch_name(branch) {
+        return Err(format!("不正なブランチ名です: {branch:?}"));
+    }
+    run_git_result(root, &["switch", branch])?;
+    Ok(git_status_impl(root))
+}
+
+/// フロントから `invoke("git_switch", { root, branch })` で呼ぶラッパ。
+/// 成功で最新ステータス、失敗（衝突・不明ブランチ等）は Err(メッセージ)。
+#[tauri::command]
+pub fn git_switch(root: String, branch: String) -> Result<GitStatus, String> {
+    git_switch_impl(Path::new(&root), &branch)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -454,5 +527,39 @@ mod tests {
         assert!(!st.is_repo);
         assert_eq!(st.branch, None);
         assert!(st.files.is_empty());
+    }
+
+    // ── parse_branches ───────────────────────────────────────────────────
+
+    #[test]
+    fn branches_一覧をパースし空行と前後空白を除く() {
+        let out = "main\nfeature/x\n\n  develop  \n";
+        assert_eq!(parse_branches(out), vec!["main", "feature/x", "develop"]);
+    }
+
+    #[test]
+    fn branches_空出力は空一覧() {
+        assert!(parse_branches("").is_empty());
+        assert!(parse_branches("\n \n").is_empty());
+    }
+
+    // ── is_safe_branch_name（引数注入防御）────────────────────────────────
+
+    #[test]
+    fn 安全なブランチ名のみ受理する() {
+        assert!(is_safe_branch_name("main"));
+        assert!(is_safe_branch_name("feature/x-1"));
+        assert!(!is_safe_branch_name(""), "空は拒否");
+        assert!(!is_safe_branch_name("-f"), "先頭ダッシュ=オプション注入を拒否");
+        assert!(!is_safe_branch_name("a b"), "空白を含むものを拒否");
+        assert!(!is_safe_branch_name("a\0b"), "NUL を拒否");
+    }
+
+    #[test]
+    fn git_switch_不正名は_git実行前にエラー() {
+        // 不正名はバリデーションで弾き、git を起動しない（副作用なし）。
+        let dir = std::env::temp_dir();
+        assert!(git_switch_impl(&dir, "-f").is_err());
+        assert!(git_switch_impl(&dir, "").is_err());
     }
 }
