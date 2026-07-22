@@ -13,6 +13,7 @@ import { open } from '@tauri-apps/plugin-dialog';
 import { browser } from '$app/environment';
 import { apiSpecSample } from '$lib/samples/apiSpecSample';
 import { git } from '$lib/git/git.svelte';
+import { diffView } from '$lib/git/diffView.svelte';
 import { buildTree, type DocEntry, type TreeNode } from './fileTree';
 import {
   initialExpandedPaths,
@@ -105,6 +106,8 @@ class WorkspaceStore {
       this.tree = tree;
       this.expanded = new Set(initialExpandedPaths(tree));
       this.activePath = null;
+      // フォルダを開き直したら前フォルダの差分表示は無効。通常プレビューへ戻す。
+      diffView.reset();
       this.truncated = result.truncated;
       this.error = null;
       // 次回起動で自動復元できるよう、開けたフォルダを記憶する（WebView の localStorage）。

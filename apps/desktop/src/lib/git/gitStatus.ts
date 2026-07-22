@@ -87,6 +87,18 @@ export function gitMarkLetter(state: GitFileState): string {
   return MARK_LETTER[state];
 }
 
+/**
+ * git status のパス（repo root 基準）を、開いたフォルダ基準のツリー相対パスへ逆変換する。
+ * `prefix` は repo root → 開いたフォルダの相対（"/"-終端 or 空・lookupState と対）。
+ * repoRelPath がその配下なら prefix を剥がして返す。配下でない（別サブツリーの変更）なら
+ * null＝そのファイルは開いたフォルダに無く、エディターで開けない（差分だけ見せる）。
+ */
+export function toTreeRelPath(prefix: string, repoRelPath: string): string | null {
+  if (prefix === '') return repoRelPath;
+  if (repoRelPath.startsWith(prefix)) return repoRelPath.slice(prefix.length);
+  return null;
+}
+
 /** フォージ種別 → StatusBar 表示名。未知・null は「未判定」。 */
 export function forgeLabel(forge: string | null): string {
   switch (forge) {

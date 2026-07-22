@@ -454,10 +454,13 @@ pub fn git_diff_impl(root: &Path, rel_path: &str) -> Result<String, String> {
         return Err("不正なパスです".to_string());
     }
     // 開いたフォルダがサブディレクトリでも root 基準の pathspec を使えるよう、repo root を解決する。
-    let toplevel = run_git(root, &["rev-parse", "--show-toplevel"])
+    // 失敗時は git の実 stderr と受領 root をそのまま見せる（generic 文言だと原因診断できないため）。
+    let toplevel = run_git_result(root, &["rev-parse", "--show-toplevel"])
         .map(|s| s.trim().to_string())
-        .filter(|s| !s.is_empty())
-        .ok_or_else(|| "git リポジトリではありません".to_string())?;
+        .map_err(|e| format!("git リポジトリを解決できません（root={}）: {e}", root.display()))?;
+    if toplevel.is_empty() {
+        return Err(format!("git リポジトリではありません（root={}）", root.display()));
+    }
     let repo_root = Path::new(&toplevel);
 
     // 追跡済みの変更（HEAD 比・ステージ有無を問わず合算）。HEAD 無しは通常 diff へ退避。

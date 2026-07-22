@@ -10,6 +10,7 @@
     collectFolderPaths,
   } from '$lib/workspace/workspaceLogic';
   import { git } from '$lib/git/git.svelte';
+  import { diffView } from '$lib/git/diffView.svelte';
   import { gitMarkLetter, type GitFileState } from '$lib/git/gitStatus';
 
   // git 状態 → ホバー説明（バッジ title）。色マークの意味を言葉でも補う。
@@ -42,6 +43,9 @@
     if (kind === 'folder') {
       workspace.toggle(path);
     } else {
+      // 通常のファイルオープンでは差分表示を解除して普通のプレビューへ戻す
+      // （差分は「ソース管理パネルで変更ファイルをクリックした間だけ」の一時表示）。
+      diffView.reset();
       void workspace.select(path);
     }
   }

@@ -6,6 +6,7 @@ import {
   changeCount,
   gitMarkLetter,
   forgeLabel,
+  toTreeRelPath,
   type GitStatus,
 } from './gitStatus';
 
@@ -84,6 +85,23 @@ describe('gitMarkLetter — VSCode 風の 1 文字バッジ', () => {
     expect(gitMarkLetter('deleted')).toBe('D');
     expect(gitMarkLetter('renamed')).toBe('R');
     expect(gitMarkLetter('conflicted')).toBe('C');
+  });
+});
+
+describe('toTreeRelPath — repo root 基準 → 開いたフォルダ基準の逆変換', () => {
+  it('prefix 空（repo root を開いた）はそのまま返す', () => {
+    expect(toTreeRelPath('', 'a.md')).toBe('a.md');
+    expect(toTreeRelPath('', 'docs/b.md')).toBe('docs/b.md');
+  });
+
+  it('prefix 配下のパスは prefix を剥がしてツリー相対にする', () => {
+    expect(toTreeRelPath('apps/desktop/', 'apps/desktop/README.md')).toBe('README.md');
+    expect(toTreeRelPath('apps/desktop/', 'apps/desktop/src/x.ts')).toBe('src/x.ts');
+  });
+
+  it('開いたフォルダの外（別サブツリー）の変更は null（エディターで開けない）', () => {
+    expect(toTreeRelPath('apps/desktop/', 'packages/core/x.ts')).toBeNull();
+    expect(toTreeRelPath('apps/desktop/', 'README.md')).toBeNull();
   });
 });
 

@@ -10,6 +10,8 @@
   import TsvGrid from '$lib/tsv/TsvGrid.svelte';
   import { browser } from '$app/environment';
   import { workspace } from '$lib/workspace/workspace.svelte';
+  import { diffView } from '$lib/git/diffView.svelte';
+  import DiffView from '$lib/components/DiffView.svelte';
   import {
     DEFAULT_SPLIT_RATIO,
     ratioFromPointer,
@@ -205,7 +207,7 @@
   // schema / Markdown ビューワー描画中だけ [PDF] を活性化する。TSV 編集グリッドは
   // 印刷対象の iframe を持たないため対象外。
   $effect(() => {
-    pdfExport.setReady(preview.ok && !isTsv);
+    pdfExport.setReady(preview.ok && !isTsv && !diffView.active);
   });
 
   // カスタム TSV 検証シートは読み取りプレビューでなく編集グリッド（本命 UI・Issue 010）で開く。
@@ -324,7 +326,12 @@
   ></div>
 
   <section class="pane preview" aria-label="ビューワー（プレビュー）">
-    {#if isTsv && tsvDoc}
+    {#if diffView.active}
+      <!-- 変更ファイルをソース管理パネルでクリックした間だけ差分表示に切り替える。
+           「プレビューに戻る」or 別ファイルを通常オープンで解除される。 -->
+      <div class="pane-head">差分 — Git</div>
+      <DiffView />
+    {:else if isTsv && tsvDoc}
       <div class="pane-head">検証シート — グリッド編集</div>
       <div class="grid-wrap">
         <TsvGrid doc={tsvDoc} onChange={handleGridChange} />

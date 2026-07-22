@@ -8,7 +8,8 @@
   // 資格情報／SSH に委ね、アプリは資格情報を一切保持・入力しない（§15）。
   import { git } from '$lib/git/git.svelte';
   import { workspace } from '$lib/workspace/workspace.svelte';
-  import { gitMarkLetter } from '$lib/git/gitStatus';
+  import { diffView } from '$lib/git/diffView.svelte';
+  import { gitMarkLetter, toTreeRelPath, type GitFileStatus } from '$lib/git/gitStatus';
 
   interface Props {
     open: boolean;
@@ -83,6 +84,18 @@
     }
   }
 
+  // 変更ファイル行クリック（田中さん依頼 2026-07-22）: エディターで開き、差分をプレビュー側に出す。
+  // f.relPath は repo root 基準。エディターは開いたフォルダ基準のパスを要るので prefix を剥がす。
+  // 開いたフォルダの外・削除済みファイルはエディターで開けないので差分表示のみにする。
+  async function onFileClick(f: GitFileStatus): Promise<void> {
+    if (root === null) return;
+    const treeRel = toTreeRelPath(git.status.prefix, f.relPath);
+    if (treeRel !== null && f.state !== 'deleted') {
+      await workspace.select(treeRel); // エディターへ内容を読み込む（失敗時は workspace 側でエラー表示）
+    }
+    void diffView.show(root, f.relPath, f.state); // プレビュー面を差分表示へ
+  }
+
   // Ctrl/⌘+Enter でコミット（メッセージ入力中の定番）。
   function onMessageKeydown(e: KeyboardEvent): void {
     if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
@@ -134,9 +147,18 @@
         {:else}
           <ul class="file-list">
             {#each git.status.files as f (f.relPath)}
-              <li class="file-row" data-git={f.state}>
-                <span class="mark" title={f.state}>{gitMarkLetter(f.state)}</span>
-                <span class="path" title={f.relPath}>{f.relPath}</span>
+              <li>
+                <button
+                  class="file-row"
+                  type="button"
+                  data-git={f.state}
+                  class:selected={diffView.active && diffView.relPath === f.relPath}
+                  onclick={() => onFileClick(f)}
+                  title={`${f.relPath}（クリックで差分表示）`}
+                >
+                  <span class="mark">{gitMarkLetter(f.state)}</span>
+                  <span class="path">{f.relPath}</span>
+                </button>
               </li>
             {/each}
           </ul>
@@ -342,8 +364,28 @@
     display: flex;
     align-items: center;
     gap: var(--space-2);
+    width: 100%;
     padding: 3px var(--space-2);
+    border: none;
+    background: transparent;
     font-size: var(--text-xs-size);
+    text-align: left;
+    cursor: pointer;
+    color: inherit;
+    transition: background var(--dur-fast) var(--ease);
+  }
+
+  .file-row:hover {
+    background: var(--bg-hover);
+  }
+
+  .file-row.selected {
+    background: var(--accent-subtle);
+  }
+
+  .file-row:focus-visible {
+    outline: none;
+    box-shadow: inset 0 0 0 2px var(--accent);
   }
 
   .mark {
