@@ -16,6 +16,7 @@
     parseStoredRatio,
     stepRatio,
   } from '$lib/layout/splitRatio';
+  import { targetScrollTop } from '$lib/layout/scrollSync';
 
   // 中央 = 左右 2 分割（DESIGN §6）。左＝Markdown エディター（CodeMirror 6）、
   // 右＝ビューワー（renderer-pdf の HTML を iframe 隔離）。
@@ -43,6 +44,30 @@
     pushToPreview(value);
   }
 
+  // ── エディター → プレビューのスクロール追従（scrollSync）──
+  // エディターのスクロール割合をプレビュー iframe へ写す。カーソル移動で画面外へ
+  // 出た場合も CodeMirror の自動スクロールで発火するため「フォーカス位置追従」になる。
+  // 割合は保持し、編集で srcdoc が再生成された（iframe onload）後も同じ割合へ復元する。
+  let previewFraction = $state(0);
+  let scrollRaf = 0;
+
+  function applyPreviewScroll(): void {
+    const doc = viewerFrame?.contentDocument?.scrollingElement;
+    const win = viewerFrame?.contentWindow;
+    if (!doc || !win) return;
+    win.scrollTo(0, targetScrollTop(previewFraction, doc.scrollHeight, doc.clientHeight));
+  }
+
+  function handleEditorScroll(fraction: number): void {
+    previewFraction = fraction;
+    // iframe への適用も 1 フレーム 1 回に間引く（連続スクロールでの過剰 scrollTo を抑える）。
+    if (scrollRaf !== 0) return;
+    scrollRaf = requestAnimationFrame(() => {
+      scrollRaf = 0;
+      applyPreviewScroll();
+    });
+  }
+
   // frontmatter を registry で振り分け、該当スキーマのビューワーで描画する（6 スキーマ
   // 自動判定・Phase 2b）。テーマ変更に追従して iframe 内 <html data-theme> も一致させる
   // （別ドキュメントなのでアプリの data-theme は継承されない）。debouncedSource / theme の
@@ -63,7 +88,10 @@
       win.print();
     });
   });
-  onDestroy(() => pdfExport.unregister());
+  onDestroy(() => {
+    pdfExport.unregister();
+    if (scrollRaf !== 0) cancelAnimationFrame(scrollRaf);
+  });
   // schema / Markdown ビューワー描画中だけ [PDF] を活性化する。TSV 編集グリッドは
   // 印刷対象の iframe を持たないため対象外。
   $effect(() => {
@@ -161,7 +189,7 @@
 >
   <section class="pane editor" aria-label="Markdown エディター">
     <div class="pane-head">エディター — Markdown</div>
-    <CodeMirrorEditor value={source} onChange={handleEditorChange} />
+    <CodeMirrorEditor value={source} onChange={handleEditorChange} onScroll={handleEditorScroll} />
   </section>
 
   <!-- ドラッグで幅調整・ダブルクリック / Home / Enter で 50/50・矢印キーで微調整 -->
@@ -199,6 +227,7 @@
         bind:this={viewerFrame}
         srcdoc={preview.srcdoc}
         title="{preview.label}プレビュー"
+        onload={applyPreviewScroll}
       ></iframe>
       {#if preview.errors.length > 0 || preview.warnings.length > 0}
         <div class="notices" role="status">

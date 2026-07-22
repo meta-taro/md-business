@@ -19,6 +19,7 @@ import { markdown } from '@codemirror/lang-markdown';
 import { yamlFrontmatter } from '@codemirror/lang-yaml';
 import { HighlightStyle, syntaxHighlighting } from '@codemirror/language';
 import { tags as t } from '@lezer/highlight';
+import { scrollFraction } from '$lib/layout/scrollSync';
 
 export interface MarkdownEditorOptions {
   /** マウント先の要素。 */
@@ -27,6 +28,11 @@ export interface MarkdownEditorOptions {
   doc: string;
   /** ユーザー編集でドキュメントが変わるたびに呼ばれる（プログラム更新では発火しない）。 */
   onChange: (value: string) => void;
+  /**
+   * スクロールのたびに 0..1 の割合で呼ばれる（プレビュー追従用）。rAF で 1 フレーム 1 回に
+   * 間引く。カーソル移動で画面外へ出た場合も CodeMirror の自動スクロールで発火する。
+   */
+  onScroll?: (fraction: number) => void;
 }
 
 export interface MarkdownEditorHandle {
@@ -117,7 +123,7 @@ function baseExtensions(): Extension {
 }
 
 export function createMarkdownEditor(options: MarkdownEditorOptions): MarkdownEditorHandle {
-  const { parent, doc, onChange } = options;
+  const { parent, doc, onChange, onScroll } = options;
 
   // プログラム更新（setDoc）中は onChange を抑止し、外部差し替え→再描画の
   // 無限ループを避ける。
@@ -137,6 +143,20 @@ export function createMarkdownEditor(options: MarkdownEditorOptions): MarkdownEd
     }),
   });
 
+  // スクロール割合の通知。scrollDOM の scroll を rAF で 1 フレーム 1 回に間引き、
+  // 純ロジック scrollFraction で 0..1 に換算して親（プレビュー側）へ渡す。
+  const scroller = view.scrollDOM;
+  let rafId = 0;
+  const emitScroll = (): void => {
+    rafId = 0;
+    onScroll?.(scrollFraction(scroller.scrollTop, scroller.scrollHeight, scroller.clientHeight));
+  };
+  const handleScroll = (): void => {
+    if (rafId !== 0) return; // 既に次フレームで発火予約済み
+    rafId = requestAnimationFrame(emitScroll);
+  };
+  if (onScroll) scroller.addEventListener('scroll', handleScroll, { passive: true });
+
   return {
     view,
     setDoc(value: string): void {
@@ -151,6 +171,8 @@ export function createMarkdownEditor(options: MarkdownEditorOptions): MarkdownEd
       return view.state.doc.toString();
     },
     destroy(): void {
+      if (onScroll) scroller.removeEventListener('scroll', handleScroll);
+      if (rafId !== 0) cancelAnimationFrame(rafId);
       view.destroy();
     },
   };

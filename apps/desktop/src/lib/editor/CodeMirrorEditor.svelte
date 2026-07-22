@@ -7,8 +7,9 @@
   interface Props {
     value: string;
     onChange: (value: string) => void;
+    onScroll?: (fraction: number) => void;
   }
-  const { value, onChange }: Props = $props();
+  const { value, onChange, onScroll }: Props = $props();
 
   let host = $state<HTMLDivElement | null>(null);
   let editor: MarkdownEditorHandle | undefined;
@@ -19,6 +20,7 @@
       parent: host,
       doc: value,
       onChange,
+      onScroll,
     });
   });
 
