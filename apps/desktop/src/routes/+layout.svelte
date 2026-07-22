@@ -142,6 +142,8 @@
     // app.html が paint 前に data-theme を確定済み。ここで反応状態を種づけして
     // トグルボタンの表示を実テーマに一致させる（DESIGN §8）。
     themeController.init();
+    // 前回開いていたフォルダがあれば自動で開き直す（毎回の選択を不要にする）。
+    void workspace.restoreLastFolder();
   });
 </script>
 

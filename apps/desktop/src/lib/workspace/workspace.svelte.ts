@@ -10,6 +10,7 @@
 
 import { invoke } from '@tauri-apps/api/core';
 import { open } from '@tauri-apps/plugin-dialog';
+import { browser } from '$app/environment';
 import { apiSpecSample } from '$lib/samples/apiSpecSample';
 import { git } from '$lib/git/git.svelte';
 import { buildTree, type DocEntry, type TreeNode } from './fileTree';
@@ -19,6 +20,10 @@ import {
   computeDirty,
   shouldReopenFile,
 } from './workspaceLogic';
+import { parseStoredFolder } from './lastFolder';
+
+/** 最後に開いたフォルダの localStorage キー（左レール幅等と同じ名前空間）。 */
+const LAST_FOLDER_KEY = 'md-business:desktop:last-folder';
 
 /** Rust `scan_documents` の戻り（serde camelCase）。 */
 interface ScanResult {
@@ -59,6 +64,22 @@ class WorkspaceStore {
    */
   loadSeq = $state<number>(0);
 
+  /**
+   * 起動時に「最後に開いたフォルダ」を復元する（+layout の onMount から 1 回呼ぶ）。
+   * 未保存 / 既にオープン済みなら何もしない。復元先が消えている等で走査に失敗したら、
+   * 記憶を消して初回エラーを出さず空状態に倒す（毎回選択に戻るだけ）。
+   */
+  async restoreLastFolder(): Promise<void> {
+    if (!browser || this.root !== null) return;
+    const last = parseStoredFolder(localStorage.getItem(LAST_FOLDER_KEY));
+    if (last === null) return;
+    await this.scan(last);
+    if (this.root === null) {
+      localStorage.removeItem(LAST_FOLDER_KEY);
+      this.error = null;
+    }
+  }
+
   /** フォルダ選択ダイアログ → 走査。キャンセル時は何もしない。 */
   async openFolder(): Promise<void> {
     this.error = null;
@@ -86,6 +107,8 @@ class WorkspaceStore {
       this.activePath = null;
       this.truncated = result.truncated;
       this.error = null;
+      // 次回起動で自動復元できるよう、開けたフォルダを記憶する（WebView の localStorage）。
+      if (browser) localStorage.setItem(LAST_FOLDER_KEY, root);
       // 開いたフォルダの git 状態とブランチ一覧を取得（非リポジトリでも無害・fire-and-forget）。
       void git.refresh(root);
       void git.loadBranches(root);
