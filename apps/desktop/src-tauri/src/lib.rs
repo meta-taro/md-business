@@ -13,6 +13,7 @@ pub fn run() {
             workspace::scan_documents,
             workspace::read_document,
             workspace::write_document,
+            workspace::create_document,
             git::git_status,
             git::git_branches,
             git::git_switch,

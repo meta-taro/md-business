@@ -150,6 +150,45 @@ pub fn write_document_impl(root: &Path, rel_path: &str, content: &str) -> Result
     std::fs::write(&canon, content).map_err(|e| format!("書き込み失敗: {}", e))
 }
 
+/// ルート配下に新規の md/tsv を作成する（Tauri 非依存の実体）。
+///
+/// 新規ファイルは `canonicalize` できないため、**親ディレクトリ**を canonicalize して
+/// root 配下判定する（`../` / シンボリックリンク脱出を封じる）。親は既存であることを要求し
+/// （MVP は中間ディレクトリを自動生成しない）、拡張子は `.md` / `.tsv` に限定、既存同名は
+/// 上書きせず Err（`write_document` と役割分担）。
+pub fn create_document_impl(root: &Path, rel_path: &str, content: &str) -> Result<(), String> {
+    let canon_root = std::fs::canonicalize(root).map_err(|e| format!("ルート解決失敗: {}", e))?;
+    let target = canon_root.join(rel_path);
+
+    // 拡張子ゲート（作成しようとするファイル名で判定）。
+    if allowed_ext(&target).is_none() {
+        return Err("対応拡張子は .md / .tsv のみです".to_string());
+    }
+
+    // 親ディレクトリを解決し root 配下か判定（新規ファイル自体は canonicalize できないため）。
+    let parent = target
+        .parent()
+        .ok_or_else(|| "親ディレクトリが不正です".to_string())?;
+    let canon_parent =
+        std::fs::canonicalize(parent).map_err(|e| format!("保存先フォルダ解決失敗: {}", e))?;
+    if !canon_parent.starts_with(&canon_root) {
+        return Err("ルート外へのアクセスは拒否されます".to_string());
+    }
+
+    // ファイル名部分を解決済み親へ結合（`..` はファイル名にならず None → Err）。
+    let file_name = target
+        .file_name()
+        .ok_or_else(|| "ファイル名が不正です".to_string())?;
+    let final_path = canon_parent.join(file_name);
+
+    // 新規作成専用。既存は上書きしない。
+    if final_path.exists() {
+        return Err("同名ファイルが既に存在します".to_string());
+    }
+
+    std::fs::write(&final_path, content).map_err(|e| format!("書き込み失敗: {}", e))
+}
+
 /// フロントから `invoke("scan_documents", { root })` で呼ぶ薄いラッパ。
 #[tauri::command]
 pub fn scan_documents(root: String) -> Result<ScanResult, String> {
@@ -167,6 +206,13 @@ pub fn read_document(root: String, rel_path: String) -> Result<String, String> {
 #[tauri::command]
 pub fn write_document(root: String, rel_path: String, content: String) -> Result<(), String> {
     write_document_impl(Path::new(&root), &rel_path, &content)
+}
+
+/// フロントから `invoke("create_document", { root, relPath, content })` で呼ぶ薄いラッパ。
+/// 新規検証シート（テンプレ）作成に使う。既存は上書きしない（`write_document` と分担）。
+#[tauri::command]
+pub fn create_document(root: String, rel_path: String, content: String) -> Result<(), String> {
+    create_document_impl(Path::new(&root), &rel_path, &content)
 }
 
 #[cfg(test)]
@@ -377,9 +423,69 @@ mod tests {
 
     #[test]
     fn write_存在しないファイルはエラー() {
-        // canonicalize は実在パスにのみ成功するため、新規作成は現状 Err（将来対応）。
+        // canonicalize は実在パスにのみ成功するため、write は既存のみ（新規は create_document）。
         let root = TempRoot::new("write_missing");
         assert!(write_document_impl(&root.path, "nope.md", "本文").is_err());
+    }
+
+    // ── create_document_impl ─────────────────────────────────────────────
+
+    #[test]
+    fn create_新規mdをルート直下に作成できる() {
+        let root = TempRoot::new("create_md");
+        create_document_impl(&root.path, "新規.md", "# 見出し\n本文").expect("作成成功");
+        let body = read_document_impl(&root.path, "新規.md").expect("読込成功");
+        assert_eq!(body, "# 見出し\n本文");
+    }
+
+    #[test]
+    fn create_既存サブディレクトリに新規tsvを作成できる() {
+        let root = TempRoot::new("create_tsv_sub");
+        // 親ディレクトリは既存とする（MVP は親を自動生成しない）。
+        std::fs::create_dir_all(root.path.join("docs")).expect("親作成");
+        create_document_impl(&root.path, "docs/検証.tsv", "No.:number\t項目").expect("作成成功");
+        let body = read_document_impl(&root.path, "docs/検証.tsv").expect("読込成功");
+        assert_eq!(body, "No.:number\t項目");
+    }
+
+    #[test]
+    fn create_既存ファイルは上書きしない() {
+        let root = TempRoot::new("create_exists");
+        root.file("a.tsv", "既存内容");
+        let result = create_document_impl(&root.path, "a.tsv", "上書き試行");
+        assert!(result.is_err(), "同名既存は Err");
+        assert_eq!(
+            read_document_impl(&root.path, "a.tsv").expect("読込成功"),
+            "既存内容",
+            "既存ファイルは書き換えられない"
+        );
+    }
+
+    #[test]
+    fn create_md_tsv以外の拡張子は拒否する() {
+        let root = TempRoot::new("create_ext");
+        assert!(create_document_impl(&root.path, "c.txt", "text").is_err());
+        assert!(!root.path.join("c.txt").exists(), "拒否時はファイルを作らない");
+    }
+
+    #[test]
+    fn create_ルート外へのトラバーサルは拒否し外部ファイルを作らない() {
+        let root = TempRoot::new("create_trav");
+        let outside_name = "mdbiz_csecret_outside.md";
+        let outside = root.path.parent().unwrap().join(outside_name);
+        let _ = std::fs::remove_file(&outside);
+        let result = create_document_impl(&root.path, "../mdbiz_csecret_outside.md", "外部作成試行");
+        let created = outside.exists();
+        let _ = std::fs::remove_file(&outside);
+        assert!(result.is_err(), "root 外は Err");
+        assert!(!created, "root 外にファイルを作らない");
+    }
+
+    #[test]
+    fn create_親ディレクトリが存在しなければエラー() {
+        // MVP は親を自動生成しない。存在しない中間ディレクトリ指定は Err。
+        let root = TempRoot::new("create_no_parent");
+        assert!(create_document_impl(&root.path, "missing/新規.tsv", "本文").is_err());
     }
 
     /// 拡張子チェックを迂回してファイル内容を確認するためのテスト補助。
