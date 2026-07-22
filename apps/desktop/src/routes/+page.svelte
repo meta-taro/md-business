@@ -223,6 +223,23 @@
     debouncedSource = text;
   }
 
+  // ── 検証グリッドの全画面（田中さん要件 2026-07-22）──
+  // 検証中はエディター/プレビュー分割が邪魔なので、分割を畳んでグリッドを全幅にする。
+  // 全画面は TSV グリッド表示中のみ意味を持ち、条件を外れれば自動で分割へ戻る（DESIGN §5.8/§6）。
+  let gridFullscreen = $state(false);
+
+  function toggleGridFullscreen(): void {
+    gridFullscreen = !gridFullscreen;
+  }
+
+  // Escape で全画面を抜ける。ただしセル編集中（入力にフォーカス）の Escape は入力側へ譲る。
+  function onWindowKey(event: KeyboardEvent): void {
+    if (event.key !== 'Escape' || !gridFullscreen) return;
+    const tag = (event.target as HTMLElement | null)?.tagName;
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+    gridFullscreen = false;
+  }
+
   // ── 中央ディバイダ（左右幅比のドラッグ調整 + 50/50 リセット・DESIGN §6）──
   // 左ペイン占有率 0〜1。localStorage から復元し、変更のたびに永続化する。
   const SPLIT_STORAGE_KEY = 'md-business:desktop:split-ratio';
@@ -293,9 +310,12 @@
   }
 </script>
 
+<svelte:window onkeydown={onWindowKey} />
+
 <div
   class="split"
   class:dragging
+  class:grid-full={isTsv && !!tsvDoc && gridFullscreen && !diffView.active}
   bind:this={splitEl}
   style="--split-cols: {dividerColumns(splitRatio)}"
 >
@@ -332,7 +352,18 @@
       <div class="pane-head">差分 — Git</div>
       <DiffView />
     {:else if isTsv && tsvDoc}
-      <div class="pane-head">検証シート — グリッド編集</div>
+      <div class="pane-head grid-head">
+        <span>検証シート — グリッド編集</span>
+        <button
+          type="button"
+          class="head-btn"
+          onclick={toggleGridFullscreen}
+          aria-pressed={gridFullscreen}
+          title={gridFullscreen ? '分割表示に戻す（Esc）' : 'グリッドを全画面表示'}
+        >
+          {gridFullscreen ? '↙ 分割に戻す' : '⤢ 全画面'}
+        </button>
+      </div>
       <div class="grid-wrap">
         <TsvGrid doc={tsvDoc} onChange={handleGridChange} />
       </div>
@@ -373,6 +404,17 @@
     /* 比率はインラインの --split-cols で駆動。未設定時（SSR 初期）は 50/50 相当。 */
     grid-template-columns: var(--split-cols, 1fr 6px 1fr);
     min-height: 0;
+  }
+
+  /* 検証グリッド全画面（DESIGN §5.8/§6）。エディター + ディバイダを畳み、グリッド（右ペイン）
+     を単一カラムで全幅表示する。条件が外れれば class が落ち自動で分割へ戻る。 */
+  .split.grid-full {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .split.grid-full .pane.editor,
+  .split.grid-full .divider {
+    display: none;
   }
 
   /* ドラッグ中は iframe がポインタを奪わないよう無効化し、全体を col-resize に。 */
@@ -426,6 +468,50 @@
     text-transform: uppercase;
     color: var(--text-tertiary);
     border-bottom: 1px solid var(--border);
+  }
+
+  /* グリッドのペインヘッダは右端に全画面トグルを置く。 */
+  .grid-head {
+    justify-content: space-between;
+    gap: var(--space-3);
+  }
+
+  .head-btn {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    height: 24px;
+    padding: 0 var(--space-3);
+    font-size: var(--text-2xs-size);
+    font-weight: var(--text-2xs-weight);
+    letter-spacing: 0.02em;
+    color: var(--text-secondary);
+    background: var(--bg-subtle);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition:
+      background var(--dur-fast, 120ms) ease,
+      border-color var(--dur-fast, 120ms) ease,
+      color var(--dur-fast, 120ms) ease;
+  }
+
+  .head-btn:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+    border-color: var(--border-strong);
+  }
+
+  .head-btn[aria-pressed='true'] {
+    color: var(--accent);
+    border-color: var(--accent);
+    background: var(--accent-subtle);
+  }
+
+  .head-btn:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
   }
 
   .pane-empty {
