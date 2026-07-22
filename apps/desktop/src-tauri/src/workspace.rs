@@ -133,6 +133,23 @@ pub fn read_document_impl(root: &Path, rel_path: &str) -> Result<String, String>
     String::from_utf8(bytes).map_err(|_| "UTF-8 として不正なファイルです".to_string())
 }
 
+/// ルート配下の md/tsv へ UTF-8 本文を書き戻す（Tauri 非依存の実体）。
+/// read と同じく canonicalize 後に root 配下判定でパストラバーサル（`../` / シンボリック
+/// リンク脱出）を封じ、対象は既存の `.md` / `.tsv` に限定する（新規作成は将来対応・
+/// canonicalize は実在ファイルにのみ成功するため、存在しない相対パスは Err）。
+pub fn write_document_impl(root: &Path, rel_path: &str, content: &str) -> Result<(), String> {
+    let canon_root = std::fs::canonicalize(root).map_err(|e| format!("ルート解決失敗: {}", e))?;
+    let canon = std::fs::canonicalize(root.join(rel_path))
+        .map_err(|e| format!("ファイル解決失敗: {}", e))?;
+    if !canon.starts_with(&canon_root) {
+        return Err("ルート外へのアクセスは拒否されます".to_string());
+    }
+    if allowed_ext(&canon).is_none() {
+        return Err("対応拡張子は .md / .tsv のみです".to_string());
+    }
+    std::fs::write(&canon, content).map_err(|e| format!("書き込み失敗: {}", e))
+}
+
 /// フロントから `invoke("scan_documents", { root })` で呼ぶ薄いラッパ。
 #[tauri::command]
 pub fn scan_documents(root: String) -> Result<ScanResult, String> {
@@ -144,6 +161,12 @@ pub fn scan_documents(root: String) -> Result<ScanResult, String> {
 #[tauri::command]
 pub fn read_document(root: String, rel_path: String) -> Result<String, String> {
     read_document_impl(Path::new(&root), &rel_path)
+}
+
+/// フロントから `invoke("write_document", { root, relPath, content })` で呼ぶ薄いラッパ。
+#[tauri::command]
+pub fn write_document(root: String, rel_path: String, content: String) -> Result<(), String> {
+    write_document_impl(Path::new(&root), &rel_path, &content)
 }
 
 #[cfg(test)]
@@ -308,5 +331,59 @@ mod tests {
     fn read_存在しないファイルはエラー() {
         let root = TempRoot::new("read_missing");
         assert!(read_document_impl(&root.path, "nope.md").is_err());
+    }
+
+    // ── write_document_impl ──────────────────────────────────────────────
+
+    #[test]
+    fn write_md本文を書き戻す() {
+        let root = TempRoot::new("write_md");
+        root.file("a.md", "旧本文");
+        write_document_impl(&root.path, "a.md", "# 新タイトル\n新本文").expect("書込成功");
+        let body = read_document_impl(&root.path, "a.md").expect("読込成功");
+        assert_eq!(body, "# 新タイトル\n新本文");
+    }
+
+    #[test]
+    fn write_サブディレクトリのtsvを書き戻す() {
+        let root = TempRoot::new("write_tsv");
+        root.file("docs/x.tsv", "old");
+        write_document_impl(&root.path, "docs/x.tsv", "col1\tcol2").expect("書込成功");
+        let body = read_document_impl(&root.path, "docs/x.tsv").expect("読込成功");
+        assert_eq!(body, "col1\tcol2");
+    }
+
+    #[test]
+    fn write_ルート外へのトラバーサルは拒否し外部ファイルを変更しない() {
+        let root = TempRoot::new("write_trav");
+        root.file("inside.md", "ok");
+        let outside = root.path.parent().unwrap().join("mdbiz_wsecret_outside.md");
+        std::fs::write(&outside, "secret").expect("外部ファイル作成");
+        let result = write_document_impl(&root.path, "../mdbiz_wsecret_outside.md", "上書き試行");
+        let after = std::fs::read_to_string(&outside).unwrap_or_default();
+        let _ = std::fs::remove_file(&outside);
+        assert!(result.is_err(), "root 外は Err");
+        assert_eq!(after, "secret", "外部ファイルは書き換えられない");
+    }
+
+    #[test]
+    fn write_md_tsv以外の拡張子は拒否する() {
+        let root = TempRoot::new("write_ext");
+        root.file("c.txt", "text");
+        assert!(write_document_impl(&root.path, "c.txt", "上書き試行").is_err());
+        // 拒否時は元の内容が保たれる。
+        assert_eq!(read_document_impl_raw(&root.path, "c.txt"), "text");
+    }
+
+    #[test]
+    fn write_存在しないファイルはエラー() {
+        // canonicalize は実在パスにのみ成功するため、新規作成は現状 Err（将来対応）。
+        let root = TempRoot::new("write_missing");
+        assert!(write_document_impl(&root.path, "nope.md", "本文").is_err());
+    }
+
+    /// 拡張子チェックを迂回してファイル内容を確認するためのテスト補助。
+    fn read_document_impl_raw(root: &Path, rel: &str) -> String {
+        std::fs::read_to_string(root.join(rel)).unwrap_or_default()
     }
 }
