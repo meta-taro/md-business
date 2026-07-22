@@ -94,6 +94,32 @@ class GitStore {
     this.status = await invoke<GitStatus>('git_switch', { root, branch });
   }
 
+  /**
+   * 全変更をステージしてコミットする（Rust 側で `git add -A` → `git commit -m`）。
+   * 成功で最新ステータスを反映。空メッセージ・ステージ後に変更なし等は Rust の Err が
+   * 例外として飛ぶので、呼び出し側（StatusBar）で捕捉して stderr を提示する。
+   */
+  async commit(root: string, message: string): Promise<void> {
+    this.status = await invoke<GitStatus>('git_commit', { root, message });
+  }
+
+  /**
+   * upstream へ push する（Rust 側で `git push`・`--force` なし）。成功で ahead が解消。
+   * 認証は OS の git 資格情報に委ねる（アプリは資格情報を扱わない）。upstream 未設定・
+   * 認証失敗・非 ff 拒否は Err が例外として飛ぶので、呼び出し側で捕捉して提示する。
+   */
+  async push(root: string): Promise<void> {
+    this.status = await invoke<GitStatus>('git_push', { root });
+  }
+
+  /**
+   * upstream から pull する（Rust 側で `git pull --ff-only`）。成功で behind が解消。
+   * 履歴分岐時は fast-forward 不可で失敗＝作業ツリーを触らず Err が例外として飛ぶ。
+   */
+  async pull(root: string): Promise<void> {
+    this.status = await invoke<GitStatus>('git_pull', { root });
+  }
+
   /** フォルダを閉じた / 未オープンへ戻すときに状態を空へ。 */
   reset(): void {
     this.status = emptyGitStatus();

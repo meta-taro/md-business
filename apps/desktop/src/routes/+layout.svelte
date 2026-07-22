@@ -12,6 +12,7 @@
   } from '$lib/layout/shortcuts';
   import TopBar from '$lib/components/TopBar.svelte';
   import StatusBar from '$lib/components/StatusBar.svelte';
+  import SourceControlPanel from '$lib/components/SourceControlPanel.svelte';
   import FileTree from '$lib/components/FileTree.svelte';
   import SidePanel from '$lib/components/SidePanel.svelte';
   import {
@@ -28,6 +29,9 @@
 
   // Git / AI / MCP パネルは既定で畳む（DESIGN §6・エディター↔プレビューを広く）。
   let panelOpen = $state(false);
+
+  // 下部「ソース管理」ドロワー（commit / push / pull）。既定で畳む。StatusBar から開閉。
+  let scmOpen = $state(false);
 
   // ── 左レール（エクスプローラー）の幅リサイズ + 折り畳み（右 SidePanel と対称）──
   // 幅は絶対 px（railWidth.ts の純ロジックでクランプ）。開いた幅と畳み状態を localStorage に永続化。
@@ -188,14 +192,17 @@
     <SidePanel open={panelOpen} ontoggle={() => (panelOpen = !panelOpen)} />
   </div>
 
-  <StatusBar />
+  <SourceControlPanel open={scmOpen} onclose={() => (scmOpen = false)} />
+
+  <StatusBar scmOpen={scmOpen} onToggleScm={() => (scmOpen = !scmOpen)} />
 </div>
 
 <style>
   .shell {
     height: 100vh;
     display: grid;
-    grid-template-rows: var(--topbar-h) 1fr var(--statusbar-h);
+    /* topbar | 本文 | ソース管理ドロワー(auto・畳み時 0) | statusbar */
+    grid-template-rows: var(--topbar-h) 1fr auto var(--statusbar-h);
     background: var(--bg-app);
     color: var(--text-primary);
     overflow: hidden;

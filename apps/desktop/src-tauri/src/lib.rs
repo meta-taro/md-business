@@ -15,7 +15,10 @@ pub fn run() {
             workspace::write_document,
             git::git_status,
             git::git_branches,
-            git::git_switch
+            git::git_switch,
+            git::git_commit,
+            git::git_push,
+            git::git_pull
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

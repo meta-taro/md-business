@@ -1,12 +1,21 @@
 <script lang="ts">
   // Git は共有ストアの実データを描画する（フェーズ3 Git・フォージ）。MCP はフェーズ4で実装。
-  // Commit / Push は baseline §6 により「人間のみ」の視覚シグナルとして無効固定
-  //（push はアプリからは実行しない。⚠ で人間ゲートを明示）。
+  // 「ソース管理」ボタンで下部ドロワー（commit / push / pull）を開閉する。アプリからの push は
+  // 「エンドユーザー（人間）が明示クリックして実行」なので §6（push=人間）を満たす。認証は OS の
+  // git 資格情報に委ね、アプリは資格情報を扱わない（§15）。実処理は SourceControlPanel 側。
   // ブランチ表示はクリックで切替ポップオーバーを開く（switch は作業ツリー内のローカル操作で
   // push/commit ではないため、アプリから実行してよい。-f なしで衝突時は失敗＝破壊しない）。
   import { git } from '$lib/git/git.svelte';
   import { workspace } from '$lib/workspace/workspace.svelte';
   import { forgeLabel } from '$lib/git/gitStatus';
+
+  interface Props {
+    /** 下部ソース管理ドロワーが開いているか（ボタンの押下状態表示用）。 */
+    scmOpen?: boolean;
+    /** ソース管理ドロワーの開閉トグル。 */
+    onToggleScm?: () => void;
+  }
+  const { scmOpen = false, onToggleScm }: Props = $props();
 
   let pickerOpen = $state(false);
   let switching = $state(false);
@@ -106,14 +115,17 @@
     {:else}
       <span class="muted">リポジトリ未接続</span>
     {/if}
-    <button class="chip" type="button" disabled title="コミット（Git 連携フェーズ）">Commit</button>
     <button
-      class="chip push"
+      class="chip scm"
+      class:active={scmOpen}
       type="button"
-      disabled
-      title="push は人間が確認して実行します（baseline §6）"
+      disabled={!git.isRepo}
+      aria-pressed={scmOpen}
+      title="ソース管理（コミット / プッシュ / プル）"
+      onclick={() => onToggleScm?.()}
     >
-      <span class="warn" aria-hidden="true">⚠</span> Push
+      <span class="scm-ico" aria-hidden="true">⎇</span> ソース管理
+      {#if git.isRepo && git.changeCount > 0}<span class="scm-count">{git.changeCount}</span>{/if}
     </button>
   </div>
 
@@ -168,14 +180,36 @@
     cursor: default;
   }
 
-  .chip.push {
+  .chip.scm {
     display: inline-flex;
     align-items: center;
-    gap: 4px;
+    gap: 5px;
   }
 
-  .warn {
-    color: var(--warning-fg);
+  .chip.scm:hover:not(:disabled) {
+    background: var(--bg-hover);
+  }
+
+  .chip.scm.active {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  .scm-ico {
+    font-size: 12px;
+    line-height: 1;
+  }
+
+  .scm-count {
+    min-width: 15px;
+    padding: 0 4px;
+    border-radius: var(--radius-full);
+    background: var(--accent-subtle);
+    color: var(--accent);
+    font-size: var(--text-2xs-size, 10px);
+    font-weight: 600;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
   }
 
   .ind {

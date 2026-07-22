@@ -351,6 +351,64 @@ pub fn git_switch(root: String, branch: String) -> Result<GitStatus, String> {
     git_switch_impl(Path::new(&root), &branch)
 }
 
+/// コミットメッセージとして受け付けてよいか（空・空白のみを弾く＝空コミット防止）。
+/// メッセージは `git commit -m <msg>` の位置引数として渡すので、先頭 '-' でも
+/// オプション注入にならない（`-m` が次の 1 引数を確実に消費する）。中身の検閲はしない。
+pub fn is_valid_commit_message(message: &str) -> bool {
+    !message.trim().is_empty()
+}
+
+/// 変更をすべてステージ（`git add -A`）してコミットする。成功時は最新の GitStatus を返す。
+/// - 空メッセージは git 実行前に弾く（空コミットを作らない）。
+/// - ステージ後に変更が無ければ `git commit` が失敗する＝その stderr をそのまま Err で返す。
+/// - `--no-verify` は付けない（リポジトリ側の hook を尊重する）。
+pub fn git_commit_impl(root: &Path, message: &str) -> Result<GitStatus, String> {
+    if !is_valid_commit_message(message) {
+        return Err("コミットメッセージを入力してください".to_string());
+    }
+    // 全変更をステージ（新規・削除・変更を含む）。add -A は cwd に関わらずリポジトリ全体。
+    run_git_result(root, &["add", "-A"])?;
+    // message は位置引数として渡す（先頭 '-' でも注入にならない）。
+    run_git_result(root, &["commit", "-m", message])?;
+    Ok(git_status_impl(root))
+}
+
+/// フロントから `invoke("git_commit", { root, message })` で呼ぶラッパ。
+#[tauri::command]
+pub fn git_commit(root: String, message: String) -> Result<GitStatus, String> {
+    git_commit_impl(Path::new(&root), &message)
+}
+
+/// upstream へ push する。成功時は最新の GitStatus（ahead が解消される）を返す。
+/// `--force` は使わない = 非 fast-forward は失敗させ、リモート履歴を上書きしない（安全側）。
+/// 認証は OS の git 資格情報ヘルパ／SSH に委ねる（アプリは資格情報を一切扱わない・§15）。
+/// upstream 未設定・認証失敗・非 ff 拒否は git の stderr をそのまま Err で返し、UI が提示する。
+pub fn git_push_impl(root: &Path) -> Result<GitStatus, String> {
+    run_git_result(root, &["push"])?;
+    Ok(git_status_impl(root))
+}
+
+/// フロントから `invoke("git_push", { root })` で呼ぶラッパ。
+#[tauri::command]
+pub fn git_push(root: String) -> Result<GitStatus, String> {
+    git_push_impl(Path::new(&root))
+}
+
+/// upstream から pull する。成功時は最新の GitStatus（behind が解消される）を返す。
+/// `--ff-only` = fast-forward できるときだけ取り込む。履歴が分岐しているときは
+/// マージコミットも rebase も作らずに失敗させ、作業ツリーを勝手に触らない（git_switch と同じ安全側）。
+/// 分岐時は git の stderr（手動で解決するよう促す）をそのまま Err で返す。
+pub fn git_pull_impl(root: &Path) -> Result<GitStatus, String> {
+    run_git_result(root, &["pull", "--ff-only"])?;
+    Ok(git_status_impl(root))
+}
+
+/// フロントから `invoke("git_pull", { root })` で呼ぶラッパ。
+#[tauri::command]
+pub fn git_pull(root: String) -> Result<GitStatus, String> {
+    git_pull_impl(Path::new(&root))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -561,5 +619,24 @@ mod tests {
         let dir = std::env::temp_dir();
         assert!(git_switch_impl(&dir, "-f").is_err());
         assert!(git_switch_impl(&dir, "").is_err());
+    }
+
+    // ── is_valid_commit_message（空コミット防止）──────────────────────────
+
+    #[test]
+    fn 非空のコミットメッセージのみ受理する() {
+        assert!(is_valid_commit_message("修正: バグを直した"));
+        assert!(is_valid_commit_message("-m から始まっても本文なら可"));
+        assert!(!is_valid_commit_message(""), "空は拒否");
+        assert!(!is_valid_commit_message("   "), "空白のみは拒否");
+        assert!(!is_valid_commit_message("\n\t "), "改行・タブのみは拒否");
+    }
+
+    #[test]
+    fn git_commit_空メッセージは_git実行前にエラー() {
+        // 空メッセージはバリデーションで弾き、git を起動しない（空コミットを作らない）。
+        let dir = std::env::temp_dir();
+        assert!(git_commit_impl(&dir, "").is_err());
+        assert!(git_commit_impl(&dir, "   ").is_err());
     }
 }
