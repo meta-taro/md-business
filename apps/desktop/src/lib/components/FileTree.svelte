@@ -5,6 +5,18 @@
   // 選択ハイライトの仕上げは Phase D。
   import { workspace } from '$lib/workspace/workspace.svelte';
   import { flattenVisible } from '$lib/workspace/workspaceLogic';
+  import { git } from '$lib/git/git.svelte';
+  import { gitMarkLetter, type GitFileState } from '$lib/git/gitStatus';
+
+  // git 状態 → ホバー説明（バッジ title）。色マークの意味を言葉でも補う。
+  const GIT_TITLE: Record<GitFileState, string> = {
+    modified: '変更あり（未コミット）',
+    added: 'ステージ済みの追加',
+    untracked: '未追跡（新規）',
+    deleted: '削除',
+    renamed: 'リネーム',
+    conflicted: 'コンフリクト',
+  };
 
   // 折り畳み（右 SidePanel と対称）。畳み状態と切替はレイアウトが所有し、props で受ける。
   let { collapsed = false, ontoggle }: { collapsed?: boolean; ontoggle?: () => void } = $props();
@@ -86,12 +98,14 @@
     <ul class="tree">
       {#each rows as row (row.node.path)}
         {@const node = row.node}
+        {@const gitState = node.kind === 'file' ? git.stateOf(node.path) : null}
         <li>
           <button
             class="row"
             class:active={node.kind === 'file' && workspace.activePath === node.path}
             type="button"
             style="--depth: {row.depth}"
+            data-git={gitState}
             onclick={() => onRowClick(node.path, node.kind)}
             title={node.path}
           >
@@ -127,6 +141,10 @@
               </svg>
             {/if}
             <span class="name">{node.name}</span>
+            {#if gitState}
+              <!-- VSCode 風の右肩バッジ。色は行の data-git を継いで CSS 側で決める。 -->
+              <span class="git-mark" title={GIT_TITLE[gitState]}>{gitMarkLetter(gitState)}</span>
+            {/if}
           </button>
         </li>
       {/each}
@@ -380,5 +398,48 @@
   .name {
     /* 省略記号で切らず、深い階層は横スクロールで全名を見せる。 */
     white-space: nowrap;
+  }
+
+  /* git マーク（右肩バッジ）。行末に寄せ、変更種別ごとに VSCode 風配色。
+     min-width:100% の行内で margin-left:auto によりパネル右端へ寄る。 */
+  .git-mark {
+    margin-left: auto;
+    padding-left: var(--space-2);
+    flex: none;
+    font-size: var(--text-2xs-size);
+    font-weight: 700;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* VSCode gitDecoration 準拠（明暗どちらでも読める中間トーン）。
+     名前テキストとバッジを同色に揃える。 */
+  .row[data-git='modified'] .name,
+  .row[data-git='renamed'] .name,
+  .row[data-git='modified'] .git-mark,
+  .row[data-git='renamed'] .git-mark {
+    color: #d9a441; /* 変更 = 黄土 */
+  }
+
+  .row[data-git='untracked'] .name,
+  .row[data-git='added'] .name,
+  .row[data-git='untracked'] .git-mark,
+  .row[data-git='added'] .git-mark {
+    color: #4ca66a; /* 新規 / 追加 = 緑 */
+  }
+
+  .row[data-git='deleted'] .name,
+  .row[data-git='deleted'] .git-mark {
+    color: #c7502f; /* 削除 = 赤 */
+  }
+
+  .row[data-git='conflicted'] .name,
+  .row[data-git='conflicted'] .git-mark {
+    color: #c94f6d; /* コンフリクト = 赤紫 */
+  }
+
+  /* 選択中はアクセント色を優先（マーク文字は色付けのまま桁だけ保つ）。 */
+  .row.active .name {
+    color: var(--accent);
   }
 </style>
