@@ -17,6 +17,7 @@
     cellToCheckbox,
   } from './gridModel';
   import { planCellKeydown, type CellPos } from './gridNav';
+  import { parseClipboardMatrix, applyPaste } from './gridClipboard';
 
   interface Props {
     /** 表示・編集対象の TSV ドキュメント（`parseTsv` の結果）。 */
@@ -62,6 +63,9 @@
   let gridEl: HTMLDivElement | undefined;
   const dims = $derived({ rows: doc.rows.length, cols: doc.columns.length });
 
+  // アンカーセル（貼り付けの起点）。セルにフォーカスが入るたび追従する。
+  let activeCell = $state<CellPos>({ row: 0, col: 0 });
+
   // select() が意味を持つのはテキスト系のみ（date/datetime に呼ぶと例外になる環境がある）。
   const SELECTABLE = new Set(['text', 'url', 'number']);
 
@@ -88,9 +92,27 @@
     event.preventDefault();
     focusCell(plan.to);
   }
+
+  // Excel / Sheets からの矩形貼り付け。複数セル（タブ/改行を含む）だけ横取りし、
+  // 単一値は通常どおりフォーカス中の入力へ委ねる。
+  function onGridPaste(event: ClipboardEvent): void {
+    if (!onChange) return;
+    const text = event.clipboardData?.getData('text/plain') ?? '';
+    const matrix = parseClipboardMatrix(text);
+    const isBlock = matrix.length > 1 || matrix.some((cells) => cells.length > 1);
+    if (!isBlock) return; // 単一セルは入力へ委ねる
+    event.preventDefault();
+    onChange(applyPaste(doc, activeCell, text));
+  }
 </script>
 
-<div class="tsv-grid" role="region" aria-label="検証シート編集グリッド" bind:this={gridEl}>
+<div
+  class="tsv-grid"
+  role="region"
+  aria-label="検証シート編集グリッド"
+  bind:this={gridEl}
+  onpaste={onGridPaste}
+>
   {#if doc.columns.length === 0}
     <p class="empty">列定義がありません（ヘッダ行のある TSV を開いてください）</p>
   {:else}
@@ -119,6 +141,7 @@
                 title={issue}
                 data-cell={`${r}-${c}`}
                 onkeydown={(e) => onCellKeydown(r, c, e)}
+                onfocusin={() => (activeCell = { row: r, col: c })}
               >
                 {#if widget === undefined}
                   <span class="plain">{value}</span>
