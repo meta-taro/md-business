@@ -23,7 +23,7 @@
   } from './gridModel';
   import { planGridKey, type GridMode } from './gridMode';
   import { parseClipboardMatrix, applyPaste, rowToTsv } from './gridClipboard';
-  import { appendRow, duplicateRow, deleteRow, clearRow } from './gridRows';
+  import { duplicateRow, deleteRow, clearRow } from './gridRows';
   import {
     MIN_COL_WIDTH,
     defaultColWidths,
@@ -53,6 +53,7 @@
     extendRange,
     rangeToTsv,
   } from './gridRange';
+  import { displayRowCount, editPaddedCell } from './gridBlankRows';
 
   interface Props {
     /** 表示・編集対象の TSV ドキュメント（`parseTsv` の結果）。 */
@@ -78,8 +79,17 @@
     if (doc.columns !== lastColumnsRef) {
       lastColumnsRef = doc.columns;
       colWidths = defaultColWidths(doc.columns);
+      padRows = 0; // 別ファイルを開いたら空パッド行はリセット
     }
   });
+
+  // ── 空パッド行（田中さん 2026-07-23「行を追加しても増えない」不具合の対処）。
+  //    カスタム TSV は全セルが空の行をテキスト化できない（round-trip で消える）ため、
+  //    「行追加」直後の空行はファイルに焼けない。スプレッドシート同様、値が入るまでは
+  //    ローカルの pad 行として画面に出し、値が入った時点で実データ行へ実体化する。
+  //    表示行数・実体化・空行判定は gridBlankRows の純ロジックへ委譲。 ──
+  let padRows = $state(0);
+  const displayRows = $derived(displayRowCount(doc.rows.length, padRows));
   // テーブル全幅＝行番号列 + 各列幅の合計（fixed レイアウトで横スクロール可能に）。
   const tableWidth = $derived(ROWNUM_WIDTH + colWidths.reduce((sum, w) => sum + w, 0));
 
@@ -230,7 +240,15 @@
   }
 
   function commit(row: number, col: number, value: string): void {
-    onChange?.(setCell(doc, row, col, value));
+    // 実データ行はそのまま setCell（挙動不変）。pad 行（実データ末尾より下）への入力は
+    // gridBlankRows で実体化し、pad 数を詰め直してから通知する。
+    if (row < doc.rows.length) {
+      onChange?.(setCell(doc, row, col, value));
+      return;
+    }
+    const res = editPaddedCell(doc.rows, padRows, row, col, value);
+    padRows = res.padRows;
+    onChange?.({ ...doc, rows: res.rows });
   }
 
   // datetime-local 入力は `YYYY-MM-DDTHH:MM`（T 区切り）を期待する。正本セルは
@@ -257,7 +275,8 @@
 
   // ── nav ⇄ edit 二モードのキーボード操作（決定は gridMode の純ロジックに委譲） ──
   let gridEl: HTMLDivElement | undefined;
-  const dims = $derived({ rows: doc.rows.length, cols: doc.columns.length });
+  // nav / 範囲選択は pad 行も含めた表示行数を上限にする（矢印で空行へ入れる）。
+  const dims = $derived({ rows: displayRows, cols: doc.columns.length });
 
   // 選択範囲（anchor＝起点固定・focus＝伸長先＝アクティブセル）と現在モード。
   // 単一セル選択は anchor === focus。Shift+矢印 / Shift+クリックで矩形に広げる。
@@ -406,22 +425,28 @@
     return `${b.r1 - b.r0 + 1}×${b.c1 - b.c0 + 1} 選択`;
   });
 
+  // 実データ末尾より下＝pad 行（まだファイルに焼けない空行）。複製/削除/クリア/コピーは
+  // 実データ行にだけ意味があるので pad 行では抑止する。
+  const activeIsData = $derived(activeCell.row < doc.rows.length);
+
   function addRow(): void {
-    onChange?.(appendRow(doc));
+    // ファイルに焼けない空行なので onChange せず、ローカル pad を 1 増やして即座に見せる。
+    padRows += 1;
   }
   function duplicateActiveRow(): void {
-    if (hasRows) onChange?.(duplicateRow(doc, activeCell.row));
+    if (activeIsData) onChange?.(duplicateRow(doc, activeCell.row));
   }
   function deleteActiveRow(): void {
-    if (hasRows) onChange?.(deleteRow(doc, activeCell.row));
+    if (activeIsData) onChange?.(deleteRow(doc, activeCell.row));
+    else if (padRows > 0) padRows -= 1; // pad 行の削除はローカル pad を 1 減らす
   }
   function clearActiveRow(): void {
-    if (hasRows) onChange?.(clearRow(doc, activeCell.row));
+    if (activeIsData) onChange?.(clearRow(doc, activeCell.row));
   }
 
   // 選択行を TSV（タブ区切り）でクリップボードへ。失敗（権限・非対応）は握り潰す。
   async function copyActiveRow(): Promise<void> {
-    if (!hasRows) return;
+    if (!activeIsData) return;
     try {
       await navigator.clipboard.writeText(rowToTsv(doc, activeCell.row));
     } catch {
@@ -481,7 +506,8 @@
         </tr>
       </thead>
       <tbody>
-        {#each doc.rows as row, r (r)}
+        <!-- 実データ行 + pad 空行を通し番号で描く。pad 行のセルは cellValue が '' を返す。 -->
+        {#each Array(displayRows) as _row, r (r)}
           <tr style={`height:${rowHeights[r] ?? DEFAULT_ROW_HEIGHT}px`}>
             <th class="rownum" scope="row">
               {r + 1}
@@ -617,16 +643,21 @@
     <!-- 行操作バー。対象は「選択中の行」＝アクティブセルの行。 -->
     <div class="grid-actions">
       <button type="button" class="row-btn" onclick={addRow}>＋ 行を追加</button>
-      <button type="button" class="row-btn" onclick={duplicateActiveRow} disabled={!hasRows}>
+      <button type="button" class="row-btn" onclick={duplicateActiveRow} disabled={!activeIsData}>
         選択行を複製
       </button>
-      <button type="button" class="row-btn" onclick={copyActiveRow} disabled={!hasRows}>
+      <button type="button" class="row-btn" onclick={copyActiveRow} disabled={!activeIsData}>
         選択行をコピー
       </button>
-      <button type="button" class="row-btn" onclick={clearActiveRow} disabled={!hasRows}>
+      <button type="button" class="row-btn" onclick={clearActiveRow} disabled={!activeIsData}>
         選択行をクリア
       </button>
-      <button type="button" class="row-btn danger" onclick={deleteActiveRow} disabled={!hasRows}>
+      <button
+        type="button"
+        class="row-btn danger"
+        onclick={deleteActiveRow}
+        disabled={!activeIsData && padRows === 0}
+      >
         選択行を削除
       </button>
       <span class="active-row" aria-live="polite">
