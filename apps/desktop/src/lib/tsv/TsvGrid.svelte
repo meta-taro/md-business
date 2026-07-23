@@ -22,6 +22,7 @@
     cellDisplayText,
   } from './gridModel';
   import { planGridKey, type GridMode } from './gridMode';
+  import { seedFromKey } from './gridEdit';
   import { parseClipboardMatrix, applyPaste, rowToTsv } from './gridClipboard';
   import { duplicateRow, deleteRow, clearRow } from './gridRows';
   import {
@@ -464,6 +465,10 @@
   let mode = $state<GridMode>('nav');
   // ユーザーが一度でもグリッドに触れたか。マウント時にフォーカスを勝手に奪わないためのガード。
   let engaged = $state(false);
+  // nav で印字キーを打って edit へ入るときに、生成直後の入力へ流し込む「置換用の1文字」。
+  // 意図的に $state にしない＝フォーカス effect の依存に載せず、種を消す代入で effect を
+  // 再実行させないため（プレーンな変数。イベント→effect の 1 回の受け渡しにだけ使う）。
+  let pendingSeed: string | null = null;
 
   const isActive = (row: number, col: number): boolean =>
     activeCell.row === row && activeCell.col === col;
@@ -490,17 +495,43 @@
     }
   }
 
-  // アクティブセルの input へフォーカスを寄せる。nav では値を全選択して「選択セル」の
-  // 見た目にし、タイプで置換できるようにする。activeCell / mode の変化にのみ追従。
+  // アクティブセルへフォーカスを寄せる。activeCell / mode の変化にのみ追従する。
+  // - nav: セルは静的表示（実ウィジェットは出さない）。キーボード操作のため静的セル自体へ
+  //   フォーカスする（選択リングは td.active のクラスで描くのでフォーカス非依存）。
+  // - edit: 実ウィジェットへフォーカス。印字キーで入ったとき（種あり）はその文字で値を置換、
+  //   ダブルクリック / Enter / F2 で入ったとき（種なし）は既存値を全選択する。
   $effect(() => {
     const { row, col } = activeCell;
     const editing = mode === 'edit';
     if (!engaged || !gridEl) return;
     const td = gridEl.querySelector<HTMLElement>(`[data-cell="${row}-${col}"]`);
-    const input = td?.querySelector<HTMLElement>('input, select, textarea');
+    if (!td) return;
+    if (!editing) {
+      const cell = td.querySelector<HTMLElement>('.cell-active');
+      if (cell && document.activeElement !== cell) cell.focus();
+      return;
+    }
+    const input = td.querySelector<HTMLElement>('input, select, textarea');
     if (!input) return;
     if (document.activeElement !== input) input.focus();
-    if (!editing) trySelectAll(input);
+    // 種の受け渡しは 1 回きり。untrack で読み、消す代入で effect を再実行させない。
+    const seed = untrack(() => pendingSeed);
+    if (
+      seed !== null &&
+      (input instanceof HTMLInputElement || input instanceof HTMLTextAreaElement)
+    ) {
+      input.value = seed; // number 等は代入時にサニタイズされる
+      const seeded = input.value;
+      commit(row, col, seeded);
+      try {
+        input.setSelectionRange(seeded.length, seeded.length);
+      } catch {
+        // date/number 等は setSelectionRange 非対応。キャレット位置は諦めてよい。
+      }
+      pendingSeed = null;
+    } else {
+      trySelectAll(input);
+    }
   });
 
   function selectCell(row: number, col: number, extend = false): void {
@@ -561,12 +592,15 @@
         // 修飾なし移動＝選択を移動先セルへ畳む（mode は nav のまま）。
         selection = { anchor: action.to, focus: action.to };
         break;
-      case 'edit':
-        // 印字文字は preventDefault せず、全選択中の値へ上書きさせる（Excel 式の置換入力）。
-        // Enter / F2 は文字を持たないので抑止してから編集へ入る。
-        if (event.key === 'Enter' || event.key === 'F2') event.preventDefault();
+      case 'edit': {
+        // 既定動作は必ず抑止し、静的セルへ生の文字が落ちないようにする。印字1文字で入った
+        // 場合はその文字を種として控え、ウィジェット生成後の effect で置換して流し込む。
+        // Enter / F2 は種なし＝既存値を全選択して編集へ入る。
+        event.preventDefault();
+        pendingSeed = seedFromKey(widgets[col]?.kind, event.key, event.ctrlKey || event.metaKey);
         enterEdit();
         break;
+      }
       case 'commit-move':
         event.preventDefault();
         mode = 'nav';
@@ -592,7 +626,15 @@
     const text = event.clipboardData?.getData('text/plain') ?? '';
     const matrix = parseClipboardMatrix(text);
     const isBlock = matrix.length > 1 || matrix.some((cells) => cells.length > 1);
-    if (!isBlock) return; // 単一セルは入力へ委ねる
+    if (!isBlock) {
+      // 単一値: 編集中はフォーカス中の入力へ委ねる。nav（静的セルで入力が無い）は
+      // アクティブセルへ直接流し込む（Excel の Ctrl+V 同様、選択セルを置換）。
+      if (mode === 'nav') {
+        event.preventDefault();
+        commit(activeCell.row, activeCell.col, matrix[0]?.[0] ?? '');
+      }
+      return;
+    }
     event.preventDefault();
     // 範囲選択中は左上を起点に流し込む（単一セル選択では focus と同じ）。
     const { r0, c0 } = rangeBounds(selection);
@@ -871,9 +913,9 @@
                   >
                     {cellDisplayText(widget?.kind, value)}
                   </div>
-                {:else}
-                  <!-- アクティブ＝実ウィジェット。ダブルクリック（td の ondblclick）で編集へ。
-                       単一クリックは選択のまま（スプレ式・田中さん 2026-07-23）。 -->
+                {:else if editable && mode === 'edit'}
+                  <!-- アクティブかつ編集モード＝実ウィジェット。ダブルクリック / Enter / F2 /
+                       文字入力で入る（単一クリックは選択のまま＝静的表示のブランチへ）。 -->
                   <div class="cell-edit" role="presentation">
                     {#if widget === undefined}
                       <span class="plain">{value}</span>
@@ -944,6 +986,19 @@
                         oninput={(e) => commit(r, c, e.currentTarget.value)}
                       />
                     {/if}
+                  </div>
+                {:else}
+                  <!-- アクティブだが nav（または読み取り専用）＝静的表示。値をそのまま見せ、
+                       選択リングは td.active が描く。キーボード操作のため focus 可能にし、
+                       ダブルクリック（td の ondblclick）や Enter/F2/文字入力で編集へ入る。 -->
+                  <div
+                    class="cell-view cell-active"
+                    class:num={widget?.kind === 'number'}
+                    class:wrap={colModes[c] === 'wrap'}
+                    class:overflow={colModes[c] === 'overflow'}
+                    tabindex="-1"
+                  >
+                    {cellDisplayText(widget?.kind, value)}
                   </div>
                 {/if}
               </td>
