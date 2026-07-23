@@ -65,6 +65,22 @@
     return value.replace(' ', 'T');
   }
 
+  // 複数行セルの textarea を内容に合わせて縦に伸ばす（スプレッドシート同様に行高が
+  // 増える・折り返す）。field-sizing 非対応の WebView でも効くよう scrollHeight で調整。
+  function autogrow(node: HTMLTextAreaElement) {
+    const resize = () => {
+      node.style.height = 'auto';
+      node.style.height = `${node.scrollHeight}px`;
+    };
+    resize();
+    node.addEventListener('input', resize);
+    return {
+      destroy() {
+        node.removeEventListener('input', resize);
+      },
+    };
+  }
+
   // ── nav ⇄ edit 二モードのキーボード操作（決定は gridMode の純ロジックに委譲） ──
   let gridEl: HTMLDivElement | undefined;
   const dims = $derived({ rows: doc.rows.length, cols: doc.columns.length });
@@ -284,6 +300,7 @@
                         class="multiline"
                         rows="1"
                         value={value}
+                        use:autogrow
                         oninput={(e) => commit(r, c, e.currentTarget.value)}
                       ></textarea>
                     {:else if widget.kind === 'date'}
@@ -521,7 +538,8 @@
     height: 100%;
   }
 
-  /* 入力ウィジェットは枠なし・角丸なし・透明でセルいっぱい（罫線がセルを区切る）。 */
+  /* 入力ウィジェットは枠なし・角丸なし・透明でセルいっぱい（罫線がセルを区切る）。
+     min-width は付けない＝選択（input 化）で列幅が広がらない（静的表示と同じ幅）。 */
   input[type='text'],
   input[type='url'],
   input[type='number'],
@@ -530,7 +548,6 @@
   select,
   textarea {
     width: 100%;
-    min-width: 7rem;
     height: 100%;
     box-sizing: border-box;
     padding: var(--space-1) var(--space-3);
@@ -547,25 +564,36 @@
     outline: none;
   }
 
-  /* 数値列は右寄せ（表計算の慣習）。 */
+  /* ダークテーマでネイティブ dropdown が白背景＋白文字で消えないよう、option を明示配色。
+     select 自体はセルに溶け込む透明のまま、開いた候補リストだけテーマ地に載せる。 */
+  option {
+    background: var(--bg-elevated);
+    color: var(--text-primary);
+  }
+
+  /* 数値列は右寄せ（表計算の慣習）。スピナー矢印は隠す（列幅を食う・スプレにない）。 */
   input[type='number'] {
     text-align: right;
     font-variant-numeric: tabular-nums;
+    appearance: textfield;
+    -moz-appearance: textfield;
   }
 
-  /* 複数行セル: 既定は 1 行でクリップ（行を詰める）。フォーカス時だけ縦に開いて全文編集。 */
+  input[type='number']::-webkit-outer-spin-button,
+  input[type='number']::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+
+  /* 複数行セル: 折り返し + 内容に応じて行高が伸びる（autogrow が height を実値に）。
+     非アクティブは cellDisplayText が先頭行に畳むので、伸びるのは編集中のみ。 */
   textarea.multiline {
     resize: none;
     line-height: 1.5;
     overflow: hidden;
-    white-space: pre;
-    min-height: 30px;
-  }
-
-  textarea.multiline:focus {
-    min-height: 4.5em;
-    overflow: auto;
     white-space: pre-wrap;
+    height: auto;
+    min-height: 30px;
     background: var(--bg-elevated);
   }
 
