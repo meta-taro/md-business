@@ -60,6 +60,18 @@ describe('detectSchemaId', () => {
     expect(detectSchemaId({ schema: SPEC_V, title: 'x' })).toBe(SPEC_V);
   });
 
+  it('schema 宣言キーは種別で揺れる（schemaVersion / スキーマ も走査する）', () => {
+    // invoice / spec は canonical が schemaVersion（テンプレ実物・§19 で確認）
+    expect(detectSchemaId({ schemaVersion: INVOICE_V })).toBe(INVOICE_V);
+    // 日本語テンプレは スキーマ エイリアス（spec/test-spec/api-spec の standard-ja）
+    expect(detectSchemaId({ スキーマ: SPEC_V })).toBe(SPEC_V);
+    expect(detectSchemaId({ スキーマ: TEST_SPEC_V })).toBe(TEST_SPEC_V);
+  });
+
+  it('canonical schema キーを優先する（複数キーがあっても schema が先勝ち）', () => {
+    expect(detectSchemaId({ schema: TEST_SPEC_V, スキーマ: SPEC_V })).toBe(TEST_SPEC_V);
+  });
+
   it('schema 値が未知・欠落・非文字列なら null', () => {
     expect(detectSchemaId({ schema: 'nope/v1' })).toBeNull();
     expect(detectSchemaId({ title: 'no schema key' })).toBeNull();
@@ -68,6 +80,6 @@ describe('detectSchemaId', () => {
   });
 
   it('前後空白を除いて照合する', () => {
-    expect(detectSchemaId({ schema: `  ${INVOICE_V}  ` })).toBe(INVOICE_V);
+    expect(detectSchemaId({ schemaVersion: `  ${INVOICE_V}  ` })).toBe(INVOICE_V);
   });
 });

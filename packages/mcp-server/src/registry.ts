@@ -68,10 +68,21 @@ export function resolveSchema(id: string): SchemaEntry | null {
   return BY_ID.get(id) ?? null;
 }
 
-/** frontmatter の `schema:` 値から既知 schema id を判定する。非文字列・未知・欠落は null。 */
+/**
+ * schema 宣言に使われうる frontmatter キー（先頭優先）。
+ * canonical は種別で割れる（invoice/spec は `schemaVersion`、test-spec/db/nosql/api は
+ * `schema`）うえ、日本語テンプレは `スキーマ` エイリアス。normalize を通さずに素の
+ * frontmatter から検出できるよう、実テンプレで確認した候補キーを走査する（§19）。
+ */
+const SCHEMA_KEYS = ['schema', 'schemaVersion', 'スキーマ'] as const;
+
+/** frontmatter の schema 宣言（schema / schemaVersion / スキーマ）から既知 id を判定する。 */
 export function detectSchemaId(frontmatter: Record<string, unknown>): string | null {
-  const raw = frontmatter['schema'];
-  if (typeof raw !== 'string') return null;
-  const id = raw.trim();
-  return BY_ID.has(id) ? id : null;
+  for (const key of SCHEMA_KEYS) {
+    const raw = frontmatter[key];
+    if (typeof raw !== 'string') continue;
+    const id = raw.trim();
+    if (BY_ID.has(id)) return id;
+  }
+  return null;
 }
