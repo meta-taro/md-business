@@ -59,6 +59,7 @@
   } from './gridRange';
   import { displayRowCount, editPaddedCell } from './gridBlankRows';
   import { columnLabels } from './columnLabel';
+  import { readNotes } from './gridHeaderDirectives';
 
   interface Props {
     /** 表示・編集対象の TSV ドキュメント（`parseTsv` の結果）。 */
@@ -75,6 +76,16 @@
   // スプレッドシート列座標（A,B,C…AA,AB）。型付きヘッダとは別レイヤーの位置参照バー
   // （田中さん 2026-07-23）。フォーマットは変えず、描画専用に列数から算出する。
   const colLetters = $derived(columnLabels(doc.columns.length));
+
+  // 表の上の補足行（#@ note …）。型付きヘッダの上に全幅で敷く（田中さん 2026-07-23
+  // 「表の上に補足」）。フォーマット不変・#@ ディレクティブから読むだけ（編集は後続ブロック）。
+  const notes = $derived(readNotes(doc.directives));
+
+  // sticky 段組みの固定高（px）。座標バー→補足行→型付きヘッダを上から積む。補足行数は
+  // 可変なので、型付きヘッダの sticky top を CSS 変数 --head-top で押し下げて重なりを防ぐ。
+  const COORD_ROW_H = 20;
+  const NOTE_ROW_H = 24;
+  const headTop = $derived(COORD_ROW_H + notes.length * NOTE_ROW_H);
 
   // ── レイアウト（列幅 px / 行高 px / 列表示モード）。田中さん 2026-07-23「幅や、行を
   //    変えられる…改行時の表示も。これは tsv 側に記憶してほしい」に応え、これらは
@@ -517,7 +528,7 @@
     {#if doc.columns.length === 0}
       <p class="empty">列定義がありません（ヘッダ行のある TSV を開いてください）</p>
     {:else}
-      <table style={`width:${tableWidth}px`}>
+      <table style={`width:${tableWidth}px; --head-top:${headTop}px`}>
       <colgroup>
         <col style={`width:${ROWNUM_WIDTH}px`} />
         {#each doc.columns as _col, ci (ci)}
@@ -533,6 +544,25 @@
             <th class="coord-cell" scope="col">{letter}</th>
           {/each}
         </tr>
+        <!-- 表の上の補足行（#@ note …）。座標バーの下・型付きヘッダの上に全幅で敷く。
+             行ごとに sticky top を積み上げて座標バー・上の補足と重ならないようにする。 -->
+        {#each notes as note, ni (ni)}
+          <tr class="note-row">
+            <th
+              class="rownum note-corner"
+              scope="row"
+              aria-hidden="true"
+              style={`top:${COORD_ROW_H + ni * NOTE_ROW_H}px`}
+            ></th>
+            <th
+              class="note-cell"
+              colspan={doc.columns.length}
+              scope="colgroup"
+              title={note}
+              style={`top:${COORD_ROW_H + ni * NOTE_ROW_H}px; height:${NOTE_ROW_H}px`}
+            >{note}</th>
+          </tr>
+        {/each}
         <tr class="head-row">
           <th class="rownum" scope="col" aria-label="行番号"></th>
           {#each doc.columns as column, col (col)}
@@ -944,9 +974,31 @@
     font-size: var(--text-2xs-size, var(--text-sm-size));
   }
 
-  /* 型付きヘッダ行は座標行（20px）のぶん下げて重ならないよう sticky する。 */
+  /* 型付きヘッダ行は座標行（20px）＋補足行のぶん下げて重ならないよう sticky する。
+     補足行数は可変なので押し下げ量は --head-top（table に inline 供給）で受ける。 */
   .head-row th {
-    top: 20px;
+    top: var(--head-top, 20px);
+  }
+
+  /* ── 表の上の補足行（#@ note …）。座標バーと型付きヘッダの間に全幅で敷く注記帯。
+     top は行ごとに inline（座標バー + 上の補足の積み上げ）。 ── */
+  .note-row th {
+    height: 24px;
+    padding: 0 var(--space-3);
+    text-align: left;
+    font-weight: var(--text-2xs-weight);
+    color: var(--text-secondary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .note-cell {
+    font-size: var(--text-2xs-size, var(--text-sm-size));
+  }
+
+  .note-corner {
+    z-index: 4; /* 補足行の左端（行番号列との交点）も両 sticky の最前面 */
   }
 
   /* 左上隅（座標×行番号の交点）は両 sticky の最前面。座標バーと地を揃える。 */
