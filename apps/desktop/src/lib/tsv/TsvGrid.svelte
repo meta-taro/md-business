@@ -21,7 +21,6 @@
     cellToCheckbox,
     cellDisplayText,
   } from './gridModel';
-  import type { CellPos } from './gridNav';
   import { planGridKey, type GridMode } from './gridMode';
   import { parseClipboardMatrix, applyPaste, rowToTsv } from './gridClipboard';
   import { appendRow, duplicateRow, deleteRow, clearRow } from './gridRows';
@@ -46,6 +45,14 @@
     reconcileColModes,
     colModeMenuItems,
   } from './gridColumnMode';
+  import {
+    type CellRange,
+    rangeBounds,
+    isInRange,
+    isSingleCell,
+    extendRange,
+    rangeToTsv,
+  } from './gridRange';
 
   interface Props {
     /** 表示・編集対象の TSV ドキュメント（`parseTsv` の結果）。 */
@@ -252,14 +259,27 @@
   let gridEl: HTMLDivElement | undefined;
   const dims = $derived({ rows: doc.rows.length, cols: doc.columns.length });
 
-  // アクティブセル（選択枠 / 貼り付けの起点）と現在モード。
-  let activeCell = $state<CellPos>({ row: 0, col: 0 });
+  // 選択範囲（anchor＝起点固定・focus＝伸長先＝アクティブセル）と現在モード。
+  // 単一セル選択は anchor === focus。Shift+矢印 / Shift+クリックで矩形に広げる。
+  let selection = $state<CellRange>({ anchor: { row: 0, col: 0 }, focus: { row: 0, col: 0 } });
+  // アクティブセル＝範囲の focus 角（input 化・フォーカス・行操作の対象はここ）。
+  const activeCell = $derived(selection.focus);
   let mode = $state<GridMode>('nav');
   // ユーザーが一度でもグリッドに触れたか。マウント時にフォーカスを勝手に奪わないためのガード。
   let engaged = $state(false);
 
   const isActive = (row: number, col: number): boolean =>
     activeCell.row === row && activeCell.col === col;
+  // 範囲内かつ focus セルでない＝範囲ハイライト（focus は選択リングで示す）。
+  const inSelection = (row: number, col: number): boolean =>
+    isInRange(selection, row, col) && !isActive(row, col);
+  // 矢印キー → 範囲拡張の移動量。
+  const ARROW_DELTA: Record<string, { dr: number; dc: number }> = {
+    ArrowUp: { dr: -1, dc: 0 },
+    ArrowDown: { dr: 1, dc: 0 },
+    ArrowLeft: { dr: 0, dc: -1 },
+    ArrowRight: { dr: 0, dc: 1 },
+  };
 
   const editable = $derived(onChange !== undefined);
 
@@ -286,10 +306,22 @@
     if (!editing) trySelectAll(input);
   });
 
-  function selectCell(row: number, col: number): void {
+  function selectCell(row: number, col: number, extend = false): void {
     engaged = true;
-    activeCell = { row, col };
+    // Shift+クリック＝アンカーを保って範囲を広げる。通常クリックは単一セルへ畳む。
+    selection = extend
+      ? { anchor: selection.anchor, focus: { row, col } }
+      : { anchor: { row, col }, focus: { row, col } };
     mode = 'nav';
+  }
+
+  // 選択ブロックを TSV（タブ区切り × 改行）でクリップボードへ。失敗は握り潰す。
+  async function copySelection(): Promise<void> {
+    try {
+      await navigator.clipboard.writeText(rangeToTsv(doc, selection));
+    } catch {
+      // クリップボード API 不許可の環境では無視（検証作業を止めない）
+    }
   }
 
   function enterEdit(): void {
@@ -299,6 +331,20 @@
   function onGridKeydown(row: number, col: number, event: KeyboardEvent): void {
     engaged = true;
     const multiline = event.target instanceof HTMLTextAreaElement;
+    // nav 中の範囲操作は planGridKey より先に横取り（Excel 同様の Shift+矢印 / Ctrl+C）。
+    if (mode === 'nav') {
+      const delta = ARROW_DELTA[event.key];
+      if (event.shiftKey && delta) {
+        event.preventDefault();
+        selection = extendRange(selection, delta, dims);
+        return;
+      }
+      if ((event.ctrlKey || event.metaKey) && (event.key === 'c' || event.key === 'C')) {
+        event.preventDefault();
+        void copySelection();
+        return;
+      }
+    }
     const action = planGridKey(
       { key: event.key, shift: event.shiftKey, ctrl: event.ctrlKey || event.metaKey },
       { row, col },
@@ -308,7 +354,8 @@
     switch (action.kind) {
       case 'move':
         event.preventDefault();
-        activeCell = action.to; // mode は nav のまま
+        // 修飾なし移動＝選択を移動先セルへ畳む（mode は nav のまま）。
+        selection = { anchor: action.to, focus: action.to };
         break;
       case 'edit':
         // 印字文字は preventDefault せず、全選択中の値へ上書きさせる（Excel 式の置換入力）。
@@ -319,7 +366,7 @@
       case 'commit-move':
         event.preventDefault();
         mode = 'nav';
-        activeCell = action.to;
+        selection = { anchor: action.to, focus: action.to };
         break;
       case 'cancel':
         event.preventDefault();
@@ -343,13 +390,21 @@
     const isBlock = matrix.length > 1 || matrix.some((cells) => cells.length > 1);
     if (!isBlock) return; // 単一セルは入力へ委ねる
     event.preventDefault();
-    onChange?.(applyPaste(doc, activeCell, text));
+    // 範囲選択中は左上を起点に流し込む（単一セル選択では focus と同じ）。
+    const { r0, c0 } = rangeBounds(selection);
+    onChange?.(applyPaste(doc, { row: r0, col: c0 }, text));
   }
 
   // ── 行操作（下部アクションバー）。対象は「選択中の行」＝アンカーセルの行。 ──
   const hasRows = $derived(doc.rows.length > 0);
   const activeRowLabel = $derived(hasRows ? `${activeCell.row + 1} 行目` : '—');
   const modeLabel = $derived(mode === 'edit' ? '編集' : '選択');
+  // 複数セル選択時だけ「行×列」を出す（単一セルは空＝ノイズにしない）。
+  const selectionLabel = $derived.by(() => {
+    if (isSingleCell(selection)) return '';
+    const b = rangeBounds(selection);
+    return `${b.r1 - b.r0 + 1}×${b.c1 - b.c0 + 1} 選択`;
+  });
 
   function addRow(): void {
     onChange?.(appendRow(doc));
@@ -453,6 +508,7 @@
               <td
                 class:invalid={issue !== undefined}
                 class:active
+                class:selected={inSelection(r, c)}
                 class:editing={active && mode === 'edit'}
                 title={issue}
                 data-cell={`${r}-${c}`}
@@ -470,7 +526,7 @@
                     class:overflow={colModes[c] === 'overflow'}
                     role="button"
                     tabindex="-1"
-                    onclick={() => selectCell(r, c)}
+                    onclick={(e) => selectCell(r, c, e.shiftKey)}
                   >
                     {cellDisplayText(widget?.kind, value)}
                   </div>
@@ -573,7 +629,9 @@
       <button type="button" class="row-btn danger" onclick={deleteActiveRow} disabled={!hasRows}>
         選択行を削除
       </button>
-      <span class="active-row" aria-live="polite">{modeLabel}中: {activeRowLabel}</span>
+      <span class="active-row" aria-live="polite">
+        {modeLabel}中: {activeRowLabel}{#if selectionLabel} · {selectionLabel}{/if}
+      </span>
     </div>
   {/if}
 
@@ -786,6 +844,12 @@
   td.invalid {
     background: var(--danger-subtle, rgba(220, 38, 38, 0.08));
     box-shadow: inset 3px 0 0 var(--danger-fg);
+  }
+
+  /* 範囲選択のセル（focus 以外）＝淡いアクセント地。focus セルは選択リングで示す。
+     Shift+矢印 / Shift+クリックで広げたブロックを Ctrl+C でコピーできる。 */
+  td.selected {
+    background: var(--accent-subtle);
   }
 
   /* アクティブセル＝選択リング（Excel の選択枠相当）。編集中は地を少し変える。 */
