@@ -66,6 +66,8 @@
     removeNoteAt,
     readGroups,
     groupCells,
+    writeGroups,
+    setGroup,
   } from './gridHeaderDirectives';
 
   interface Props {
@@ -148,6 +150,49 @@
   // （田中さん 2026-07-23）。隙間は空ラベルで全列を覆う。グループが無ければ行自体を出さない。
   const groupHeaderCells = $derived(groupCells(readGroups(doc.directives), doc.columns.length));
   const hasGroupHeader = $derived(groupHeaderCells.length > 0);
+
+  // ── グループヘッダのインライン改名・削除（Block TSV-Z）。編集対象の列 span を持つ
+  //    （null＝非編集）。追加（選択列への setGroup）は後続ブロック。改名/削除は setGroup の
+  //    純ロジックで表現し、書き戻しは writeGroups 経由＝共有パッケージ非改変・#@ round-trip。 ──
+  let editingGroup = $state<{ start: number; end: number } | null>(null);
+  let groupDraft = $state('');
+  function persistGroups(next: ReturnType<typeof setGroup>): void {
+    if (onChange) onChange({ ...doc, directives: writeGroups(doc.directives, next) });
+  }
+  function startGroupRename(cell: { start: number; span: number; label: string }): void {
+    if (!editable) return;
+    editingGroup = { start: cell.start, end: cell.start + cell.span - 1 };
+    groupDraft = cell.label;
+  }
+  function commitGroupEdit(): void {
+    if (!editingGroup) return;
+    persistGroups(
+      setGroup(readGroups(doc.directives), editingGroup.start, editingGroup.end, groupDraft),
+    );
+    editingGroup = null;
+    groupDraft = '';
+  }
+  function cancelGroupEdit(): void {
+    editingGroup = null;
+    groupDraft = '';
+  }
+  function deleteGroup(cell: { start: number; span: number }): void {
+    if (!editable) return;
+    persistGroups(
+      setGroup(readGroups(doc.directives), cell.start, cell.start + cell.span - 1, ''),
+    );
+    if (editingGroup) cancelGroupEdit();
+  }
+  function onGroupKeydown(event: KeyboardEvent): void {
+    event.stopPropagation();
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      commitGroupEdit();
+    } else if (event.key === 'Escape') {
+      event.preventDefault();
+      cancelGroupEdit();
+    }
+  }
 
   // sticky 段組みの固定高（px）。座標バー→補足行→（肉厚グループ）→型付きヘッダを上から積む。
   // 補足行数とグループ有無で押し下げ量が変わるので、CSS 変数で各行の top を供給し重なりを防ぐ。
@@ -701,7 +746,34 @@
                 scope="colgroup"
                 title={cell.label}
                 style={`top:${notesBottom}px; height:${GROUP_ROW_H}px`}
-              >{cell.label}</th>
+              >
+                {#if editable && cell.label !== '' && editingGroup?.start === cell.start}
+                  <!-- 改名中: input 化。Enter 確定・Esc 取消・blur 確定（グリッド nav へ非伝播）。 -->
+                  <input
+                    class="group-input"
+                    value={groupDraft}
+                    use:noteAutofocus
+                    oninput={(e) => (groupDraft = e.currentTarget.value)}
+                    onblur={commitGroupEdit}
+                    onkeydown={onGroupKeydown}
+                  />
+                {:else if editable && cell.label !== ''}
+                  <!-- クリックで大分類を改名。× で削除（下の型付きヘッダ/列は保持）。 -->
+                  <button
+                    type="button"
+                    class="group-text"
+                    title="クリックで大分類を改名"
+                    onclick={() => startGroupRename(cell)}
+                  >{cell.label}</button>
+                  <button
+                    type="button"
+                    class="group-del"
+                    title="この大分類を削除"
+                    aria-label="この大分類を削除"
+                    onclick={() => deleteGroup(cell)}
+                  >×</button>
+                {:else}{cell.label}{/if}
+              </th>
             {/each}
           </tr>
         {/if}
@@ -1227,9 +1299,67 @@
   }
 
   .group-filled {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-1);
     color: var(--text-primary);
     background: var(--bg-muted, var(--bg-subtle));
     border-right: 1px solid var(--border-strong);
+  }
+
+  /* 大分類ラベルはボタンだが地に溶かして「クリックで改名できる見出し」に見せる。 */
+  .group-text {
+    min-width: 0;
+    padding: 0;
+    border: none;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    font-weight: var(--text-sm-weight);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    cursor: text;
+  }
+
+  .group-del {
+    flex: none;
+    width: 18px;
+    height: 18px;
+    padding: 0;
+    border: none;
+    border-radius: var(--radius-sm, 4px);
+    background: transparent;
+    color: var(--text-tertiary);
+    font: inherit;
+    line-height: 1;
+    cursor: pointer;
+  }
+
+  .group-del:hover {
+    background: var(--bg-hover);
+    color: var(--danger-fg);
+  }
+
+  /* 改名 input はセル地に馴染ませる（罫線なし・中央寄せ・全幅）。 */
+  .group-input {
+    flex: 1;
+    min-width: 0;
+    width: 100%;
+    height: 100%;
+    box-sizing: border-box;
+    padding: 0;
+    border: none;
+    background: transparent;
+    color: var(--text-primary);
+    font: inherit;
+    font-weight: var(--text-sm-weight);
+    text-align: center;
+  }
+
+  .group-input:focus {
+    outline: none;
   }
 
   .group-corner {

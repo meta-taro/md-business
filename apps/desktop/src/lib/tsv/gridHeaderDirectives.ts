@@ -91,6 +91,27 @@ function parseGroup(body: string): GroupRange | null {
   return { start, end, label };
 }
 
+/**
+ * グループを 1 件「設定」する（追加 / 改名 / 削除を単一操作で担う・純ロジック）。
+ * 指定範囲 [start,end]（逆順は正規化）と重なる既存グループをすべて除いてから、ラベルが
+ * 非空なら新グループを末尾へ足す。ラベルが空（前後空白のみ含む）なら重なりを消すだけ＝削除。
+ * これにより Svelte 側は「選択列にグループを張る」「セルを改名する」「× で消す」を
+ * 同じ関数で表現できる。元配列は変更しない。
+ */
+export function setGroup(
+  groups: readonly GroupRange[],
+  start: number,
+  end: number,
+  label: string,
+): GroupRange[] {
+  const lo = Math.min(start, end);
+  const hi = Math.max(start, end);
+  const kept = groups.filter((g) => g.end < lo || g.start > hi);
+  const trimmed = label.trim();
+  if (trimmed === '') return kept;
+  return [...kept, { start: lo, end: hi, label: trimmed }];
+}
+
 /** 肉厚グループヘッダ（`#@ group <start>[-<end>] <label>`）を記載順に返す。不正は捨てる。 */
 export function readGroups(directives: readonly string[]): GroupRange[] {
   const groups: GroupRange[] = [];

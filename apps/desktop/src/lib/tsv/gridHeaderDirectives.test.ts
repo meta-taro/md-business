@@ -7,6 +7,7 @@ import {
   writeGroups,
   applyNoteEdit,
   removeNoteAt,
+  setGroup,
 } from './gridHeaderDirectives';
 
 /**
@@ -167,6 +168,55 @@ describe('writeGroups', () => {
     expect(writeGroups(['note x'], [{ start: 2, end: 2, label: '結果' }])).toEqual([
       'note x',
       'group 2 結果',
+    ]);
+  });
+});
+
+describe('setGroup', () => {
+  it('新規グループを追加する', () => {
+    expect(setGroup([], 0, 2, '大分類')).toEqual([{ start: 0, end: 2, label: '大分類' }]);
+  });
+
+  it('重なるグループを置き換える（改名 = 同 span を差し替え）', () => {
+    expect(setGroup([{ start: 0, end: 2, label: '旧' }], 0, 2, '新')).toEqual([
+      { start: 0, end: 2, label: '新' },
+    ]);
+  });
+
+  it('範囲が重なる既存はすべて除いてから追加する', () => {
+    expect(
+      setGroup(
+        [
+          { start: 0, end: 1, label: 'A' },
+          { start: 2, end: 3, label: 'B' },
+        ],
+        1,
+        2,
+        'C',
+      ),
+    ).toEqual([{ start: 1, end: 2, label: 'C' }]);
+  });
+
+  it('重ならない既存は温存する', () => {
+    expect(setGroup([{ start: 0, end: 1, label: 'A' }], 3, 4, 'B')).toEqual([
+      { start: 0, end: 1, label: 'A' },
+      { start: 3, end: 4, label: 'B' },
+    ]);
+  });
+
+  it('空ラベルは重なりを消すだけ（削除）', () => {
+    expect(setGroup([{ start: 0, end: 2, label: 'A' }], 0, 2, '   ')).toEqual([]);
+  });
+
+  it('start/end が逆でも正規化する', () => {
+    expect(setGroup([], 3, 1, 'X')).toEqual([{ start: 1, end: 3, label: 'X' }]);
+  });
+
+  it('read(write(setGroup(...))) は round-trip する', () => {
+    const groups = setGroup([{ start: 3, end: 3, label: '結果' }], 0, 2, '大分類');
+    expect(readGroups(writeGroups([], groups))).toEqual([
+      { start: 3, end: 3, label: '結果' },
+      { start: 0, end: 2, label: '大分類' },
     ]);
   });
 });
