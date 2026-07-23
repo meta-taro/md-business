@@ -158,10 +158,11 @@ describe('cellDisplayText', () => {
     expect(cellDisplayText('checkbox', '')).toBe('☐'); // 未入力＝未チェック
   });
 
-  it('multiline は先頭行だけ見せて行高を詰める（複数行は … を付す）', () => {
-    expect(cellDisplayText('multiline', '1 行目\n2 行目')).toBe('1 行目 …');
+  it('multiline は値をそのまま返す（畳まず、折り返し表示は CSS が担う）', () => {
+    // 田中さん 2026-07-23: 省略表示だけでなく折り返して全文を見せたい。
+    expect(cellDisplayText('multiline', '1 行目\n2 行目')).toBe('1 行目\n2 行目');
     expect(cellDisplayText('multiline', 'ひと息で書いた')).toBe('ひと息で書いた');
-    expect(cellDisplayText('multiline', 'CRLF も\r\n畳む')).toBe('CRLF も …');
+    expect(cellDisplayText('multiline', 'CRLF も\r\n残す')).toBe('CRLF も\r\n残す');
   });
 
   it('その他の型は値をそのまま返す', () => {

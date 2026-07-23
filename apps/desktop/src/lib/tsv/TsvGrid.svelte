@@ -11,6 +11,7 @@
    * `gridModel.cellDisplayText`、いずれも純関数として node 環境 vitest で検査済み。
    * Svelte 側はそれらを描画・フォーカス制御する薄いグルー（manual-verify）。
    */
+  import { untrack } from 'svelte';
   import type { TsvDocument } from '@md-business/schema-test-spec-tsv';
   import { validateTsv } from '@md-business/schema-test-spec-tsv';
   import {
@@ -24,6 +25,7 @@
   import { planGridKey, type GridMode } from './gridMode';
   import { parseClipboardMatrix, applyPaste, rowToTsv } from './gridClipboard';
   import { appendRow, duplicateRow, deleteRow, clearRow } from './gridRows';
+  import { MIN_COL_WIDTH, defaultColWidths, resizeColWidth, setColWidth } from './gridLayout';
 
   interface Props {
     /** 表示・編集対象の TSV ドキュメント（`parseTsv` の結果）。 */
@@ -36,6 +38,46 @@
 
   // 列型 → 入力ウィジェット仕様。列定義の変化に追従。
   const widgets = $derived(gridWidgets(doc.columns));
+
+  // ── 列幅（px）。table-layout:fixed の土台。選択（input 化）で幅が動かず、
+  //    ヘッダ境界のドラッグで自由に調整できる（田中さん 2026-07-23）。 ──
+  const ROWNUM_WIDTH = 44; // 行番号列の固定幅（px・.rownum の 2.75rem 相当）
+  // 初期幅はマウント時の列定義から一度だけ確定（untrack で「初期値キャプチャ」を明示）。
+  let colWidths = $state<number[]>(untrack(() => defaultColWidths(doc.columns)));
+  // 列定義が差し替わった（別ファイルを開いた）ときだけ既定幅へ戻す。setCell は
+  // columns 参照を保つので、セル編集ではユーザーの調整幅を維持する。
+  let lastColumnsRef = untrack(() => doc.columns);
+  $effect(() => {
+    if (doc.columns !== lastColumnsRef) {
+      lastColumnsRef = doc.columns;
+      colWidths = defaultColWidths(doc.columns);
+    }
+  });
+  // テーブル全幅＝行番号列 + 各列幅の合計（fixed レイアウトで横スクロール可能に）。
+  const tableWidth = $derived(ROWNUM_WIDTH + colWidths.reduce((sum, w) => sum + w, 0));
+
+  // ヘッダ境界ドラッグでの列幅リサイズ（pointer capture でカーソルが外れても追従）。
+  let resizing: { col: number; startX: number; startW: number } | null = null;
+  function onResizeStart(col: number, event: PointerEvent): void {
+    event.preventDefault();
+    event.stopPropagation();
+    resizing = { col, startX: event.clientX, startW: colWidths[col] ?? MIN_COL_WIDTH };
+    (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
+  }
+  function onResizeMove(event: PointerEvent): void {
+    if (!resizing) return;
+    const dx = event.clientX - resizing.startX;
+    colWidths = setColWidth(colWidths, resizing.col, resizeColWidth(resizing.startW, dx));
+  }
+  function onResizeEnd(event: PointerEvent): void {
+    if (!resizing) return;
+    try {
+      (event.currentTarget as HTMLElement).releasePointerCapture(event.pointerId);
+    } catch {
+      // pointer capture 非対応環境でも無視（リサイズは終了扱い）
+    }
+    resizing = null;
+  }
 
   // 型検査。セル位置ごとの最初の違反メッセージを引けるようにする。
   const issueByCell = $derived.by(() => {
@@ -220,7 +262,13 @@
     {#if doc.columns.length === 0}
       <p class="empty">列定義がありません（ヘッダ行のある TSV を開いてください）</p>
     {:else}
-      <table>
+      <table style={`width:${tableWidth}px`}>
+      <colgroup>
+        <col style={`width:${ROWNUM_WIDTH}px`} />
+        {#each doc.columns as _col, ci (ci)}
+          <col style={`width:${colWidths[ci] ?? MIN_COL_WIDTH}px`} />
+        {/each}
+      </colgroup>
       <thead>
         <tr>
           <th class="rownum" scope="col" aria-label="行番号"></th>
@@ -228,6 +276,18 @@
             <th scope="col" class:required={column.required}>
               <span class="colname">{column.name}</span>
               {#if column.required}<span class="req" aria-label="必須">*</span>{/if}
+              <!-- 列幅リサイズのグリップ。掴んで左右ドラッグで列幅を変える（スプレ同様）。
+                   キーボードでの列幅調整は未提供（マウス操作の補助 UI）。 -->
+              <!-- svelte-ignore a11y_no_static_element_interactions -->
+              <span
+                class="col-resize"
+                role="separator"
+                aria-orientation="vertical"
+                aria-label={`${column.name} 列の幅を変更`}
+                onpointerdown={(e) => onResizeStart(col, e)}
+                onpointermove={onResizeMove}
+                onpointerup={onResizeEnd}
+              ></span>
             </th>
           {/each}
         </tr>
@@ -256,6 +316,7 @@
                   <div
                     class="cell-view"
                     class:num={widget?.kind === 'number'}
+                    class:wrap={widget?.kind === 'multiline'}
                     role="button"
                     tabindex="-1"
                     onclick={() => selectCell(r, c)}
@@ -441,8 +502,9 @@
 
   table {
     border-collapse: collapse;
-    /* 内容幅で伸ばしつつ最低でも全幅。多列時は横スクロールで縦罫が途切れない。 */
-    width: max-content;
+    /* 列幅は colgroup の px（table-layout:fixed）で確定。選択（input 化）で列が広がらない。
+       テーブル全幅は列幅合計を inline style で与える＝多列時は横スクロールで縦罫が途切れない。 */
+    table-layout: fixed;
     min-width: 100%;
     font-size: var(--text-sm-size);
   }
@@ -466,6 +528,26 @@
     color: var(--text-secondary);
     background: var(--bg-subtle);
     border-bottom: 1px solid var(--border-strong);
+  }
+
+  /* 列幅リサイズのグリップ（ヘッダ右端の当たり判定）。thead th は sticky = 位置指定済み
+     なので absolute はこの th を基準に載る。掴んで左右ドラッグで列幅を変える。 */
+  .col-resize {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 7px;
+    height: 100%;
+    cursor: col-resize;
+    z-index: 4;
+    touch-action: none;
+    user-select: none;
+  }
+
+  .col-resize:hover,
+  .col-resize:active {
+    background: var(--accent);
+    opacity: 0.5;
   }
 
   tbody td {
@@ -532,6 +614,18 @@
     font-variant-numeric: tabular-nums;
   }
 
+  /* 複数行セル（非アクティブ）: 固定列幅内で折り返し、行高が内容に応じて伸びる
+     （田中さん 2026-07-23「省略だけでなく折り返して全文を見せたい」）。 */
+  .cell-view.wrap {
+    display: block;
+    white-space: pre-wrap;
+    overflow: hidden;
+    height: auto;
+    min-height: 30px;
+    line-height: 1.5;
+    word-break: break-word;
+  }
+
   /* アクティブセルの入力コンテナ。 */
   .cell-edit {
     display: block;
@@ -585,8 +679,8 @@
     margin: 0;
   }
 
-  /* 複数行セル: 折り返し + 内容に応じて行高が伸びる（autogrow が height を実値に）。
-     非アクティブは cellDisplayText が先頭行に畳むので、伸びるのは編集中のみ。 */
+  /* 複数行セル（編集中）: 折り返し + 内容に応じて行高が伸びる（autogrow が height を実値に）。
+     非アクティブの折り返し表示は .cell-view.wrap が担う。 */
   textarea.multiline {
     resize: none;
     line-height: 1.5;

@@ -92,16 +92,11 @@ export function cellToCheckbox(value: string): boolean {
  * 描画で、選択されていないセルは軽量なテキスト表示にする）。
  *
  * - `checkbox` → ☑ / ☐ グリフ（`TRUE` のみ真、他は未チェック）
- * - `multiline` → 先頭行のみ。複数行なら末尾に ` …` を付けて畳んだことを示す
- * - その他 → 値をそのまま（空セルは空文字＝未入力の正本を埋めない）
+ * - その他（`multiline` 含む）→ 値をそのまま。折り返し・行高は CSS（`white-space: pre-wrap`）が
+ *   担い、固定列幅内で全文を折り返して見せる（空セルは空文字＝未入力の正本を埋めない）
  */
 export function cellDisplayText(kind: CellWidgetKind | undefined, value: string): string {
   if (kind === 'checkbox') return cellToCheckbox(value) ? '☑' : '☐';
-  if (kind === 'multiline') {
-    if (value === '') return '';
-    const [first, ...rest] = value.split(/\r?\n/);
-    return rest.length > 0 ? `${first} …` : (first ?? '');
-  }
   return value;
 }
 
