@@ -1,5 +1,13 @@
 import { describe, it, expect } from 'vitest';
-import { readNotes, writeNotes, readGroups, groupCells, writeGroups } from './gridHeaderDirectives';
+import {
+  readNotes,
+  writeNotes,
+  readGroups,
+  groupCells,
+  writeGroups,
+  applyNoteEdit,
+  removeNoteAt,
+} from './gridHeaderDirectives';
 
 /**
  * 検証グリッドの表ヘッダ拡張（Issue 010・田中さん 2026-07-23「表の上に補足」
@@ -101,6 +109,48 @@ describe('groupCells', () => {
   it('妥当なグループが無ければ空（グループ行を出さない）', () => {
     expect(groupCells([], 3)).toEqual([]);
     expect(groupCells([{ start: 5, end: 6, label: '範囲外' }], 3)).toEqual([]);
+  });
+});
+
+describe('applyNoteEdit', () => {
+  it('既存 index のテキストを差し替える', () => {
+    expect(applyNoteEdit(['a', 'b'], 1, 'B')).toEqual(['a', 'B']);
+  });
+
+  it('末尾 index（= 長さ）は新規追加として末尾へ足す', () => {
+    expect(applyNoteEdit(['a'], 1, 'b')).toEqual(['a', 'b']);
+  });
+
+  it('既存 index を空にすると削除（前後の空白のみも削除）', () => {
+    expect(applyNoteEdit(['a', 'b'], 0, '   ')).toEqual(['b']);
+  });
+
+  it('新規 index に空を書いても何も足さない', () => {
+    expect(applyNoteEdit(['a'], 1, '')).toEqual(['a']);
+  });
+
+  it('前後の空白は落として格納する', () => {
+    expect(applyNoteEdit([], 0, '  こんにちは  ')).toEqual(['こんにちは']);
+  });
+
+  it('範囲外 index は変更せずコピーを返す', () => {
+    const notes = ['a'];
+    const result = applyNoteEdit(notes, 5, 'x');
+    expect(result).toEqual(['a']);
+    expect(result).not.toBe(notes);
+  });
+});
+
+describe('removeNoteAt', () => {
+  it('指定 index を取り除く', () => {
+    expect(removeNoteAt(['a', 'b', 'c'], 1)).toEqual(['a', 'c']);
+  });
+
+  it('範囲外は変更せずコピーを返す', () => {
+    const notes = ['a'];
+    const result = removeNoteAt(notes, 3);
+    expect(result).toEqual(['a']);
+    expect(result).not.toBe(notes);
   });
 });
 

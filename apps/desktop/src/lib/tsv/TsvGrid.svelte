@@ -59,7 +59,14 @@
   } from './gridRange';
   import { displayRowCount, editPaddedCell } from './gridBlankRows';
   import { columnLabels } from './columnLabel';
-  import { readNotes, readGroups, groupCells } from './gridHeaderDirectives';
+  import {
+    readNotes,
+    writeNotes,
+    applyNoteEdit,
+    removeNoteAt,
+    readGroups,
+    groupCells,
+  } from './gridHeaderDirectives';
 
   interface Props {
     /** 表示・編集対象の TSV ドキュメント（`parseTsv` の結果）。 */
@@ -78,8 +85,64 @@
   const colLetters = $derived(columnLabels(doc.columns.length));
 
   // 表の上の補足行（#@ note …）。型付きヘッダの上に全幅で敷く（田中さん 2026-07-23
-  // 「表の上に補足」）。フォーマット不変・#@ ディレクティブから読むだけ（編集は後続ブロック）。
+  // 「表の上に補足」）。フォーマット不変・#@ ディレクティブから読む。追加/編集/削除は
+  // 下の note 編集セクション（applyNoteEdit / removeNoteAt / writeNotes の純ロジック）。
   const notes = $derived(readNotes(doc.directives));
+
+  // ── 補足行のインライン編集（Block TSV-Y）。編集対象 index を持つ（null＝非編集）。
+  //    index === notes.length は「新規追加中の下書き行」を意味する。編集ロジックは
+  //    gridHeaderDirectives の純ロジック、下書き state とフォーカスだけが薄いグルー。 ──
+  let editingNote = $state<number | null>(null);
+  let noteDraft = $state('');
+  // 新規下書き中だけ表示行が 1 本増える（既存 note＋下書き）。sticky 段の押し下げに反映。
+  const noteRowCount = $derived(notes.length + (editingNote === notes.length ? 1 : 0));
+
+  function persistNotes(next: string[]): void {
+    if (!onChange) return;
+    onChange({ ...doc, directives: writeNotes(doc.directives, next) });
+  }
+  function startNoteEdit(index: number): void {
+    if (!editable) return;
+    editingNote = index;
+    noteDraft = notes[index] ?? '';
+  }
+  function startNewNote(): void {
+    if (!editable) return;
+    editingNote = notes.length;
+    noteDraft = '';
+  }
+  function commitNoteEdit(): void {
+    if (editingNote === null) return;
+    // directives から読み直した最新 notes へ 1 件編集を適用（空なら追加/削除で解決）。
+    persistNotes(applyNoteEdit(readNotes(doc.directives), editingNote, noteDraft));
+    editingNote = null;
+    noteDraft = '';
+  }
+  function cancelNoteEdit(): void {
+    editingNote = null;
+    noteDraft = '';
+  }
+  function deleteNote(index: number): void {
+    if (!editable) return;
+    persistNotes(removeNoteAt(readNotes(doc.directives), index));
+    if (editingNote === index) cancelNoteEdit();
+  }
+  // note 編集 input のキー操作＝Enter で確定・Esc で取消（グリッド nav へ伝播させない）。
+  function onNoteKeydown(event: KeyboardEvent): void {
+    event.stopPropagation();
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      commitNoteEdit();
+    } else if (event.key === 'Escape') {
+      event.preventDefault();
+      cancelNoteEdit();
+    }
+  }
+  // 下書き input のマウント時に自動フォーカス（Svelte action・薄いグルー）。
+  function noteAutofocus(node: HTMLInputElement) {
+    node.focus();
+    node.select();
+  }
 
   // 肉厚グループヘッダ（#@ group …）。型付きヘッダ（項目/手順/結果）の上に大分類を敷く
   // （田中さん 2026-07-23）。隙間は空ラベルで全列を覆う。グループが無ければ行自体を出さない。
@@ -91,7 +154,7 @@
   const COORD_ROW_H = 20;
   const NOTE_ROW_H = 24;
   const GROUP_ROW_H = 30;
-  const notesBottom = $derived(COORD_ROW_H + notes.length * NOTE_ROW_H);
+  const notesBottom = $derived(COORD_ROW_H + noteRowCount * NOTE_ROW_H);
   const headTop = $derived(notesBottom + (hasGroupHeader ? GROUP_ROW_H : 0));
 
   // ── レイアウト（列幅 px / 行高 px / 列表示モード）。田中さん 2026-07-23「幅や、行を
@@ -565,11 +628,66 @@
               class="note-cell"
               colspan={doc.columns.length}
               scope="colgroup"
-              title={note}
               style={`top:${COORD_ROW_H + ni * NOTE_ROW_H}px; height:${NOTE_ROW_H}px`}
-            >{note}</th>
+            >
+              {#if editable && editingNote === ni}
+                <!-- 編集中: input 化。Enter 確定・Esc 取消・blur で確定（グリッド nav へ非伝播）。 -->
+                <input
+                  class="note-input"
+                  value={noteDraft}
+                  use:noteAutofocus
+                  oninput={(e) => (noteDraft = e.currentTarget.value)}
+                  onblur={commitNoteEdit}
+                  onkeydown={onNoteKeydown}
+                />
+              {:else if editable}
+                <!-- クリックで編集（セル同様の 1 クリック→編集は補足では過剰なので即編集）。× で削除。 -->
+                <button
+                  type="button"
+                  class="note-text"
+                  title="クリックで補足を編集"
+                  onclick={() => startNoteEdit(ni)}
+                >{note}</button>
+                <button
+                  type="button"
+                  class="note-del"
+                  title="この補足を削除"
+                  aria-label="この補足を削除"
+                  onclick={() => deleteNote(ni)}
+                >×</button>
+              {:else}
+                <span class="note-text-ro" title={note}>{note}</span>
+              {/if}
+            </th>
           </tr>
         {/each}
+        {#if editable && editingNote === notes.length}
+          <!-- 新規追加中の下書き行（まだ directives に無い）。確定で writeNotes へ焼く。 -->
+          <tr class="note-row">
+            <th
+              class="rownum note-corner"
+              scope="row"
+              aria-hidden="true"
+              style={`top:${COORD_ROW_H + notes.length * NOTE_ROW_H}px`}
+            ></th>
+            <th
+              class="note-cell"
+              colspan={doc.columns.length}
+              scope="colgroup"
+              style={`top:${COORD_ROW_H + notes.length * NOTE_ROW_H}px; height:${NOTE_ROW_H}px`}
+            >
+              <input
+                class="note-input"
+                value={noteDraft}
+                use:noteAutofocus
+                placeholder="補足を入力…（Enter で確定・Esc で取消）"
+                oninput={(e) => (noteDraft = e.currentTarget.value)}
+                onblur={commitNoteEdit}
+                onkeydown={onNoteKeydown}
+              />
+            </th>
+          </tr>
+        {/if}
         <!-- 肉厚グループヘッダ（#@ group …）。型付きヘッダの上に大分類を敷く。隙間セルは
              空ラベルで全列を覆う。補足行の下・型付きヘッダの上に sticky で載せる。 -->
         {#if hasGroupHeader}
@@ -775,6 +893,8 @@
       >
         選択行を削除
       </button>
+      <!-- 表の上の補足行を 1 本追加（#@ note …）。田中さん 2026-07-23「表の上に補足」の編集導線。 -->
+      <button type="button" class="row-btn" onclick={startNewNote}>＋ 補足行</button>
       <span class="active-row" aria-live="polite">
         {modeLabel}中: {activeRowLabel}{#if selectionLabel} · {selectionLabel}{/if}
       </span>
@@ -1017,8 +1137,75 @@
     text-overflow: ellipsis;
   }
 
+  /* 補足セルは「本文（伸長）＋削除ボタン」/ 編集 input を横並びに収める。 */
   .note-cell {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
     font-size: var(--text-2xs-size, var(--text-sm-size));
+  }
+
+  /* 補足本文はボタンだが地に溶かして「クリックで編集できるテキスト」に見せる。 */
+  .note-text {
+    flex: 1;
+    min-width: 0;
+    padding: 0;
+    border: none;
+    background: transparent;
+    color: var(--text-secondary);
+    font: inherit;
+    text-align: left;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    cursor: text;
+  }
+
+  .note-text:hover {
+    color: var(--text-primary);
+  }
+
+  .note-text-ro {
+    display: block;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* 削除 × は控えめ。ホバーで危険色に。 */
+  .note-del {
+    flex: none;
+    width: 18px;
+    height: 18px;
+    padding: 0;
+    border: none;
+    border-radius: var(--radius-sm, 4px);
+    background: transparent;
+    color: var(--text-tertiary);
+    font: inherit;
+    line-height: 1;
+    cursor: pointer;
+  }
+
+  .note-del:hover {
+    background: var(--bg-hover);
+    color: var(--danger-fg);
+  }
+
+  /* 補足の編集 input はセル地に馴染ませる（罫線なし・全幅）。 */
+  .note-input {
+    width: 100%;
+    height: 100%;
+    box-sizing: border-box;
+    padding: 0;
+    border: none;
+    background: transparent;
+    color: var(--text-primary);
+    font: inherit;
+  }
+
+  .note-input:focus {
+    outline: none;
   }
 
   .note-corner {

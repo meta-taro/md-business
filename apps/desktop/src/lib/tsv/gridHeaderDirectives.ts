@@ -54,6 +54,32 @@ export function writeNotes(directives: readonly string[], notes: readonly string
   return [...kept, ...lines];
 }
 
+/**
+ * 補足行の 1 件編集を notes 配列へ適用する（Svelte 側のインライン編集用・純ロジック）。
+ * - `index < length`: 既存を差し替え。前後空白を落とし、空になったら削除。
+ * - `index === length`: 新規追加（空なら何もしない）。
+ * - それ以外（範囲外）: 変更せずコピーを返す。
+ * 元配列は変更しない（常に新配列）。
+ */
+export function applyNoteEdit(notes: readonly string[], index: number, text: string): string[] {
+  const next = notes.slice();
+  const trimmed = text.trim();
+  if (index >= 0 && index < next.length) {
+    if (trimmed === '') next.splice(index, 1);
+    else next[index] = trimmed;
+  } else if (index === next.length && trimmed !== '') {
+    next.push(trimmed);
+  }
+  return next;
+}
+
+/** 補足行を 1 件削除する（範囲外は変更せずコピー）。元配列は変更しない。 */
+export function removeNoteAt(notes: readonly string[], index: number): string[] {
+  const next = notes.slice();
+  if (index >= 0 && index < next.length) next.splice(index, 1);
+  return next;
+}
+
 /** `<start>[-<end>] <label>` をパースする。範囲不正・ラベル無しは null。 */
 function parseGroup(body: string): GroupRange | null {
   const m = body.match(/^(\d+)(?:-(\d+))?\s+(.+)$/);
