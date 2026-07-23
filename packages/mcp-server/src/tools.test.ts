@@ -6,7 +6,7 @@ import { readDocument, validateDocument, createDocument, updateDocument } from '
 /**
  * MCP P0 ツール本体（Issue 004 Phase 2）。DocumentStore 越しで fs 非依存に単体テスト。
  * valid:true パスは ajv 検証済みの invoice テンプレ frontmatter をインラインで使う
- * （templates/invoice/standard.md 由来・§19 で妥当を確認）。
+ * （templates/invoice/standard.md 由来・妥当を確認済み）。
  */
 
 // templates/invoice/standard.md の frontmatter（schemaVersion: invoice/v1・妥当）

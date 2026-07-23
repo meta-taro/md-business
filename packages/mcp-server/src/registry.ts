@@ -3,9 +3,8 @@
  * -----------------------------------------------------------------------------
  * 6 つの schema パッケージ（invoice / spec / test-spec / db-spec / nosql-db-spec /
  * api-spec）の公開 export だけを束ね、schema id → 検証器・JSON Schema・表示名を
- * 解決する。各パッケージの実装には一切触れない（§16）。chrome-extension の plugins /
- * desktop の previewFactory と同じ「薄い config を並べる」作法だが、MCP は描画を
- * 持たないので validate と JSON Schema のみを保持する。
+ * 解決する。各パッケージの実装には一切触れず、薄い config を並べるだけに留める。
+ * MCP は描画を持たないので validate と JSON Schema のみを保持する。
  *
  * 検出は frontmatter の `schema:` 値（例 `invoice/v1`）を id に突き合わせる。MCP 経由で
  * エージェントが書く文書はテンプレ由来で必ず `schema:` を宣言するため、マーカー推論より
@@ -32,9 +31,9 @@ import { apiSpecSchema, SCHEMA_VERSION as API_ID } from '@md-business/schema-api
  * bundler / Apps Script inline 向けで、`ajv/dist/runtime/*` を拡張子なし bare import
  * するため生 Node ESM では解決できない（MCP サーバーは初の raw-Node consumer）。
  * MCP は Node sidecar なので CSP 制約がなく、runtime Ajv（new Function）を使える。
- * schema パッケージ側は一切触らず（§16・他 consumer を壊さない）、こちらで JSON Schema
+ * 他 consumer を壊さないため schema パッケージ側には手を入れず、こちらで JSON Schema
  * を draft 2020-12 の Ajv でコンパイルする。全 schema は `default` 未使用のため
- * useDefaults によるデータ変異は起きない（§19 で確認）。
+ * useDefaults によるデータ変異は起きない（実 schema.json で確認済み）。
  */
 const ajv = new Ajv2020({ allErrors: true, strict: false });
 addFormats(ajv);
@@ -64,7 +63,7 @@ export interface SchemaEntry {
   /**
    * この種別の schema 宣言を載せる canonical な frontmatter キー。
    * create_document がここへ id を書き込む。invoice/spec は `schemaVersion`、
-   * test-spec/db/nosql/api は `schema`（各 schema.json の required で確認・§19）。
+   * test-spec/db/nosql/api は `schema`（各 schema.json の required で確認済み）。
    */
   schemaKey: 'schema' | 'schemaVersion';
 }
@@ -131,7 +130,7 @@ export function resolveSchema(id: string): SchemaEntry | null {
  * schema 宣言に使われうる frontmatter キー（先頭優先）。
  * canonical は種別で割れる（invoice/spec は `schemaVersion`、test-spec/db/nosql/api は
  * `schema`）うえ、日本語テンプレは `スキーマ` エイリアス。normalize を通さずに素の
- * frontmatter から検出できるよう、実テンプレで確認した候補キーを走査する（§19）。
+ * frontmatter から検出できるよう、実テンプレで確認した候補キーを走査する。
  */
 const SCHEMA_KEYS = ['schema', 'schemaVersion', 'スキーマ'] as const;
 

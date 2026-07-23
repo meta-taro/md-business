@@ -11,7 +11,7 @@ import { SCHEMA_REGISTRY, listSchemas, resolveSchema, detectSchemaId } from './r
  * MCP スキーマ・レジストリ（Issue 004 Phase 2）。6 スキーマパッケージを wrap し、
  * schema id → { label, validate, schema } を解決する。既存パッケージは非改変で、
  * ここは公開 export（`/validate` compiled validator + SCHEMA_VERSION + JSON Schema）を
- * 束ねるだけ（§16）。検出は frontmatter の `schema:` 値（例 `invoice/v1`）を照合する。
+ * 束ねるだけ。検出は frontmatter の `schema:` 値（例 `invoice/v1`）を照合する。
  */
 describe('SCHEMA_REGISTRY', () => {
   it('6 スキーマを登録し、id は各パッケージの SCHEMA_VERSION と一致する', () => {
@@ -71,7 +71,7 @@ describe('detectSchemaId', () => {
   });
 
   it('schema 宣言キーは種別で揺れる（schemaVersion / スキーマ も走査する）', () => {
-    // invoice / spec は canonical が schemaVersion（テンプレ実物・§19 で確認）
+    // invoice / spec は canonical が schemaVersion（テンプレ実物で確認済み）
     expect(detectSchemaId({ schemaVersion: INVOICE_V })).toBe(INVOICE_V);
     // 日本語テンプレは スキーマ エイリアス（spec/test-spec/api-spec の standard-ja）
     expect(detectSchemaId({ スキーマ: SPEC_V })).toBe(SPEC_V);

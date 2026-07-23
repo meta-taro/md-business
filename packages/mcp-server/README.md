@@ -2,7 +2,7 @@
 
 md-business の **MCP（Model Context Protocol）サーバー**。Claude Desktop / Claude Code / Cursor / Cline などの AI エージェントが、Markdown 業務文書（適格請求書・基本設計書・検証シート・DB 設計書・API 詳細設計書）を**正本として直接**読み書き・検証・検索できるようにする Node sidecar（stdio 接続）。
 
-> Issue 004 Phase 2。アーキテクチャ（Tauri 2.x + Node sidecar + stdio）は PdM 確定済み。
+アーキテクチャは Tauri Desktop から起動する Node sidecar（stdio 接続）。
 
 ## 提供ツール（P0）
 
@@ -17,8 +17,8 @@ md-business の **MCP（Model Context Protocol）サーバー**。Claude Desktop
 
 対応スキーマ: `invoice/v1` / `spec/v1` / `test-spec/v1` / `db-spec/v1` / `nosql-db-spec/v1` / `api-spec/v1`。
 
-> **`git_push` は MCP ツールとして提供しない**（push は人間の最終確認が必須・baseline §6）。
-> **secrets / API キーの投入は人間のみ**（baseline §15）。MCP サーバーは受け取らない。
+> **`git_push` は MCP ツールとして提供しない**（push は人間が最終確認する運用のため）。
+> **secrets / API キーは MCP サーバーが受け取らない**（人間が直接投入する）。
 
 ## ビルド
 
