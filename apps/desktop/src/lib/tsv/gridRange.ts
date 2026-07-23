@@ -48,6 +48,18 @@ function clamp(value: number, max: number): number {
 }
 
 /**
+ * 行全体（先頭列〜末尾列）を覆う矩形範囲を返す。行番号セルのクリックで使う
+ * （田中さん 2026-07-23「行の数字をクリックしても行全体の選択にできなかった」）。
+ * anchor＝先頭列、focus＝末尾列。列が 0 のときは focus 列も 0 でクランプ。
+ */
+export function rowRange(row: number, colCount: number): CellRange {
+  return {
+    anchor: { row, col: 0 },
+    focus: { row, col: Math.max(0, colCount - 1) },
+  };
+}
+
+/**
  * focus を移動量ぶん動かした **新しい** 範囲を返す（anchor は固定・入力は不変）。
  * グリッド端でクランプし範囲外へは出ない。Shift+矢印での伸長に使う。
  */

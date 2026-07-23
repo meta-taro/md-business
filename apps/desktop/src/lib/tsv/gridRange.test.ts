@@ -6,6 +6,7 @@ import {
   isSingleCell,
   extendRange,
   rangeToTsv,
+  rowRange,
 } from './gridRange';
 
 /**
@@ -103,5 +104,20 @@ describe('rangeToTsv', () => {
     const sparse: TsvDocument = { ...doc, rows: [['x'], ['y', 'z']] };
     const range = { anchor: { row: 0, col: 0 }, focus: { row: 1, col: 1 } };
     expect(rangeToTsv(sparse, range)).toBe('x\t\ny\tz');
+  });
+});
+
+describe('rowRange', () => {
+  it('行番号クリック＝先頭列から末尾列までの矩形（行全体）', () => {
+    expect(rowRange(2, 3)).toEqual({
+      anchor: { row: 2, col: 0 },
+      focus: { row: 2, col: 2 },
+    });
+  });
+  it('列が 0 でも focus 列は 0 でクランプ', () => {
+    expect(rowRange(1, 0)).toEqual({
+      anchor: { row: 1, col: 0 },
+      focus: { row: 1, col: 0 },
+    });
   });
 });

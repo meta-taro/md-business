@@ -52,6 +52,7 @@
     isSingleCell,
     extendRange,
     rangeToTsv,
+    rowRange,
   } from './gridRange';
   import { displayRowCount, editPaddedCell } from './gridBlankRows';
 
@@ -334,6 +335,13 @@
     mode = 'nav';
   }
 
+  // 行番号クリック＝その行全体（先頭列〜末尾列）を範囲選択（田中さん 2026-07-23）。
+  function selectWholeRow(row: number): void {
+    engaged = true;
+    selection = rowRange(row, doc.columns.length);
+    mode = 'nav';
+  }
+
   // 選択ブロックを TSV（タブ区切り × 改行）でクリップボードへ。失敗は握り潰す。
   async function copySelection(): Promise<void> {
     try {
@@ -509,7 +517,10 @@
         <!-- 実データ行 + pad 空行を通し番号で描く。pad 行のセルは cellValue が '' を返す。 -->
         {#each Array(displayRows) as _row, r (r)}
           <tr style={`height:${rowHeights[r] ?? DEFAULT_ROW_HEIGHT}px`}>
-            <th class="rownum" scope="row">
+            <!-- 行番号クリックで行全体を選択（スプレ同様）。下端のグリップは行高リサイズ。 -->
+            <!-- svelte-ignore a11y_click_events_have_key_events -->
+            <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+            <th class="rownum rownum-select" scope="row" onclick={() => selectWholeRow(r)}>
               {r + 1}
               <!-- 行高リサイズのグリップ（行番号セル下端）。ドラッグで高さ変更、
                    ダブルクリックで既定高に戻す。キーボード操作は未提供。 -->
@@ -540,6 +551,7 @@
                 data-cell={`${r}-${c}`}
                 onkeydown={(e) => onGridKeydown(r, c, e)}
                 oncontextmenu={(e) => openColMenu(c, e)}
+                ondblclick={enterEdit}
               >
                 {#if !active}
                   <!-- 非アクティブ＝静的表示。クリックで選択（nav）。キーボード操作は
@@ -557,8 +569,9 @@
                     {cellDisplayText(widget?.kind, value)}
                   </div>
                 {:else}
-                  <!-- アクティブ＝実ウィジェット。クリックで編集（edit）へ。 -->
-                  <div class="cell-edit" role="presentation" onpointerup={enterEdit}>
+                  <!-- アクティブ＝実ウィジェット。ダブルクリック（td の ondblclick）で編集へ。
+                       単一クリックは選択のまま（スプレ式・田中さん 2026-07-23）。 -->
+                  <div class="cell-edit" role="presentation">
                     {#if widget === undefined}
                       <span class="plain">{value}</span>
                     {:else if widget.kind === 'checkbox'}
@@ -864,6 +877,16 @@
 
   thead .rownum {
     z-index: 3; /* 隅は行番号（left sticky）とヘッダ（top sticky）の交点で最前面 */
+  }
+
+  /* 行番号セルはクリックで行全体を選択できる＝ポインタカーソルで示す。 */
+  .rownum-select {
+    cursor: pointer;
+  }
+
+  .rownum-select:hover {
+    color: var(--text-secondary);
+    background: var(--bg-hover);
   }
 
   .req {
