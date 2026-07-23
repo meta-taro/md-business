@@ -55,6 +55,7 @@
     rowRange,
   } from './gridRange';
   import { displayRowCount, editPaddedCell } from './gridBlankRows';
+  import { columnLabels } from './columnLabel';
 
   interface Props {
     /** 表示・編集対象の TSV ドキュメント（`parseTsv` の結果）。 */
@@ -67,6 +68,10 @@
 
   // 列型 → 入力ウィジェット仕様。列定義の変化に追従。
   const widgets = $derived(gridWidgets(doc.columns));
+
+  // スプレッドシート列座標（A,B,C…AA,AB）。型付きヘッダとは別レイヤーの位置参照バー
+  // （田中さん 2026-07-23）。フォーマットは変えず、描画専用に列数から算出する。
+  const colLetters = $derived(columnLabels(doc.columns.length));
 
   // ── 列幅（px）。table-layout:fixed の土台。選択（input 化）で幅が動かず、
   //    ヘッダ境界のドラッグで自由に調整できる（田中さん 2026-07-23）。 ──
@@ -485,7 +490,15 @@
         {/each}
       </colgroup>
       <thead>
-        <tr>
+        <!-- スプレッドシート列座標バー（A,B,C…）。型付きヘッダの上に重ねる位置参照レイヤー。
+             フォーマット不変・描画専用（田中さん 2026-07-23）。 -->
+        <tr class="coord-row">
+          <th class="rownum coord-corner" scope="col" aria-hidden="true"></th>
+          {#each colLetters as letter, ci (ci)}
+            <th class="coord-cell" scope="col">{letter}</th>
+          {/each}
+        </tr>
+        <tr class="head-row">
           <th class="rownum" scope="col" aria-label="行番号"></th>
           {#each doc.columns as column, col (col)}
             <th
@@ -877,6 +890,33 @@
 
   thead .rownum {
     z-index: 3; /* 隅は行番号（left sticky）とヘッダ（top sticky）の交点で最前面 */
+  }
+
+  /* ── スプレッドシート列座標バー（A,B,C…）。thead 最上段に薄く敷く位置参照レイヤー。
+     座標行を top:0 で固定し、型付きヘッダ行はその高さぶん下げて二段 sticky にする。 ── */
+  .coord-row th {
+    top: 0;
+    height: 20px;
+    padding: 0;
+    text-align: center;
+    color: var(--text-tertiary);
+    font-weight: var(--text-2xs-weight);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.02em;
+  }
+
+  .coord-cell {
+    font-size: var(--text-2xs-size, var(--text-sm-size));
+  }
+
+  /* 型付きヘッダ行は座標行（20px）のぶん下げて重ならないよう sticky する。 */
+  .head-row th {
+    top: 20px;
+  }
+
+  /* 左上隅（座標×行番号の交点）は両 sticky の最前面。座標バーと地を揃える。 */
+  .coord-corner {
+    z-index: 4;
   }
 
   /* 行番号セルはクリックで行全体を選択できる＝ポインタカーソルで示す。 */
