@@ -18,6 +18,7 @@
   } from './gridModel';
   import { planCellKeydown, type CellPos } from './gridNav';
   import { parseClipboardMatrix, applyPaste } from './gridClipboard';
+  import { appendRow, duplicateRow, deleteRow } from './gridRows';
 
   interface Props {
     /** 表示・編集対象の TSV ドキュメント（`parseTsv` の結果）。 */
@@ -104,19 +105,34 @@
     event.preventDefault();
     onChange(applyPaste(doc, activeCell, text));
   }
+
+  // ── 行操作（下部アクションバー）。対象は「選択中の行」＝アンカーセルの行。 ──
+  const hasRows = $derived(doc.rows.length > 0);
+  const activeRowLabel = $derived(hasRows ? `${activeCell.row + 1} 行目` : '—');
+
+  function addRow(): void {
+    onChange?.(appendRow(doc));
+  }
+  function duplicateActiveRow(): void {
+    if (hasRows) onChange?.(duplicateRow(doc, activeCell.row));
+  }
+  function deleteActiveRow(): void {
+    if (hasRows) onChange?.(deleteRow(doc, activeCell.row));
+  }
 </script>
 
-<div
-  class="tsv-grid"
-  role="region"
-  aria-label="検証シート編集グリッド"
-  bind:this={gridEl}
-  onpaste={onGridPaste}
->
-  {#if doc.columns.length === 0}
-    <p class="empty">列定義がありません（ヘッダ行のある TSV を開いてください）</p>
-  {:else}
-    <table>
+<div class="grid-shell">
+  <div
+    class="tsv-grid"
+    role="region"
+    aria-label="検証シート編集グリッド"
+    bind:this={gridEl}
+    onpaste={onGridPaste}
+  >
+    {#if doc.columns.length === 0}
+      <p class="empty">列定義がありません（ヘッダ行のある TSV を開いてください）</p>
+    {:else}
+      <table>
       <thead>
         <tr>
           <th class="rownum" scope="col" aria-label="行番号"></th>
@@ -217,16 +233,94 @@
         {/each}
       </tbody>
     </table>
+    {/if}
+  </div>
+
+  {#if onChange && doc.columns.length > 0}
+    <!-- 行操作バー。対象は「選択中の行」＝最後にフォーカスしたセルの行。 -->
+    <div class="grid-actions">
+      <button type="button" class="row-btn" onclick={addRow}>＋ 行を追加</button>
+      <button type="button" class="row-btn" onclick={duplicateActiveRow} disabled={!hasRows}>
+        選択行を複製
+      </button>
+      <button type="button" class="row-btn danger" onclick={deleteActiveRow} disabled={!hasRows}>
+        選択行を削除
+      </button>
+      <span class="active-row" aria-live="polite">選択中: {activeRowLabel}</span>
+    </div>
   {/if}
 </div>
 
 <style>
+  /* グリッド本体（スクロール）＋下部の行操作バーを縦に積む器。ペイン高さいっぱい。 */
+  .grid-shell {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
   /* DESIGN §5.8: 検証グリッドはスプレッドシート（Excel / Sheets）調。罫線＝セル境界、
      セルは枠なし透明でその場編集、アクティブセルは選択リング。§5.3 の読み取り表とは別仕様。 */
   .tsv-grid {
-    height: 100%;
+    flex: 1;
+    min-height: 0;
     overflow: auto;
     background: var(--bg-app);
+  }
+
+  /* 行操作バー: グリッド下端に固定（スクロールしない）。控えめな地で罫線で区切る。 */
+  .grid-actions {
+    flex: none;
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-3);
+    border-top: 1px solid var(--border);
+    background: var(--bg-subtle);
+  }
+
+  .row-btn {
+    height: 26px;
+    padding: 0 var(--space-3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    background: var(--bg-app);
+    color: var(--text-secondary);
+    font-size: var(--text-sm-size);
+    cursor: pointer;
+    transition:
+      background var(--dur-fast) var(--ease),
+      color var(--dur-fast) var(--ease),
+      border-color var(--dur-fast) var(--ease);
+  }
+
+  .row-btn:hover:not(:disabled) {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+    border-color: var(--border-strong);
+  }
+
+  .row-btn.danger:hover:not(:disabled) {
+    color: var(--danger-fg);
+    border-color: var(--danger-fg);
+  }
+
+  .row-btn:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px var(--accent-subtle);
+    color: var(--text-primary);
+  }
+
+  .row-btn:disabled {
+    opacity: 0.45;
+    cursor: default;
+  }
+
+  .active-row {
+    margin-left: auto;
+    font-size: var(--text-2xs-size, var(--text-sm-size));
+    color: var(--text-tertiary);
+    font-variant-numeric: tabular-nums;
   }
 
   table {
