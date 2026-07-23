@@ -32,6 +32,13 @@
     setColWidth,
     fitColWidth,
   } from './gridLayout';
+  import {
+    DEFAULT_ROW_HEIGHT,
+    defaultRowHeights,
+    resizeRowHeight,
+    setRowHeight,
+    reconcileRowHeights,
+  } from './gridRowLayout';
 
   interface Props {
     /** 表示・編集対象の TSV ドキュメント（`parseTsv` の結果）。 */
@@ -120,6 +127,45 @@
     }
     span.remove();
     colWidths = setColWidth(colWidths, col, fitColWidth(measured));
+  }
+
+  // ── 行高（px）。列幅と対称。行境界のドラッグで可変（田中さん 2026-07-23）。
+  //    tr の height は最小高として効くので、折り返し内容がそれより高ければ内容が伸びる。 ──
+  let rowHeights = $state<number[]>(untrack(() => defaultRowHeights(doc.rows.length)));
+  // 行の追加・削除で件数が変わったときだけ長さを合わせる（既存行の手動高は保つ）。
+  let lastRowCount = untrack(() => doc.rows.length);
+  $effect(() => {
+    const n = doc.rows.length;
+    if (n !== lastRowCount) {
+      lastRowCount = n;
+      rowHeights = reconcileRowHeights(rowHeights, n);
+    }
+  });
+
+  let rowResizing: { row: number; startY: number; startH: number } | null = null;
+  function onRowResizeStart(row: number, event: PointerEvent): void {
+    event.preventDefault();
+    event.stopPropagation();
+    rowResizing = { row, startY: event.clientY, startH: rowHeights[row] ?? DEFAULT_ROW_HEIGHT };
+    (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
+  }
+  function onRowResizeMove(event: PointerEvent): void {
+    if (!rowResizing) return;
+    const dy = event.clientY - rowResizing.startY;
+    rowHeights = setRowHeight(rowHeights, rowResizing.row, resizeRowHeight(rowResizing.startH, dy));
+  }
+  function onRowResizeEnd(event: PointerEvent): void {
+    if (!rowResizing) return;
+    try {
+      (event.currentTarget as HTMLElement).releasePointerCapture(event.pointerId);
+    } catch {
+      // pointer capture 非対応環境でも無視
+    }
+    rowResizing = null;
+  }
+  // 行境界のダブルクリック＝既定高へ戻す（内容＝折り返しに応じた自然な高さに任せる）。
+  function autoFitRow(row: number): void {
+    rowHeights = setRowHeight(rowHeights, row, DEFAULT_ROW_HEIGHT);
   }
 
   // 型検査。セル位置ごとの最初の違反メッセージを引けるようにする。
@@ -339,8 +385,24 @@
       </thead>
       <tbody>
         {#each doc.rows as row, r (r)}
-          <tr>
-            <th class="rownum" scope="row">{r + 1}</th>
+          <tr style={`height:${rowHeights[r] ?? DEFAULT_ROW_HEIGHT}px`}>
+            <th class="rownum" scope="row">
+              {r + 1}
+              <!-- 行高リサイズのグリップ（行番号セル下端）。ドラッグで高さ変更、
+                   ダブルクリックで既定高に戻す。キーボード操作は未提供。 -->
+              <!-- svelte-ignore a11y_no_static_element_interactions -->
+              <span
+                class="row-resize"
+                role="separator"
+                aria-orientation="horizontal"
+                aria-label={`${r + 1} 行目の高さを変更`}
+                title="ドラッグで高さ変更／ダブルクリックで既定に戻す"
+                onpointerdown={(e) => onRowResizeStart(r, e)}
+                onpointermove={onRowResizeMove}
+                onpointerup={onRowResizeEnd}
+                ondblclick={() => autoFitRow(r)}
+              ></span>
+            </th>
             {#each doc.columns as _column, c (c)}
               {@const widget = widgets[c]}
               {@const value = cellValue(r, c)}
@@ -591,6 +653,26 @@
 
   .col-resize:hover,
   .col-resize:active {
+    background: var(--accent);
+    opacity: 0.5;
+  }
+
+  /* 行高リサイズのグリップ（行番号セル下端の当たり判定）。.rownum は sticky = 位置指定済み
+     なので absolute はこの th を基準に載る。掴んで上下ドラッグで行高を変える（列幅と対称）。 */
+  .row-resize {
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    width: 100%;
+    height: 6px;
+    cursor: row-resize;
+    z-index: 2;
+    touch-action: none;
+    user-select: none;
+  }
+
+  .row-resize:hover,
+  .row-resize:active {
     background: var(--accent);
     opacity: 0.5;
   }
