@@ -25,3 +25,13 @@ export type {
   UpdateDocumentInput,
   UpdateDocumentOk,
 } from './tools.js';
+
+export {
+  searchDocuments,
+  matchesQuery,
+  extractTitle,
+  extractDate,
+  inDateRange,
+  makeExcerpt,
+} from './search.js';
+export type { SearchQuery, SearchMatch, SearchDocumentsOk } from './search.js';
