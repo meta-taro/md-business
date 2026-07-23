@@ -587,12 +587,24 @@
 
   /* アクティブセル＝選択リング（Excel の選択枠相当）。編集中は地を少し変える。 */
   td.active {
-    box-shadow: inset 0 0 0 2px var(--accent);
+    position: relative;
     background: var(--accent-subtle);
   }
 
   td.active.editing {
     background: var(--bg-elevated);
+  }
+
+  /* 選択リングはセル全体を囲むオーバーレイで描く。border-collapse 下では
+     box-shadow inset が背の高い折り返しセルだと下辺しか出ない（田中さん 2026-07-23）。
+     ::after を inset:0 で四辺 border にすれば行高に依らず全周を囲める。 */
+  td.active::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border: 2px solid var(--accent);
+    pointer-events: none;
+    z-index: 3;
   }
 
   /* 非アクティブの静的表示。1 行で省略、セルいっぱいに敷く。 */
