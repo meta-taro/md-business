@@ -16,6 +16,7 @@
     checkboxToCell,
     cellToCheckbox,
   } from './gridModel';
+  import { planCellKeydown, type CellPos } from './gridNav';
 
   interface Props {
     /** 表示・編集対象の TSV ドキュメント（`parseTsv` の結果）。 */
@@ -56,9 +57,40 @@
   function toDatetimeInput(value: string): string {
     return value.replace(' ', 'T');
   }
+
+  // ── スプレッドシート風のキーボード移動（決定は gridNav の純ロジックに委譲） ──
+  let gridEl: HTMLDivElement | undefined;
+  const dims = $derived({ rows: doc.rows.length, cols: doc.columns.length });
+
+  // select() が意味を持つのはテキスト系のみ（date/datetime に呼ぶと例外になる環境がある）。
+  const SELECTABLE = new Set(['text', 'url', 'number']);
+
+  function focusCell(pos: CellPos): void {
+    const td = gridEl?.querySelector<HTMLElement>(`[data-cell="${pos.row}-${pos.col}"]`);
+    const control = td?.querySelector<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>(
+      'input, select, textarea',
+    );
+    if (!control) return;
+    control.focus();
+    if (control instanceof HTMLTextAreaElement) control.select();
+    else if (control instanceof HTMLInputElement && SELECTABLE.has(control.type)) control.select();
+  }
+
+  function onCellKeydown(row: number, col: number, event: KeyboardEvent): void {
+    const multiline = event.target instanceof HTMLTextAreaElement;
+    const plan = planCellKeydown(
+      { key: event.key, shift: event.shiftKey, ctrl: event.ctrlKey || event.metaKey },
+      { row, col },
+      dims,
+      { multiline },
+    );
+    if (plan.kind !== 'move') return; // 入力へ委ねる（カーソル移動・改行・グリッド外への Tab）
+    event.preventDefault();
+    focusCell(plan.to);
+  }
 </script>
 
-<div class="tsv-grid" role="region" aria-label="検証シート編集グリッド">
+<div class="tsv-grid" role="region" aria-label="検証シート編集グリッド" bind:this={gridEl}>
   {#if doc.columns.length === 0}
     <p class="empty">列定義がありません（ヘッダ行のある TSV を開いてください）</p>
   {:else}
@@ -82,7 +114,12 @@
               {@const widget = widgets[c]}
               {@const value = cellValue(r, c)}
               {@const issue = issueOf(r, c)}
-              <td class:invalid={issue !== undefined} title={issue}>
+              <td
+                class:invalid={issue !== undefined}
+                title={issue}
+                data-cell={`${r}-${c}`}
+                onkeydown={(e) => onCellKeydown(r, c, e)}
+              >
                 {#if widget === undefined}
                   <span class="plain">{value}</span>
                 {:else if widget.kind === 'checkbox'}

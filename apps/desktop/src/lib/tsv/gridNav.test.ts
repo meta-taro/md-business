@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { nextCell, type CellPos, type GridDims } from './gridNav';
+import { nextCell, planCellKeydown, type CellPos, type GridDims } from './gridNav';
 
 /**
  * スプレッドシート風のセル間移動（田中さん要件 2026-07-22「検証UXは最大のポイント」）。
@@ -67,5 +67,53 @@ describe('nextCell', () => {
 
   it('範囲外の開始位置もクランプして扱う', () => {
     expect(nextCell(at(9, 9), { key: 'ArrowUp' }, DIMS)).toEqual(at(1, 3));
+  });
+});
+
+describe('planCellKeydown', () => {
+  const single = { multiline: false };
+  const multi = { multiline: true };
+
+  it('Enter（単一行セル）: 下のセルへ移動', () => {
+    expect(planCellKeydown({ key: 'Enter' }, at(0, 1), DIMS, single)).toEqual({
+      kind: 'move',
+      to: at(1, 1),
+    });
+    expect(planCellKeydown({ key: 'Enter', shift: true }, at(1, 1), DIMS, single)).toEqual({
+      kind: 'move',
+      to: at(0, 1),
+    });
+  });
+
+  it('Enter（複数行セル）: 改行を優先して pass、Ctrl+Enter で下へ移動', () => {
+    expect(planCellKeydown({ key: 'Enter' }, at(0, 1), DIMS, multi)).toEqual({ kind: 'pass' });
+    expect(planCellKeydown({ key: 'Enter', ctrl: true }, at(0, 1), DIMS, multi)).toEqual({
+      kind: 'move',
+      to: at(1, 1),
+    });
+  });
+
+  it('Tab / Shift+Tab: 複数行セルでも隣セルへ移動', () => {
+    expect(planCellKeydown({ key: 'Tab' }, at(0, 0), DIMS, multi)).toEqual({
+      kind: 'move',
+      to: at(0, 1),
+    });
+    expect(planCellKeydown({ key: 'Tab', shift: true }, at(0, 1), DIMS, single)).toEqual({
+      kind: 'move',
+      to: at(0, 0),
+    });
+  });
+
+  it('端で移動先が現在位置と同じなら pass（グリッド外へ抜けられる）', () => {
+    // 最終セルで Tab → 行き先が同じ → pass
+    expect(planCellKeydown({ key: 'Tab' }, at(2, 3), DIMS, single)).toEqual({ kind: 'pass' });
+    // 最下段で Enter → 行き先が同じ → pass
+    expect(planCellKeydown({ key: 'Enter' }, at(2, 1), DIMS, single)).toEqual({ kind: 'pass' });
+  });
+
+  it('移動と無関係なキーは pass（入力へ委ねる）', () => {
+    expect(planCellKeydown({ key: 'a' }, at(0, 0), DIMS, single)).toEqual({ kind: 'pass' });
+    expect(planCellKeydown({ key: 'ArrowLeft' }, at(0, 1), DIMS, single)).toEqual({ kind: 'pass' });
+    expect(planCellKeydown({ key: 'Escape' }, at(0, 0), DIMS, single)).toEqual({ kind: 'pass' });
   });
 });

@@ -69,6 +69,39 @@ export function nextCell(pos: CellPos, intent: NavIntent, dims: GridDims): CellP
   }
 }
 
+/**
+ * セル上でのキー押下を、フォーカス移動するか入力へ委ねるかに振り分ける決定ロジック。
+ * TsvGrid の onkeydown はこの結果に従って preventDefault + フォーカス移動するだけ。
+ *
+ * - Enter: 単一行セルは下（Shift で上）へ移動。複数行セルは改行優先で pass、Ctrl+Enter で下へ。
+ * - Tab: 複数行含め常に隣セルへ移動（Shift で逆）。
+ * - 矢印・文字キー等は pass（入力のカーソル/編集に委ねる）。
+ * - 端で移動先が現在位置と同じなら pass（Tab でグリッド外へ抜けられる）。
+ */
+export type CellKeyPlan = { kind: 'move'; to: CellPos } | { kind: 'pass' };
+
+export function planCellKeydown(
+  key: NavIntent,
+  pos: CellPos,
+  dims: GridDims,
+  opts: { multiline: boolean },
+): CellKeyPlan {
+  let intent: NavIntent | null = null;
+  if (key.key === 'Enter') {
+    // 複数行は改行を優先。Ctrl+Enter のときだけ下へ抜ける。
+    if (opts.multiline && !key.ctrl) return { kind: 'pass' };
+    intent = opts.multiline ? { key: 'Enter' } : { key: 'Enter', shift: key.shift };
+  } else if (key.key === 'Tab') {
+    intent = { key: 'Tab', shift: key.shift };
+  } else {
+    return { kind: 'pass' };
+  }
+
+  const to = nextCell(pos, intent, dims);
+  if (to === null || (to.row === pos.row && to.col === pos.col)) return { kind: 'pass' };
+  return { kind: 'move', to };
+}
+
 /** Tab / Shift+Tab: 線形インデックスで ±1 し、行を跨いで折り返す（端はクランプ）。 */
 function tabMove(row: number, col: number, shift: boolean, dims: GridDims): CellPos {
   const index = row * dims.cols + col;
