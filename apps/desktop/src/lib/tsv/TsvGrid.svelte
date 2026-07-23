@@ -25,7 +25,13 @@
   import { planGridKey, type GridMode } from './gridMode';
   import { parseClipboardMatrix, applyPaste, rowToTsv } from './gridClipboard';
   import { appendRow, duplicateRow, deleteRow, clearRow } from './gridRows';
-  import { MIN_COL_WIDTH, defaultColWidths, resizeColWidth, setColWidth } from './gridLayout';
+  import {
+    MIN_COL_WIDTH,
+    defaultColWidths,
+    resizeColWidth,
+    setColWidth,
+    fitColWidth,
+  } from './gridLayout';
 
   interface Props {
     /** 表示・編集対象の TSV ドキュメント（`parseTsv` の結果）。 */
@@ -77,6 +83,43 @@
       // pointer capture 非対応環境でも無視（リサイズは終了扱い）
     }
     resizing = null;
+  }
+
+  // 列境界のダブルクリック＝内容に合わせた自動幅（スプレ同様）。ヘッダ名と各セルの
+  // テキストをオフスクリーン span で実測し、fitColWidth（純ロジック）で幅を決める。
+  // 実測は DOM 依存の薄いグルー（manual-verify）。改行セルは行ごとに測り最長を採る。
+  function autoFitColumn(col: number): void {
+    if (!gridEl) return;
+    const sampleCell =
+      gridEl.querySelector<HTMLElement>('tbody .cell-view') ??
+      gridEl.querySelector<HTMLElement>('thead .colname');
+    const sampleHeader = gridEl.querySelector<HTMLElement>('thead .colname') ?? sampleCell;
+    const span = document.createElement('span');
+    span.style.cssText =
+      'position:absolute;visibility:hidden;white-space:pre;top:-9999px;left:-9999px';
+    gridEl.appendChild(span);
+    const widthOf = (text: string, sample: HTMLElement | null): number => {
+      if (sample) {
+        const cs = getComputedStyle(sample);
+        span.style.fontSize = cs.fontSize;
+        span.style.fontFamily = cs.fontFamily;
+        span.style.fontWeight = cs.fontWeight;
+        span.style.letterSpacing = cs.letterSpacing;
+      }
+      let max = 0;
+      for (const line of text.split(/\r?\n/)) {
+        span.textContent = line;
+        max = Math.max(max, span.getBoundingClientRect().width);
+      }
+      return max;
+    };
+    const measured: number[] = [widthOf(doc.columns[col]?.name ?? '', sampleHeader)];
+    for (let r = 0; r < doc.rows.length; r++) {
+      const value = cellValue(r, col);
+      if (value !== '') measured.push(widthOf(value, sampleCell));
+    }
+    span.remove();
+    colWidths = setColWidth(colWidths, col, fitColWidth(measured));
   }
 
   // 型検査。セル位置ごとの最初の違反メッセージを引けるようにする。
@@ -277,16 +320,18 @@
               <span class="colname">{column.name}</span>
               {#if column.required}<span class="req" aria-label="必須">*</span>{/if}
               <!-- 列幅リサイズのグリップ。掴んで左右ドラッグで列幅を変える（スプレ同様）。
-                   キーボードでの列幅調整は未提供（マウス操作の補助 UI）。 -->
+                   ダブルクリックで内容に合わせた自動幅。キーボード列幅調整は未提供。 -->
               <!-- svelte-ignore a11y_no_static_element_interactions -->
               <span
                 class="col-resize"
                 role="separator"
                 aria-orientation="vertical"
                 aria-label={`${column.name} 列の幅を変更`}
+                title="ドラッグで幅変更／ダブルクリックで自動幅"
                 onpointerdown={(e) => onResizeStart(col, e)}
                 onpointermove={onResizeMove}
                 onpointerup={onResizeEnd}
+                ondblclick={() => autoFitColumn(col)}
               ></span>
             </th>
           {/each}

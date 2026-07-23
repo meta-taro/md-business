@@ -2,11 +2,13 @@ import { describe, it, expect } from 'vitest';
 import type { ParsedHeader } from '@md-business/schema-test-spec-tsv';
 import {
   MIN_COL_WIDTH,
+  MAX_COL_WIDTH,
   defaultColWidth,
   defaultColWidths,
   clampColWidth,
   resizeColWidth,
   setColWidth,
+  fitColWidth,
 } from './gridLayout';
 
 /**
@@ -100,5 +102,40 @@ describe('setColWidth', () => {
     const widths = [160, 88];
     expect(setColWidth(widths, 5, 100)).toBe(widths);
     expect(setColWidth(widths, -1, 100)).toBe(widths);
+  });
+});
+
+describe('fitColWidth', () => {
+  // 列境界のダブルクリック＝内容に合わせた自動幅（田中さん 2026-07-23）。
+  // 実測したセル内容の px 幅群 + 余白から妥当な列幅を求める純ロジック。
+  it('最も広い内容 + 余白を幅にする', () => {
+    expect(fitColWidth([80, 200, 120], { padding: 24 })).toBe(224);
+  });
+
+  it('内容が下限に満たなければ下限へ', () => {
+    expect(fitColWidth([10, 12], { padding: 8 })).toBe(MIN_COL_WIDTH);
+  });
+
+  it('内容なし（空列）は下限', () => {
+    expect(fitColWidth([], { padding: 24 })).toBe(MIN_COL_WIDTH);
+  });
+
+  it('上限で頭打ちにする（極端に長い内容）', () => {
+    expect(fitColWidth([5000], { padding: 24 })).toBe(MAX_COL_WIDTH);
+  });
+
+  it('端数は整数 px へ丸める', () => {
+    expect(fitColWidth([200.4], { padding: 0 })).toBe(200);
+    expect(fitColWidth([200.6], { padding: 0 })).toBe(201);
+  });
+
+  it('既定の余白・下限・上限で動く（オプション省略）', () => {
+    expect(fitColWidth([300])).toBeGreaterThanOrEqual(MIN_COL_WIDTH);
+    expect(fitColWidth([300])).toBeLessThanOrEqual(MAX_COL_WIDTH);
+    expect(fitColWidth([5])).toBe(MIN_COL_WIDTH);
+  });
+
+  it('カスタム上限を尊重する', () => {
+    expect(fitColWidth([1000], { padding: 0, max: 400 })).toBe(400);
   });
 });
