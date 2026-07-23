@@ -12,22 +12,44 @@
  * 明示宣言の照合を主信号にする。
  */
 import type { CompiledValidator } from '@md-business/core';
+import Ajv2020 from 'ajv/dist/2020.js';
+import addFormats from 'ajv-formats';
 
-import validateInvoice from '@md-business/schema-invoice/validate';
 import { invoiceSchema, SCHEMA_VERSION as INVOICE_ID } from '@md-business/schema-invoice';
-import validateSpec from '@md-business/schema-spec/validate';
 import { specSchema, SCHEMA_VERSION as SPEC_ID } from '@md-business/schema-spec';
-import validateTestSpec from '@md-business/schema-test-spec/validate';
 import { testSpecSchema, SCHEMA_VERSION as TEST_SPEC_ID } from '@md-business/schema-test-spec';
-import validateDbSpec from '@md-business/schema-db-spec/validate';
 import { dbSpecSchema, SCHEMA_VERSION as DB_SPEC_ID } from '@md-business/schema-db-spec';
-import validateNosqlDbSpec from '@md-business/schema-nosql-db-spec/validate';
 import {
   nosqlDbSpecSchema,
   SCHEMA_VERSION as NOSQL_ID,
 } from '@md-business/schema-nosql-db-spec';
-import validateApiSpec from '@md-business/schema-api-spec/validate';
 import { apiSpecSchema, SCHEMA_VERSION as API_ID } from '@md-business/schema-api-spec';
+
+/*
+ * validator は各 schema パッケージの JSON Schema から実行時に Ajv でコンパイルする。
+ * -----------------------------------------------------------------------------
+ * schema パッケージが公開する standalone compiled validator（`/validate` export）は
+ * bundler / Apps Script inline 向けで、`ajv/dist/runtime/*` を拡張子なし bare import
+ * するため生 Node ESM では解決できない（MCP サーバーは初の raw-Node consumer）。
+ * MCP は Node sidecar なので CSP 制約がなく、runtime Ajv（new Function）を使える。
+ * schema パッケージ側は一切触らず（§16・他 consumer を壊さない）、こちらで JSON Schema
+ * を draft 2020-12 の Ajv でコンパイルする。全 schema は `default` 未使用のため
+ * useDefaults によるデータ変異は起きない（§19 で確認）。
+ */
+const ajv = new Ajv2020({ allErrors: true, strict: false });
+addFormats(ajv);
+
+/** JSON Schema を CompiledValidator（standalone と同形の検証関数）へコンパイルする。 */
+function compile(schema: object): CompiledValidator {
+  return ajv.compile(schema) as CompiledValidator;
+}
+
+const validateInvoice = compile(invoiceSchema);
+const validateSpec = compile(specSchema);
+const validateTestSpec = compile(testSpecSchema);
+const validateDbSpec = compile(dbSpecSchema);
+const validateNosqlDbSpec = compile(nosqlDbSpecSchema);
+const validateApiSpec = compile(apiSpecSchema);
 
 /** レジストリ 1 エントリ。MCP ツールが必要とする最小限（描画は持たない）。 */
 export interface SchemaEntry {
@@ -35,7 +57,7 @@ export interface SchemaEntry {
   id: string;
   /** ペイン見出し / ツール応答用の日本語ラベル。 */
   label: string;
-  /** standalone compiled validator（Ajv runtime 非依存・CSP セーフ）。 */
+  /** JSON Schema から実行時コンパイルした検証関数（standalone validator と同形）。 */
   validate: CompiledValidator;
   /** JSON Schema オブジェクト（get_schema / スキーマ一覧提示用）。 */
   schema: object;

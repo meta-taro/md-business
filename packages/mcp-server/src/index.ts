@@ -36,3 +36,5 @@ export {
   makeExcerpt,
 } from './search.js';
 export type { SearchQuery, SearchMatch, SearchDocumentsOk } from './search.js';
+
+export { createServer, SERVER_NAME, SERVER_VERSION } from './server.js';

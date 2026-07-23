@@ -7,6 +7,9 @@
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "bin": {
+    "md-business-mcp": "./dist/bin.js"
+  },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -25,7 +28,11 @@
     "@md-business/schema-invoice": "workspace:*",
     "@md-business/schema-nosql-db-spec": "workspace:*",
     "@md-business/schema-spec": "workspace:*",
-    "@md-business/schema-test-spec": "workspace:*"
+    "@md-business/schema-test-spec": "workspace:*",
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "ajv": "^8.17.1",
+    "ajv-formats": "^3.0.1",
+    "zod": "^4.4.3"
   },
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
