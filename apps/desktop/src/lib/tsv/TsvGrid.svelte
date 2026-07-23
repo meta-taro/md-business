@@ -193,6 +193,17 @@
       cancelGroupEdit();
     }
   }
+  // 選択中の列範囲に新規グループを張る（Block TSV-Z2）。既定ラベルで即 setGroup 永続化し、
+  // そのまま改名モードへ入れる（既定ラベルは選択済みなのでタイプで置換できる）。単一セル
+  // 選択なら 1 列グループ。重なる既存は setGroup が置き換える。取消は × 削除で。
+  const DEFAULT_GROUP_LABEL = 'グループ';
+  function createGroupFromSelection(): void {
+    if (!editable) return;
+    const b = rangeBounds(selection);
+    persistGroups(setGroup(readGroups(doc.directives), b.c0, b.c1, DEFAULT_GROUP_LABEL));
+    editingGroup = { start: b.c0, end: b.c1 };
+    groupDraft = DEFAULT_GROUP_LABEL;
+  }
 
   // sticky 段組みの固定高（px）。座標バー→補足行→（肉厚グループ）→型付きヘッダを上から積む。
   // 補足行数とグループ有無で押し下げ量が変わるので、CSS 変数で各行の top を供給し重なりを防ぐ。
@@ -967,6 +978,13 @@
       </button>
       <!-- 表の上の補足行を 1 本追加（#@ note …）。田中さん 2026-07-23「表の上に補足」の編集導線。 -->
       <button type="button" class="row-btn" onclick={startNewNote}>＋ 補足行</button>
+      <!-- 選択中の列範囲に肉厚グループ（大分類）を張る（#@ group …）。既定名で作って即改名。 -->
+      <button
+        type="button"
+        class="row-btn"
+        onclick={createGroupFromSelection}
+        title="選択中の列に大分類（グループ見出し）を作成"
+      >＋ グループ</button>
       <span class="active-row" aria-live="polite">
         {modeLabel}中: {activeRowLabel}{#if selectionLabel} · {selectionLabel}{/if}
       </span>
