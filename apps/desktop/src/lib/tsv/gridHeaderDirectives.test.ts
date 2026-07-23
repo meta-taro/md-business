@@ -1,11 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import { readNotes, writeNotes } from './gridHeaderDirectives';
+import { readNotes, writeNotes, readGroups, groupCells, writeGroups } from './gridHeaderDirectives';
 
 /**
- * 検証グリッドの表ヘッダ拡張（Issue 010・田中さん 2026-07-23「表の上に補足」）。
+ * 検証グリッドの表ヘッダ拡張（Issue 010・田中さん 2026-07-23「表の上に補足」
+ * 「ヘッダを肉厚に（大分類→項目/手順/結果）」）。
  *
- * 補足行を `#@ note <text>` ディレクティブへ載せ、既存パーサ（`doc.directives` を
- * round-trip）へそのまま焼く。ここはその純ロジックだけを検査する。
+ * 補足行を `#@ note <text>`、肉厚グループを `#@ group <start>[-<end>] <label>` ディレクティブへ
+ * 載せ、既存パーサ（`doc.directives` を round-trip）へそのまま焼く。ここは純ロジックのみ検査。
  */
 
 describe('readNotes', () => {
@@ -45,5 +46,77 @@ describe('writeNotes', () => {
   it('read(write(notes)) は補足を復元する（round-trip）', () => {
     const notes = ['※検証用', '担当: QA'];
     expect(readNotes(writeNotes(['style keep'], notes))).toEqual(notes);
+  });
+});
+
+describe('readGroups', () => {
+  it('range と単一列をパースする', () => {
+    expect(readGroups(['group 0-2 大分類', 'group 3 結果'])).toEqual([
+      { start: 0, end: 2, label: '大分類' },
+      { start: 3, end: 3, label: '結果' },
+    ]);
+  });
+
+  it('ラベル内の空白は保持し、group 以外は無視', () => {
+    expect(readGroups(['note x', 'group 0-1 受注 情報'])).toEqual([
+      { start: 0, end: 1, label: '受注 情報' },
+    ]);
+  });
+
+  it('不正（ラベル無し・end<start・非数）は捨てる', () => {
+    expect(readGroups(['group 0-2', 'group 3-1 逆順', 'group x 非数'])).toEqual([]);
+  });
+});
+
+describe('groupCells', () => {
+  it('隙間を空ラベルセルで埋めて全列を覆う', () => {
+    expect(groupCells([{ start: 1, end: 2, label: 'A' }], 4)).toEqual([
+      { label: '', start: 0, span: 1 },
+      { label: 'A', start: 1, span: 2 },
+      { label: '', start: 3, span: 1 },
+    ]);
+  });
+
+  it('範囲外は列数でクランプする', () => {
+    expect(groupCells([{ start: 0, end: 9, label: 'All' }], 3)).toEqual([
+      { label: 'All', start: 0, span: 3 },
+    ]);
+  });
+
+  it('重なりは先勝ちで後をスキップ', () => {
+    expect(
+      groupCells(
+        [
+          { start: 0, end: 1, label: 'X' },
+          { start: 1, end: 2, label: 'Y' },
+        ],
+        3,
+      ),
+    ).toEqual([
+      { label: 'X', start: 0, span: 2 },
+      { label: '', start: 2, span: 1 },
+    ]);
+  });
+
+  it('妥当なグループが無ければ空（グループ行を出さない）', () => {
+    expect(groupCells([], 3)).toEqual([]);
+    expect(groupCells([{ start: 5, end: 6, label: '範囲外' }], 3)).toEqual([]);
+  });
+});
+
+describe('writeGroups', () => {
+  it('read(write(groups)) は範囲とラベルを復元する（round-trip）', () => {
+    const groups = [
+      { start: 0, end: 2, label: '大分類' },
+      { start: 3, end: 3, label: '結果' },
+    ];
+    expect(readGroups(writeGroups(['note keep'], groups))).toEqual(groups);
+  });
+
+  it('group 以外は先頭に温存し、単一列は範囲を付けない', () => {
+    expect(writeGroups(['note x'], [{ start: 2, end: 2, label: '結果' }])).toEqual([
+      'note x',
+      'group 2 結果',
+    ]);
   });
 });

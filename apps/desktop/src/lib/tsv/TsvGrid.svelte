@@ -59,7 +59,7 @@
   } from './gridRange';
   import { displayRowCount, editPaddedCell } from './gridBlankRows';
   import { columnLabels } from './columnLabel';
-  import { readNotes } from './gridHeaderDirectives';
+  import { readNotes, readGroups, groupCells } from './gridHeaderDirectives';
 
   interface Props {
     /** 表示・編集対象の TSV ドキュメント（`parseTsv` の結果）。 */
@@ -81,11 +81,18 @@
   // 「表の上に補足」）。フォーマット不変・#@ ディレクティブから読むだけ（編集は後続ブロック）。
   const notes = $derived(readNotes(doc.directives));
 
-  // sticky 段組みの固定高（px）。座標バー→補足行→型付きヘッダを上から積む。補足行数は
-  // 可変なので、型付きヘッダの sticky top を CSS 変数 --head-top で押し下げて重なりを防ぐ。
+  // 肉厚グループヘッダ（#@ group …）。型付きヘッダ（項目/手順/結果）の上に大分類を敷く
+  // （田中さん 2026-07-23）。隙間は空ラベルで全列を覆う。グループが無ければ行自体を出さない。
+  const groupHeaderCells = $derived(groupCells(readGroups(doc.directives), doc.columns.length));
+  const hasGroupHeader = $derived(groupHeaderCells.length > 0);
+
+  // sticky 段組みの固定高（px）。座標バー→補足行→（肉厚グループ）→型付きヘッダを上から積む。
+  // 補足行数とグループ有無で押し下げ量が変わるので、CSS 変数で各行の top を供給し重なりを防ぐ。
   const COORD_ROW_H = 20;
   const NOTE_ROW_H = 24;
-  const headTop = $derived(COORD_ROW_H + notes.length * NOTE_ROW_H);
+  const GROUP_ROW_H = 30;
+  const notesBottom = $derived(COORD_ROW_H + notes.length * NOTE_ROW_H);
+  const headTop = $derived(notesBottom + (hasGroupHeader ? GROUP_ROW_H : 0));
 
   // ── レイアウト（列幅 px / 行高 px / 列表示モード）。田中さん 2026-07-23「幅や、行を
   //    変えられる…改行時の表示も。これは tsv 側に記憶してほしい」に応え、これらは
@@ -563,6 +570,23 @@
             >{note}</th>
           </tr>
         {/each}
+        <!-- 肉厚グループヘッダ（#@ group …）。型付きヘッダの上に大分類を敷く。隙間セルは
+             空ラベルで全列を覆う。補足行の下・型付きヘッダの上に sticky で載せる。 -->
+        {#if hasGroupHeader}
+          <tr class="group-row">
+            <th class="rownum group-corner" scope="col" aria-hidden="true" style={`top:${notesBottom}px`}></th>
+            {#each groupHeaderCells as cell, gi (gi)}
+              <th
+                class="group-cell"
+                class:group-filled={cell.label !== ''}
+                colspan={cell.span}
+                scope="colgroup"
+                title={cell.label}
+                style={`top:${notesBottom}px; height:${GROUP_ROW_H}px`}
+              >{cell.label}</th>
+            {/each}
+          </tr>
+        {/if}
         <tr class="head-row">
           <th class="rownum" scope="col" aria-label="行番号"></th>
           {#each doc.columns as column, col (col)}
@@ -999,6 +1023,30 @@
 
   .note-corner {
     z-index: 4; /* 補足行の左端（行番号列との交点）も両 sticky の最前面 */
+  }
+
+  /* ── 肉厚グループヘッダ（#@ group …）。大分類を型付きヘッダの上に載せる。ラベルを持つ
+     セルは太字・中央寄せで「肉厚」に、隙間の空セルは地に馴染ませる。 ── */
+  .group-row th {
+    height: 30px;
+    padding: 0 var(--space-3);
+    text-align: center;
+    font-weight: var(--text-sm-weight);
+    color: var(--text-secondary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    border-bottom: 1px solid var(--border-strong);
+  }
+
+  .group-filled {
+    color: var(--text-primary);
+    background: var(--bg-muted, var(--bg-subtle));
+    border-right: 1px solid var(--border-strong);
+  }
+
+  .group-corner {
+    z-index: 4; /* グループ行の左端（行番号列との交点）も両 sticky の最前面 */
   }
 
   /* 左上隅（座標×行番号の交点）は両 sticky の最前面。座標バーと地を揃える。 */
