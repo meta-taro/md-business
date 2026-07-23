@@ -45,3 +45,15 @@ export function applyPaste(doc: TsvDocument, anchor: CellPos, text: string): Tsv
 
   return { ...doc, rows };
 }
+
+/**
+ * `index` 行を、クリップボード用の TSV 文字列（タブ区切り）へ直列化する。
+ * 列数ぶんパディングして末尾の空セルも位置として残す。範囲外は空文字。
+ */
+export function rowToTsv(doc: TsvDocument, index: number): string {
+  const cells = doc.rows[index];
+  if (cells === undefined) return '';
+  const padded = cells.slice();
+  while (padded.length < doc.columns.length) padded.push('');
+  return padded.join('\t');
+}

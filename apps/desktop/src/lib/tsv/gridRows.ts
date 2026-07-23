@@ -38,3 +38,9 @@ export function deleteRow(doc: TsvDocument, index: number): TsvDocument {
   if (index < 0 || index >= doc.rows.length) return doc;
   return { ...doc, rows: doc.rows.filter((_, i) => i !== index) };
 }
+
+/** `index` 行の全セルを空にする（行は残す）。範囲外なら変更しない。 */
+export function clearRow(doc: TsvDocument, index: number): TsvDocument {
+  if (index < 0 || index >= doc.rows.length) return doc;
+  return { ...doc, rows: doc.rows.map((cells, i) => (i === index ? blankRow(doc) : cells)) };
+}

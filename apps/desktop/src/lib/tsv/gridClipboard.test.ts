@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { ParsedHeader, TsvDocument } from '@md-business/schema-test-spec-tsv';
-import { parseClipboardMatrix, applyPaste } from './gridClipboard';
+import { parseClipboardMatrix, applyPaste, rowToTsv } from './gridClipboard';
 
 /**
  * スプレッドシート同様の「Excel / Sheets から矩形貼り付け」を支える純ロジック
@@ -94,5 +94,26 @@ describe('applyPaste', () => {
   it('列が無い / アンカーが列範囲外なら変更しない', () => {
     const before = doc(2, [['a', 'b']]);
     expect(applyPaste(before, { row: 0, col: 2 }, 'x')).toBe(before);
+  });
+});
+
+describe('rowToTsv', () => {
+  it('行をタブ区切りへ直列化', () => {
+    expect(rowToTsv(doc(3, [['a', 'b', 'c']]), 0)).toBe('a\tb\tc');
+  });
+
+  it('短い行は列数までパディング（末尾空セルも位置として残す）', () => {
+    expect(rowToTsv(doc(3, [['a']]), 0)).toBe('a\t\t');
+  });
+
+  it('範囲外は空文字', () => {
+    expect(rowToTsv(doc(2, [['a', 'b']]), 9)).toBe('');
+  });
+
+  it('applyPaste で往復できる（コピー→貼り付け）', () => {
+    const src = doc(2, [['合格', '2026-07-23']]);
+    const tsv = rowToTsv(src, 0);
+    const dest = applyPaste(doc(2, [['', '']]), { row: 0, col: 0 }, tsv);
+    expect(dest.rows[0]).toEqual(['合格', '2026-07-23']);
   });
 });

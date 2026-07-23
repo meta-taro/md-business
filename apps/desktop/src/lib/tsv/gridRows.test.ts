@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { ParsedHeader, TsvDocument } from '@md-business/schema-test-spec-tsv';
-import { blankRow, appendRow, insertRowAfter, duplicateRow, deleteRow } from './gridRows';
+import { blankRow, appendRow, insertRowAfter, duplicateRow, deleteRow, clearRow } from './gridRows';
 
 /**
  * 検証シートの行操作（追加 / 挿入 / 複製 / 削除）。QA がシートを組み立てるのに必須。
@@ -86,5 +86,25 @@ describe('deleteRow', () => {
     const before = doc(1, [['a']]);
     expect(deleteRow(before, 5)).toBe(before);
     expect(deleteRow(before, -1)).toBe(before);
+  });
+});
+
+describe('clearRow', () => {
+  it('指定行のセルを空にする（行は残す・不変）', () => {
+    const before = doc(2, [
+      ['a', 'b'],
+      ['c', 'd'],
+    ]);
+    const after = clearRow(before, 0);
+    expect(after.rows).toEqual([
+      ['', ''],
+      ['c', 'd'],
+    ]);
+    expect(before.rows[0]).toEqual(['a', 'b']);
+  });
+
+  it('範囲外 index は変更しない', () => {
+    const before = doc(1, [['a']]);
+    expect(clearRow(before, 5)).toBe(before);
   });
 });

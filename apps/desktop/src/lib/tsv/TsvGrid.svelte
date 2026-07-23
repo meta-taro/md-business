@@ -17,8 +17,8 @@
     cellToCheckbox,
   } from './gridModel';
   import { planCellKeydown, type CellPos } from './gridNav';
-  import { parseClipboardMatrix, applyPaste } from './gridClipboard';
-  import { appendRow, duplicateRow, deleteRow } from './gridRows';
+  import { parseClipboardMatrix, applyPaste, rowToTsv } from './gridClipboard';
+  import { appendRow, duplicateRow, deleteRow, clearRow } from './gridRows';
 
   interface Props {
     /** 表示・編集対象の TSV ドキュメント（`parseTsv` の結果）。 */
@@ -118,6 +118,19 @@
   }
   function deleteActiveRow(): void {
     if (hasRows) onChange?.(deleteRow(doc, activeCell.row));
+  }
+  function clearActiveRow(): void {
+    if (hasRows) onChange?.(clearRow(doc, activeCell.row));
+  }
+
+  // 選択行を TSV（タブ区切り）でクリップボードへ。失敗（権限・非対応）は握り潰す。
+  async function copyActiveRow(): Promise<void> {
+    if (!hasRows) return;
+    try {
+      await navigator.clipboard.writeText(rowToTsv(doc, activeCell.row));
+    } catch {
+      // クリップボード API 不許可の環境では無視（検証作業を止めない）
+    }
   }
 </script>
 
@@ -242,6 +255,12 @@
       <button type="button" class="row-btn" onclick={addRow}>＋ 行を追加</button>
       <button type="button" class="row-btn" onclick={duplicateActiveRow} disabled={!hasRows}>
         選択行を複製
+      </button>
+      <button type="button" class="row-btn" onclick={copyActiveRow} disabled={!hasRows}>
+        選択行をコピー
+      </button>
+      <button type="button" class="row-btn" onclick={clearActiveRow} disabled={!hasRows}>
+        選択行をクリア
       </button>
       <button type="button" class="row-btn danger" onclick={deleteActiveRow} disabled={!hasRows}>
         選択行を削除
