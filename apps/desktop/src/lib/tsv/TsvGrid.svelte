@@ -39,6 +39,13 @@
     setRowHeight,
     reconcileRowHeights,
   } from './gridRowLayout';
+  import {
+    type ColOverflowMode,
+    defaultColModes,
+    setColMode,
+    reconcileColModes,
+    colModeMenuItems,
+  } from './gridColumnMode';
 
   interface Props {
     /** 表示・編集対象の TSV ドキュメント（`parseTsv` の結果）。 */
@@ -166,6 +173,35 @@
   // 行境界のダブルクリック＝既定高へ戻す（内容＝折り返しに応じた自然な高さに任せる）。
   function autoFitRow(row: number): void {
     rowHeights = setRowHeight(rowHeights, row, DEFAULT_ROW_HEIGHT);
+  }
+
+  // ── 列の表示モード（clip / wrap / overflow）。右クリックメニューで列ごとに切替
+  //    （田中さん 2026-07-23「折り返す／突き抜ける／見切れる」）。選択肢生成・状態は
+  //    gridColumnMode の純ロジック、メニュー描画・座標だけ Svelte 側の薄いグルー。 ──
+  let colModes = $state<ColOverflowMode[]>(untrack(() => defaultColModes(doc.columns)));
+  let lastModeColumnsRef = untrack(() => doc.columns);
+  $effect(() => {
+    if (doc.columns !== lastModeColumnsRef) {
+      lastModeColumnsRef = doc.columns;
+      colModes = reconcileColModes(colModes, doc.columns);
+    }
+  });
+
+  // 右クリックで開く列モードメニュー。対象列と画面座標を持つ（null＝非表示）。
+  let colMenu = $state<{ col: number; x: number; y: number } | null>(null);
+  const colMenuItems = $derived(
+    colMenu ? colModeMenuItems(colModes[colMenu.col] ?? 'clip') : [],
+  );
+  function openColMenu(col: number, event: MouseEvent): void {
+    event.preventDefault(); // WebView2 ネイティブメニューを抑止しカスタムメニューを出す
+    colMenu = { col, x: event.clientX, y: event.clientY };
+  }
+  function chooseColMode(mode: ColOverflowMode): void {
+    if (colMenu) colModes = setColMode(colModes, colMenu.col, mode);
+    colMenu = null;
+  }
+  function closeColMenu(): void {
+    colMenu = null;
   }
 
   // 型検査。セル位置ごとの最初の違反メッセージを引けるようにする。
@@ -339,6 +375,8 @@
   }
 </script>
 
+<svelte:window onkeydown={(e) => { if (e.key === 'Escape' && colMenu) closeColMenu(); }} />
+
 <div class="grid-shell">
   <div
     class="tsv-grid"
@@ -362,7 +400,11 @@
         <tr>
           <th class="rownum" scope="col" aria-label="行番号"></th>
           {#each doc.columns as column, col (col)}
-            <th scope="col" class:required={column.required}>
+            <th
+              scope="col"
+              class:required={column.required}
+              oncontextmenu={(e) => openColMenu(col, e)}
+            >
               <span class="colname">{column.name}</span>
               {#if column.required}<span class="req" aria-label="必須">*</span>{/if}
               <!-- 列幅リサイズのグリップ。掴んで左右ドラッグで列幅を変える（スプレ同様）。
@@ -415,6 +457,7 @@
                 title={issue}
                 data-cell={`${r}-${c}`}
                 onkeydown={(e) => onGridKeydown(r, c, e)}
+                oncontextmenu={(e) => openColMenu(c, e)}
               >
                 {#if !active}
                   <!-- 非アクティブ＝静的表示。クリックで選択（nav）。キーボード操作は
@@ -423,7 +466,8 @@
                   <div
                     class="cell-view"
                     class:num={widget?.kind === 'number'}
-                    class:wrap={widget?.kind === 'multiline'}
+                    class:wrap={colModes[c] === 'wrap'}
+                    class:overflow={colModes[c] === 'overflow'}
                     role="button"
                     tabindex="-1"
                     onclick={() => selectCell(r, c)}
@@ -531,6 +575,38 @@
       </button>
       <span class="active-row" aria-live="polite">{modeLabel}中: {activeRowLabel}</span>
     </div>
+  {/if}
+
+  {#if colMenu}
+    <!-- 列表示モードのカスタム右クリックメニュー（田中さん 2026-07-23）。背後クリック /
+         右クリック / Esc で閉じる。ネイティブ WebView2 メニューは openColMenu で抑止済み。 -->
+    <button
+      type="button"
+      class="menu-backdrop"
+      aria-label="メニューを閉じる"
+      onclick={closeColMenu}
+      oncontextmenu={(e) => { e.preventDefault(); closeColMenu(); }}
+    ></button>
+    <ul class="col-menu" role="menu" style={`left:${colMenu.x}px; top:${colMenu.y}px`}>
+      <li class="col-menu-head" role="presentation">
+        {doc.columns[colMenu.col]?.name} 列のテキスト表示
+      </li>
+      {#each colMenuItems as item (item.mode)}
+        <li role="none">
+          <button
+            type="button"
+            role="menuitemradio"
+            aria-checked={item.checked}
+            class="col-menu-item"
+            class:checked={item.checked}
+            onclick={() => chooseColMode(item.mode)}
+          >
+            <span class="check" aria-hidden="true">{item.checked ? '✓' : ''}</span>
+            {item.label}
+          </button>
+        </li>
+      {/each}
+    </ul>
   {/if}
 </div>
 
@@ -765,6 +841,14 @@
     word-break: break-word;
   }
 
+  /* 突き抜けモード（田中さん 2026-07-23）: 折り返さず、セル幅を超えた分は省略せず
+     隣セル方向へはみ出して全文を見せる（スプレの既定挙動）。改行は無視して 1 行に。 */
+  .cell-view.overflow {
+    white-space: nowrap;
+    overflow: visible;
+    text-overflow: clip;
+  }
+
   /* アクティブセルの入力コンテナ。 */
   .cell-edit {
     display: block;
@@ -868,5 +952,69 @@
     text-align: center;
     color: var(--text-tertiary);
     font-size: var(--text-sm-size);
+  }
+
+  /* ── 列表示モードのカスタム右クリックメニュー ── */
+  /* 背後クリックを拾う透明バックドロップ。メニュー外クリックで閉じる。 */
+  .menu-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    background: transparent;
+    border: none;
+    padding: 0;
+    cursor: default;
+  }
+
+  .col-menu {
+    position: fixed;
+    z-index: 51;
+    min-width: 172px;
+    margin: 0;
+    padding: var(--space-1);
+    list-style: none;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-lg, 0 8px 24px rgba(0, 0, 0, 0.28));
+    font-size: var(--text-sm-size);
+  }
+
+  .col-menu-head {
+    padding: var(--space-1) var(--space-2);
+    color: var(--text-tertiary);
+    font-size: var(--text-2xs-size, var(--text-sm-size));
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .col-menu-item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    width: 100%;
+    padding: var(--space-1) var(--space-2);
+    border: none;
+    border-radius: var(--radius-sm, 4px);
+    background: transparent;
+    color: var(--text-primary);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .col-menu-item:hover {
+    background: var(--bg-hover);
+  }
+
+  .col-menu-item.checked {
+    color: var(--accent);
+  }
+
+  .col-menu-item .check {
+    display: inline-block;
+    width: 1em;
+    text-align: center;
   }
 </style>
