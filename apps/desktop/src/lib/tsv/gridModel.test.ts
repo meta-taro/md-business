@@ -6,6 +6,7 @@ import {
   setCell,
   checkboxToCell,
   cellToCheckbox,
+  cellDisplayText,
 } from './gridModel';
 
 /**
@@ -146,6 +147,33 @@ describe('checkboxToCell / cellToCheckbox', () => {
   it('round-trips checked/unchecked through a cell token', () => {
     expect(cellToCheckbox(checkboxToCell(true))).toBe(true);
     expect(cellToCheckbox(checkboxToCell(false))).toBe(false);
+  });
+});
+
+describe('cellDisplayText', () => {
+  // 非アクティブセルの静的表示（アクティブセルのみ input 化する二モード描画）。
+  it('checkbox は ☑ / ☐ グリフで表す', () => {
+    expect(cellDisplayText('checkbox', 'TRUE')).toBe('☑');
+    expect(cellDisplayText('checkbox', 'FALSE')).toBe('☐');
+    expect(cellDisplayText('checkbox', '')).toBe('☐'); // 未入力＝未チェック
+  });
+
+  it('multiline は先頭行だけ見せて行高を詰める（複数行は … を付す）', () => {
+    expect(cellDisplayText('multiline', '1 行目\n2 行目')).toBe('1 行目 …');
+    expect(cellDisplayText('multiline', 'ひと息で書いた')).toBe('ひと息で書いた');
+    expect(cellDisplayText('multiline', 'CRLF も\r\n畳む')).toBe('CRLF も …');
+  });
+
+  it('その他の型は値をそのまま返す', () => {
+    expect(cellDisplayText('text', 'サンプル')).toBe('サンプル');
+    expect(cellDisplayText('number', '42')).toBe('42');
+    expect(cellDisplayText('select', '〇')).toBe('〇');
+    expect(cellDisplayText(undefined, '型不明')).toBe('型不明');
+  });
+
+  it('空セルは空文字（未入力＝正本を埋めない）', () => {
+    expect(cellDisplayText('text', '')).toBe('');
+    expect(cellDisplayText('multiline', '')).toBe('');
   });
 });
 

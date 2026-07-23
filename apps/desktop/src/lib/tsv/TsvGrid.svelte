@@ -1,12 +1,15 @@
 <script lang="ts">
   /**
-   * カスタム TSV 検証シートの編集グリッド（Issue 010・Block TSV-8）。
+   * カスタム TSV 検証シートの編集グリッド（Issue 010・スプレッドシート化 UX）。
    *
-   * Office / Workspace なしで QA が検証を完了できる本命 UI。列型ごとの入力ウィジェット
-   * （チェックボックス / ドロップダウン / ラジオ / 日付・日時ピッカー / 数値 / URL /
-   * テキストエリア）でセルを直接編集し、`setCell` で **不変** に反映した新ドキュメントを
-   * `onChange` へ渡す。決定ロジック（列型→ウィジェット・checkbox 値写像）は
-   * `gridModel` に純関数として切り出し、node 環境の vitest で検査済み。
+   * Office / Workspace なしで QA が検証を完了できる本命 UI。田中さん 2026-07-23 決定の
+   * 「Excel 式モード制」を採る:
+   *   - **アクティブセルのみ input 化**。非アクティブセルは軽量な静的表示。
+   *   - **nav モード**: ↑↓←→でセル選択枠が動く。Enter/F2/文字入力で edit へ。
+   *   - **edit モード**: キャレット編集。↑↓←→は文字内。Esc で nav、Enter で確定して下。
+   * キー解決は `gridMode.planGridKey`、セル移動座標は `gridNav.nextCell`、静的表示は
+   * `gridModel.cellDisplayText`、いずれも純関数として node 環境 vitest で検査済み。
+   * Svelte 側はそれらを描画・フォーカス制御する薄いグルー（manual-verify）。
    */
   import type { TsvDocument } from '@md-business/schema-test-spec-tsv';
   import { validateTsv } from '@md-business/schema-test-spec-tsv';
@@ -15,8 +18,10 @@
     setCell,
     checkboxToCell,
     cellToCheckbox,
+    cellDisplayText,
   } from './gridModel';
-  import { planCellKeydown, type CellPos } from './gridNav';
+  import type { CellPos } from './gridNav';
+  import { planGridKey, type GridMode } from './gridMode';
   import { parseClipboardMatrix, applyPaste, rowToTsv } from './gridClipboard';
   import { appendRow, duplicateRow, deleteRow, clearRow } from './gridRows';
 
@@ -60,55 +65,108 @@
     return value.replace(' ', 'T');
   }
 
-  // ── スプレッドシート風のキーボード移動（決定は gridNav の純ロジックに委譲） ──
+  // ── nav ⇄ edit 二モードのキーボード操作（決定は gridMode の純ロジックに委譲） ──
   let gridEl: HTMLDivElement | undefined;
   const dims = $derived({ rows: doc.rows.length, cols: doc.columns.length });
 
-  // アンカーセル（貼り付けの起点）。セルにフォーカスが入るたび追従する。
+  // アクティブセル（選択枠 / 貼り付けの起点）と現在モード。
   let activeCell = $state<CellPos>({ row: 0, col: 0 });
+  let mode = $state<GridMode>('nav');
+  // ユーザーが一度でもグリッドに触れたか。マウント時にフォーカスを勝手に奪わないためのガード。
+  let engaged = $state(false);
 
-  // select() が意味を持つのはテキスト系のみ（date/datetime に呼ぶと例外になる環境がある）。
-  const SELECTABLE = new Set(['text', 'url', 'number']);
+  const isActive = (row: number, col: number): boolean =>
+    activeCell.row === row && activeCell.col === col;
 
-  function focusCell(pos: CellPos): void {
-    const td = gridEl?.querySelector<HTMLElement>(`[data-cell="${pos.row}-${pos.col}"]`);
-    const control = td?.querySelector<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>(
-      'input, select, textarea',
-    );
-    if (!control) return;
-    control.focus();
-    if (control instanceof HTMLTextAreaElement) control.select();
-    else if (control instanceof HTMLInputElement && SELECTABLE.has(control.type)) control.select();
+  const editable = $derived(onChange !== undefined);
+
+  // テキスト系のみ全選択できる（date/number/select に select() すると例外の環境がある）。
+  function trySelectAll(el: HTMLElement): void {
+    try {
+      if (el instanceof HTMLTextAreaElement) el.select();
+      else if (el instanceof HTMLInputElement && (el.type === 'text' || el.type === 'url')) el.select();
+    } catch {
+      // 一部の input 型は select() 非対応。フォーカスだけで十分。
+    }
   }
 
-  function onCellKeydown(row: number, col: number, event: KeyboardEvent): void {
+  // アクティブセルの input へフォーカスを寄せる。nav では値を全選択して「選択セル」の
+  // 見た目にし、タイプで置換できるようにする。activeCell / mode の変化にのみ追従。
+  $effect(() => {
+    const { row, col } = activeCell;
+    const editing = mode === 'edit';
+    if (!engaged || !gridEl) return;
+    const td = gridEl.querySelector<HTMLElement>(`[data-cell="${row}-${col}"]`);
+    const input = td?.querySelector<HTMLElement>('input, select, textarea');
+    if (!input) return;
+    if (document.activeElement !== input) input.focus();
+    if (!editing) trySelectAll(input);
+  });
+
+  function selectCell(row: number, col: number): void {
+    engaged = true;
+    activeCell = { row, col };
+    mode = 'nav';
+  }
+
+  function enterEdit(): void {
+    if (editable) mode = 'edit';
+  }
+
+  function onGridKeydown(row: number, col: number, event: KeyboardEvent): void {
+    engaged = true;
     const multiline = event.target instanceof HTMLTextAreaElement;
-    const plan = planCellKeydown(
+    const action = planGridKey(
       { key: event.key, shift: event.shiftKey, ctrl: event.ctrlKey || event.metaKey },
       { row, col },
       dims,
-      { multiline },
+      { mode, multiline },
     );
-    if (plan.kind !== 'move') return; // 入力へ委ねる（カーソル移動・改行・グリッド外への Tab）
-    event.preventDefault();
-    focusCell(plan.to);
+    switch (action.kind) {
+      case 'move':
+        event.preventDefault();
+        activeCell = action.to; // mode は nav のまま
+        break;
+      case 'edit':
+        // 印字文字は preventDefault せず、全選択中の値へ上書きさせる（Excel 式の置換入力）。
+        // Enter / F2 は文字を持たないので抑止してから編集へ入る。
+        if (event.key === 'Enter' || event.key === 'F2') event.preventDefault();
+        enterEdit();
+        break;
+      case 'commit-move':
+        event.preventDefault();
+        mode = 'nav';
+        activeCell = action.to;
+        break;
+      case 'cancel':
+        event.preventDefault();
+        mode = 'nav'; // 同セルに留まり、effect が全選択し直す
+        break;
+      case 'clear':
+        event.preventDefault();
+        if (editable) commit(row, col, '');
+        break;
+      case 'pass':
+        break;
+    }
   }
 
   // Excel / Sheets からの矩形貼り付け。複数セル（タブ/改行を含む）だけ横取りし、
   // 単一値は通常どおりフォーカス中の入力へ委ねる。
   function onGridPaste(event: ClipboardEvent): void {
-    if (!onChange) return;
+    if (!editable) return;
     const text = event.clipboardData?.getData('text/plain') ?? '';
     const matrix = parseClipboardMatrix(text);
     const isBlock = matrix.length > 1 || matrix.some((cells) => cells.length > 1);
     if (!isBlock) return; // 単一セルは入力へ委ねる
     event.preventDefault();
-    onChange(applyPaste(doc, activeCell, text));
+    onChange?.(applyPaste(doc, activeCell, text));
   }
 
   // ── 行操作（下部アクションバー）。対象は「選択中の行」＝アンカーセルの行。 ──
   const hasRows = $derived(doc.rows.length > 0);
   const activeRowLabel = $derived(hasRows ? `${activeCell.row + 1} 行目` : '—');
+  const modeLabel = $derived(mode === 'edit' ? '編集' : '選択');
 
   function addRow(): void {
     onChange?.(appendRow(doc));
@@ -141,6 +199,7 @@
     aria-label="検証シート編集グリッド"
     bind:this={gridEl}
     onpaste={onGridPaste}
+    onpointerdown={() => (engaged = true)}
   >
     {#if doc.columns.length === 0}
       <p class="empty">列定義がありません（ヘッダ行のある TSV を開いてください）</p>
@@ -165,80 +224,100 @@
               {@const widget = widgets[c]}
               {@const value = cellValue(r, c)}
               {@const issue = issueOf(r, c)}
+              {@const active = isActive(r, c)}
               <td
                 class:invalid={issue !== undefined}
+                class:active
+                class:editing={active && mode === 'edit'}
                 title={issue}
                 data-cell={`${r}-${c}`}
-                onkeydown={(e) => onCellKeydown(r, c, e)}
-                onfocusin={() => (activeCell = { row: r, col: c })}
+                onkeydown={(e) => onGridKeydown(r, c, e)}
               >
-                {#if widget === undefined}
-                  <span class="plain">{value}</span>
-                {:else if widget.kind === 'checkbox'}
-                  <input
-                    type="checkbox"
-                    checked={cellToCheckbox(value)}
-                    onchange={(e) => commit(r, c, checkboxToCell(e.currentTarget.checked))}
-                  />
-                {:else if widget.kind === 'select'}
-                  <select value={value} onchange={(e) => commit(r, c, e.currentTarget.value)}>
-                    <option value=""></option>
-                    {#each widget.options ?? [] as opt (opt)}
-                      <option value={opt}>{opt}</option>
-                    {/each}
-                  </select>
-                {:else if widget.kind === 'radio'}
-                  <div class="radio-group" role="radiogroup" aria-label={doc.columns[c]?.name}>
-                    {#each widget.options ?? [] as opt (opt)}
-                      <label class="radio">
-                        <input
-                          type="radio"
-                          name={`cell-${r}-${c}`}
-                          value={opt}
-                          checked={value === opt}
-                          onchange={() => commit(r, c, opt)}
-                        />
-                        <span>{opt}</span>
-                      </label>
-                    {/each}
+                {#if !active}
+                  <!-- 非アクティブ＝静的表示。クリックで選択（nav）。キーボード操作は
+                       td の onkeydown（nav⇄edit）で提供済みのため click 単独で問題ない。 -->
+                  <!-- svelte-ignore a11y_click_events_have_key_events -->
+                  <div
+                    class="cell-view"
+                    class:num={widget?.kind === 'number'}
+                    role="button"
+                    tabindex="-1"
+                    onclick={() => selectCell(r, c)}
+                  >
+                    {cellDisplayText(widget?.kind, value)}
                   </div>
-                {:else if widget.kind === 'multiline'}
-                  <textarea
-                    class="multiline"
-                    rows="1"
-                    value={value}
-                    oninput={(e) => commit(r, c, e.currentTarget.value)}
-                  ></textarea>
-                {:else if widget.kind === 'date'}
-                  <input
-                    type="date"
-                    value={value}
-                    oninput={(e) => commit(r, c, e.currentTarget.value)}
-                  />
-                {:else if widget.kind === 'datetime'}
-                  <input
-                    type="datetime-local"
-                    value={toDatetimeInput(value)}
-                    oninput={(e) => commit(r, c, e.currentTarget.value)}
-                  />
-                {:else if widget.kind === 'number'}
-                  <input
-                    type="number"
-                    value={value}
-                    oninput={(e) => commit(r, c, e.currentTarget.value)}
-                  />
-                {:else if widget.kind === 'url'}
-                  <input
-                    type="url"
-                    value={value}
-                    oninput={(e) => commit(r, c, e.currentTarget.value)}
-                  />
                 {:else}
-                  <input
-                    type="text"
-                    value={value}
-                    oninput={(e) => commit(r, c, e.currentTarget.value)}
-                  />
+                  <!-- アクティブ＝実ウィジェット。クリックで編集（edit）へ。 -->
+                  <div class="cell-edit" role="presentation" onpointerup={enterEdit}>
+                    {#if widget === undefined}
+                      <span class="plain">{value}</span>
+                    {:else if widget.kind === 'checkbox'}
+                      <input
+                        type="checkbox"
+                        checked={cellToCheckbox(value)}
+                        onchange={(e) => commit(r, c, checkboxToCell(e.currentTarget.checked))}
+                      />
+                    {:else if widget.kind === 'select'}
+                      <select value={value} onchange={(e) => commit(r, c, e.currentTarget.value)}>
+                        <option value=""></option>
+                        {#each widget.options ?? [] as opt (opt)}
+                          <option value={opt}>{opt}</option>
+                        {/each}
+                      </select>
+                    {:else if widget.kind === 'radio'}
+                      <div class="radio-group" role="radiogroup" aria-label={doc.columns[c]?.name}>
+                        {#each widget.options ?? [] as opt (opt)}
+                          <label class="radio">
+                            <input
+                              type="radio"
+                              name={`cell-${r}-${c}`}
+                              value={opt}
+                              checked={value === opt}
+                              onchange={() => commit(r, c, opt)}
+                            />
+                            <span>{opt}</span>
+                          </label>
+                        {/each}
+                      </div>
+                    {:else if widget.kind === 'multiline'}
+                      <textarea
+                        class="multiline"
+                        rows="1"
+                        value={value}
+                        oninput={(e) => commit(r, c, e.currentTarget.value)}
+                      ></textarea>
+                    {:else if widget.kind === 'date'}
+                      <input
+                        type="date"
+                        value={value}
+                        oninput={(e) => commit(r, c, e.currentTarget.value)}
+                      />
+                    {:else if widget.kind === 'datetime'}
+                      <input
+                        type="datetime-local"
+                        value={toDatetimeInput(value)}
+                        oninput={(e) => commit(r, c, e.currentTarget.value)}
+                      />
+                    {:else if widget.kind === 'number'}
+                      <input
+                        type="number"
+                        value={value}
+                        oninput={(e) => commit(r, c, e.currentTarget.value)}
+                      />
+                    {:else if widget.kind === 'url'}
+                      <input
+                        type="url"
+                        value={value}
+                        oninput={(e) => commit(r, c, e.currentTarget.value)}
+                      />
+                    {:else}
+                      <input
+                        type="text"
+                        value={value}
+                        oninput={(e) => commit(r, c, e.currentTarget.value)}
+                      />
+                    {/if}
+                  </div>
                 {/if}
               </td>
             {/each}
@@ -249,8 +328,8 @@
     {/if}
   </div>
 
-  {#if onChange && doc.columns.length > 0}
-    <!-- 行操作バー。対象は「選択中の行」＝最後にフォーカスしたセルの行。 -->
+  {#if editable && doc.columns.length > 0}
+    <!-- 行操作バー。対象は「選択中の行」＝アクティブセルの行。 -->
     <div class="grid-actions">
       <button type="button" class="row-btn" onclick={addRow}>＋ 行を追加</button>
       <button type="button" class="row-btn" onclick={duplicateActiveRow} disabled={!hasRows}>
@@ -265,7 +344,7 @@
       <button type="button" class="row-btn danger" onclick={deleteActiveRow} disabled={!hasRows}>
         選択行を削除
       </button>
-      <span class="active-row" aria-live="polite">選択中: {activeRowLabel}</span>
+      <span class="active-row" aria-live="polite">{modeLabel}中: {activeRowLabel}</span>
     </div>
   {/if}
 </div>
@@ -279,7 +358,8 @@
     min-height: 0;
   }
   /* DESIGN §5.8: 検証グリッドはスプレッドシート（Excel / Sheets）調。罫線＝セル境界、
-     セルは枠なし透明でその場編集、アクティブセルは選択リング。§5.3 の読み取り表とは別仕様。 */
+     アクティブセルのみ入力ウィジェット化、選択枠（リング）で今どこかを示す。§5.3 の
+     読み取り表とは別仕様。 */
   .tsv-grid {
     flex: 1;
     min-height: 0;
@@ -372,7 +452,7 @@
   }
 
   tbody td {
-    padding: 0; /* 入力ウィジェットがセルいっぱいに敷くので td 自身は余白ゼロ */
+    padding: 0; /* 入力ウィジェット / 静的表示がセルいっぱいに敷くので td 自身は余白ゼロ */
     height: 30px;
     vertical-align: middle;
   }
@@ -400,16 +480,45 @@
     margin-left: 2px;
   }
 
-  /* 検証エラー: 左内側マーカー + 淡い赤地。フォーカスリングとは併存する。 */
+  /* 検証エラー: 左内側マーカー + 淡い赤地。選択枠とは併存する。 */
   td.invalid {
     background: var(--danger-subtle, rgba(220, 38, 38, 0.08));
     box-shadow: inset 3px 0 0 var(--danger-fg);
   }
 
-  /* アクティブセル＝選択リング（Excel の選択枠相当）。地は微かに敷く。 */
-  tbody td:focus-within {
+  /* アクティブセル＝選択リング（Excel の選択枠相当）。編集中は地を少し変える。 */
+  td.active {
     box-shadow: inset 0 0 0 2px var(--accent);
     background: var(--accent-subtle);
+  }
+
+  td.active.editing {
+    background: var(--bg-elevated);
+  }
+
+  /* 非アクティブの静的表示。1 行で省略、セルいっぱいに敷く。 */
+  .cell-view {
+    display: flex;
+    align-items: center;
+    height: 100%;
+    padding: var(--space-1) var(--space-3);
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    cursor: cell;
+    outline: none;
+  }
+
+  .cell-view.num {
+    justify-content: flex-end;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* アクティブセルの入力コンテナ。 */
+  .cell-edit {
+    display: block;
+    height: 100%;
   }
 
   /* 入力ウィジェットは枠なし・角丸なし・透明でセルいっぱい（罫線がセルを区切る）。 */
@@ -457,14 +566,15 @@
     min-height: 4.5em;
     overflow: auto;
     white-space: pre-wrap;
-    box-shadow: inset 0 0 0 2px var(--accent);
     background: var(--bg-elevated);
   }
 
   /* チェックボックス / ラジオはセル中央に。 */
-  td:has(> input[type='checkbox']),
-  td:has(> .radio-group) {
-    text-align: center;
+  .cell-edit:has(> input[type='checkbox']),
+  .cell-edit:has(> .radio-group) {
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
 
   input[type='checkbox'] {

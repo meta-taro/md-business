@@ -88,6 +88,24 @@ export function cellToCheckbox(value: string): boolean {
 }
 
 /**
+ * 非アクティブセルの静的表示テキストを求める（アクティブセルのみ input 化する二モード
+ * 描画で、選択されていないセルは軽量なテキスト表示にする）。
+ *
+ * - `checkbox` → ☑ / ☐ グリフ（`TRUE` のみ真、他は未チェック）
+ * - `multiline` → 先頭行のみ。複数行なら末尾に ` …` を付けて畳んだことを示す
+ * - その他 → 値をそのまま（空セルは空文字＝未入力の正本を埋めない）
+ */
+export function cellDisplayText(kind: CellWidgetKind | undefined, value: string): string {
+  if (kind === 'checkbox') return cellToCheckbox(value) ? '☑' : '☐';
+  if (kind === 'multiline') {
+    if (value === '') return '';
+    const [first, ...rest] = value.split(/\r?\n/);
+    return rest.length > 0 ? `${first} …` : (first ?? '');
+  }
+  return value;
+}
+
+/**
  * 指定セル（`row` 行 `col` 列・いずれも 0 始まり）を `value` へ更新した
  * **新しい** ドキュメントを返す（入力は不変）。
  *
