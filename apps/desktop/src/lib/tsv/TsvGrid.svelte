@@ -33,18 +33,21 @@
   } from './gridLayout';
   import {
     DEFAULT_ROW_HEIGHT,
-    defaultRowHeights,
     resizeRowHeight,
     setRowHeight,
-    reconcileRowHeights,
   } from './gridRowLayout';
   import {
     type ColOverflowMode,
     defaultColModes,
     setColMode,
-    reconcileColModes,
     colModeMenuItems,
   } from './gridColumnMode';
+  import {
+    readLayout,
+    writeLayoutDirectives,
+    type LayoutDefaults,
+    type GridLayout,
+  } from './gridLayoutDirectives';
   import {
     type CellRange,
     rangeBounds,
@@ -73,21 +76,30 @@
   // （田中さん 2026-07-23）。フォーマットは変えず、描画専用に列数から算出する。
   const colLetters = $derived(columnLabels(doc.columns.length));
 
-  // ── 列幅（px）。table-layout:fixed の土台。選択（input 化）で幅が動かず、
-  //    ヘッダ境界のドラッグで自由に調整できる（田中さん 2026-07-23）。 ──
+  // ── レイアウト（列幅 px / 行高 px / 列表示モード）。田中さん 2026-07-23「幅や、行を
+  //    変えられる…改行時の表示も。これは tsv 側に記憶してほしい」に応え、これらは
+  //    `#@ colwidth|rowheight|colmode` ディレクティブとして doc に永続化する。読み書きは
+  //    gridLayoutDirectives の純ロジック、リサイズ実測と永続タイミングだけが薄いグルー。
+  //    編集のたび doc は再パースされ列/directives 参照が変わるが、レイアウトは directives
+  //    から読み直すので、調整幅・行高・表示モードがセル入力で既定へ戻らない。 ──
   const ROWNUM_WIDTH = 44; // 行番号列の固定幅（px・.rownum の 2.75rem 相当）
-  // 初期幅はマウント時の列定義から一度だけ確定（untrack で「初期値キャプチャ」を明示）。
-  let colWidths = $state<number[]>(untrack(() => defaultColWidths(doc.columns)));
-  // 列定義が差し替わった（別ファイルを開いた）ときだけ既定幅へ戻す。setCell は
-  // columns 参照を保つので、セル編集ではユーザーの調整幅を維持する。
-  let lastColumnsRef = untrack(() => doc.columns);
-  $effect(() => {
-    if (doc.columns !== lastColumnsRef) {
-      lastColumnsRef = doc.columns;
-      colWidths = defaultColWidths(doc.columns);
-      padRows = 0; // 別ファイルを開いたら空パッド行はリセット
-    }
-  });
+
+  // 列型から決まる既定レイアウト（doc.columns の変化に追従して算出）。
+  function layoutDefaults(): LayoutDefaults {
+    return {
+      colWidths: defaultColWidths(doc.columns),
+      colModes: defaultColModes(doc.columns),
+      rowHeight: DEFAULT_ROW_HEIGHT,
+    };
+  }
+
+  // 初期レイアウトは directives から復元（untrack で「初期値キャプチャ」を明示）。
+  const initLayout = untrack(() =>
+    readLayout(doc.directives, doc.rows.length, layoutDefaults()),
+  );
+  let colWidths = $state<number[]>(initLayout.colWidths);
+  let rowHeights = $state<number[]>(initLayout.rowHeights);
+  let colModes = $state<ColOverflowMode[]>(initLayout.colModes);
 
   // ── 空パッド行（田中さん 2026-07-23「行を追加しても増えない」不具合の対処）。
   //    カスタム TSV は全セルが空の行をテキスト化できない（round-trip で消える）ため、
@@ -96,6 +108,40 @@
   //    表示行数・実体化・空行判定は gridBlankRows の純ロジックへ委譲。 ──
   let padRows = $state(0);
   const displayRows = $derived(displayRowCount(doc.rows.length, padRows));
+
+  // doc（別ファイル or 再パース）に追従してレイアウトを directives から読み直す。列参照は
+  // 毎編集で変わるので ref 比較では「別ファイル」を判定できない。構造シグネチャ（列名:型:
+  // 必須）で本当に列構成が変わったときだけ pad 行をリセットする（同一ファイルの再パースは維持）。
+  function columnSignature(): string {
+    return doc.columns.map((c) => `${c.name}:${c.type}:${c.required ? 1 : 0}`).join('\t');
+  }
+  let lastSignature = untrack(() => columnSignature());
+  $effect(() => {
+    // readLayout / columnSignature が doc.directives・doc.columns・doc.rows.length を読むので、
+    // それらの変化でこの effect が再走する（明示的な依存宣言は不要）。
+    const layout = readLayout(doc.directives, doc.rows.length, layoutDefaults());
+    colWidths = layout.colWidths;
+    rowHeights = layout.rowHeights;
+    colModes = layout.colModes;
+    const sig = columnSignature();
+    if (sig !== lastSignature) {
+      lastSignature = sig;
+      padRows = 0; // 別ファイルを開いたら空パッド行はリセット
+    }
+  });
+
+  // レイアウト変更（幅/行高/モード）を #@ ディレクティブへ焼いて親へ通知＝tsv に永続化。
+  // pad 行の高さはファイルに焼けない（実データ行でない）ため data 行ぶんに切り詰める。
+  function persistLayout(): void {
+    if (!onChange) return;
+    const layout: GridLayout = {
+      colWidths,
+      colModes,
+      rowHeights: rowHeights.slice(0, doc.rows.length),
+    };
+    const directives = writeLayoutDirectives(doc.directives, layout, layoutDefaults());
+    onChange({ ...doc, directives });
+  }
   // テーブル全幅＝行番号列 + 各列幅の合計（fixed レイアウトで横スクロール可能に）。
   const tableWidth = $derived(ROWNUM_WIDTH + colWidths.reduce((sum, w) => sum + w, 0));
 
@@ -120,6 +166,7 @@
       // pointer capture 非対応環境でも無視（リサイズは終了扱い）
     }
     resizing = null;
+    persistLayout(); // 調整幅を tsv へ焼く
   }
 
   // 列境界のダブルクリック＝内容に合わせた自動幅（スプレ同様）。ヘッダ名と各セルの
@@ -157,21 +204,12 @@
     }
     span.remove();
     colWidths = setColWidth(colWidths, col, fitColWidth(measured));
+    persistLayout(); // 自動幅も tsv へ焼く
   }
 
-  // ── 行高（px）。列幅と対称。行境界のドラッグで可変（田中さん 2026-07-23）。
-  //    tr の height は最小高として効くので、折り返し内容がそれより高ければ内容が伸びる。 ──
-  let rowHeights = $state<number[]>(untrack(() => defaultRowHeights(doc.rows.length)));
-  // 行の追加・削除で件数が変わったときだけ長さを合わせる（既存行の手動高は保つ）。
-  let lastRowCount = untrack(() => doc.rows.length);
-  $effect(() => {
-    const n = doc.rows.length;
-    if (n !== lastRowCount) {
-      lastRowCount = n;
-      rowHeights = reconcileRowHeights(rowHeights, n);
-    }
-  });
-
+  // ── 行高（px）。列幅と対称。行境界のドラッグで可変（田中さん 2026-07-23）。tr の height は
+  //    最小高として効くので、折り返し内容がそれより高ければ内容が伸びる。状態は上のレイアウト
+  //    セクションで rowHeights として宣言済み（directives から復元・変更で永続化）。 ──
   let rowResizing: { row: number; startY: number; startH: number } | null = null;
   function onRowResizeStart(row: number, event: PointerEvent): void {
     event.preventDefault();
@@ -192,24 +230,18 @@
       // pointer capture 非対応環境でも無視
     }
     rowResizing = null;
+    persistLayout(); // 行高を tsv へ焼く
   }
   // 行境界のダブルクリック＝既定高へ戻す（内容＝折り返しに応じた自然な高さに任せる）。
   function autoFitRow(row: number): void {
     rowHeights = setRowHeight(rowHeights, row, DEFAULT_ROW_HEIGHT);
+    persistLayout(); // 既定へ戻した行高も tsv へ焼く（既定なら sparse で行が消える）
   }
 
   // ── 列の表示モード（clip / wrap / overflow）。右クリックメニューで列ごとに切替
   //    （田中さん 2026-07-23「折り返す／突き抜ける／見切れる」）。選択肢生成・状態は
-  //    gridColumnMode の純ロジック、メニュー描画・座標だけ Svelte 側の薄いグルー。 ──
-  let colModes = $state<ColOverflowMode[]>(untrack(() => defaultColModes(doc.columns)));
-  let lastModeColumnsRef = untrack(() => doc.columns);
-  $effect(() => {
-    if (doc.columns !== lastModeColumnsRef) {
-      lastModeColumnsRef = doc.columns;
-      colModes = reconcileColModes(colModes, doc.columns);
-    }
-  });
-
+  //    gridColumnMode の純ロジック、メニュー描画・座標だけ Svelte 側の薄いグルー。状態は
+  //    上のレイアウトセクションで colModes として宣言済み（directives から復元・変更で永続化）。 ──
   // 右クリックで開く列モードメニュー。対象列と画面座標を持つ（null＝非表示）。
   let colMenu = $state<{ col: number; x: number; y: number } | null>(null);
   const colMenuItems = $derived(
@@ -220,7 +252,10 @@
     colMenu = { col, x: event.clientX, y: event.clientY };
   }
   function chooseColMode(mode: ColOverflowMode): void {
-    if (colMenu) colModes = setColMode(colModes, colMenu.col, mode);
+    if (colMenu) {
+      colModes = setColMode(colModes, colMenu.col, mode);
+      persistLayout(); // 表示モードを tsv へ焼く
+    }
     colMenu = null;
   }
   function closeColMenu(): void {
