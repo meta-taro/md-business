@@ -277,6 +277,43 @@ importers:
         specifier: ^2.1.8
         version: 2.1.9(@types/node@22.19.21)(happy-dom@20.10.5)(jsdom@29.1.1)
 
+  packages/mcp-server:
+    dependencies:
+      '@md-business/core':
+        specifier: workspace:*
+        version: link:../core
+      '@md-business/schema-api-spec':
+        specifier: workspace:*
+        version: link:../schema-api-spec
+      '@md-business/schema-db-spec':
+        specifier: workspace:*
+        version: link:../schema-db-spec
+      '@md-business/schema-invoice':
+        specifier: workspace:*
+        version: link:../schema-invoice
+      '@md-business/schema-nosql-db-spec':
+        specifier: workspace:*
+        version: link:../schema-nosql-db-spec
+      '@md-business/schema-spec':
+        specifier: workspace:*
+        version: link:../schema-spec
+      '@md-business/schema-test-spec':
+        specifier: workspace:*
+        version: link:../schema-test-spec
+    devDependencies:
+      '@types/node':
+        specifier: ^22.10.0
+        version: 22.19.21
+      '@vitest/coverage-v8':
+        specifier: ^2.1.8
+        version: 2.1.9(vitest@2.1.9(@types/node@22.19.21)(happy-dom@20.10.5)(jsdom@29.1.1))
+      typescript:
+        specifier: ^5.6.3
+        version: 5.9.3
+      vitest:
+        specifier: ^2.1.8
+        version: 2.1.9(@types/node@22.19.21)(happy-dom@20.10.5)(jsdom@29.1.1)
+
   packages/renderer-pdf:
     dependencies:
       '@md-business/schema-api-spec':

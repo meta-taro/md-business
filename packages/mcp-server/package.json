@@ -1,0 +1,43 @@
+{
+  "name": "@md-business/mcp-server",
+  "version": "0.0.0",
+  "private": false,
+  "description": "Model Context Protocol (stdio) server for md-business — lets AI agents (Claude Desktop / Claude Code / Cursor / Cline) read, validate, create, update and search Markdown business documents (invoice / spec / test-spec / db-spec / nosql-db-spec / api-spec) as the source of truth. Issue 004 Phase 2, Node sidecar.",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "src",
+    "README.md"
+  ],
+  "dependencies": {
+    "@md-business/core": "workspace:*",
+    "@md-business/schema-api-spec": "workspace:*",
+    "@md-business/schema-db-spec": "workspace:*",
+    "@md-business/schema-invoice": "workspace:*",
+    "@md-business/schema-nosql-db-spec": "workspace:*",
+    "@md-business/schema-spec": "workspace:*",
+    "@md-business/schema-test-spec": "workspace:*"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest",
+    "test:run": "vitest run --coverage",
+    "lint": "tsc -p tsconfig.json --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "@vitest/coverage-v8": "^2.1.8",
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.8"
+  }
+}
