@@ -39,20 +39,57 @@ export interface SchemaEntry {
   validate: CompiledValidator;
   /** JSON Schema オブジェクト（get_schema / スキーマ一覧提示用）。 */
   schema: object;
+  /**
+   * この種別の schema 宣言を載せる canonical な frontmatter キー。
+   * create_document がここへ id を書き込む。invoice/spec は `schemaVersion`、
+   * test-spec/db/nosql/api は `schema`（各 schema.json の required で確認・§19）。
+   */
+  schemaKey: 'schema' | 'schemaVersion';
 }
 
 export const SCHEMA_REGISTRY: readonly SchemaEntry[] = [
-  { id: INVOICE_ID, label: '適格請求書', validate: validateInvoice, schema: invoiceSchema },
-  { id: SPEC_ID, label: '基本設計書', validate: validateSpec, schema: specSchema },
-  { id: TEST_SPEC_ID, label: '検証シート', validate: validateTestSpec, schema: testSpecSchema },
-  { id: DB_SPEC_ID, label: 'DB 設計書（RDB）', validate: validateDbSpec, schema: dbSpecSchema },
+  {
+    id: INVOICE_ID,
+    label: '適格請求書',
+    validate: validateInvoice,
+    schema: invoiceSchema,
+    schemaKey: 'schemaVersion',
+  },
+  {
+    id: SPEC_ID,
+    label: '基本設計書',
+    validate: validateSpec,
+    schema: specSchema,
+    schemaKey: 'schemaVersion',
+  },
+  {
+    id: TEST_SPEC_ID,
+    label: '検証シート',
+    validate: validateTestSpec,
+    schema: testSpecSchema,
+    schemaKey: 'schema',
+  },
+  {
+    id: DB_SPEC_ID,
+    label: 'DB 設計書（RDB）',
+    validate: validateDbSpec,
+    schema: dbSpecSchema,
+    schemaKey: 'schema',
+  },
   {
     id: NOSQL_ID,
     label: 'DB 設計書（NoSQL）',
     validate: validateNosqlDbSpec,
     schema: nosqlDbSpecSchema,
+    schemaKey: 'schema',
   },
-  { id: API_ID, label: 'API 詳細設計書', validate: validateApiSpec, schema: apiSpecSchema },
+  {
+    id: API_ID,
+    label: 'API 詳細設計書',
+    validate: validateApiSpec,
+    schema: apiSpecSchema,
+    schemaKey: 'schema',
+  },
 ];
 
 /** id → エントリの索引（解決を O(1) に）。 */

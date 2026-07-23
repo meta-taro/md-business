@@ -31,6 +31,16 @@ describe('SCHEMA_REGISTRY', () => {
       expect(entry.label.length).toBeGreaterThan(0);
     }
   });
+
+  it('schemaKey は種別で割れる（invoice/spec は schemaVersion、他は schema）', () => {
+    const byId = new Map(SCHEMA_REGISTRY.map((e) => [e.id, e.schemaKey]));
+    expect(byId.get(INVOICE_V)).toBe('schemaVersion');
+    expect(byId.get(SPEC_V)).toBe('schemaVersion');
+    expect(byId.get(TEST_SPEC_V)).toBe('schema');
+    expect(byId.get(DB_SPEC_V)).toBe('schema');
+    expect(byId.get(NOSQL_V)).toBe('schema');
+    expect(byId.get(API_V)).toBe('schema');
+  });
 });
 
 describe('listSchemas', () => {

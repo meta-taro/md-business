@@ -12,9 +12,16 @@ export type { SchemaEntry } from './registry.js';
 export { MemoryDocumentStore } from './store.js';
 export type { DocumentStore } from './store.js';
 
-export { readDocument, validateDocument } from './tools.js';
+export { diffLines } from './diff.js';
+export type { DiffLine, DiffLineType } from './diff.js';
+
+export { readDocument, validateDocument, createDocument, updateDocument } from './tools.js';
 export type {
   ToolError,
   ReadDocumentOk,
   ValidateDocumentOk,
+  CreateDocumentInput,
+  CreateDocumentOk,
+  UpdateDocumentInput,
+  UpdateDocumentOk,
 } from './tools.js';
