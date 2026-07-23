@@ -11,6 +11,7 @@ export type { SchemaEntry } from './registry.js';
 
 export { MemoryDocumentStore } from './store.js';
 export type { DocumentStore } from './store.js';
+export { FileDocumentStore } from './fileStore.js';
 
 export { diffLines } from './diff.js';
 export type { DiffLine, DiffLineType } from './diff.js';
