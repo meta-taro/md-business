@@ -96,8 +96,8 @@
     共有ドライブのフォルダ・Git 作業コピーなど）。
   </p>
   <ol>
-    <li>左レールの<strong>「フォルダを開く」</strong>から、<code>.md</code> ファイルのあるフォルダを選びます。
-      見つかった Markdown ファイルがツリーに一覧表示されます。</li>
+    <li>左レールの<strong>「フォルダを開く」</strong>から、<code>.md</code> / <code>.tsv</code> ファイルのある
+      フォルダを選びます。見つかった Markdown ファイルと TSV 検証シートがツリーに一覧表示されます。</li>
     <li>ツリーのファイルをクリックするとエディターで開きます。右側のプレビューは、文書の
       <code>schema:</code> frontmatter から自動で選ばれます（次項参照）。</li>
     <li>開いたフォルダは記憶され、次回起動時に自動で開き直します。</li>
@@ -107,8 +107,8 @@
     「新規作成」ボタンはまだありません。新しい請求書や検証シートを始めるには、まずひな型をフォルダにコピーします。
     リポジトリの
     <a href="https://github.com/meta-taro/md-business/tree/main/templates"><code>templates/</code></a>
-    に invoice / spec / test-spec / api-spec のひな型があります。<code>.md</code> をフォルダに置くとツリーに現れ、
-    開いて編集できます。
+    に invoice / spec / test-spec / api-spec のひな型があります（検証シートをグリッドで編集する
+    <code>.tsv</code> ひな型も含みます）。ファイルをフォルダに置くとツリーに現れ、開いて編集できます。
   </div>
 </section>
 
@@ -159,16 +159,27 @@
 <section id="testsheet">
   <h2>6. 検証シートを記入する</h2>
   <p>
-    検証シート（<code>schema: test-spec/v1</code>）は、右側が読み取り専用プレビューではなく編集可能な
-    <strong>グリッド</strong>で開きます。表計算のように結果を直接記入できます。
+    検証シートは、右側が読み取り専用プレビューではなく編集可能な<strong>グリッド</strong>で開き、表計算のように
+    結果を直接記入できます。グリッドで開くのは、ファイル先頭にマジック行
+    <code>#! md-business:test-spec-tsv/v1</code> がある <strong>カスタム TSV 形式</strong>の検証シートです
+    （<code>schema: test-spec/v1</code> の Markdown 検証シートは、グリッドではなく読み取りプレビューで開きます）。
+    最短の始め方は、ひな型
+    <a href="https://github.com/meta-taro/md-business/tree/main/templates/test-spec"><code>templates/test-spec/standard-ja.tsv</code></a>
+    を作業フォルダにコピーして開くことです。
   </p>
   <ul>
-    <li>セルをクリックして入力します。矢印キーでの移動、コピー / 貼り付けも表計算と同じ感覚で使えます。</li>
+    <li>セルをクリックして入力します。矢印キーでの移動、コピー / 貼り付けも表計算と同じ感覚で使えます。列型に応じて
+      プルダウン / ラジオ / 日付・日時ピッカー / チェックボックスがインライン表示されます。</li>
     <li>グリッド上部の<strong>「全画面」</strong>切り替えでエディターを隠して記入に集中でき、<kbd>Esc</kbd> で
       分割表示に戻ります。</li>
-    <li>編集内容は自動的に Markdown へ書き戻されるので、<kbd>Ctrl / ⌘ + S</kbd> で他の文書と同じように
+    <li>編集内容は自動的に TSV へ書き戻されるので、<kbd>Ctrl / ⌘ + S</kbd> で他の文書と同じように
       保存できます。</li>
   </ul>
+  <p>
+    行種別・列型の記法・エスケープ・保存規則など、TSV 検証シートの詳しい書式は
+    <a href="https://github.com/meta-taro/md-business/blob/main/docs/spec/test-spec-tsv-v1.md">カスタム TSV 検証シート仕様</a>
+    を参照してください。
+  </p>
 </section>
 
 <section id="pdf">
