@@ -14,6 +14,7 @@
   import DiffView from '$lib/components/DiffView.svelte';
   import SearchBar from '$lib/search/SearchBar.svelte';
   import { search } from '$lib/search/search.svelte';
+  import { t } from '$lib/i18n/i18n.svelte';
   import { createPreviewSearchBinding } from '$lib/preview/previewSearchBinding';
   import {
     DEFAULT_SPLIT_RATIO,
@@ -343,14 +344,14 @@
        自動再読込しない。ユーザーがどちらを採るか選ぶ（DESIGN §3.4）。 -->
   <div class="conflict-bar" role="alert">
     <span class="conflict-msg">
-      外部でこのファイルが変更されました（<code>{workspace.externalConflict.relPath}</code>）。
+      {t('page.conflictChanged')}（<code>{workspace.externalConflict.relPath}</code>）
     </span>
     <span class="conflict-actions">
       <button type="button" class="conflict-btn danger" onclick={() => workspace.reloadConflict()}>
-        再読込（編集を破棄）
+        {t('page.conflictReload')}
       </button>
       <button type="button" class="conflict-btn" onclick={() => workspace.dismissConflict()}>
-        編集を残す
+        {t('page.conflictKeep')}
       </button>
     </span>
   </div>
@@ -363,8 +364,8 @@
   bind:this={splitEl}
   style="--split-cols: {dividerColumns(splitRatio)}"
 >
-  <section class="pane editor" aria-label="Markdown エディター">
-    <div class="pane-head">エディター — Markdown</div>
+  <section class="pane editor" aria-label={t('page.editorPaneLabel')}>
+    <div class="pane-head">{t('page.editorHead')}</div>
     <CodeMirrorEditor value={source} onChange={handleEditorChange} onSync={handleEditorSync} />
     <SearchBar pane="editor" />
   </section>
@@ -378,7 +379,7 @@
     class="divider"
     role="separator"
     aria-orientation="vertical"
-    aria-label="エディターとプレビューの幅を調整（ダブルクリックで 50/50 に戻す）"
+    aria-label={t('page.dividerLabel')}
     aria-valuenow={Math.round(splitRatio * 100)}
     aria-valuemin={0}
     aria-valuemax={100}
@@ -390,37 +391,37 @@
     onkeydown={onDividerKey}
   ></div>
 
-  <section class="pane preview" aria-label="ビューワー（プレビュー）">
+  <section class="pane preview" aria-label={t('page.previewPaneLabel')}>
     <SearchBar pane="preview" />
     {#if diffView.active}
       <!-- 変更ファイルをソース管理パネルでクリックした間だけ差分表示に切り替える。
            「プレビューに戻る」or 別ファイルを通常オープンで解除される。 -->
-      <div class="pane-head">差分 — Git</div>
+      <div class="pane-head">{t('page.diffHead')}</div>
       <DiffView />
     {:else if isTsv && tsvDoc}
       <div class="pane-head grid-head">
-        <span>検証シート — グリッド編集</span>
+        <span>{t('page.gridHead')}</span>
         <button
           type="button"
           class="head-btn"
           onclick={toggleGridFullscreen}
           aria-pressed={gridFullscreen}
-          title={gridFullscreen ? '分割表示に戻す（Esc）' : 'グリッドを全画面表示'}
+          title={gridFullscreen ? t('page.gridRestoreTitle') : t('page.gridFullscreenTitle')}
         >
-          {gridFullscreen ? '↙ 分割に戻す' : '⤢ 全画面'}
+          {gridFullscreen ? t('page.gridRestoreBtn') : t('page.gridFullscreenBtn')}
         </button>
       </div>
       <div class="grid-wrap">
         <TsvGrid doc={tsvDoc} onChange={handleGridChange} />
       </div>
     {:else}
-    <div class="pane-head">プレビュー{#if preview.ok} — {preview.label}{/if}</div>
+    <div class="pane-head">{t('page.previewHead')}{#if preview.ok} — {preview.label}{/if}</div>
     {#if preview.ok}
       <iframe
         class="viewer"
         bind:this={viewerFrame}
         srcdoc={preview.srcdoc}
-        title="{preview.label}プレビュー"
+        title={t('page.previewTitle', { label: preview.label })}
         onload={onPreviewLoad}
       ></iframe>
       {#if preview.errors.length > 0 || preview.warnings.length > 0}
@@ -436,7 +437,7 @@
     {:else}
       <div class="pane-empty">
         <p class="hint">{preview.reason}</p>
-        <span class="env">frontmatter（--- で囲む先頭ブロック）の書式を確認してください</span>
+        <span class="env">{t('page.frontmatterHint')}</span>
       </div>
     {/if}
     {/if}

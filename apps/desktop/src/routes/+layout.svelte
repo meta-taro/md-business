@@ -4,7 +4,7 @@
   import '../app.css';
   import { browser } from '$app/environment';
   import { themeController } from '$lib/theme.svelte';
-  import { i18n } from '$lib/i18n/i18n.svelte';
+  import { i18n, t } from '$lib/i18n/i18n.svelte';
   import { workspace } from '$lib/workspace/workspace.svelte';
   import { decideFileChangeAction, type FileChangeEvent } from '$lib/workspace/watchLogic';
   import { pdfExport } from '$lib/preview/pdfExport.svelte';
@@ -209,7 +209,7 @@
         class="rail-divider"
         role="separator"
         aria-orientation="vertical"
-        aria-label="エクスプローラーの幅を調整（ダブルクリックで初期幅に戻す）"
+        aria-label={t('layout.railDividerLabel')}
         aria-valuenow={Math.round(explorerWidth)}
         aria-valuemin={MIN_FILETREE_W}
         aria-valuemax={MAX_FILETREE_W}

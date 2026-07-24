@@ -3,6 +3,7 @@
   import { getVersion } from '@tauri-apps/api/app';
   import { openUrl } from '@tauri-apps/plugin-opener';
   import { updater } from '$lib/update/updater.svelte';
+  import { t } from '$lib/i18n/i18n.svelte';
 
   // ヘルプ [?] ボタン + ポップオーバー。アプリ名／バージョン／操作マニュアル／
   // キーボードショートカット／ライセンス・リポジトリを 1 枚にまとめる。
@@ -53,10 +54,11 @@
   }
 
   // 保存 / PDF は matchShortcut（shortcuts.ts）と一致させる。Ctrl（Win/Linux）/ ⌘（Mac）両表記。
-  const shortcuts: { keys: string; label: string }[] = [
-    { keys: 'Ctrl / ⌘ + S', label: '保存' },
-    { keys: 'Ctrl / ⌘ + P', label: 'PDF 出力' },
-  ];
+  // ラベルはロケール反応させるため $derived（言語切替で再計算）。
+  const shortcuts = $derived<{ keys: string; label: string }[]>([
+    { keys: 'Ctrl / ⌘ + S', label: t('action.save') },
+    { keys: 'Ctrl / ⌘ + P', label: t('action.pdfExport') },
+  ]);
 </script>
 
 <svelte:window onkeydown={onKeydown} />
@@ -67,8 +69,8 @@
     class:active={open}
     type="button"
     onclick={toggle}
-    title="ヘルプ・バージョン情報"
-    aria-label="ヘルプ・バージョン情報"
+    title={t('help.title')}
+    aria-label={t('help.title')}
     aria-haspopup="dialog"
     aria-expanded={open}
   >
@@ -83,19 +85,19 @@
       />
       <circle cx="8" cy="11.6" r="0.75" fill="currentColor" />
     </svg>
-    <span>ヘルプ</span>
+    <span>{t('action.help')}</span>
   </button>
 
   {#if open}
     <!-- 外側クリックで閉じる不可視バックドロップ。 -->
-    <button class="backdrop" type="button" aria-label="閉じる" onclick={close}></button>
-    <div class="panel" role="dialog" aria-label="ヘルプ・バージョン情報">
+    <button class="backdrop" type="button" aria-label={t('common.close')} onclick={close}></button>
+    <div class="panel" role="dialog" aria-label={t('help.title')}>
       <div class="ident">
         <span class="brand-dot" aria-hidden="true"></span>
         <div class="ident-text">
           <span class="app-name">md-business</span>
           <span class="app-sub">
-            デスクトップ版{#if version}<span class="ver">v{version}</span>{/if}
+            {t('help.desktopEdition')}{#if version}<span class="ver">v{version}</span>{/if}
           </span>
         </div>
       </div>
@@ -121,14 +123,14 @@
               stroke-linejoin="round"
             />
           </svg>
-          <span>更新を確認</span>
+          <span>{t('help.checkUpdate')}</span>
         </button>
       </section>
 
       <div class="sep"></div>
 
       <section class="block">
-        <h3 class="block-title">操作マニュアル</h3>
+        <h3 class="block-title">{t('help.manual')}</h3>
         <ul class="link-list">
           <li>
             <button class="link-btn" type="button" onclick={() => openExternal(MANUAL_JA_URL)}>
@@ -166,7 +168,7 @@
       <div class="sep"></div>
 
       <section class="block">
-        <h3 class="block-title">キーボードショートカット</h3>
+        <h3 class="block-title">{t('help.shortcuts')}</h3>
         <ul class="sc-list">
           {#each shortcuts as sc (sc.label)}
             <li class="sc-row">
@@ -180,13 +182,13 @@
       <div class="sep"></div>
 
       <section class="block about">
-        <div class="about-row"><span class="about-key">ライセンス</span><span>MIT</span></div>
+        <div class="about-row"><span class="about-key">{t('help.license')}</span><span>MIT</span></div>
         <div class="about-row">
-          <span class="about-key">リポジトリ</span>
+          <span class="about-key">{t('help.repository')}</span>
           <button
             class="repo-url"
             type="button"
-            title="ブラウザで開く"
+            title={t('help.openInBrowser')}
             onclick={() => openExternal(REPO_URL)}
           >
             {REPO_URL}
