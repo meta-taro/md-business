@@ -41,22 +41,36 @@ export function buildSearchRegex(query: string, options: SearchOptions): RegExp 
   }
 }
 
+/** マッチ 1 件の範囲（text 内の文字オフセット。end は排他）。 */
+export interface MatchRange {
+  start: number;
+  end: number;
+}
+
 /**
- * text 中の非重複マッチ数を数える。regex は g フラグ前提（buildSearchRegex 由来）。
+ * text 中の非重複マッチ範囲を先頭から列挙する。regex は g フラグ前提（buildSearchRegex 由来）。
  * 空マッチ（例: `a*` が空にヒット）で無限ループしないよう lastIndex を前進させる。
+ * エディター（選択・スクロール）とプレビュー（ハイライト）双方がこの範囲列を使う。
  */
-export function countMatches(text: string, regex: RegExp | null): number {
-  if (regex === null) return 0;
+export function findMatches(text: string, regex: RegExp | null): MatchRange[] {
+  if (regex === null) return [];
   const re = new RegExp(regex.source, regex.flags.includes('g') ? regex.flags : `${regex.flags}g`);
-  let count = 0;
+  const ranges: MatchRange[] = [];
   let last = -1;
   for (let m = re.exec(text); m !== null; m = re.exec(text)) {
-    count += 1;
+    ranges.push({ start: m.index, end: m.index + m[0].length });
     if (re.lastIndex === m.index) re.lastIndex += 1; // 空マッチ対策
     if (re.lastIndex <= last) break; // 念のための停止（後退しない）
     last = re.lastIndex;
   }
-  return count;
+  return ranges;
+}
+
+/**
+ * text 中の非重複マッチ数を数える（findMatches の件数）。regex は g フラグ前提。
+ */
+export function countMatches(text: string, regex: RegExp | null): number {
+  return findMatches(text, regex).length;
 }
 
 /**

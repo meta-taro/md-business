@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   escapeRegExp,
   buildSearchRegex,
+  findMatches,
   countMatches,
   stepMatchIndex,
   displayIndex,
@@ -47,6 +48,30 @@ describe('buildSearchRegex', () => {
   it('regex=true は生パターン、不正パターンは null', () => {
     expect('a1b2'.match(buildSearchRegex('\\d', opts({ regex: true }))!)).not.toBeNull();
     expect(buildSearchRegex('(unclosed', opts({ regex: true }))).toBeNull();
+  });
+});
+
+describe('findMatches', () => {
+  it('各マッチの開始・終了オフセットを列挙する', () => {
+    expect(findMatches('ababab', buildSearchRegex('ab', opts()))).toEqual([
+      { start: 0, end: 2 },
+      { start: 2, end: 4 },
+      { start: 4, end: 6 },
+    ]);
+  });
+
+  it('マッチ無しは空配列', () => {
+    expect(findMatches('no hits', buildSearchRegex('xyz', opts()))).toEqual([]);
+  });
+
+  it('null 正規表現は空配列', () => {
+    expect(findMatches('anything', null)).toEqual([]);
+  });
+
+  it('空マッチになりうるパターンで無限ループしない（有限個を返す）', () => {
+    const ms = findMatches('aaa', buildSearchRegex('a*', opts({ regex: true })));
+    expect(Array.isArray(ms)).toBe(true);
+    expect(ms.length).toBeGreaterThan(0);
   });
 });
 
