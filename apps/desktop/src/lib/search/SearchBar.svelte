@@ -1,17 +1,26 @@
 <script lang="ts">
   import { tick } from 'svelte';
-  import { search } from './search.svelte';
+  import { search, type SearchTarget } from './search.svelte';
   import { displayIndex } from './searchLogic';
   import { t } from '$lib/i18n/i18n.svelte';
 
-  // エディター／プレビュー共通の検索バー。右上に浮かせ、対象ペインに応じてラベルを出す。
+  // エディター／プレビュー共通の検索バー。所属ペイン（pane）内の右上に浮かせ、その対象が
+  // アクティブなときだけ表示する（各ペインが 1 つずつ持ち、target 一致で出し分ける）。
   // 状態は search ストアに集約し、ここは入力とボタンの結線だけを持つ（ハイライトは各バインド層）。
+  interface Props {
+    /** このバーが属するペイン。search.target と一致するときだけ描画する。 */
+    pane: SearchTarget;
+  }
+  const { pane }: Props = $props();
+
+  // このバーを表示すべきか（開いている & 対象がこのペイン）。
+  const visible = $derived(search.open && search.target === pane);
 
   let inputEl = $state<HTMLInputElement>();
 
-  // 開いたら入力へフォーカス（tick でマウント後を待つ）。
+  // 表示されたら入力へフォーカス（tick でマウント後を待つ）。
   $effect(() => {
-    if (search.open && inputEl) {
+    if (visible && inputEl) {
       void tick().then(() => inputEl?.focus());
     }
   });
@@ -39,7 +48,7 @@
   }
 </script>
 
-{#if search.open}
+{#if visible}
   <div class="search-bar" role="search">
     <span class="target" title={targetLabel}>{targetLabel}</span>
 

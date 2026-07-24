@@ -13,6 +13,7 @@
     resolvePreviewMessage,
     type ShortcutAction,
   } from '$lib/layout/shortcuts';
+  import { search } from '$lib/search/search.svelte';
   import TopBar from '$lib/components/TopBar.svelte';
   import StatusBar from '$lib/components/StatusBar.svelte';
   import SourceControlPanel from '$lib/components/SourceControlPanel.svelte';
@@ -134,6 +135,8 @@
   function onKeydown(event: KeyboardEvent): void {
     const action = matchShortcut(event);
     if (action === null) return;
+    // find（Ctrl/Cmd+F）はプレビュー可否・エディターフォーカスを知る +page 側で処理する。
+    if (action === 'find') return;
     event.preventDefault();
     runAction(action);
   }
@@ -144,6 +147,11 @@
   function onMessage(event: MessageEvent): void {
     const action = resolvePreviewMessage(event.data);
     if (action === null) return;
+    // iframe 内 Ctrl/Cmd+F は「プレビュー対象で検索バーを開く」に変換（発信元は必ずプレビュー）。
+    if (action === 'find') {
+      search.openFor('preview');
+      return;
+    }
     runAction(action);
   }
 

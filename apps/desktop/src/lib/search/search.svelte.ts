@@ -93,6 +93,14 @@ export const search = {
     rerun();
   },
 
+  /**
+   * アクティブ対象で再検索してハイライトを貼り直す。プレビュー iframe の srcdoc 再生成で
+   * ハイライトが失われた後、開いたままの検索を復元するために呼ぶ（開いていなければ no-op）。
+   */
+  refresh(): void {
+    if (open) rerun();
+  },
+
   /** 検索バーを閉じ、アクティブ対象のハイライトを消す。 */
   close(): void {
     if (!open) return;

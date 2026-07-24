@@ -8,7 +8,7 @@
  */
 
 /** ショートカットで起動できるアクション。 */
-export type ShortcutAction = 'save' | 'pdf';
+export type ShortcutAction = 'save' | 'pdf' | 'find';
 
 /** matchShortcut が見るキーイベントの最小形（KeyboardEvent 互換）。 */
 export interface ShortcutEvent {
@@ -32,6 +32,8 @@ export function matchShortcut(event: ShortcutEvent): ShortcutAction | null {
       return 'save';
     case 'p':
       return 'pdf';
+    case 'f':
+      return 'find';
     default:
       return null;
   }
@@ -56,5 +58,6 @@ export function resolvePreviewMessage(data: unknown): ShortcutAction | null {
   if (message.source !== PREVIEW_MESSAGE_SOURCE) return null;
   if (message.action === 'save') return 'save';
   if (message.action === 'pdf') return 'pdf';
+  if (message.action === 'find') return 'find';
   return null;
 }

@@ -12,6 +12,9 @@
   import { workspace } from '$lib/workspace/workspace.svelte';
   import { diffView } from '$lib/git/diffView.svelte';
   import DiffView from '$lib/components/DiffView.svelte';
+  import SearchBar from '$lib/search/SearchBar.svelte';
+  import { search } from '$lib/search/search.svelte';
+  import { createPreviewSearchBinding } from '$lib/preview/previewSearchBinding';
   import {
     DEFAULT_SPLIT_RATIO,
     ratioFromPointer,
@@ -177,6 +180,9 @@
       win.addEventListener('keydown', cancelFollow);
     }
     applyPreviewScroll();
+    // srcdoc 再生成でハイライト（CSS.highlights）が失われるため、プレビュー検索が開いたまま
+    // なら新しいドキュメントへ貼り直す（開いていない／別対象なら refresh は no-op）。
+    if (search.open && search.target === 'preview') search.refresh();
   }
 
   // frontmatter を registry で振り分け、該当スキーマのビューワーで描画する（6 スキーマ
@@ -198,9 +204,13 @@
       win.focus();
       win.print();
     });
+    // プレビュー iframe の検索を共通ストアへ登録（getter で現在の iframe を都度取り直す＝
+    // srcdoc 再生成で contentDocument が差し替わっても最新へ届く）。
+    search.register('preview', createPreviewSearchBinding(() => viewerFrame, search.report));
   });
   onDestroy(() => {
     pdfExport.unregister();
+    search.unregister('preview');
     if (scrollRaf !== 0) cancelAnimationFrame(scrollRaf);
     if (followRaf !== 0) cancelAnimationFrame(followRaf);
   });
@@ -232,8 +242,23 @@
     gridFullscreen = !gridFullscreen;
   }
 
+  // プレビュー iframe を検索対象にできる状態か（TSV グリッド／差分表示中は iframe が無い）。
+  const previewSearchable = $derived(!isTsv && !diffView.active && preview.ok);
+
   // Escape で全画面を抜ける。ただしセル編集中（入力にフォーカス）の Escape は入力側へ譲る。
+  // また Ctrl/Cmd+F は、エディター（CodeMirror が自前で処理）／プレビュー iframe（自前で
+  // postMessage）以外の親フォーカス時のフォールバックとして共通 SearchBar を開く。
   function onWindowKey(event: KeyboardEvent): void {
+    if ((event.ctrlKey || event.metaKey) && !event.altKey && !event.shiftKey) {
+      if ((event.key || '').toLowerCase() === 'f') {
+        // エディターにフォーカスがあれば CodeMirror 側が既に openFor('editor') 済み＝二重で開かない。
+        const el = event.target as HTMLElement | null;
+        if (el?.closest?.('.cm-editor')) return;
+        event.preventDefault();
+        search.openFor(previewSearchable ? 'preview' : 'editor');
+        return;
+      }
+    }
     if (event.key !== 'Escape' || !gridFullscreen) return;
     const tag = (event.target as HTMLElement | null)?.tagName;
     if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
@@ -341,6 +366,7 @@
   <section class="pane editor" aria-label="Markdown エディター">
     <div class="pane-head">エディター — Markdown</div>
     <CodeMirrorEditor value={source} onChange={handleEditorChange} onSync={handleEditorSync} />
+    <SearchBar pane="editor" />
   </section>
 
   <!-- ドラッグで幅調整・ダブルクリック / Home / Enter で 50/50・矢印キーで微調整 -->
@@ -365,6 +391,7 @@
   ></div>
 
   <section class="pane preview" aria-label="ビューワー（プレビュー）">
+    <SearchBar pane="preview" />
     {#if diffView.active}
       <!-- 変更ファイルをソース管理パネルでクリックした間だけ差分表示に切り替える。
            「プレビューに戻る」or 別ファイルを通常オープンで解除される。 -->
@@ -515,6 +542,7 @@
   }
 
   .pane {
+    position: relative; /* 浮動 SearchBar（position:absolute）の基準 */
     display: flex;
     flex-direction: column;
     min-width: 0;
