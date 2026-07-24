@@ -77,9 +77,13 @@
     doc: TsvDocument;
     /** セル編集で得た新ドキュメントを親へ通知（省略時は読み取り専用）。 */
     onChange?: (next: TsvDocument) => void;
+    /** ナビ中の Ctrl+Z。履歴は親（正本ソース）が持つ。 */
+    onUndo?: () => void;
+    /** ナビ中の Ctrl+Y / Ctrl+Shift+Z。 */
+    onRedo?: () => void;
   }
 
-  let { doc, onChange }: Props = $props();
+  let { doc, onChange, onUndo, onRedo }: Props = $props();
 
   // 列型 → 入力ウィジェット仕様。列定義の変化に追従。
   const widgets = $derived(gridWidgets(doc.columns));
@@ -578,6 +582,19 @@
       if ((event.ctrlKey || event.metaKey) && (event.key === 'c' || event.key === 'C')) {
         event.preventDefault();
         void copySelection();
+        return;
+      }
+      // undo / redo は履歴を持つ親へ委譲（正本ソースが真）。編集中セルの入力は
+      // それ自身のテキスト undo を使うため、ここ（nav）でだけ横取りする。
+      const key = event.key.toLowerCase();
+      if ((event.ctrlKey || event.metaKey) && key === 'z' && !event.shiftKey) {
+        event.preventDefault();
+        onUndo?.();
+        return;
+      }
+      if ((event.ctrlKey || event.metaKey) && (key === 'y' || (key === 'z' && event.shiftKey))) {
+        event.preventDefault();
+        onRedo?.();
         return;
       }
     }
