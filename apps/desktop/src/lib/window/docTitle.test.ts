@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { documentDisplayName } from './docTitle';
 
 /**
- * タイトルバー中央の表示名（田中さん要件 2026-07-22）。
+ * タイトルバー中央の表示名。
  * 文書種別が判るときは frontmatter / メタから「意味のある名前」を組み、
  * 該当しなければファイル名（相対パス末尾）にフォールバックする。
  */

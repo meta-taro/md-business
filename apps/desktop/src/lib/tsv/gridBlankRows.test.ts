@@ -2,8 +2,8 @@ import { describe, it, expect } from 'vitest';
 import { isBlankRow, displayRowCount, editPaddedCell } from './gridBlankRows';
 
 /**
- * 検証グリッドの「空パッド行」モデル（Issue 010・田中さん 2026-07-23
- * 「行の追加を押しても増えなかった」不具合）。
+ * 検証グリッドの「空パッド行」モデル（Issue 010・
+ * 「行の追加を押しても増えない」不具合の対処）。
  * カスタム TSV は全セルが空の行をテキスト化できない（tsv 化するとタブのみ行 →
  * parse が空行として読み飛ばす）。空行は値が入るまでローカル pad 行として持ち、
  * 値が入った時点で実データ行へ実体化する。その純ロジックを検査する。

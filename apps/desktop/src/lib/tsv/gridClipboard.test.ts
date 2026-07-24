@@ -4,7 +4,7 @@ import { parseClipboardMatrix, applyPaste, rowToTsv } from './gridClipboard';
 
 /**
  * スプレッドシート同様の「Excel / Sheets から矩形貼り付け」を支える純ロジック
- * （田中さん要件 2026-07-22「検証UXは最大のポイント」）。DOM 非依存で単体検査する。
+ * （検証 UX が最大のポイントという要件）。DOM 非依存で単体検査する。
  */
 
 function col(name: string): ParsedHeader {
