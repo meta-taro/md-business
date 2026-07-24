@@ -100,7 +100,8 @@
   </p>
   <ol>
     <li>Use <strong>Open folder</strong> in the left rail and pick the folder that holds your
-      <code>.md</code> files. The tree fills with every Markdown file it finds.</li>
+      <code>.md</code> / <code>.tsv</code> files. The tree fills with every Markdown file and TSV test
+      sheet it finds.</li>
     <li>Click any file in the tree to open it in the editor. The preview on the right is chosen
       automatically from the document's <code>schema:</code> front-matter (see the next section).</li>
     <li>The folder you opened is remembered, so the next time you launch the app it reopens it for you.</li>
@@ -110,8 +111,9 @@
     folder; there is no "New file" button inside the app yet. To start a new invoice or test sheet,
     copy one of the ready-made templates into your folder first — see
     <a href="https://github.com/meta-taro/md-business/tree/main/templates"><code>templates/</code></a>
-    in the repository (invoice, spec, test-spec, api-spec). Once the <code>.md</code> file is in your
-    folder, it appears in the tree and you can open and edit it.
+    in the repository (invoice, spec, test-spec, api-spec — including a <code>.tsv</code> test-sheet
+    template that opens in the editable grid). Once the file is in your folder, it appears in the tree
+    and you can open and edit it.
   </div>
 </section>
 
@@ -163,17 +165,27 @@
 <section id="testsheet">
   <h2>6. Fill in a test sheet</h2>
   <p>
-    Test sheets (<code>schema: test-spec/v1</code>) open in an editable <strong>grid</strong> on the
-    right instead of a read-only preview, so you can fill in results directly like a spreadsheet.
+    A test sheet opens in an editable <strong>grid</strong> on the right instead of a read-only preview,
+    so you can fill in results directly like a spreadsheet. The grid opens for a <strong>custom TSV</strong>
+    test sheet — a file whose first line is the magic line <code>#! md-business:test-spec-tsv/v1</code>
+    (a <code>schema: test-spec/v1</code> Markdown test sheet opens as a read-only preview, not the grid).
+    The quickest way to start is to copy the template
+    <a href="https://github.com/meta-taro/md-business/tree/main/templates/test-spec"><code>templates/test-spec/standard-ja.tsv</code></a>
+    into your working folder and open it.
   </p>
   <ul>
     <li>Click a cell and type to edit it; use the arrow keys and copy / paste to move around, the same
-      as a spreadsheet.</li>
+      as a spreadsheet. Depending on the column type, a dropdown / radio / date or datetime picker /
+      checkbox is shown inline.</li>
     <li>Use the <strong>Fullscreen</strong> toggle above the grid to hide the editor while you work
       through cases, and press <kbd>Esc</kbd> to return to the split view.</li>
-    <li>Your edits are written back into the Markdown automatically, so <kbd>Ctrl / ⌘ + S</kbd> saves
+    <li>Your edits are written back into the TSV automatically, so <kbd>Ctrl / ⌘ + S</kbd> saves
       the sheet like any other document.</li>
   </ul>
+  <p>
+    For the full format — line kinds, column-type notation, escaping, and save rules — see the
+    <a href="https://github.com/meta-taro/md-business/blob/main/docs/spec/test-spec-tsv-v1.md">custom TSV test-sheet specification</a>.
+  </p>
 </section>
 
 <section id="pdf">

@@ -3,7 +3,7 @@ import { planGridKey } from './gridMode';
 import type { CellPos, GridDims } from './gridNav';
 
 /**
- * スプレッドシート同様の「選択（nav）⇄ 編集（edit）」二モードのキー解決（田中さん 2026-07-23 決定）。
+ * スプレッドシート同様の「選択（nav）⇄ 編集（edit）」二モードのキー解決。
  * nav: ↑↓←→でセル選択枠が動く。Enter/F2/文字入力で edit へ。
  * edit: キャレット編集。↑↓←→は文字内。Esc で nav へ、Enter で確定して下。
  * DOM 非依存の純ロジックを RED 先行で検査する。

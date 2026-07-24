@@ -626,7 +626,7 @@ export function saveBoundSheetToGithub(): SaveBoundSheetResult {
 //      動かない（Google 公式制限）。代わりに「git push」と同じメンタルモデルで
 //      ユーザが保存したい瞬間に 1 回ボタンを押す形にする。trigger 不要 →
 //      編集中の小刻みな commit で履歴が汚れる問題も同時に解決する。
-// PAT は baseline §15 により PdM (田中さん) が手動投入する。AI は投入しない。
+// PAT はセキュリティ上、必ず人間が手動で投入する（自動投入はしない）。
 
 /**
  * GitHub PAT を UserProperties に保存する（サイドバー経由）。

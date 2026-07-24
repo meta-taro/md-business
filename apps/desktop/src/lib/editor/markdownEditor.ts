@@ -165,7 +165,7 @@ export function createMarkdownEditor(options: MarkdownEditorOptions): MarkdownEd
   });
 
   // スクロール追従: scrollDOM の scroll を rAF で 1 フレーム 1 回に間引き、表示領域の
-  // 先頭行（＝田中さん案「スクロール時はフォーカス＝先頭行」）を focusLine として通知する。
+  // 先頭行（＝スクロール時はフォーカスを先頭行に置く方針）を focusLine として通知する。
   scroller = view.scrollDOM;
   let rafId = 0;
   const topVisibleLine = (): number => {

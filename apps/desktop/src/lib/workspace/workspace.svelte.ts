@@ -47,6 +47,11 @@ class WorkspaceStore {
   expanded = $state<Set<string>>(new Set());
   /** 選択中ファイルの相対パス。ハイライト用。 */
   activePath = $state<string | null>(null);
+  /**
+   * 開いているファイルが外部（AI/CLI/他エディタ）で変更されたが、こちらに未保存編集が
+   * あって自動再読込できない状態。競合バナーの表示に使う。解消（再読込 or 編集維持）で null。
+   */
+  externalConflict = $state<{ relPath: string } | null>(null);
   /** 編集の唯一の真実。既定は seed テンプレ（ファイル未オープン時）。 */
   source = $state<string>(apiSpecSample);
   /** 直近にディスクへ反映された内容（read 直後 / save 成功時に同期）。dirty 判定の基準。 */
@@ -112,6 +117,9 @@ class WorkspaceStore {
       this.error = null;
       // 次回起動で自動復元できるよう、開けたフォルダを記憶する（WebView の localStorage）。
       if (browser) localStorage.setItem(LAST_FOLDER_KEY, root);
+      // 外部（AI/CLI/他エディタ）編集の即時検知を開始する。旧 watcher は Rust 側で張り替える
+      // ので再走査でも安全。監視の失敗は起動をブロックしない（検知が来なくなるだけの劣化）。
+      this.startWatch(root);
       // 開いたフォルダの git 状態とブランチ一覧を取得（非リポジトリでも無害・fire-and-forget）。
       void git.refresh(root);
       void git.loadBranches(root);
@@ -155,6 +163,46 @@ class WorkspaceStore {
       // shouldReopenFile が true なら prevActive は非 null。
       await this.select(prevActive as string);
     }
+  }
+
+  /**
+   * ルートの再帰監視を開始する（fire-and-forget）。監視の初期化失敗は握りつぶす：
+   * 検知が届かなくなるだけで、手動で開き直せば従来どおり反映できる（既存機能は無影響）。
+   */
+  private startWatch(root: string): void {
+    void invoke('watch_workspace', { root }).catch(() => undefined);
+  }
+
+  /**
+   * 外部でツリー構造が変わった（作成・削除・リネーム）ときの再走査。
+   * `scan` は activePath を null に戻すため、開いていたファイルを控えて再走査後に開き直す
+   * （`switchBranch` と同じ `shouldReopenFile` 方式）。新ツリーに無ければ選択解除のまま。
+   */
+  async rescanPreservingActive(): Promise<void> {
+    if (this.root === null) return;
+    const prevActive = this.activePath;
+    await this.scan(this.root);
+    if (shouldReopenFile(prevActive, this.allFilePaths())) {
+      // shouldReopenFile が true なら prevActive は非 null。
+      await this.select(prevActive as string);
+    }
+  }
+
+  /** 開いているファイルの外部変更を競合として記録する（編集中なので自動再読込しない）。 */
+  flagConflict(relPath: string): void {
+    this.externalConflict = { relPath };
+  }
+
+  /** 競合バナーの「再読込（編集を破棄）」。外部内容で開き直し、競合状態を解く。 */
+  reloadConflict(): void {
+    const conflict = this.externalConflict;
+    this.externalConflict = null;
+    if (conflict !== null) void this.select(conflict.relPath);
+  }
+
+  /** 競合バナーの「編集を残す」。再読込せず競合状態だけ解く（次の外部変更で再び出す）。 */
+  dismissConflict(): void {
+    this.externalConflict = null;
   }
 
   /** ファイルを読み込み source に反映する。失敗時はエラー表示のみ・前回内容を保持（§3.4）。 */

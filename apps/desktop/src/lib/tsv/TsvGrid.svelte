@@ -2,7 +2,7 @@
   /**
    * カスタム TSV 検証シートの編集グリッド（Issue 010・スプレッドシート化 UX）。
    *
-   * Office / Workspace なしで QA が検証を完了できる本命 UI。田中さん 2026-07-23 決定の
+   * Office / Workspace なしで QA が検証を完了できる本命 UI。
    * 「Excel 式モード制」を採る:
    *   - **アクティブセルのみ input 化**。非アクティブセルは軽量な静的表示。
    *   - **nav モード**: ↑↓←→でセル選択枠が動く。Enter/F2/文字入力で edit へ。
@@ -83,12 +83,12 @@
   // 列型 → 入力ウィジェット仕様。列定義の変化に追従。
   const widgets = $derived(gridWidgets(doc.columns));
 
-  // スプレッドシート列座標（A,B,C…AA,AB）。型付きヘッダとは別レイヤーの位置参照バー
-  // （田中さん 2026-07-23）。フォーマットは変えず、描画専用に列数から算出する。
+  // スプレッドシート列座標（A,B,C…AA,AB）。型付きヘッダとは別レイヤーの位置参照バー。
+  // フォーマットは変えず、描画専用に列数から算出する。
   const colLetters = $derived(columnLabels(doc.columns.length));
 
-  // 表の上の補足行（#@ note …）。型付きヘッダの上に全幅で敷く（田中さん 2026-07-23
-  // 「表の上に補足」）。フォーマット不変・#@ ディレクティブから読む。追加/編集/削除は
+  // 表の上の補足行（#@ note …）。型付きヘッダの上に全幅で敷く（表の上に補足を置く）。
+  // フォーマット不変・#@ ディレクティブから読む。追加/編集/削除は
   // 下の note 編集セクション（applyNoteEdit / removeNoteAt / writeNotes の純ロジック）。
   const notes = $derived(readNotes(doc.directives));
 
@@ -147,8 +147,8 @@
     node.select();
   }
 
-  // 肉厚グループヘッダ（#@ group …）。型付きヘッダ（項目/手順/結果）の上に大分類を敷く
-  // （田中さん 2026-07-23）。隙間は空ラベルで全列を覆う。グループが無ければ行自体を出さない。
+  // 肉厚グループヘッダ（#@ group …）。型付きヘッダ（項目/手順/結果）の上に大分類を敷く。
+  // 隙間は空ラベルで全列を覆う。グループが無ければ行自体を出さない。
   const groupHeaderCells = $derived(groupCells(readGroups(doc.directives), doc.columns.length));
   const hasGroupHeader = $derived(groupHeaderCells.length > 0);
 
@@ -214,8 +214,8 @@
   const notesBottom = $derived(COORD_ROW_H + noteRowCount * NOTE_ROW_H);
   const headTop = $derived(notesBottom + (hasGroupHeader ? GROUP_ROW_H : 0));
 
-  // ── レイアウト（列幅 px / 行高 px / 列表示モード）。田中さん 2026-07-23「幅や、行を
-  //    変えられる…改行時の表示も。これは tsv 側に記憶してほしい」に応え、これらは
+  // ── レイアウト（列幅 px / 行高 px / 列表示モード）。列幅・行高・改行時の表示を
+  //    変えられるようにし、それらの状態を tsv 側に記憶するため、これらは
   //    `#@ colwidth|rowheight|colmode` ディレクティブとして doc に永続化する。読み書きは
   //    gridLayoutDirectives の純ロジック、リサイズ実測と永続タイミングだけが薄いグルー。
   //    編集のたび doc は再パースされ列/directives 参照が変わるが、レイアウトは directives
@@ -239,7 +239,7 @@
   let rowHeights = $state<number[]>(initLayout.rowHeights);
   let colModes = $state<ColOverflowMode[]>(initLayout.colModes);
 
-  // ── 空パッド行（田中さん 2026-07-23「行を追加しても増えない」不具合の対処）。
+  // ── 空パッド行（「行を追加しても増えない」不具合の対処）。
   //    カスタム TSV は全セルが空の行をテキスト化できない（round-trip で消える）ため、
   //    「行追加」直後の空行はファイルに焼けない。スプレッドシート同様、値が入るまでは
   //    ローカルの pad 行として画面に出し、値が入った時点で実データ行へ実体化する。
@@ -345,7 +345,7 @@
     persistLayout(); // 自動幅も tsv へ焼く
   }
 
-  // ── 行高（px）。列幅と対称。行境界のドラッグで可変（田中さん 2026-07-23）。tr の height は
+  // ── 行高（px）。列幅と対称。行境界のドラッグで可変。tr の height は
   //    最小高として効くので、折り返し内容がそれより高ければ内容が伸びる。状態は上のレイアウト
   //    セクションで rowHeights として宣言済み（directives から復元・変更で永続化）。 ──
   let rowResizing: { row: number; startY: number; startH: number } | null = null;
@@ -376,8 +376,8 @@
     persistLayout(); // 既定へ戻した行高も tsv へ焼く（既定なら sparse で行が消える）
   }
 
-  // ── 列の表示モード（clip / wrap / overflow）。右クリックメニューで列ごとに切替
-  //    （田中さん 2026-07-23「折り返す／突き抜ける／見切れる」）。選択肢生成・状態は
+  // ── 列の表示モード（clip / wrap / overflow）。右クリックメニューで列ごとに
+  //    「折り返す／突き抜ける／見切れる」を切替。選択肢生成・状態は
   //    gridColumnMode の純ロジック、メニュー描画・座標だけ Svelte 側の薄いグルー。状態は
   //    上のレイアウトセクションで colModes として宣言済み（directives から復元・変更で永続化）。 ──
   // 右クリックで開く列モードメニュー。対象列と画面座標を持つ（null＝非表示）。
@@ -543,7 +543,7 @@
     mode = 'nav';
   }
 
-  // 行番号クリック＝その行全体（先頭列〜末尾列）を範囲選択（田中さん 2026-07-23）。
+  // 行番号クリック＝その行全体（先頭列〜末尾列）を範囲選択。
   function selectWholeRow(row: number): void {
     engaged = true;
     selection = rowRange(row, doc.columns.length);
@@ -705,7 +705,7 @@
       </colgroup>
       <thead>
         <!-- スプレッドシート列座標バー（A,B,C…）。型付きヘッダの上に重ねる位置参照レイヤー。
-             フォーマット不変・描画専用（田中さん 2026-07-23）。 -->
+             フォーマット不変・描画専用。 -->
         <tr class="coord-row">
           <th class="rownum coord-corner" scope="col" aria-hidden="true"></th>
           {#each colLetters as letter, ci (ci)}
@@ -1031,7 +1031,7 @@
       >
         選択行を削除
       </button>
-      <!-- 表の上の補足行を 1 本追加（#@ note …）。田中さん 2026-07-23「表の上に補足」の編集導線。 -->
+      <!-- 表の上の補足行を 1 本追加（#@ note …）。「表の上に補足」の編集導線。 -->
       <button type="button" class="row-btn" onclick={startNewNote}>＋ 補足行</button>
       <!-- 選択中の列範囲に肉厚グループ（大分類）を張る（#@ group …）。既定名で作って即改名。 -->
       <button
@@ -1047,7 +1047,7 @@
   {/if}
 
   {#if colMenu}
-    <!-- 列表示モードのカスタム右クリックメニュー（田中さん 2026-07-23）。背後クリック /
+    <!-- 列表示モードのカスタム右クリックメニュー。背後クリック /
          右クリック / Esc で閉じる。ネイティブ WebView2 メニューは openColMenu で抑止済み。 -->
     <button
       type="button"
@@ -1482,7 +1482,7 @@
   }
 
   /* 選択リングはセル全体を囲むオーバーレイで描く。border-collapse 下では
-     box-shadow inset が背の高い折り返しセルだと下辺しか出ない（田中さん 2026-07-23）。
+     box-shadow inset が背の高い折り返しセルだと下辺しか出ない。
      ::after を inset:0 で四辺 border にすれば行高に依らず全周を囲める。 */
   td.active::after {
     content: '';
@@ -1513,7 +1513,7 @@
   }
 
   /* 複数行セル（非アクティブ）: 固定列幅内で折り返し、行高が内容に応じて伸びる
-     （田中さん 2026-07-23「省略だけでなく折り返して全文を見せたい」）。 */
+     （省略だけでなく折り返して全文を見せる）。 */
   .cell-view.wrap {
     display: block;
     white-space: pre-wrap;
@@ -1524,7 +1524,7 @@
     word-break: break-word;
   }
 
-  /* 突き抜けモード（田中さん 2026-07-23）: 折り返さず、セル幅を超えた分は省略せず
+  /* 突き抜けモード: 折り返さず、セル幅を超えた分は省略せず
      隣セル方向へはみ出して全文を見せる（スプレの既定挙動）。改行は無視して 1 行に。 */
   .cell-view.overflow {
     white-space: nowrap;

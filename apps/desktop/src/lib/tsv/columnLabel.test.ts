@@ -2,8 +2,8 @@ import { describe, it, expect } from 'vitest';
 import { columnLabel, columnLabels } from './columnLabel';
 
 /**
- * 検証グリッドのスプレッドシート列レター（田中さん 2026-07-23
- * 「ヘッダーの項目が ABC…AA AB になっていない」）。
+ * 検証グリッドのスプレッドシート列レター
+ * （ヘッダーの列座標を ABC…AA,AB… 表示にする）。
  * 型付きヘッダとは別に、A,B,C…Z,AA,AB… の列座標をバーで示すための純関数。
  * 表現は Excel / Sheets と同じ二分法 base-26（A=0,… Z=25, AA=26,…）。
  */

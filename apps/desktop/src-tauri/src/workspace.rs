@@ -9,6 +9,9 @@
 
 use serde::Serialize;
 use std::path::{Path, PathBuf};
+use tauri::State;
+
+use crate::watch::{record_self_write, WatchState};
 
 /// 走査で得た 1 ファイル。`rel_path` はルートからの相対パスで区切りは "/" に正規化済み。
 /// serde は camelCase 化してフロント（`{ relPath, name, ext }`）と一致させる。
@@ -29,14 +32,16 @@ pub struct ScanResult {
 }
 
 /// 走査対象の拡張子（小文字比較）。範囲は `.md` + `.tsv` に限定（設計書 §1.3）。
-const ALLOWED_EXTS: [&str; 2] = ["md", "tsv"];
+/// ファイル監視（watch_logic）でも同じ対象範囲を共有する。
+pub(crate) const ALLOWED_EXTS: [&str; 2] = ["md", "tsv"];
 /// ディレクトリのネスト上限（設計書 §3.2）。超過分は打ち切り truncated=true。
 const MAX_DEPTH: usize = 12;
 /// 収集ファイル数の上限（設計書 §3.2）。超過分は打ち切り truncated=true。
 const MAX_ENTRIES: usize = 5_000;
 
 /// 走査から除外するディレクトリ名。ドット始まり（`.git` 等）と既知のビルド生成物。
-fn is_excluded_dir(name: &str) -> bool {
+/// 走査（scan）とファイル監視（watch_logic）で同じ除外判定を共有する。
+pub(crate) fn is_excluded_dir(name: &str) -> bool {
     name.starts_with('.') || matches!(name, "node_modules" | "dist" | "build")
 }
 
@@ -203,16 +208,39 @@ pub fn read_document(root: String, rel_path: String) -> Result<String, String> {
 }
 
 /// フロントから `invoke("write_document", { root, relPath, content })` で呼ぶ薄いラッパ。
+/// 保存成功後に、その canonical パスを自己書き込みとして記録し、監視のエコー（自分の保存が
+/// watcher で跳ね返って再読込・再走査される）を抑制する。
 #[tauri::command]
-pub fn write_document(root: String, rel_path: String, content: String) -> Result<(), String> {
-    write_document_impl(Path::new(&root), &rel_path, &content)
+pub fn write_document(
+    state: State<WatchState>,
+    root: String,
+    rel_path: String,
+    content: String,
+) -> Result<(), String> {
+    let root_path = Path::new(&root);
+    write_document_impl(root_path, &rel_path, &content)?;
+    if let Ok(canon) = std::fs::canonicalize(root_path.join(&rel_path)) {
+        record_self_write(&state, canon);
+    }
+    Ok(())
 }
 
 /// フロントから `invoke("create_document", { root, relPath, content })` で呼ぶ薄いラッパ。
 /// 新規検証シート（テンプレ）作成に使う。既存は上書きしない（`write_document` と分担）。
+/// 作成成功後は自己書き込みとして記録し、監視のエコーを抑制する。
 #[tauri::command]
-pub fn create_document(root: String, rel_path: String, content: String) -> Result<(), String> {
-    create_document_impl(Path::new(&root), &rel_path, &content)
+pub fn create_document(
+    state: State<WatchState>,
+    root: String,
+    rel_path: String,
+    content: String,
+) -> Result<(), String> {
+    let root_path = Path::new(&root);
+    create_document_impl(root_path, &rel_path, &content)?;
+    if let Ok(canon) = std::fs::canonicalize(root_path.join(&rel_path)) {
+        record_self_write(&state, canon);
+    }
+    Ok(())
 }
 
 #[cfg(test)]

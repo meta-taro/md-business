@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { nextCell, planCellKeydown, type CellPos, type GridDims } from './gridNav';
 
 /**
- * スプレッドシート風のセル間移動（田中さん要件 2026-07-22「検証UXは最大のポイント」）。
+ * スプレッドシート風のセル間移動（検証 UX が最大のポイントという要件）。
  * キーボードでアクティブセルを動かす純ロジック。DOM 非依存でここだけ単体検査する。
  */
 

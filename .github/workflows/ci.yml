@@ -26,12 +26,12 @@ jobs:
           pnpm install --frozen-lockfile 2>&1 | tee install.log
           exit ${PIPESTATUS[0]}
 
-      - name: Verify baseline 1 (install script policy)
+      - name: Verify install-script policy
         # onlyBuiltDependencies: [] が pnpm-workspace.yaml で効いていることを継続検証する。
-        # 依存パッケージの postinstall が走ると baseline 1（サプライチェーン防御）違反。
+        # 依存パッケージの postinstall が走るとサプライチェーン防御ポリシー違反。
         run: |
           if grep -qE "(Thank you for using core-js|^[^[:space:]]+@[^[:space:]]+ postinstall\$|Running .* postinstall)" install.log; then
-            echo "::error::Install script executed during pnpm install - baseline 1 (onlyBuiltDependencies) violated"
+            echo "::error::Install script executed during pnpm install - onlyBuiltDependencies policy violated"
             grep -nE "(Thank you for using core-js|postinstall)" install.log || true
             exit 1
           fi

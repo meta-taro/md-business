@@ -1,0 +1,10 @@
+# OSS-hygiene allowlist — literal strings the internal-reference scanner should
+# NOT flag. One entry per line; blank lines and `#` comments are ignored.
+#
+# An entry waives a finding when it equals either the matched substring or the
+# trimmed source line. Use the narrowest form that works (prefer the exact
+# matched substring). For machine-local waivers that should not be committed,
+# create `allowlist.local.txt` alongside this file (it is gitignored).
+#
+# Keep this file short and justify each entry with a comment — it is the escape
+# hatch, not a dumping ground.
