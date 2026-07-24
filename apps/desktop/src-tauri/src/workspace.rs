@@ -29,14 +29,16 @@ pub struct ScanResult {
 }
 
 /// 走査対象の拡張子（小文字比較）。範囲は `.md` + `.tsv` に限定（設計書 §1.3）。
-const ALLOWED_EXTS: [&str; 2] = ["md", "tsv"];
+/// ファイル監視（watch_logic）でも同じ対象範囲を共有する。
+pub(crate) const ALLOWED_EXTS: [&str; 2] = ["md", "tsv"];
 /// ディレクトリのネスト上限（設計書 §3.2）。超過分は打ち切り truncated=true。
 const MAX_DEPTH: usize = 12;
 /// 収集ファイル数の上限（設計書 §3.2）。超過分は打ち切り truncated=true。
 const MAX_ENTRIES: usize = 5_000;
 
 /// 走査から除外するディレクトリ名。ドット始まり（`.git` 等）と既知のビルド生成物。
-fn is_excluded_dir(name: &str) -> bool {
+/// 走査（scan）とファイル監視（watch_logic）で同じ除外判定を共有する。
+pub(crate) fn is_excluded_dir(name: &str) -> bool {
     name.starts_with('.') || matches!(name, "node_modules" | "dist" | "build")
 }
 

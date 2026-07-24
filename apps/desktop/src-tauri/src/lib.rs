@@ -1,4 +1,5 @@
 mod git;
+mod watch_logic;
 mod workspace;
 
 /// アプリのエントリポイント。main / モバイル entry から共有される。
