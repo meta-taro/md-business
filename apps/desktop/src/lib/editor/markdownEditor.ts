@@ -11,7 +11,7 @@
  * 崩れやすい）、tauri dev / vite build で実機検証する。編集イベントの間引き
  * （debounce）は純ロジックとして別途 TDD 済み（[[debounce]]）。
  */
-import { EditorState, type Extension } from '@codemirror/state';
+import { EditorState, Prec, type Extension } from '@codemirror/state';
 import { EditorView, keymap } from '@codemirror/view';
 import { basicSetup } from 'codemirror';
 import { indentWithTab } from '@codemirror/commands';
@@ -20,6 +20,7 @@ import { yamlFrontmatter } from '@codemirror/lang-yaml';
 import { HighlightStyle, syntaxHighlighting } from '@codemirror/language';
 import { tags as t } from '@lezer/highlight';
 import type { EditorFocusInfo } from '$lib/layout/scrollSync';
+import { searchHighlightField } from './editorSearchBinding';
 
 export interface MarkdownEditorOptions {
   /** マウント先の要素。 */
@@ -35,6 +36,11 @@ export interface MarkdownEditorOptions {
    * 親側（+page）がこの行の文言をプレビューで検索して位置合わせする（[[scrollSync]]）。
    */
   onSync?: (info: EditorFocusInfo) => void;
+  /**
+   * Mod+F（Ctrl/Cmd+F）が押されたとき呼ばれる。CodeMirror 既定の検索パネルを使わず、
+   * アプリ共通の SearchBar を開くための橋。未指定なら既定の検索キー無効化のみ。
+   */
+  onFind?: () => void;
 }
 
 export interface MarkdownEditorHandle {
@@ -89,6 +95,16 @@ const tokenTheme = EditorView.theme({
     backgroundColor: 'var(--accent-subtle)',
     outline: '1px solid var(--accent-border)',
   },
+  // 共通検索のマッチ強調（全マッチ＝淡いアクセント地／現在マッチ＝濃く枠付き）。
+  '.cm-search-match': {
+    backgroundColor: 'var(--accent-subtle)',
+    borderRadius: '2px',
+  },
+  '.cm-search-match-current': {
+    backgroundColor: 'var(--accent)',
+    color: 'var(--bg-app)',
+    outline: '1px solid var(--accent)',
+  },
 });
 
 // 構文ハイライトも CSS 変数で。Markdown（見出し/強調/リンク/コード/引用/罫線）と
@@ -119,13 +135,30 @@ function baseExtensions(): Extension {
     yamlFrontmatter({ content: markdown() }),
     syntaxHighlighting(tokenHighlight),
     tokenTheme,
+    searchHighlightField,
     EditorState.tabSize.of(2),
     EditorView.lineWrapping,
   ];
 }
 
+// Mod+F を横取りして共通 SearchBar を開く（basicSetup 同梱の検索パネルを出さない）。
+// Prec.highest で basicSetup の searchKeymap より先に評価させ、true を返して既定を止める。
+function findKeymap(onFind?: () => void): Extension {
+  return Prec.highest(
+    keymap.of([
+      {
+        key: 'Mod-f',
+        run: () => {
+          onFind?.();
+          return true;
+        },
+      },
+    ]),
+  );
+}
+
 export function createMarkdownEditor(options: MarkdownEditorOptions): MarkdownEditorHandle {
-  const { parent, doc, onChange, onSync } = options;
+  const { parent, doc, onChange, onSync, onFind } = options;
 
   // プログラム更新（setDoc）中は onChange を抑止し、外部差し替え→再描画の
   // 無限ループを避ける。
@@ -160,7 +193,7 @@ export function createMarkdownEditor(options: MarkdownEditorOptions): MarkdownEd
     parent,
     state: EditorState.create({
       doc,
-      extensions: [baseExtensions(), updateListener],
+      extensions: [findKeymap(onFind), baseExtensions(), updateListener],
     }),
   });
 
