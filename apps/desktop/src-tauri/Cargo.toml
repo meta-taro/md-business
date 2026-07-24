@@ -26,6 +26,10 @@ tauri-plugin-opener = "2"
 tauri-plugin-process = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+# 外部編集の即時検知に使うファイル監視。notify 6.x は MSRV 1.60 で本クレート(1.77.2)に
+# 収まる。debouncer-full は短時間の連続イベントを束ね、リネームの From/To も解決する。
+notify = "6.1"
+notify-debouncer-full = "0.3"
 
 # 自動アップデートはデスクトップ専用（モバイルは対象外）。GitHub Releases の
 # 署名付き成果物を取得・検証・適用する。ターゲット cfg でデスクトップに限定する。

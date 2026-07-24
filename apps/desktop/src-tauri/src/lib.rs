@@ -1,4 +1,5 @@
 mod git;
+mod watch;
 mod watch_logic;
 mod workspace;
 
@@ -13,6 +14,8 @@ pub fn run() {
         .plugin(tauri_plugin_process::init())
         // 外部リンク（リポジトリ / 操作マニュアル）を既定ブラウザで開く。権限は open-url のみ。
         .plugin(tauri_plugin_opener::init())
+        // ファイル監視の実行時状態（watcher ハンドル / 自己書き込み記録 / 監視ルート）。
+        .manage(watch::WatchState::default())
         .setup(|app| {
             // 自動アップデータはデスクトップのみ対応。AppHandle 確定後に登録する。
             #[cfg(desktop)]
@@ -26,6 +29,8 @@ pub fn run() {
             workspace::read_document,
             workspace::write_document,
             workspace::create_document,
+            watch::watch_workspace,
+            watch::unwatch_workspace,
             git::git_status,
             git::git_branches,
             git::git_switch,

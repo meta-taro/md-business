@@ -110,6 +110,18 @@ pub fn prune_expired(recent: &mut Vec<(PathBuf, Instant)>, now: Instant, window:
     recent.retain(|(_, t)| now.saturating_duration_since(*t) <= window);
 }
 
+/// 分類済みの変更列から、同一 `(rel_path, kind)` の重複を畳む。
+/// notify は 1 回の保存で同一ファイルの複数イベントを報告しがちなので、発行前に潰す。
+pub fn map_changes_dedup(mut changes: Vec<FileChange>) -> Vec<FileChange> {
+    changes.sort_by(|a, b| {
+        a.rel_path
+            .cmp(&b.rel_path)
+            .then((a.kind as u8).cmp(&(b.kind as u8)))
+    });
+    changes.dedup();
+    changes
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -246,6 +258,54 @@ mod tests {
             base + Duration::from_millis(100),
             window
         ));
+    }
+
+    #[test]
+    fn map_changes_dedupは同一relpathkindの重複を畳む() {
+        let changes = vec![
+            FileChange {
+                rel_path: "a.md".into(),
+                kind: FileChangeKind::Modified,
+            },
+            FileChange {
+                rel_path: "a.md".into(),
+                kind: FileChangeKind::Modified,
+            },
+            FileChange {
+                rel_path: "b.tsv".into(),
+                kind: FileChangeKind::Rescan,
+            },
+        ];
+        let deduped = map_changes_dedup(changes);
+        assert_eq!(
+            deduped,
+            vec![
+                FileChange {
+                    rel_path: "a.md".into(),
+                    kind: FileChangeKind::Modified,
+                },
+                FileChange {
+                    rel_path: "b.tsv".into(),
+                    kind: FileChangeKind::Rescan,
+                },
+            ]
+        );
+    }
+
+    #[test]
+    fn map_changes_dedupは同一パスでも種別が違えば残す() {
+        let changes = vec![
+            FileChange {
+                rel_path: "a.md".into(),
+                kind: FileChangeKind::Rescan,
+            },
+            FileChange {
+                rel_path: "a.md".into(),
+                kind: FileChangeKind::Modified,
+            },
+        ];
+        let deduped = map_changes_dedup(changes);
+        assert_eq!(deduped.len(), 2, "modified と rescan は別種として残る");
     }
 
     #[test]
