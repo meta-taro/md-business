@@ -4,6 +4,7 @@
   import '../app.css';
   import { browser } from '$app/environment';
   import { themeController } from '$lib/theme.svelte';
+  import { i18n, t } from '$lib/i18n/i18n.svelte';
   import { workspace } from '$lib/workspace/workspace.svelte';
   import { decideFileChangeAction, type FileChangeEvent } from '$lib/workspace/watchLogic';
   import { pdfExport } from '$lib/preview/pdfExport.svelte';
@@ -12,6 +13,7 @@
     resolvePreviewMessage,
     type ShortcutAction,
   } from '$lib/layout/shortcuts';
+  import { search } from '$lib/search/search.svelte';
   import TopBar from '$lib/components/TopBar.svelte';
   import StatusBar from '$lib/components/StatusBar.svelte';
   import SourceControlPanel from '$lib/components/SourceControlPanel.svelte';
@@ -133,6 +135,8 @@
   function onKeydown(event: KeyboardEvent): void {
     const action = matchShortcut(event);
     if (action === null) return;
+    // find（Ctrl/Cmd+F）はプレビュー可否・エディターフォーカスを知る +page 側で処理する。
+    if (action === 'find') return;
     event.preventDefault();
     runAction(action);
   }
@@ -143,6 +147,11 @@
   function onMessage(event: MessageEvent): void {
     const action = resolvePreviewMessage(event.data);
     if (action === null) return;
+    // iframe 内 Ctrl/Cmd+F は「プレビュー対象で検索バーを開く」に変換（発信元は必ずプレビュー）。
+    if (action === 'find') {
+      search.openFor('preview');
+      return;
+    }
     runAction(action);
   }
 
@@ -150,6 +159,8 @@
     // app.html が paint 前に data-theme を確定済み。ここで反応状態を種づけして
     // トグルボタンの表示を実テーマに一致させる（DESIGN §8）。
     themeController.init();
+    // UI 言語を localStorage / OS 設定から確定し <html lang> を同期する。
+    i18n.init();
     // 前回開いていたフォルダがあれば自動で開き直す（毎回の選択を不要にする）。
     void workspace.restoreLastFolder();
     // 外部（AI/CLI/他エディタ）編集を Rust の watcher から受け、画面状態に応じて反応する。
@@ -198,7 +209,7 @@
         class="rail-divider"
         role="separator"
         aria-orientation="vertical"
-        aria-label="エクスプローラーの幅を調整（ダブルクリックで初期幅に戻す）"
+        aria-label={t('layout.railDividerLabel')}
         aria-valuenow={Math.round(explorerWidth)}
         aria-valuemin={MIN_FILETREE_W}
         aria-valuemax={MAX_FILETREE_W}

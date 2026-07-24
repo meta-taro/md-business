@@ -5,7 +5,9 @@
   import { workspace } from '$lib/workspace/workspace.svelte';
   import { pdfExport } from '$lib/preview/pdfExport.svelte';
   import { documentDisplayName } from '$lib/window/docTitle';
+  import { t } from '$lib/i18n/i18n.svelte';
   import HelpButton from './HelpButton.svelte';
+  import LanguageSelect from './LanguageSelect.svelte';
 
   // フレームレス（decorations:false）のため、この TopBar 自体が OS タイトルバーを兼ねる。
   // ヘッダー地＝ドラッグ領域（data-tauri-drag-region）、右端に自作のウィンドウコントロール。
@@ -18,7 +20,7 @@
   // 中央の表示名。文書種別が判るときは frontmatter / TSV メタから意味のある名前を組み、
   // 該当しなければファイル名（相対パス末尾）へフォールバック（docTitle 純ロジック）。未オープンは案内文。
   const docName = $derived.by(() => {
-    if (workspace.activePath === null) return '文書を選択してください';
+    if (workspace.activePath === null) return t('app.docPlaceholder');
     const fileName = workspace.activePath.split('/').pop() ?? workspace.activePath;
     return documentDisplayName(workspace.source, fileName);
   });
@@ -33,7 +35,7 @@
   <div class="center">
     {#if workspace.dirty}
       <!-- 未保存の印（VSCode 風の白丸）。data-tauri-drag-region 内なので装飾のみ。 -->
-      <span class="dirty-dot" title="未保存の変更があります" aria-label="未保存"></span>
+      <span class="dirty-dot" title={t('app.unsavedLong')} aria-label={t('app.unsaved')}></span>
     {/if}
     <span class="doc-title" class:is-dirty={workspace.dirty}>{docName}</span>
   </div>
@@ -47,8 +49,8 @@
         type="button"
         onclick={() => workspace.save()}
         disabled={!workspace.canSave}
-        title={workspace.saving ? '保存中…' : '保存（Ctrl+S / ⌘S）'}
-        aria-label="保存"
+        title={workspace.saving ? t('action.saving') : t('action.saveTitle')}
+        aria-label={t('action.save')}
       >
         <svg class="btn-ico" viewBox="0 0 16 16" aria-hidden="true">
           <path
@@ -76,7 +78,7 @@
             stroke-width="1.2"
           />
         </svg>
-        <span>{workspace.saving ? '保存中…' : '保存'}</span>
+        <span>{workspace.saving ? t('action.saving') : t('action.save')}</span>
       </button>
       <!-- PDF 出力（§6.4・Ctrl+P / ⌘P と等価）。プレビュー描画中だけ活性。押すと
            WebView の印刷（→「PDF として保存」）でプレビュー見た目のまま A4 出力する。
@@ -86,8 +88,8 @@
         type="button"
         onclick={() => pdfExport.run()}
         disabled={!pdfExport.canExport}
-        title="PDF 出力（Ctrl+P / ⌘P・プレビューを A4 で印刷／保存）"
-        aria-label="PDF 出力"
+        title={t('action.pdfTitle')}
+        aria-label={t('action.pdf')}
       >
         <svg class="btn-ico" viewBox="0 0 16 16" aria-hidden="true">
           <path
@@ -125,8 +127,8 @@
         class="btn ghost with-icon"
         type="button"
         onclick={() => themeController.toggle()}
-        title={themeController.value === 'dark' ? 'ライトテーマに切替' : 'ダークテーマに切替'}
-        aria-label="テーマ切替"
+        title={themeController.value === 'dark' ? t('action.themeToLight') : t('action.themeToDark')}
+        aria-label={t('action.theme')}
       >
         {#if themeController.value === 'dark'}
           <svg class="btn-ico" viewBox="0 0 16 16" aria-hidden="true">
@@ -150,8 +152,9 @@
             />
           </svg>
         {/if}
-        <span>テーマ</span>
+        <span>{t('action.theme')}</span>
       </button>
+      <LanguageSelect />
       <HelpButton />
     </div>
 
@@ -160,8 +163,8 @@
         class="wc"
         type="button"
         onclick={() => titlebarController.minimize()}
-        title="最小化"
-        aria-label="最小化"
+        title={t('window.minimize')}
+        aria-label={t('window.minimize')}
       >
         ─
       </button>
@@ -169,8 +172,8 @@
         class="wc"
         type="button"
         onclick={() => titlebarController.toggleMaximize()}
-        title={titlebarController.maxLabel}
-        aria-label={titlebarController.maxLabel}
+        title={titlebarController.isMaximized ? t('window.restore') : t('window.maximize')}
+        aria-label={titlebarController.isMaximized ? t('window.restore') : t('window.maximize')}
       >
         {titlebarController.maxGlyph}
       </button>
@@ -178,8 +181,8 @@
         class="wc close"
         type="button"
         onclick={() => titlebarController.close()}
-        title="閉じる"
-        aria-label="閉じる"
+        title={t('window.close')}
+        aria-label={t('window.close')}
       >
         ✕
       </button>

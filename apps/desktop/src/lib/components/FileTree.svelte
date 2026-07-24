@@ -12,16 +12,11 @@
   import { git } from '$lib/git/git.svelte';
   import { diffView } from '$lib/git/diffView.svelte';
   import { gitMarkLetter, type GitFileState } from '$lib/git/gitStatus';
+  import { t } from '$lib/i18n/i18n.svelte';
 
   // git 状態 → ホバー説明（バッジ title）。色マークの意味を言葉でも補う。
-  const GIT_TITLE: Record<GitFileState, string> = {
-    modified: '変更あり（未コミット）',
-    added: 'ステージ済みの追加',
-    untracked: '未追跡（新規）',
-    deleted: '削除',
-    renamed: 'リネーム',
-    conflicted: 'コンフリクト',
-  };
+  // t() はロケール反応なので関数で都度引く（キーは git.state.<state>）。
+  const gitTitle = (state: GitFileState): string => t(`git.state.${state}`);
 
   // 折り畳み（右 SidePanel と対称）。畳み状態と切替はレイアウトが所有し、props で受ける。
   let { collapsed = false, ontoggle }: { collapsed?: boolean; ontoggle?: () => void } = $props();
@@ -59,15 +54,15 @@
   }
 </script>
 
-<nav class="filetree" class:collapsed aria-label="ファイルツリー">
+<nav class="filetree" class:collapsed aria-label={t('tree.label')}>
   {#if collapsed}
     <!-- 折り畳み時は縦レールのみ。› で開く（SidePanel の ‹ › と対称）。 -->
     <button
       class="rail-toggle"
       type="button"
       onclick={ontoggle}
-      title="エクスプローラーを開く"
-      aria-label="エクスプローラーを開く"
+      title={t('tree.expandExplorer')}
+      aria-label={t('tree.expandExplorer')}
     >
       ›
     </button>
@@ -78,22 +73,22 @@
         class="collapse"
         type="button"
         onclick={ontoggle}
-        title="エクスプローラーを畳む"
-        aria-label="エクスプローラーを畳む"
+        title={t('tree.collapseExplorer')}
+        aria-label={t('tree.collapseExplorer')}
       >
         ‹
       </button>
-      <span class="title">エクスプローラー</span>
+      <span class="title">{t('tree.explorer')}</span>
     </div>
     {#if workspace.root !== null}
       <button
         class="reopen"
         type="button"
         onclick={() => workspace.openFolder()}
-        title="別のフォルダを開く"
-        aria-label="別のフォルダを開く"
+        title={t('tree.openOtherFolder')}
+        aria-label={t('tree.openOtherFolder')}
       >
-        開く
+        {t('tree.open')}
       </button>
     {/if}
   </div>
@@ -109,10 +104,10 @@
         class="filter-input"
         type="text"
         bind:value={filterQuery}
-        placeholder="ファイル名で絞り込み"
+        placeholder={t('tree.filterPlaceholder')}
         spellcheck="false"
         autocomplete="off"
-        aria-label="ファイル名で絞り込み"
+        aria-label={t('tree.filterPlaceholder')}
         onkeydown={onFilterKeydown}
       />
       {#if filterQuery !== ''}
@@ -120,8 +115,8 @@
           class="filter-clear"
           type="button"
           onclick={() => (filterQuery = '')}
-          title="フィルタをクリア（Esc）"
-          aria-label="フィルタをクリア"
+          title={t('tree.filterClearTitle')}
+          aria-label={t('tree.filterClear')}
         >
           ✕
         </button>
@@ -136,23 +131,23 @@
   {#if workspace.root === null}
     <!-- 空状態: フォルダ未選択 -->
     <div class="empty">
-      <p class="hint">フォルダを開くと<br />文書ツリーが表示されます</p>
+      <p class="hint">{t('tree.emptyHint')}</p>
       <button
         class="open"
         type="button"
         onclick={() => workspace.openFolder()}
         disabled={workspace.loading}
       >
-        {workspace.loading ? '読み込み中…' : 'フォルダを開く'}
+        {workspace.loading ? t('tree.loading') : t('tree.openFolder')}
       </button>
     </div>
   {:else if rows.length === 0}
     <!-- フィルタで 0 件 か 空フォルダ かで文言を分ける。 -->
     <div class="empty">
       {#if filtering}
-        <p class="hint">「{filterQuery.trim()}」に<br />一致するファイルがありません</p>
+        <p class="hint">{t('tree.filterNoMatch', { query: filterQuery.trim() })}</p>
       {:else}
-        <p class="hint">.md / .tsv が<br />見つかりませんでした</p>
+        <p class="hint">{t('tree.noFiles')}</p>
       {/if}
     </div>
   {:else}
@@ -204,7 +199,7 @@
             <span class="name">{node.name}</span>
             {#if gitState}
               <!-- VSCode 風の右肩バッジ。色は行の data-git を継いで CSS 側で決める。 -->
-              <span class="git-mark" title={GIT_TITLE[gitState]}>{gitMarkLetter(gitState)}</span>
+              <span class="git-mark" title={gitTitle(gitState)}>{gitMarkLetter(gitState)}</span>
             {/if}
           </button>
         </li>
@@ -212,7 +207,7 @@
     </ul>
 
     {#if workspace.truncated}
-      <p class="banner warn" role="status">一部のみ表示（上限に達したため打ち切りました）</p>
+      <p class="banner warn" role="status">{t('tree.truncated')}</p>
     {/if}
   {/if}
   {/if}
@@ -404,6 +399,8 @@
 
   .hint {
     margin: 0;
+    /* 文言の改行は \n（翻訳キー内）を pre-line で反映する。 */
+    white-space: pre-line;
     font-size: var(--text-xs-size);
     line-height: 1.6;
     color: var(--text-tertiary);

@@ -12,6 +12,10 @@
   import { workspace } from '$lib/workspace/workspace.svelte';
   import { diffView } from '$lib/git/diffView.svelte';
   import DiffView from '$lib/components/DiffView.svelte';
+  import SearchBar from '$lib/search/SearchBar.svelte';
+  import { search } from '$lib/search/search.svelte';
+  import { t } from '$lib/i18n/i18n.svelte';
+  import { createPreviewSearchBinding } from '$lib/preview/previewSearchBinding';
   import {
     DEFAULT_SPLIT_RATIO,
     ratioFromPointer,
@@ -177,6 +181,9 @@
       win.addEventListener('keydown', cancelFollow);
     }
     applyPreviewScroll();
+    // srcdoc 再生成でハイライト（CSS.highlights）が失われるため、プレビュー検索が開いたまま
+    // なら新しいドキュメントへ貼り直す（開いていない／別対象なら refresh は no-op）。
+    if (search.open && search.target === 'preview') search.refresh();
   }
 
   // frontmatter を registry で振り分け、該当スキーマのビューワーで描画する（6 スキーマ
@@ -198,9 +205,13 @@
       win.focus();
       win.print();
     });
+    // プレビュー iframe の検索を共通ストアへ登録（getter で現在の iframe を都度取り直す＝
+    // srcdoc 再生成で contentDocument が差し替わっても最新へ届く）。
+    search.register('preview', createPreviewSearchBinding(() => viewerFrame, search.report));
   });
   onDestroy(() => {
     pdfExport.unregister();
+    search.unregister('preview');
     if (scrollRaf !== 0) cancelAnimationFrame(scrollRaf);
     if (followRaf !== 0) cancelAnimationFrame(followRaf);
   });
@@ -232,8 +243,23 @@
     gridFullscreen = !gridFullscreen;
   }
 
+  // プレビュー iframe を検索対象にできる状態か（TSV グリッド／差分表示中は iframe が無い）。
+  const previewSearchable = $derived(!isTsv && !diffView.active && preview.ok);
+
   // Escape で全画面を抜ける。ただしセル編集中（入力にフォーカス）の Escape は入力側へ譲る。
+  // また Ctrl/Cmd+F は、エディター（CodeMirror が自前で処理）／プレビュー iframe（自前で
+  // postMessage）以外の親フォーカス時のフォールバックとして共通 SearchBar を開く。
   function onWindowKey(event: KeyboardEvent): void {
+    if ((event.ctrlKey || event.metaKey) && !event.altKey && !event.shiftKey) {
+      if ((event.key || '').toLowerCase() === 'f') {
+        // エディターにフォーカスがあれば CodeMirror 側が既に openFor('editor') 済み＝二重で開かない。
+        const el = event.target as HTMLElement | null;
+        if (el?.closest?.('.cm-editor')) return;
+        event.preventDefault();
+        search.openFor(previewSearchable ? 'preview' : 'editor');
+        return;
+      }
+    }
     if (event.key !== 'Escape' || !gridFullscreen) return;
     const tag = (event.target as HTMLElement | null)?.tagName;
     if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
@@ -318,14 +344,14 @@
        自動再読込しない。ユーザーがどちらを採るか選ぶ（DESIGN §3.4）。 -->
   <div class="conflict-bar" role="alert">
     <span class="conflict-msg">
-      外部でこのファイルが変更されました（<code>{workspace.externalConflict.relPath}</code>）。
+      {t('page.conflictChanged')}（<code>{workspace.externalConflict.relPath}</code>）
     </span>
     <span class="conflict-actions">
       <button type="button" class="conflict-btn danger" onclick={() => workspace.reloadConflict()}>
-        再読込（編集を破棄）
+        {t('page.conflictReload')}
       </button>
       <button type="button" class="conflict-btn" onclick={() => workspace.dismissConflict()}>
-        編集を残す
+        {t('page.conflictKeep')}
       </button>
     </span>
   </div>
@@ -338,9 +364,10 @@
   bind:this={splitEl}
   style="--split-cols: {dividerColumns(splitRatio)}"
 >
-  <section class="pane editor" aria-label="Markdown エディター">
-    <div class="pane-head">エディター — Markdown</div>
+  <section class="pane editor" aria-label={t('page.editorPaneLabel')}>
+    <div class="pane-head">{t('page.editorHead')}</div>
     <CodeMirrorEditor value={source} onChange={handleEditorChange} onSync={handleEditorSync} />
+    <SearchBar pane="editor" />
   </section>
 
   <!-- ドラッグで幅調整・ダブルクリック / Home / Enter で 50/50・矢印キーで微調整 -->
@@ -352,7 +379,7 @@
     class="divider"
     role="separator"
     aria-orientation="vertical"
-    aria-label="エディターとプレビューの幅を調整（ダブルクリックで 50/50 に戻す）"
+    aria-label={t('page.dividerLabel')}
     aria-valuenow={Math.round(splitRatio * 100)}
     aria-valuemin={0}
     aria-valuemax={100}
@@ -364,36 +391,37 @@
     onkeydown={onDividerKey}
   ></div>
 
-  <section class="pane preview" aria-label="ビューワー（プレビュー）">
+  <section class="pane preview" aria-label={t('page.previewPaneLabel')}>
+    <SearchBar pane="preview" />
     {#if diffView.active}
       <!-- 変更ファイルをソース管理パネルでクリックした間だけ差分表示に切り替える。
            「プレビューに戻る」or 別ファイルを通常オープンで解除される。 -->
-      <div class="pane-head">差分 — Git</div>
+      <div class="pane-head">{t('page.diffHead')}</div>
       <DiffView />
     {:else if isTsv && tsvDoc}
       <div class="pane-head grid-head">
-        <span>検証シート — グリッド編集</span>
+        <span>{t('page.gridHead')}</span>
         <button
           type="button"
           class="head-btn"
           onclick={toggleGridFullscreen}
           aria-pressed={gridFullscreen}
-          title={gridFullscreen ? '分割表示に戻す（Esc）' : 'グリッドを全画面表示'}
+          title={gridFullscreen ? t('page.gridRestoreTitle') : t('page.gridFullscreenTitle')}
         >
-          {gridFullscreen ? '↙ 分割に戻す' : '⤢ 全画面'}
+          {gridFullscreen ? t('page.gridRestoreBtn') : t('page.gridFullscreenBtn')}
         </button>
       </div>
       <div class="grid-wrap">
         <TsvGrid doc={tsvDoc} onChange={handleGridChange} />
       </div>
     {:else}
-    <div class="pane-head">プレビュー{#if preview.ok} — {preview.label}{/if}</div>
+    <div class="pane-head">{t('page.previewHead')}{#if preview.ok} — {preview.label}{/if}</div>
     {#if preview.ok}
       <iframe
         class="viewer"
         bind:this={viewerFrame}
         srcdoc={preview.srcdoc}
-        title="{preview.label}プレビュー"
+        title={t('page.previewTitle', { label: preview.label })}
         onload={onPreviewLoad}
       ></iframe>
       {#if preview.errors.length > 0 || preview.warnings.length > 0}
@@ -409,7 +437,7 @@
     {:else}
       <div class="pane-empty">
         <p class="hint">{preview.reason}</p>
-        <span class="env">frontmatter（--- で囲む先頭ブロック）の書式を確認してください</span>
+        <span class="env">{t('page.frontmatterHint')}</span>
       </div>
     {/if}
     {/if}
@@ -515,6 +543,7 @@
   }
 
   .pane {
+    position: relative; /* 浮動 SearchBar（position:absolute）の基準 */
     display: flex;
     flex-direction: column;
     min-width: 0;

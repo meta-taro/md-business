@@ -1,6 +1,8 @@
 <script lang="ts">
   // Git / AI / MCP パネル（DESIGN §6・既定は畳む）。開閉状態は親（+layout）が持ち、
   // グリッド幅を制御する。ここでは折畳レール + 展開時のタブ器のみ（実配線は後続フェーズ）。
+  import { t } from '$lib/i18n/i18n.svelte';
+
   interface SidePanelProps {
     open: boolean;
     ontoggle: () => void;
@@ -11,13 +13,13 @@
   const tabs = ['Git', 'Diff', 'AI', 'MCP'] as const;
 </script>
 
-<aside class="sidepanel" class:open aria-label="Git / AI / MCP パネル">
+<aside class="sidepanel" class:open aria-label={t('panel.label')}>
   <button
     class="rail-toggle"
     type="button"
     onclick={ontoggle}
     aria-expanded={open}
-    title={open ? 'パネルを畳む' : 'パネルを開く'}
+    title={open ? t('panel.collapse') : t('panel.expand')}
   >
     {open ? '›' : '‹'}
   </button>
@@ -32,7 +34,7 @@
         {/each}
       </div>
       <div class="content">
-        <p class="hint">Git 差分・AI・MCP ログは<br />後続フェーズで表示されます</p>
+        <p class="hint">{t('panel.hint')}</p>
       </div>
     </div>
   {/if}
@@ -121,6 +123,8 @@
 
   .hint {
     margin: 0;
+    /* 文言の改行は \n（翻訳キー内）を pre-line で反映する。 */
+    white-space: pre-line;
     font-size: var(--text-xs-size);
     line-height: 1.6;
     color: var(--text-tertiary);

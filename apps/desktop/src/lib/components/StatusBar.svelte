@@ -8,6 +8,7 @@
   import { git } from '$lib/git/git.svelte';
   import { workspace } from '$lib/workspace/workspace.svelte';
   import { forgeLabel } from '$lib/git/gitStatus';
+  import { t } from '$lib/i18n/i18n.svelte';
 
   interface Props {
     /** 下部ソース管理ドロワーが開いているか（ボタンの押下状態表示用）。 */
@@ -68,7 +69,7 @@
         <button
           class="branch-btn"
           type="button"
-          title="クリックでブランチを切り替え"
+          title={t('status.branchSwitchTitle')}
           aria-haspopup="listbox"
           aria-expanded={pickerOpen}
           onclick={togglePicker}
@@ -79,16 +80,16 @@
 
         {#if pickerOpen}
           <!-- 外側クリックで閉じる透明バックドロップ。 -->
-          <button class="backdrop" type="button" aria-label="閉じる" onclick={closePicker}></button>
-          <div class="picker" role="listbox" aria-label="ブランチを切り替え">
+          <button class="backdrop" type="button" aria-label={t('common.close')} onclick={closePicker}></button>
+          <div class="picker" role="listbox" aria-label={t('status.branchSwitchLabel')}>
             {#if switchError}
               <div class="picker-error" role="alert">
-                <strong>切り替えできませんでした</strong>
+                <strong>{t('status.branchSwitchFailed')}</strong>
                 <pre>{switchError}</pre>
               </div>
             {/if}
             {#if git.branches.length === 0}
-              <p class="picker-empty">ローカルブランチがありません</p>
+              <p class="picker-empty">{t('status.noLocalBranches')}</p>
             {:else}
               {#each git.branches as name (name)}
                 <button
@@ -109,11 +110,11 @@
         {/if}
       </div>
       {#if git.ahead > 0 || git.behind > 0}
-        <span class="muted" title="リモートとの先行 / 遅延コミット数">↑{git.ahead} ↓{git.behind}</span>
+        <span class="muted" title={t('status.aheadBehindTitle')}>↑{git.ahead} ↓{git.behind}</span>
       {/if}
-      <span class="muted">変更 {git.changeCount}</span>
+      <span class="muted">{t('status.changeCount', { count: git.changeCount })}</span>
     {:else}
-      <span class="muted">リポジトリ未接続</span>
+      <span class="muted">{t('status.noRepo')}</span>
     {/if}
     <button
       class="chip scm"
@@ -121,10 +122,10 @@
       type="button"
       disabled={!git.isRepo}
       aria-pressed={scmOpen}
-      title="ソース管理（コミット / プッシュ / プル）"
+      title={t('status.sourceControlTitle')}
       onclick={() => onToggleScm?.()}
     >
-      <span class="scm-ico" aria-hidden="true">⎇</span> ソース管理
+      <span class="scm-ico" aria-hidden="true">⎇</span> {t('status.sourceControl')}
       {#if git.isRepo && git.changeCount > 0}<span class="scm-count">{git.changeCount}</span>{/if}
     </button>
   </div>
@@ -132,9 +133,9 @@
   <div class="right">
     <span class="ind"
       ><span class="dot" class:ok={git.forge !== null} class:neutral={git.forge === null} aria-hidden="true"
-      ></span>forge: {forgeLabel(git.forge)}</span
+      ></span>{t('status.forge', { name: forgeLabel(git.forge) })}</span
     >
-    <span class="ind"><span class="dot neutral" aria-hidden="true"></span>MCP: 未接続</span>
+    <span class="ind"><span class="dot neutral" aria-hidden="true"></span>{t('status.mcp')}</span>
   </div>
 </footer>
 

@@ -29,9 +29,15 @@ describe('matchShortcut — 修飾キー + 文字からアクションを解決'
     expect(matchShortcut(ev({ metaKey: true, key: 'p' }))).toBe('pdf');
   });
 
-  it('大文字 S / P（Shift 無しの CapsLock 等）でも解決する', () => {
+  it('Ctrl+F / Cmd+F は find', () => {
+    expect(matchShortcut(ev({ ctrlKey: true, key: 'f' }))).toBe('find');
+    expect(matchShortcut(ev({ metaKey: true, key: 'f' }))).toBe('find');
+  });
+
+  it('大文字 S / P / F（Shift 無しの CapsLock 等）でも解決する', () => {
     expect(matchShortcut(ev({ ctrlKey: true, key: 'S' }))).toBe('save');
     expect(matchShortcut(ev({ ctrlKey: true, key: 'P' }))).toBe('pdf');
+    expect(matchShortcut(ev({ ctrlKey: true, key: 'F' }))).toBe('find');
   });
 
   it('primary 修飾（Ctrl / Cmd）が無ければ null', () => {
@@ -62,6 +68,12 @@ describe('resolvePreviewMessage — プレビュー iframe からの postMessage
     expect(
       resolvePreviewMessage({ source: PREVIEW_MESSAGE_SOURCE, action: 'pdf' }),
     ).toBe('pdf');
+  });
+
+  it('正しい source + action=find は find（iframe 内 Ctrl+F を親へ委譲）', () => {
+    expect(
+      resolvePreviewMessage({ source: PREVIEW_MESSAGE_SOURCE, action: 'find' }),
+    ).toBe('find');
   });
 
   it('source が一致しなければ null（他フレーム/拡張のメッセージを無視）', () => {

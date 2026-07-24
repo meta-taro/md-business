@@ -1,6 +1,8 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
   import { createMarkdownEditor, type MarkdownEditorHandle } from './markdownEditor';
+  import { createEditorSearchBinding } from './editorSearchBinding';
+  import { search } from '$lib/search/search.svelte';
   import type { EditorFocusInfo } from '$lib/layout/scrollSync';
 
   // 親から初期値を受け取り、編集は onChange で親へ返す（一方向）。source の
@@ -22,10 +24,15 @@
       doc: value,
       onChange,
       onSync,
+      // Ctrl/Cmd+F で共通 SearchBar をエディター対象で開く。
+      onFind: () => search.openFor('editor'),
     });
+    // 共通検索ストアへエディターの検索操作を登録（SearchBar から driven される）。
+    search.register('editor', createEditorSearchBinding(editor.view, search.report));
   });
 
   onDestroy(() => {
+    search.unregister('editor');
     editor?.destroy();
     editor = undefined;
   });

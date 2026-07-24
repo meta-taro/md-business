@@ -58,6 +58,9 @@ function escapeHtml(value: string): string {
  * これを塞ぐため iframe 自身にも同じ判定を仕込む:
  *   - Ctrl/Cmd+P → iframe 自身を print（＝プレビュー A4 のみ。PDF ボタンと同じ挙動）
  *   - Ctrl/Cmd+S → 親へ postMessage して保存を委譲（iframe から直接は保存できない）
+ *   - Ctrl/Cmd+F → 親へ postMessage して共通 SearchBar をプレビュー対象で開く（ネイティブの
+ *     WebView 検索ではなくアプリ統一の検索バーを使う。ハイライトは親が contentDocument を
+ *     直接操作して行う＝same-origin srcdoc なのでフレーム越しに到達できる）
  * source を固定文字列にして、親側 resolvePreviewMessage が他フレーム由来を弾けるようにする。
  */
 const PREVIEW_SHORTCUT_SCRIPT = `<script>
@@ -72,6 +75,9 @@ const PREVIEW_SHORTCUT_SCRIPT = `<script>
     } else if (k === 's') {
       e.preventDefault();
       parent.postMessage({ source: 'md-business-preview', action: 'save' }, '*');
+    } else if (k === 'f') {
+      e.preventDefault();
+      parent.postMessage({ source: 'md-business-preview', action: 'find' }, '*');
     }
   });
 })();
