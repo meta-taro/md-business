@@ -1,9 +1,11 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { listen } from '@tauri-apps/api/event';
   import '../app.css';
   import { browser } from '$app/environment';
   import { themeController } from '$lib/theme.svelte';
   import { workspace } from '$lib/workspace/workspace.svelte';
+  import { decideFileChangeAction, type FileChangeEvent } from '$lib/workspace/watchLogic';
   import { pdfExport } from '$lib/preview/pdfExport.svelte';
   import {
     matchShortcut,
@@ -150,10 +152,27 @@
     themeController.init();
     // 前回開いていたフォルダがあれば自動で開き直す（毎回の選択を不要にする）。
     void workspace.restoreLastFolder();
+    // 外部（AI/CLI/他エディタ）編集を Rust の watcher から受け、画面状態に応じて反応する。
+    // 判断は純ロジック（decideFileChangeAction）に委譲し、ここは副作用の割り当てだけ持つ。
+    let unlisten: (() => void) | undefined;
+    void listen<FileChangeEvent>('workspace-file-changed', (event) => {
+      const action = decideFileChangeAction(event.payload, {
+        activePath: workspace.activePath,
+        dirty: workspace.dirty,
+      });
+      if (action === 'reload') void workspace.select(event.payload.relPath);
+      else if (action === 'rescan') void workspace.rescanPreservingActive();
+      else if (action === 'conflict') workspace.flagConflict(event.payload.relPath);
+    }).then((fn) => {
+      unlisten = fn;
+    });
     // 起動時の自動アップデート確認。起動直後の復元処理と競合させないよう少し遅らせ、
     // 更新があるときだけダイアログを出す（最新 / 失敗時は沈黙）。
     const t = setTimeout(() => void updater.autoCheck(), 3000);
-    return () => clearTimeout(t);
+    return () => {
+      clearTimeout(t);
+      unlisten?.();
+    };
   });
 </script>
 

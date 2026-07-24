@@ -312,6 +312,25 @@
 
 <svelte:window onkeydown={onWindowKey} />
 
+<div class="page-root">
+{#if workspace.externalConflict}
+  <!-- 開いているファイルが外部（AI/CLI/他エディタ）で変更されたが、未保存編集があるため
+       自動再読込しない。ユーザーがどちらを採るか選ぶ（DESIGN §3.4）。 -->
+  <div class="conflict-bar" role="alert">
+    <span class="conflict-msg">
+      外部でこのファイルが変更されました（<code>{workspace.externalConflict.relPath}</code>）。
+    </span>
+    <span class="conflict-actions">
+      <button type="button" class="conflict-btn danger" onclick={() => workspace.reloadConflict()}>
+        再読込（編集を破棄）
+      </button>
+      <button type="button" class="conflict-btn" onclick={() => workspace.dismissConflict()}>
+        編集を残す
+      </button>
+    </span>
+  </div>
+{/if}
+
 <div
   class="split"
   class:dragging
@@ -396,14 +415,82 @@
     {/if}
   </section>
 </div>
+</div>
 
 <style>
-  .split {
+  /* 競合バナー + 分割を縦に積む器。バナーは自然高、分割が残りを占める。 */
+  .page-root {
     height: 100%;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+
+  .split {
+    flex: 1;
     display: grid;
     /* 比率はインラインの --split-cols で駆動。未設定時（SSR 初期）は 50/50 相当。 */
     grid-template-columns: var(--split-cols, 1fr 6px 1fr);
     min-height: 0;
+  }
+
+  /* 外部変更 × 未保存編集の競合バナー（DESIGN §3.4）。目立つが破壊的操作は右側に隔離。 */
+  .conflict-bar {
+    flex: none;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+    padding: var(--space-2) var(--space-4);
+    background: var(--warning-subtle, var(--accent-subtle));
+    border-bottom: 1px solid var(--warning-fg, var(--border-strong));
+    font-size: var(--text-xs-size);
+    color: var(--text-primary);
+  }
+
+  .conflict-msg code {
+    padding: 0 4px;
+    border-radius: var(--radius-sm);
+    background: var(--bg-subtle);
+    font-family: var(--font-mono, monospace);
+  }
+
+  .conflict-actions {
+    display: inline-flex;
+    gap: var(--space-2);
+    flex: none;
+  }
+
+  .conflict-btn {
+    height: 24px;
+    padding: 0 var(--space-3);
+    font-size: var(--text-2xs-size);
+    font-weight: var(--text-2xs-weight);
+    color: var(--text-secondary);
+    background: var(--bg-subtle);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition:
+      background var(--dur-fast, 120ms) ease,
+      border-color var(--dur-fast, 120ms) ease,
+      color var(--dur-fast, 120ms) ease;
+  }
+
+  .conflict-btn:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+    border-color: var(--border-strong);
+  }
+
+  .conflict-btn.danger:hover {
+    color: var(--danger-fg);
+    border-color: var(--danger-fg);
+  }
+
+  .conflict-btn:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
   }
 
   /* 検証グリッド全画面（DESIGN §5.8/§6）。エディター + ディバイダを畳み、グリッド（右ペイン）
