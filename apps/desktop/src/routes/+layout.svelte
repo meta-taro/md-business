@@ -4,6 +4,7 @@
   import '../app.css';
   import { browser } from '$app/environment';
   import { themeController } from '$lib/theme.svelte';
+  import { i18n } from '$lib/i18n/i18n.svelte';
   import { workspace } from '$lib/workspace/workspace.svelte';
   import { decideFileChangeAction, type FileChangeEvent } from '$lib/workspace/watchLogic';
   import { pdfExport } from '$lib/preview/pdfExport.svelte';
@@ -150,6 +151,8 @@
     // app.html が paint 前に data-theme を確定済み。ここで反応状態を種づけして
     // トグルボタンの表示を実テーマに一致させる（DESIGN §8）。
     themeController.init();
+    // UI 言語を localStorage / OS 設定から確定し <html lang> を同期する。
+    i18n.init();
     // 前回開いていたフォルダがあれば自動で開き直す（毎回の選択を不要にする）。
     void workspace.restoreLastFolder();
     // 外部（AI/CLI/他エディタ）編集を Rust の watcher から受け、画面状態に応じて反応する。
