@@ -27,6 +27,10 @@ concurrency:
 
 jobs:
   bundle:
+    # Release の作成・成果物アップロードに書き込み権限が要る。
+    # デフォルトの GITHUB_TOKEN は read-only のため明示的に付与する。
+    permissions:
+      contents: write
     strategy:
       fail-fast: false
       matrix:
