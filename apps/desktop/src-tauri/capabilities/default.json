@@ -12,6 +12,7 @@
     "core:window:allow-is-maximized",
     "dialog:allow-open",
     "opener:allow-open-url",
+    "opener:allow-reveal-item-in-dir",
     "updater:default",
     "process:allow-restart"
   ]

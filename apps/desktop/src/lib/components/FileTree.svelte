@@ -3,6 +3,8 @@
   // （DOC-SPEC-DESKTOP-2026-0001 §3.3 / §6.1）。走査・読込は Rust コマンド、可視行の
   // 平坦化は workspaceLogic の純関数（単体テスト済み）に委譲する。スキーマ別アイコン色・
   // 選択ハイライトの仕上げは Phase D。
+  import { invoke } from '@tauri-apps/api/core';
+  import { openUrl, revealItemInDir } from '@tauri-apps/plugin-opener';
   import { workspace } from '$lib/workspace/workspace.svelte';
   import {
     flattenVisible,
@@ -13,6 +15,7 @@
   import { diffView } from '$lib/git/diffView.svelte';
   import { gitMarkLetter, type GitFileState } from '$lib/git/gitStatus';
   import { t } from '$lib/i18n/i18n.svelte';
+  import { toAbsolutePath, menuActionsForKind, type FileTreeMenuAction } from './fileTreeMenu';
 
   // git 状態 → ホバー説明（バッジ title）。色マークの意味を言葉でも補う。
   // t() はロケール反応なので関数で都度引く（キーは git.state.<state>）。
@@ -50,6 +53,65 @@
     if (e.key === 'Escape' && filterQuery !== '') {
       e.preventDefault();
       filterQuery = '';
+    }
+  }
+
+  // ── 右クリックコンテキストメニュー（reveal / パスコピー / リモートで開く）──
+  // 開いているノードのスクリーン座標・種別・利用可能項目と、forge_file_url の解決結果を保持する
+  // （forgeUrl が null なら remote 無し等でフォージ項目を出さない）。純ロジックは fileTreeMenu に委譲。
+  let menu = $state<{
+    x: number;
+    y: number;
+    path: string;
+    kind: 'file' | 'folder';
+    actions: FileTreeMenuAction[];
+    forgeUrl: string | null;
+  } | null>(null);
+
+  const menuLabel = (action: FileTreeMenuAction): string =>
+    action === 'reveal'
+      ? t('tree.menuReveal')
+      : action === 'copyPath'
+        ? t('tree.menuCopyPath')
+        : t('tree.menuOpenForge');
+
+  function openMenu(event: MouseEvent, path: string, kind: 'folder' | 'file'): void {
+    event.preventDefault();
+    menu = { x: event.clientX, y: event.clientY, path, kind, actions: menuActionsForKind(kind), forgeUrl: null };
+    // フォージ URL は Rust 側で git remote/branch から非同期解決する。作れなければ項目を隠す。
+    if (kind === 'file' && workspace.root !== null) {
+      void invoke<string | null>('forge_file_url', { root: workspace.root, relPath: path })
+        .then((url) => {
+          // メニューが同じノードで開いたままのときだけ反映（別ノードへ開き直し後の遅延解決を無視）。
+          if (menu !== null && menu.path === path) menu = { ...menu, forgeUrl: url };
+        })
+        .catch(() => undefined);
+    }
+  }
+
+  function closeMenu(): void {
+    menu = null;
+  }
+
+  async function runMenuAction(action: FileTreeMenuAction): Promise<void> {
+    const m = menu;
+    closeMenu();
+    if (m === null || workspace.root === null) return;
+    const abs = toAbsolutePath(workspace.root, m.path);
+    if (action === 'reveal') {
+      await revealItemInDir(abs).catch(() => undefined);
+    } else if (action === 'copyPath') {
+      await navigator.clipboard.writeText(abs).catch(() => undefined);
+    } else if (action === 'openForge' && m.forgeUrl !== null) {
+      await openUrl(m.forgeUrl).catch(() => undefined);
+    }
+  }
+
+  // メニュー表示中の Esc で閉じる（フィルタ入力の Esc とは menu!==null で排他）。
+  function onWindowKeydown(e: KeyboardEvent): void {
+    if (e.key === 'Escape' && menu !== null) {
+      e.preventDefault();
+      closeMenu();
     }
   }
 </script>
@@ -151,7 +213,7 @@
       {/if}
     </div>
   {:else}
-    <ul class="tree">
+    <ul class="tree" onscroll={closeMenu}>
       {#each rows as row (row.node.path)}
         {@const node = row.node}
         {@const gitState = node.kind === 'file' ? git.stateOf(node.path) : null}
@@ -163,6 +225,7 @@
             style="--depth: {row.depth}"
             data-git={gitState}
             onclick={() => onRowClick(node.path, node.kind)}
+            oncontextmenu={(e) => openMenu(e, node.path, node.kind)}
             title={node.path}
           >
             {#if node.kind === 'folder'}
@@ -212,6 +275,36 @@
   {/if}
   {/if}
 </nav>
+
+<svelte:window onkeydown={onWindowKeydown} />
+
+{#if menu !== null}
+  <!-- クリック外し用の全画面バックドロップ。メニューより下・本文より上に敷き、
+       左/右クリックとも閉じる（右クリックは既定メニュー抑止）。 -->
+  <button
+    class="menu-backdrop"
+    type="button"
+    tabindex="-1"
+    aria-hidden="true"
+    onclick={closeMenu}
+    oncontextmenu={(e) => {
+      e.preventDefault();
+      closeMenu();
+    }}
+  ></button>
+  <ul class="ctx-menu" style="left: {menu.x}px; top: {menu.y}px;" role="menu">
+    {#each menu.actions as action (action)}
+      <!-- フォージ項目は URL を作れたときだけ出す（remote 無し・非リポジトリでは非表示）。 -->
+      {#if action !== 'openForge' || menu.forgeUrl !== null}
+        <li role="none">
+          <button class="ctx-item" type="button" role="menuitem" onclick={() => runMenuAction(action)}>
+            {menuLabel(action)}
+          </button>
+        </li>
+      {/if}
+    {/each}
+  </ul>
+{/if}
 
 <style>
   .filetree {
@@ -568,5 +661,56 @@
   /* 選択中はアクセント色を優先（マーク文字は色付けのまま桁だけ保つ）。 */
   .row.active .name {
     color: var(--accent);
+  }
+
+  /* ── 右クリックコンテキストメニュー ───────────────────────────── */
+  /* クリック外し用の透明バックドロップ。ビューポート全面を覆い、メニュー以外への
+     クリックで閉じる。ボタン要素だが枠・地は透明で見えない。 */
+  .menu-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 90;
+    border: none;
+    padding: 0;
+    background: transparent;
+    cursor: default;
+  }
+
+  .ctx-menu {
+    position: fixed;
+    z-index: 91;
+    min-width: 180px;
+    margin: 0;
+    padding: var(--space-1);
+    list-style: none;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    box-shadow: 0 6px 20px rgb(0 0 0 / 0.28);
+  }
+
+  .ctx-item {
+    display: block;
+    width: 100%;
+    padding: var(--space-1) var(--space-3);
+    border: none;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: var(--text-sm-size);
+    text-align: left;
+    white-space: nowrap;
+    cursor: pointer;
+  }
+
+  .ctx-item:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+  }
+
+  .ctx-item:focus-visible {
+    outline: none;
+    box-shadow: inset 0 0 0 2px var(--accent);
+    color: var(--text-primary);
   }
 </style>

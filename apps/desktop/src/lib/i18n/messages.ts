@@ -72,6 +72,10 @@ export interface Messages {
   'tree.filterNoMatch': string;
   'tree.noFiles': string;
   'tree.truncated': string;
+  // 左レールの右クリックメニュー（reveal / パスコピー / リモートで開く）
+  'tree.menuReveal': string;
+  'tree.menuCopyPath': string;
+  'tree.menuOpenForge': string;
   // Git 変更状態（ツリーのバッジ説明）
   'git.state.modified': string;
   'git.state.added': string;
@@ -174,6 +178,9 @@ const en: Messages = {
   'tree.filterNoMatch': 'No files match\n"{query}"',
   'tree.noFiles': 'No .md / .tsv\nfiles found',
   'tree.truncated': 'Showing partial results (limit reached)',
+  'tree.menuReveal': 'Reveal in File Explorer',
+  'tree.menuCopyPath': 'Copy full path',
+  'tree.menuOpenForge': 'Open on remote',
   'git.state.modified': 'Modified (uncommitted)',
   'git.state.added': 'Staged addition',
   'git.state.untracked': 'Untracked (new)',
@@ -268,6 +275,9 @@ const ja: Messages = {
   'tree.filterNoMatch': '「{query}」に\n一致するファイルがありません',
   'tree.noFiles': '.md / .tsv が\n見つかりませんでした',
   'tree.truncated': '一部のみ表示（上限に達したため打ち切りました）',
+  'tree.menuReveal': 'エクスプローラーで表示',
+  'tree.menuCopyPath': 'フルパスをコピー',
+  'tree.menuOpenForge': 'リモートで開く',
   'git.state.modified': '変更あり（未コミット）',
   'git.state.added': 'ステージ済みの追加',
   'git.state.untracked': '未追跡（新規）',
@@ -362,6 +372,9 @@ const zh: Messages = {
   'tree.filterNoMatch': '没有匹配\n“{query}”的文件',
   'tree.noFiles': '未找到\n.md / .tsv 文件',
   'tree.truncated': '仅显示部分（已达上限而截断）',
+  'tree.menuReveal': '在资源管理器中显示',
+  'tree.menuCopyPath': '复制完整路径',
+  'tree.menuOpenForge': '在远程仓库打开',
   'git.state.modified': '已更改（未提交）',
   'git.state.added': '已暂存的新增',
   'git.state.untracked': '未跟踪（新增）',
@@ -456,6 +469,9 @@ const ko: Messages = {
   'tree.filterNoMatch': '"{query}"과(와)\n일치하는 파일이 없습니다',
   'tree.noFiles': '.md / .tsv 파일을\n찾을 수 없습니다',
   'tree.truncated': '일부만 표시 (상한에 도달하여 중단)',
+  'tree.menuReveal': '탐색기에서 표시',
+  'tree.menuCopyPath': '전체 경로 복사',
+  'tree.menuOpenForge': '원격 저장소에서 열기',
   'git.state.modified': '변경됨 (커밋 안 됨)',
   'git.state.added': '스테이지된 추가',
   'git.state.untracked': '추적 안 됨 (신규)',

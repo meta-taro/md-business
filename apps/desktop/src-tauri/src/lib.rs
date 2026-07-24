@@ -37,7 +37,8 @@ pub fn run() {
             git::git_commit,
             git::git_push,
             git::git_pull,
-            git::git_diff
+            git::git_diff,
+            git::forge_file_url
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
