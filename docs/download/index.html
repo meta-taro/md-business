@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ダウンロード — md-business デスクトップアプリ</title>
+<meta name="description" content="md-business デスクトップアプリ（Windows / macOS）のダウンロード。6 種の業務文書を用途別ビューワーで開き、Markdown を左右 2 画面でライブ編集・PDF 出力する。">
+<link rel="canonical" href="https://meta-taro.github.io/md-business/download/">
+<link rel="stylesheet" href="../assets/style.css">
+<style>
+  /* ダウンロードページ専用の追加スタイル（共有 style.css の変数を再利用） */
+  .dl-hero { text-align: center; margin: 8px 0 40px; }
+  .dl-hero .version {
+    font-size: 0.95rem; color: var(--muted); margin: 4px 0 24px;
+  }
+  .btn-lg { padding: 16px 32px; font-size: 1.1rem; border-radius: 10px; }
+  .btn-brand { background: var(--brand); color: #fff; }
+  .btn-brand:hover { opacity: 0.9; }
+  .dl-primary { min-height: 64px; }
+  .dl-sub {
+    margin-top: 14px; font-size: 0.92rem; color: var(--muted);
+    display: flex; flex-wrap: wrap; gap: 6px 18px; justify-content: center;
+  }
+  .dl-sub a { text-decoration: none; }
+  .dl-sub a:hover { text-decoration: underline; }
+  .os-block { display: flex; align-items: baseline; gap: 8px; }
+  .os-block .os-name { font-weight: 600; color: var(--ink); }
+  .asset-list { font-size: 0.92rem; }
+  .asset-list td.size { color: var(--muted); white-space: nowrap; text-align: right; }
+  .spin { color: var(--muted); }
+</style>
+</head>
+<body>
+
+<header class="doc-header">
+  <div class="crumbs"><a href="../">md-business</a> / ダウンロード</div>
+  <h1>デスクトップアプリをダウンロード</h1>
+  <div class="meta">Windows・macOS 対応 — 6 種の業務文書を Markdown でライブ編集し PDF 出力</div>
+</header>
+
+<main class="doc">
+
+  <div class="dl-hero">
+    <div class="dl-primary" id="primary">
+      <span class="spin">最新版を確認しています…</span>
+    </div>
+    <div class="version" id="version"></div>
+    <div class="dl-sub" id="sub"></div>
+  </div>
+
+  <section>
+    <h2>インストール手順</h2>
+
+    <h3>Windows</h3>
+    <p>
+      <code>.msi</code>（推奨）または <code>.exe</code> セットアップをダウンロードして実行します。
+    </p>
+    <div class="callout">
+      現在コード署名は未対応のため、初回実行時に <strong>SmartScreen の「WindowsによってPCが保護されました」</strong>
+      が表示されることがあります。その場合は「詳細情報」→「実行」で続行してください。
+    </div>
+
+    <h3>macOS</h3>
+    <p>
+      <code>.dmg</code> を開き、アプリを Applications フォルダへドラッグします。Intel / Apple Silicon 両対応です。
+    </p>
+    <div class="callout">
+      未公証のため、初回のみ Finder でアプリを<strong>右クリック →「開く」</strong>で Gatekeeper の確認を回避してください
+      （2 回目以降は通常どおりダブルクリックで起動します）。
+    </div>
+  </section>
+
+  <section>
+    <h2>自動アップデート</h2>
+    <p>
+      一度インストールすれば、以降の新しいバージョンはアプリ内で更新できます。起動時に自動確認するほか、
+      <strong>ヘルプ →「更新を確認」</strong>から手動でも確認できます。更新は署名付き成果物を検証してから適用されます。
+    </p>
+  </section>
+
+  <section>
+    <h2>すべてのダウンロード</h2>
+    <p id="all-note" class="spin">リリース成果物を読み込んでいます…</p>
+    <table class="asset-list" id="asset-table" hidden>
+      <thead><tr><th>ファイル</th><th>用途</th><th class="size">サイズ</th></tr></thead>
+      <tbody id="asset-body"></tbody>
+    </table>
+    <p style="margin-top:16px">
+      <a href="https://github.com/meta-taro/md-business/releases/latest" id="release-link">GitHub Releases ページを開く →</a>
+    </p>
+  </section>
+
+</main>
+
+<footer>
+  &copy; meta-taro · MIT License · <a href="https://github.com/meta-taro/md-business">github.com/meta-taro/md-business</a>
+</footer>
+
+<script>
+  // 最新リリースを GitHub API から取得し、OS 判定してダウンロードボタンを組み立てる。
+  // 公開リポの匿名 API を使うため、バージョンが上がってもこのページの編集は不要。
+  const REPO = 'meta-taro/md-business';
+  const RELEASES_LATEST = 'https://github.com/' + REPO + '/releases/latest';
+
+  function detectOS() {
+    const ua = navigator.userAgent;
+    if (/Windows/i.test(ua)) return 'windows';
+    if (/Macintosh|Mac OS X/i.test(ua)) return 'macos';
+    return 'other';
+  }
+
+  function classify(name) {
+    const n = name.toLowerCase();
+    if (n.endsWith('.msi')) return { os: 'windows', kind: 'Windows インストーラ (MSI)', primary: true };
+    if (n.endsWith('-setup.exe') || n.endsWith('.exe')) return { os: 'windows', kind: 'Windows インストーラ (EXE)', primary: false };
+    if (n.endsWith('.dmg')) return { os: 'macos', kind: 'macOS ディスクイメージ (DMG)', primary: true };
+    return null; // .sig / latest.json / *.app.tar.gz は一覧から除外
+  }
+
+  function fmtSize(bytes) {
+    if (bytes >= 1048576) return (bytes / 1048576).toFixed(1) + ' MB';
+    if (bytes >= 1024) return Math.round(bytes / 1024) + ' KB';
+    return bytes + ' B';
+  }
+
+  function fallback(msg) {
+    document.getElementById('primary').innerHTML =
+      '<a class="btn btn-lg btn-brand" href="' + RELEASES_LATEST + '">Releases ページでダウンロード</a>';
+    document.getElementById('version').textContent = msg || '';
+    const note = document.getElementById('all-note');
+    note.classList.remove('spin');
+    note.textContent = '成果物一覧を自動取得できませんでした。上のボタンから Releases ページを開いてください。';
+  }
+
+  (async function () {
+    try {
+      const res = await fetch('https://api.github.com/repos/' + REPO + '/releases/latest', {
+        headers: { 'Accept': 'application/vnd.github+json' }
+      });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const rel = await res.json();
+      const assets = (rel.assets || [])
+        .map(a => ({ ...a, meta: classify(a.name) }))
+        .filter(a => a.meta);
+
+      if (!assets.length) return fallback('');
+
+      const os = detectOS();
+      const primaryForOS = assets.find(a => a.meta.os === os && a.meta.primary)
+        || assets.find(a => a.meta.os === os);
+
+      // メインボタン
+      const primaryEl = document.getElementById('primary');
+      if (primaryForOS) {
+        const osLabel = os === 'windows' ? 'Windows' : 'Mac';
+        primaryEl.innerHTML =
+          '<a class="btn btn-lg btn-brand" href="' + primaryForOS.browser_download_url + '">'
+          + osLabel + ' 版をダウンロード</a>';
+      } else {
+        primaryEl.innerHTML =
+          '<a class="btn btn-lg btn-brand" href="' + RELEASES_LATEST + '">ダウンロード一覧を開く</a>';
+      }
+
+      // バージョン表示
+      const ver = rel.tag_name || '';
+      const date = rel.published_at ? new Date(rel.published_at).toLocaleDateString('ja-JP') : '';
+      document.getElementById('version').textContent =
+        [ver && ('バージョン ' + ver), date && ('公開日 ' + date)].filter(Boolean).join(' ・ ');
+
+      // 他プラットフォームへのサブリンク
+      const sub = document.getElementById('sub');
+      assets.forEach(a => {
+        if (primaryForOS && a.name === primaryForOS.name) return;
+        const link = document.createElement('a');
+        link.href = a.browser_download_url;
+        link.textContent = a.meta.kind;
+        sub.appendChild(link);
+      });
+
+      // 全成果物テーブル
+      const body = document.getElementById('asset-body');
+      assets.forEach(a => {
+        const tr = document.createElement('tr');
+        const td1 = document.createElement('td');
+        const link = document.createElement('a');
+        link.href = a.browser_download_url;
+        link.textContent = a.name;
+        td1.appendChild(link);
+        const td2 = document.createElement('td');
+        td2.textContent = a.meta.kind;
+        const td3 = document.createElement('td');
+        td3.className = 'size';
+        td3.textContent = fmtSize(a.size);
+        tr.append(td1, td2, td3);
+        body.appendChild(tr);
+      });
+      document.getElementById('all-note').hidden = true;
+      document.getElementById('asset-table').hidden = false;
+    } catch (e) {
+      fallback('');
+    }
+  })();
+</script>
+
+</body>
+</html>
