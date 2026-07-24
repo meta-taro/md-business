@@ -1,6 +1,6 @@
 [package]
 name = "md-business-desktop"
-version = "0.0.0"
+version = "0.1.0"
 description = "md-business desktop app (Tauri 2 + SvelteKit)"
 authors = ["meta-taro"]
 license = "MIT"

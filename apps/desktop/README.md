@@ -2,7 +2,16 @@
 
 md-business の**本命プロダクト**。6 種の業務文書（invoice / spec / test-spec / db-spec / nosql-db-spec / api-spec）を用途別ビューワーで開き、**Markdown を左右 2 画面でライブ編集**しながらプレビュー同期・PDF 出力する Tauri デスクトップアプリ。
 
-デザイン方針・レイアウト・実装フェーズは [`DESIGN.md`](./DESIGN.md) を正本とする（baseline §11）。
+デザイン方針・レイアウト・実装フェーズは [`DESIGN.md`](./DESIGN.md) を正本とする。
+
+## ダウンロード（インストール）
+
+最新版のインストーラは **[Releases](https://github.com/meta-taro/md-business/releases/latest)** から入手できる。
+
+- **Windows**: `.msi`（または `.exe` セットアップ）をダウンロードして実行する。現在コード署名は未対応のため、SmartScreen の「発行元不明」警告が出たら「詳細情報」→「実行」で続行する。
+- **macOS**: `.dmg` を開き、アプリを Applications へドラッグする。未公証のため初回のみ Finder でアプリを右クリック →「開く」で Gatekeeper を回避する。
+
+一度インストールすれば、以降の新しいバージョンはアプリ内の **ヘルプ →「更新を確認」**、または起動時の自動確認から更新できる（GitHub Releases の署名付き成果物を検証して適用する）。
 
 ## 技術スタック
 

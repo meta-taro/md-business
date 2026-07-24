@@ -1772,7 +1772,7 @@ dependencies = [
 
 [[package]]
 name = "md-business-desktop"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "serde",
  "serde_json",

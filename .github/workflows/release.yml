@@ -1,13 +1,25 @@
 name: Release build
 
-# Windows(MSI/NSIS)・macOS(DMG) のインストーラを各ネイティブランナーで生成する。
-# CLAUDE.md 方針「GitHub Releases タグなし / PR ベース」に合わせ、タグは打たず
-# 手動トリガー(workflow_dispatch)のみで実行し、成果物は Release ではなく
-# workflow artifact として上げる(Actions 画面から DL)。
-# コード署名は未対応(§15: 証明書・鍵は人間が管理。未署名 DMG/MSI は初回配布時に警告が出る)。
+# タグ push（v* 例: v0.1.0）を起点に Windows(MSI/NSIS)・macOS(universal DMG) の
+# インストーラを各ネイティブランナーで生成し、GitHub Release へ発行する。
+# あわせて自動アップデート用の署名付き成果物と latest.json を生成・添付する
+# （アプリの「更新を確認」はこの latest.json を参照する）。
+#
+# 署名鍵（TAURI_SIGNING_PRIVATE_KEY / 同 PASSWORD）は Repository secrets から注入する。
+# 秘密鍵そのものはリポジトリに含めず、投入・更新は人手で行う。公開鍵はアプリ設定へ
+# 文字列で焼き込んである。
+#
+# Release は下書き（draft）として作成する。内容を確認してから手動で publish することで
+# 配布開始のタイミングを制御する。publish されて初めて latest.json が配信され、
+# 既存アプリの自動更新が有効になる。
+#
+# コード署名（Windows Authenticode / Apple 公証）は未対応のため、初回インストール時に
+# 発行元不明の警告が出る（インストール自体は可能）。公証対応は証明書の用意後に追加する。
 
 on:
-  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
 
 concurrency:
   group: release-${{ github.ref }}
@@ -53,25 +65,24 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       # desktop は @md-business/* 9 パッケージの dist を import するため、
-      # tauri build 前にワークスペースをビルドする(ci.yml と同じ turbo build)。
+      # tauri build 前にワークスペースをビルドする（ci.yml と同じ turbo build）。
       - name: Build workspace packages
         run: pnpm build
 
-      - name: Build Tauri installers
+      - name: Build and publish Tauri installers
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # 自動アップデート成果物の署名鍵。未設定だとビルドが失敗する
+          # （tauri.conf.json の createUpdaterArtifacts が有効なため）。
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           projectPath: apps/desktop
           tauriScript: pnpm tauri
           args: ${{ matrix.args }}
-
-      - name: Upload installers
-        uses: actions/upload-artifact@v4
-        with:
-          name: md-business-${{ matrix.label }}
-          path: |
-            apps/desktop/src-tauri/target/**/release/bundle/msi/*.msi
-            apps/desktop/src-tauri/target/**/release/bundle/nsis/*.exe
-            apps/desktop/src-tauri/target/**/release/bundle/dmg/*.dmg
-          if-no-files-found: error
+          # push されたタグ名でリリースを作る（例: v0.1.0）。
+          tagName: ${{ github.ref_name }}
+          releaseName: "md-business ${{ github.ref_name }}"
+          releaseDraft: true
+          prerelease: false
