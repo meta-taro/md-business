@@ -15,6 +15,8 @@
   import SourceControlPanel from '$lib/components/SourceControlPanel.svelte';
   import FileTree from '$lib/components/FileTree.svelte';
   import SidePanel from '$lib/components/SidePanel.svelte';
+  import UpdateDialog from '$lib/update/UpdateDialog.svelte';
+  import { updater } from '$lib/update/updater.svelte';
   import {
     DEFAULT_FILETREE_W,
     MIN_FILETREE_W,
@@ -148,6 +150,10 @@
     themeController.init();
     // 前回開いていたフォルダがあれば自動で開き直す（毎回の選択を不要にする）。
     void workspace.restoreLastFolder();
+    // 起動時の自動アップデート確認。起動直後の復元処理と競合させないよう少し遅らせ、
+    // 更新があるときだけダイアログを出す（最新 / 失敗時は沈黙）。
+    const t = setTimeout(() => void updater.autoCheck(), 3000);
+    return () => clearTimeout(t);
   });
 </script>
 
@@ -196,6 +202,9 @@
 
   <StatusBar scmOpen={scmOpen} onToggleScm={() => (scmOpen = !scmOpen)} />
 </div>
+
+<!-- アプリ更新のモーダル（起動時自動確認 / ヘルプの「更新を確認」から表示）。 -->
+<UpdateDialog />
 
 <style>
   .shell {

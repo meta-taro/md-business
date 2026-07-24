@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { getVersion } from '@tauri-apps/api/app';
+  import { updater } from '$lib/update/updater.svelte';
 
   // ヘルプ [?] ボタン + ポップオーバー。田中さん指摘「ヘルプがない・バージョンが分から
   // ない」への対応（2026-07-22）。アプリ名／バージョン／キーボードショートカット／
@@ -27,6 +28,12 @@
 
   function close(): void {
     open = false;
+  }
+
+  // 「更新を確認」。ポップオーバーを閉じ、更新モーダル（UpdateDialog）へ引き継ぐ。
+  function checkForUpdate(): void {
+    close();
+    void updater.check();
   }
 
   function onKeydown(e: KeyboardEvent): void {
@@ -80,6 +87,31 @@
           </span>
         </div>
       </div>
+
+      <div class="sep"></div>
+
+      <section class="block">
+        <button class="update-btn" type="button" onclick={checkForUpdate}>
+          <svg class="update-ico" viewBox="0 0 16 16" aria-hidden="true">
+            <path
+              d="M13.5 8a5.5 5.5 0 1 1-1.6-3.9"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.2"
+              stroke-linecap="round"
+            />
+            <path
+              d="M13.5 2.5V5H11"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+          <span>更新を確認</span>
+        </button>
+      </section>
 
       <div class="sep"></div>
 
@@ -237,6 +269,45 @@
     font-size: var(--text-xs-size);
     font-weight: 600;
     color: var(--text-secondary);
+  }
+
+  /* 「更新を確認」。パネル幅いっぱいの行アクション。押すとポップオーバーを閉じ、
+     更新モーダルへ引き継ぐ。 */
+  .update-btn {
+    width: 100%;
+    height: 32px;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: 0 var(--space-3);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-md);
+    background: var(--bg-subtle);
+    color: var(--text-primary);
+    font-size: var(--text-sm-size);
+    font-weight: 600;
+    cursor: pointer;
+    transition:
+      background var(--dur-fast, 120ms) ease,
+      border-color var(--dur-fast, 120ms) ease,
+      color var(--dur-fast, 120ms) ease;
+  }
+
+  .update-btn:hover {
+    background: var(--bg-hover);
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  .update-btn:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px var(--accent-subtle);
+  }
+
+  .update-ico {
+    width: 15px;
+    height: 15px;
+    flex: none;
   }
 
   .sc-list {
