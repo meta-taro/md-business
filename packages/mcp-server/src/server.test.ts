@@ -3,6 +3,7 @@ import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import { createServer, SERVER_NAME } from './server.js';
+import type { ToolLogEntry } from './toolLog.js';
 import { MemoryDocumentStore } from './store.js';
 
 /**
@@ -65,6 +66,18 @@ async function connect(store: MemoryDocumentStore): Promise<Client> {
   const client = new Client({ name: 'test-client', version: '0.0.0' });
   await Promise.all([client.connect(clientTransport), server.connect(serverTransport)]);
   return client;
+}
+
+/** onLog をスパイしつつ繋いだ Client と、蓄積した操作ログ配列を返す（時刻は固定）。 */
+async function connectWithLog(
+  store: MemoryDocumentStore,
+): Promise<{ client: Client; logs: ToolLogEntry[] }> {
+  const logs: ToolLogEntry[] = [];
+  const server = createServer(store, { onLog: (e) => logs.push(e), now: () => 12345 });
+  const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+  const client = new Client({ name: 'test-client', version: '0.0.0' });
+  await Promise.all([client.connect(clientTransport), server.connect(serverTransport)]);
+  return { client, logs };
 }
 
 /** CallToolResult のテキスト content を JSON パースして取り出す。 */
@@ -180,5 +193,46 @@ describe('createServer / MCP 配線', () => {
   it('サーバー情報に名前が載る', async () => {
     const client = await connect(new MemoryDocumentStore());
     expect(client.getServerVersion()?.name).toBe(SERVER_NAME);
+  });
+});
+
+describe('createServer / onLog フック', () => {
+  it('成功ツールは ok=true・path 付きのログを 1 件発火する', async () => {
+    const { client, logs } = await connectWithLog(new MemoryDocumentStore());
+    await client.callTool({
+      name: 'create_document',
+      arguments: {
+        schema: 'invoice/v1',
+        frontmatter: { invoiceNumber: 'INV-9' },
+        body: '# 請求書',
+        path: 'invoices/INV-9.md',
+      },
+    });
+    expect(logs).toEqual([
+      { type: 'log', tool: 'create_document', ok: true, ts: 12345, path: 'invoices/INV-9.md' },
+    ]);
+  });
+
+  it('失敗ツールは ok=false・detail 付きのログを発火する', async () => {
+    const { client, logs } = await connectWithLog(new MemoryDocumentStore());
+    await client.callTool({ name: 'read_document', arguments: { path: 'missing.md' } });
+    expect(logs).toHaveLength(1);
+    expect(logs[0]?.ok).toBe(false);
+    expect(logs[0]?.tool).toBe('read_document');
+    expect(logs[0]?.path).toBe('missing.md');
+    expect(typeof logs[0]?.detail).toBe('string');
+  });
+
+  it('パスを持たないツール（list_schemas）は path 無しのログを発火する', async () => {
+    const { client, logs } = await connectWithLog(new MemoryDocumentStore());
+    await client.callTool({ name: 'list_schemas', arguments: {} });
+    expect(logs).toEqual([{ type: 'log', tool: 'list_schemas', ok: true, ts: 12345 }]);
+  });
+
+  it('onLog 未指定でもツールは通常どおり動く（発火は完全に no-op）', async () => {
+    // onLog を渡さない既定 connect でツールが往復すれば、フックは既存挙動を壊していない。
+    const client = await connect(new MemoryDocumentStore());
+    const res = await client.callTool({ name: 'list_schemas', arguments: {} });
+    expect((res as CallToolResult).isError).not.toBe(true);
   });
 });
