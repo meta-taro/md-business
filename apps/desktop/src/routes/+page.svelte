@@ -15,6 +15,7 @@
     redo as redoHistory,
     type GridHistory,
   } from '$lib/tsv/gridHistory';
+  import { autosave } from '$lib/workspace/autosave.svelte';
   import { browser } from '$app/environment';
   import { workspace } from '$lib/workspace/workspace.svelte';
   import { diffView } from '$lib/git/diffView.svelte';
@@ -63,6 +64,14 @@
     const next = untrack(() => workspace.source);
     debouncedSource = next;
     gridHistory = initHistory(next);
+  });
+
+  // 編集（source 変化）と設定変更を受けて、デバウンス保存を予約する。実際の発火可否は
+  // autosave 側の純ロジックが判定する（既定オン・無効化で予約解除）。
+  $effect(() => {
+    workspace.source;
+    autosave.enabled;
+    autosave.schedule();
   });
 
   function handleEditorChange(value: string): void {

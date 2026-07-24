@@ -6,6 +6,7 @@
   import { themeController } from '$lib/theme.svelte';
   import { i18n, t } from '$lib/i18n/i18n.svelte';
   import { workspace } from '$lib/workspace/workspace.svelte';
+  import { autosave } from '$lib/workspace/autosave.svelte';
   import { decideFileChangeAction, type FileChangeEvent } from '$lib/workspace/watchLogic';
   import { pdfExport } from '$lib/preview/pdfExport.svelte';
   import {
@@ -161,6 +162,8 @@
     themeController.init();
     // UI 言語を localStorage / OS 設定から確定し <html lang> を同期する。
     i18n.init();
+    // オートセーブ設定を確定する（未保存なら既定オン）。
+    autosave.init();
     // 前回開いていたフォルダがあれば自動で開き直す（毎回の選択を不要にする）。
     void workspace.restoreLastFolder();
     // 外部（AI/CLI/他エディタ）編集を Rust の watcher から受け、画面状態に応じて反応する。

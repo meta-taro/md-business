@@ -3,6 +3,7 @@
   import { themeController } from '$lib/theme.svelte';
   import { titlebarController } from '$lib/window/titlebar.svelte';
   import { workspace } from '$lib/workspace/workspace.svelte';
+  import { autosave } from '$lib/workspace/autosave.svelte';
   import { pdfExport } from '$lib/preview/pdfExport.svelte';
   import { documentDisplayName } from '$lib/window/docTitle';
   import { t } from '$lib/i18n/i18n.svelte';
@@ -79,6 +80,36 @@
           />
         </svg>
         <span>{workspace.saving ? t('action.saving') : t('action.save')}</span>
+      </button>
+      <!-- オートセーブのオン/オフ（既定オン）。オンの間は編集の静止後に自動保存する。
+           循環矢印＝自動反映の普遍アイコン。オン時は色でも状態を示す。 -->
+      <button
+        class="btn ghost with-icon"
+        class:is-on={autosave.enabled}
+        type="button"
+        onclick={() => autosave.toggle()}
+        aria-pressed={autosave.enabled}
+        title={autosave.enabled ? t('action.autosaveOn') : t('action.autosaveOff')}
+        aria-label={t('action.autosave')}
+      >
+        <svg class="btn-ico" viewBox="0 0 16 16" aria-hidden="true">
+          <path
+            d="M13.5 8a5.5 5.5 0 1 1-1.6-3.9"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.2"
+            stroke-linecap="round"
+          />
+          <path
+            d="M13.75 2.5v2.75H11"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
+        </svg>
+        <span>{t('action.autosave')}</span>
       </button>
       <!-- PDF 出力（§6.4・Ctrl+P / ⌘P と等価）。プレビュー描画中だけ活性。押すと
            WebView の印刷（→「PDF として保存」）でプレビュー見た目のまま A4 出力する。
@@ -319,6 +350,11 @@
   .btn:disabled {
     opacity: 0.45;
     cursor: default;
+  }
+
+  /* オートセーブ ON はアクセント色で点灯し、無効/有効が一目で分かるようにする。 */
+  .btn.is-on {
+    color: var(--accent);
   }
 
   /* ── ウィンドウコントロール（Windows 慣習：右上角に密着・フル高） ── */
