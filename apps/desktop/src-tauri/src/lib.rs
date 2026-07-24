@@ -10,6 +10,8 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         // 更新適用後の再起動に使うプロセス制御プラグイン。
         .plugin(tauri_plugin_process::init())
+        // 外部リンク（リポジトリ / 操作マニュアル）を既定ブラウザで開く。権限は open-url のみ。
+        .plugin(tauri_plugin_opener::init())
         .setup(|app| {
             // 自動アップデータはデスクトップのみ対応。AppHandle 確定後に登録する。
             #[cfg(desktop)]

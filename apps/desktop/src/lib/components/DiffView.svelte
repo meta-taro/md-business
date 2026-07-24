@@ -1,5 +1,5 @@
 <script lang="ts">
-  // 差分ビュー（プレビュー面に表示する git diff）。田中さん依頼 2026-07-22。
+  // 差分ビュー（プレビュー面に表示する git diff）。
   // 生 diff テキストは diffView ストアが持ち、ここは parseUnifiedDiff で行種別に分類して
   // 色分け描画するだけ（分類ロジックは diffParse.ts で単体テスト済み）。
   import { diffView } from '$lib/git/diffView.svelte';

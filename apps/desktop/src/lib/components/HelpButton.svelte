@@ -1,15 +1,17 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { getVersion } from '@tauri-apps/api/app';
+  import { openUrl } from '@tauri-apps/plugin-opener';
   import { updater } from '$lib/update/updater.svelte';
 
-  // ヘルプ [?] ボタン + ポップオーバー。田中さん指摘「ヘルプがない・バージョンが分から
-  // ない」への対応（2026-07-22）。アプリ名／バージョン／キーボードショートカット／
-  // ライセンス・リポジトリを 1 枚にまとめる。CHANGELOG プレビューは別ブロックで追加予定。
+  // ヘルプ [?] ボタン + ポップオーバー。アプリ名／バージョン／操作マニュアル／
+  // キーボードショートカット／ライセンス・リポジトリを 1 枚にまとめる。
   //
   // バージョンは tauri.conf.json の version を getVersion() で読む（ビルド時に焼き込まれる）。
   // Tauri ランタイム外（素の vite）では getVersion が例外を投げるため握りつぶし、null 表示にする。
   const REPO_URL = 'https://github.com/meta-taro/md-business';
+  const MANUAL_JA_URL = 'https://meta-taro.github.io/md-business/manual/ja/';
+  const MANUAL_EN_URL = 'https://meta-taro.github.io/md-business/manual/';
 
   let open = $state(false);
   let version = $state<string | null>(null);
@@ -34,6 +36,16 @@
   function checkForUpdate(): void {
     close();
     void updater.check();
+  }
+
+  // 外部リンクを既定ブラウザで開く。opener プラグイン経由（webview 内遷移を避ける）。
+  // Tauri 外（素の vite プレビュー）では例外になるため握りつぶす。
+  async function openExternal(url: string): Promise<void> {
+    try {
+      await openUrl(url);
+    } catch {
+      // ランタイム外。何もしない。
+    }
   }
 
   function onKeydown(e: KeyboardEvent): void {
@@ -116,6 +128,44 @@
       <div class="sep"></div>
 
       <section class="block">
+        <h3 class="block-title">操作マニュアル</h3>
+        <ul class="link-list">
+          <li>
+            <button class="link-btn" type="button" onclick={() => openExternal(MANUAL_JA_URL)}>
+              <span>操作マニュアル（日本語）</span>
+              <svg class="link-ico" viewBox="0 0 16 16" aria-hidden="true">
+                <path
+                  d="M6 3h7v7M13 3 6.5 9.5M11 9v4H3V5h4"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+            </button>
+          </li>
+          <li>
+            <button class="link-btn" type="button" onclick={() => openExternal(MANUAL_EN_URL)}>
+              <span>User guide (English)</span>
+              <svg class="link-ico" viewBox="0 0 16 16" aria-hidden="true">
+                <path
+                  d="M6 3h7v7M13 3 6.5 9.5M11 9v4H3V5h4"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+            </button>
+          </li>
+        </ul>
+      </section>
+
+      <div class="sep"></div>
+
+      <section class="block">
         <h3 class="block-title">キーボードショートカット</h3>
         <ul class="sc-list">
           {#each shortcuts as sc (sc.label)}
@@ -133,8 +183,14 @@
         <div class="about-row"><span class="about-key">ライセンス</span><span>MIT</span></div>
         <div class="about-row">
           <span class="about-key">リポジトリ</span>
-          <!-- Tauri webview からの外部起動プラグインは未導入のため、URL はテキスト表示（選択可）。 -->
-          <span class="repo-url" title="ブラウザで開くにはコピーしてください">{REPO_URL}</span>
+          <button
+            class="repo-url"
+            type="button"
+            title="ブラウザで開く"
+            onclick={() => openExternal(REPO_URL)}
+          >
+            {REPO_URL}
+          </button>
         </div>
       </section>
     </div>
@@ -362,9 +418,75 @@
     color: var(--text-tertiary);
   }
 
+  /* リポジトリ URL。テキストのように見えるが opener でブラウザ起動するボタン。 */
   .repo-url {
-    user-select: text;
+    padding: 0;
+    border: none;
+    background: transparent;
+    text-align: left;
     word-break: break-all;
+    color: var(--accent);
+    font-family: inherit;
+    font-size: inherit;
+    cursor: pointer;
+  }
+
+  .repo-url:hover {
+    text-decoration: underline;
+  }
+
+  .repo-url:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px var(--accent-subtle);
+    border-radius: var(--radius-sm);
+  }
+
+  /* 操作マニュアルへの外部リンク（opener でブラウザ起動）。行全体がクリック領域。 */
+  .link-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+  }
+
+  .link-btn {
+    width: 100%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2);
+    padding: var(--space-1) var(--space-2);
+    border: none;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--text-primary);
+    font-family: inherit;
+    font-size: var(--text-sm-size);
+    text-align: left;
+    cursor: pointer;
+    transition: background var(--dur-fast, 120ms) ease;
+  }
+
+  .link-btn:hover {
+    background: var(--bg-hover);
+    color: var(--accent);
+  }
+
+  .link-btn:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px var(--accent-subtle);
+  }
+
+  .link-ico {
+    width: 13px;
+    height: 13px;
+    flex: none;
+    color: var(--text-tertiary);
+  }
+
+  .link-btn:hover .link-ico {
     color: var(--accent);
   }
 </style>

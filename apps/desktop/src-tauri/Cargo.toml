@@ -20,6 +20,8 @@ tauri-build = { version = "2", features = [] }
 tauri = { version = "2", features = [] }
 # フォルダ選択ダイアログ（Tauri 公式プラグイン・MIT/Apache-2.0）。open のみ利用。
 tauri-plugin-dialog = "2"
+# 外部 URL を既定ブラウザで開く（Tauri 公式プラグイン・MIT/Apache-2.0）。open-url のみ利用。
+tauri-plugin-opener = "2"
 # 更新適用後にアプリを再起動するためのプロセス制御プラグイン。
 tauri-plugin-process = "2"
 serde = { version = "1", features = ["derive"] }
