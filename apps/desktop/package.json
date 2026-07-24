@@ -1,6 +1,6 @@
 {
   "name": "@md-business/desktop",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "description": "md-business デスクトップアプリ（Tauri 2 + SvelteKit）— 6 種の業務文書を用途別ビューワーで開き、Markdown を左右 2 画面でライブ編集・PDF 出力する本命プロダクト。",
   "license": "MIT",
