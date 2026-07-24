@@ -212,6 +212,14 @@ The goal is to make the canonical business document layer open, portable, review
 
 Each spec document includes the JSON Schema link, top-level field table, YAML frontmatter sample, and validation examples.
 
+### Desktop app
+
+The desktop app (Tauri 2 + SvelteKit) opens the six business-document types in purpose-built viewers, edits Markdown in a live split view, and exports A4 PDF.
+
+- **Download** (Windows / macOS): <https://meta-taro.github.io/md-business/download/>
+- **User guide (English)**: <https://meta-taro.github.io/md-business/manual/>
+- **操作マニュアル (日本語)**: <https://meta-taro.github.io/md-business/manual/ja/>
+
 ### Conventions
 
 - [Data cell convention](./docs/data-cell-conventions.md) — Empty cells are the only canonical representation for unfilled data. Do not fill table cells with `—` / `–` / `―` / `N/A` / `TBD`.

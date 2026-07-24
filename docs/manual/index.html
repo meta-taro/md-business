@@ -1,0 +1,284 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>User guide — md-business desktop app</title>
+<meta name="description" content="How to use the md-business desktop app: open a folder of Markdown documents, edit with live preview, create invoices and test sheets, and export A4 PDFs.">
+<link rel="canonical" href="https://meta-taro.github.io/md-business/manual/">
+<link rel="stylesheet" href="../assets/style.css">
+<style>
+  /* Manual-specific helpers reusing the shared style.css variables. */
+  .langbar { font-size: 0.88rem; margin-top: 10px; }
+  .langbar a { text-decoration: none; }
+  .langbar .sep { color: var(--line); margin: 0 8px; }
+  .langbar .current { color: var(--ink); font-weight: 600; }
+  main.doc ol { padding-left: 1.4em; }
+  main.doc ol li { margin-top: 6px; }
+  .toc { background: var(--bg-soft); border: 1px solid var(--line); border-radius: 8px; padding: 16px 20px; }
+  .toc ul { margin: 0; }
+  kbd {
+    font-family: ui-monospace, SFMono-Regular, "Menlo", monospace;
+    font-size: 0.85em; background: var(--bg-soft); border: 1px solid var(--line);
+    border-bottom-width: 2px; border-radius: 4px; padding: 1px 6px; white-space: nowrap;
+  }
+</style>
+</head>
+<body>
+
+<header class="doc-header">
+  <div class="crumbs"><a href="../">md-business</a> / User guide</div>
+  <h1>Desktop app — user guide</h1>
+  <div class="meta">Open Markdown business documents, edit with live preview, export A4 PDF</div>
+  <div class="langbar"><span class="current">English</span><span class="sep">·</span><a href="ja/">日本語</a></div>
+</header>
+
+<main class="doc">
+
+<section class="toc">
+  <strong>Contents</strong>
+  <ul>
+    <li><a href="#install">1. Install and first launch</a></li>
+    <li><a href="#window">2. The window at a glance</a></li>
+    <li><a href="#open">3. Open a folder and a document</a></li>
+    <li><a href="#edit">4. Edit with live preview</a></li>
+    <li><a href="#invoice">5. Create an invoice</a></li>
+    <li><a href="#testsheet">6. Fill in a test sheet</a></li>
+    <li><a href="#pdf">7. Export to PDF</a></li>
+    <li><a href="#git">8. Track changes with Git</a></li>
+    <li><a href="#layout">9. Layout and theme</a></li>
+    <li><a href="#update">10. Update the app</a></li>
+    <li><a href="#shortcuts">11. Keyboard shortcuts</a></li>
+    <li><a href="#trouble">12. Troubleshooting</a></li>
+  </ul>
+</section>
+
+<section>
+  <p>
+    The <strong>md-business</strong> desktop app opens business documents written as Markdown
+    (invoices, design specs, test sheets, API and database designs), shows a purpose-built preview
+    for each document type, and lets you edit the Markdown on the left while the preview updates live
+    on the right. When a document looks right, export it to an A4 PDF. Everything runs locally on your
+    machine — no account, no upload.
+  </p>
+</section>
+
+<section id="install">
+  <h2>1. Install and first launch</h2>
+  <ol>
+    <li>Download the installer from the <a href="../download/">download page</a>
+      (Windows <code>.msi</code> / macOS <code>.dmg</code>) and run it.</li>
+    <li>On the first launch you may see an "unknown publisher" warning because the build is not yet
+      code-signed. On Windows choose <strong>More info → Run anyway</strong>; on macOS
+      <strong>right-click the app → Open</strong> once. See <a href="#trouble">Troubleshooting</a> for details.</li>
+    <li>The app opens with a sample document shown in the editor so you can see the layout right away.
+      This sample is a preview only — it is not saved anywhere. Open a folder (next section) to work on
+      real files.</li>
+  </ol>
+</section>
+
+<section id="window">
+  <h2>2. The window at a glance</h2>
+  <p>The window has three areas:</p>
+  <ul>
+    <li><strong>Top bar</strong> — the app title in the center (with a dot when there are unsaved
+      changes), and on the right: <strong>Save</strong>, <strong>PDF</strong>,
+      <strong>Theme</strong> (light/dark), <strong>Help</strong>, and the window minimize / maximize /
+      close controls.</li>
+    <li><strong>Left rail</strong> — the file tree of the folder you opened, and a source-control
+      section that marks changed files. Click a file to open it.</li>
+    <li><strong>Center</strong> — a split view: the <strong>Markdown editor</strong> on the left and
+      the <strong>preview</strong> on the right. Drag the divider between them to change the balance.</li>
+  </ul>
+</section>
+
+<section id="open">
+  <h2>3. Open a folder and a document</h2>
+  <p>
+    The app works on a <strong>folder</strong> of Markdown files (a project folder, a shared drive
+    folder, or a Git working copy).
+  </p>
+  <ol>
+    <li>Use <strong>Open folder</strong> in the left rail and pick the folder that holds your
+      <code>.md</code> files. The tree fills with every Markdown file it finds.</li>
+    <li>Click any file in the tree to open it in the editor. The preview on the right is chosen
+      automatically from the document's <code>schema:</code> front-matter (see the next section).</li>
+    <li>The folder you opened is remembered, so the next time you launch the app it reopens it for you.</li>
+  </ol>
+  <div class="callout note">
+    <strong>Starting a brand-new document.</strong> This version edits files that already exist in the
+    folder; there is no "New file" button inside the app yet. To start a new invoice or test sheet,
+    copy one of the ready-made templates into your folder first — see
+    <a href="https://github.com/meta-taro/md-business/tree/main/templates"><code>templates/</code></a>
+    in the repository (invoice, spec, test-spec, api-spec). Once the <code>.md</code> file is in your
+    folder, it appears in the tree and you can open and edit it.
+  </div>
+</section>
+
+<section id="edit">
+  <h2>4. Edit with live preview</h2>
+  <p>
+    Type in the Markdown editor on the left. A moment after you stop typing, the preview on the right
+    re-renders. As you move the cursor, the preview scrolls to follow the line you are editing.
+  </p>
+  <p>
+    The preview is selected from the <code>schema:</code> line in the document's front-matter (the block
+    fenced by <code>---</code> at the top of the file):
+  </p>
+  <table>
+    <thead><tr><th><code>schema:</code></th><th>Preview</th></tr></thead>
+    <tbody>
+      <tr><td><code>invoice/v1</code></td><td>Qualified invoice (適格請求書)</td></tr>
+      <tr><td><code>spec/v1</code></td><td>Basic design specification</td></tr>
+      <tr><td><code>test-spec/v1</code></td><td>Test specification / validation sheet</td></tr>
+      <tr><td><code>api-spec</code></td><td>API design document</td></tr>
+      <tr><td><code>db-spec</code></td><td>Database (RDB) design document</td></tr>
+      <tr><td><code>nosql-db-spec</code></td><td>NoSQL design document</td></tr>
+    </tbody>
+  </table>
+  <p>
+    If the front-matter is missing or malformed, the preview shows a note instead of a rendered
+    document — check that the top block is fenced by <code>---</code> and that <code>schema:</code> is set.
+    Documents without a recognized schema fall back to a plain Markdown preview.
+  </p>
+  <p>
+    Save your changes with the <strong>Save</strong> button or <kbd>Ctrl / ⌘ + S</kbd>. A dot next to the
+    document title means there are unsaved changes.
+  </p>
+</section>
+
+<section id="invoice">
+  <h2>5. Create an invoice</h2>
+  <ol>
+    <li>Copy an invoice template (for example <code>templates/invoice/standard-ja.md</code>) into your
+      working folder and rename it, e.g. <code>2026-07-invoice-0001.md</code>.</li>
+    <li>Open the folder in the app and click the new file. The invoice preview appears on the right.</li>
+    <li>Edit the front-matter fields (seller, buyer, registration number, line items, tax rate). The
+      totals and tax breakdown update in the preview as you type. Leave a value <em>empty</em> when it
+      does not apply — do not fill blanks with dashes or "N/A".</li>
+    <li>Save with <kbd>Ctrl / ⌘ + S</kbd>, then export a PDF (<a href="#pdf">section 7</a>) to hand off.</li>
+  </ol>
+</section>
+
+<section id="testsheet">
+  <h2>6. Fill in a test sheet</h2>
+  <p>
+    Test sheets (<code>schema: test-spec/v1</code>) open in an editable <strong>grid</strong> on the
+    right instead of a read-only preview, so you can fill in results directly like a spreadsheet.
+  </p>
+  <ul>
+    <li>Click a cell and type to edit it; use the arrow keys and copy / paste to move around, the same
+      as a spreadsheet.</li>
+    <li>Use the <strong>Fullscreen</strong> toggle above the grid to hide the editor while you work
+      through cases, and press <kbd>Esc</kbd> to return to the split view.</li>
+    <li>Your edits are written back into the Markdown automatically, so <kbd>Ctrl / ⌘ + S</kbd> saves
+      the sheet like any other document.</li>
+  </ul>
+</section>
+
+<section id="pdf">
+  <h2>7. Export to PDF</h2>
+  <ol>
+    <li>Open the document so its preview is showing on the right.</li>
+    <li>Press <strong>PDF</strong> in the top bar (or <kbd>Ctrl / ⌘ + P</kbd>). The system print dialog
+      opens with the preview laid out as A4 pages.</li>
+    <li>Choose <strong>Save as PDF</strong> as the destination and save. The PDF matches the preview
+      one-to-one.</li>
+  </ol>
+  <p>The PDF button is active only while a document preview is on screen (not during grid editing or a Git diff).</p>
+</section>
+
+<section id="git">
+  <h2>8. Track changes with Git</h2>
+  <p>
+    If the folder you opened is a Git working copy, the left rail marks changed files (added, modified,
+    untracked) with color. Click a changed file in the source-control section to see its
+    <strong>diff</strong> in the right pane instead of the preview; open any file normally to return to
+    the preview. This lets you review exactly what you changed before committing with your usual Git tool.
+  </p>
+</section>
+
+<section id="layout">
+  <h2>9. Layout and theme</h2>
+  <ul>
+    <li><strong>Resize the split</strong> — drag the divider between the editor and preview.
+      Double-click it (or press <kbd>Enter</kbd> / <kbd>Home</kbd> while it is focused) to reset to 50/50;
+      use the arrow keys for fine adjustment. Your ratio is remembered.</li>
+    <li><strong>Light / dark theme</strong> — click <strong>Theme</strong> in the top bar to switch.
+      The preview follows the same theme.</li>
+  </ul>
+</section>
+
+<section id="update">
+  <h2>10. Update the app</h2>
+  <p>
+    The app checks for a newer version on startup, and you can check any time from
+    <strong>Help → Check for update</strong>. When an update is available it is downloaded, verified
+    against a signature, and applied in place — you do not need to reinstall from the download page.
+    The Help popover also shows the current version, the keyboard shortcuts, and the license.
+  </p>
+</section>
+
+<section id="shortcuts">
+  <h2>11. Keyboard shortcuts</h2>
+  <table>
+    <thead><tr><th>Action</th><th>Windows / Linux</th><th>macOS</th></tr></thead>
+    <tbody>
+      <tr><td>Save</td><td><kbd>Ctrl + S</kbd></td><td><kbd>⌘ + S</kbd></td></tr>
+      <tr><td>Export PDF</td><td><kbd>Ctrl + P</kbd></td><td><kbd>⌘ + P</kbd></td></tr>
+      <tr><td>Reset split to 50/50 (divider focused)</td><td><kbd>Enter</kbd> / <kbd>Home</kbd></td><td><kbd>Enter</kbd> / <kbd>Home</kbd></td></tr>
+      <tr><td>Exit grid fullscreen</td><td><kbd>Esc</kbd></td><td><kbd>Esc</kbd></td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section id="trouble">
+  <h2>12. Troubleshooting</h2>
+
+  <h3>"Unknown publisher" warning on first launch</h3>
+  <p>
+    The build is not code-signed yet, so the OS warns before the first run.
+    Windows: click <strong>More info</strong>, then <strong>Run anyway</strong>.
+    macOS: <strong>right-click (or Control-click) the app → Open</strong> once; after that it launches
+    normally. This is expected for an unsigned build and does not indicate a problem with the file.
+  </p>
+
+  <h3>The preview shows a note instead of the document</h3>
+  <p>
+    The front-matter could not be read. Make sure the very top of the file is a block fenced by
+    <code>---</code> lines and that it contains a valid <code>schema:</code> value from the table in
+    <a href="#edit">section 4</a>.
+  </p>
+
+  <h3>The Save button is greyed out</h3>
+  <p>
+    Save is available only when a real file is open and it has unsaved changes. The sample shown before
+    you open a folder cannot be saved — open a folder and a file first (<a href="#open">section 3</a>).
+  </p>
+
+  <h3>I can't create a new file inside the app</h3>
+  <p>
+    This version edits existing files. Copy a template from
+    <a href="https://github.com/meta-taro/md-business/tree/main/templates"><code>templates/</code></a>
+    into your folder to start a new document (<a href="#open">section 3</a>).
+  </p>
+</section>
+
+<section>
+  <h2>Questions and feedback</h2>
+  <p>
+    Report issues or ask questions on
+    <a href="https://github.com/meta-taro/md-business/issues">GitHub Issues</a>.
+    The full source is available under the MIT license at
+    <a href="https://github.com/meta-taro/md-business">github.com/meta-taro/md-business</a>.
+  </p>
+</section>
+
+</main>
+
+<footer>
+  &copy; meta-taro · MIT License · <a href="https://github.com/meta-taro/md-business">github.com/meta-taro/md-business</a>
+</footer>
+
+</body>
+</html>

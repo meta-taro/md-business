@@ -1,0 +1,276 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>操作マニュアル — md-business デスクトップアプリ</title>
+<meta name="description" content="md-business デスクトップアプリの使い方。Markdown の業務文書フォルダを開き、左右 2 画面でライブ編集し、請求書・検証シートを作成して A4 PDF を出力する。">
+<link rel="canonical" href="https://meta-taro.github.io/md-business/manual/ja/">
+<link rel="stylesheet" href="../../assets/style.css">
+<style>
+  /* マニュアル専用の補助スタイル（共有 style.css の変数を再利用）。 */
+  .langbar { font-size: 0.88rem; margin-top: 10px; }
+  .langbar a { text-decoration: none; }
+  .langbar .sep { color: var(--line); margin: 0 8px; }
+  .langbar .current { color: var(--ink); font-weight: 600; }
+  main.doc ol { padding-left: 1.4em; }
+  main.doc ol li { margin-top: 6px; }
+  .toc { background: var(--bg-soft); border: 1px solid var(--line); border-radius: 8px; padding: 16px 20px; }
+  .toc ul { margin: 0; }
+  kbd {
+    font-family: ui-monospace, SFMono-Regular, "Menlo", monospace;
+    font-size: 0.85em; background: var(--bg-soft); border: 1px solid var(--line);
+    border-bottom-width: 2px; border-radius: 4px; padding: 1px 6px; white-space: nowrap;
+  }
+</style>
+</head>
+<body>
+
+<header class="doc-header">
+  <div class="crumbs"><a href="../../">md-business</a> / 操作マニュアル</div>
+  <h1>デスクトップアプリ — 操作マニュアル</h1>
+  <div class="meta">Markdown の業務文書を開き、左右 2 画面でライブ編集し、A4 PDF を出力する</div>
+  <div class="langbar"><a href="../">English</a><span class="sep">·</span><span class="current">日本語</span></div>
+</header>
+
+<main class="doc">
+
+<section class="toc">
+  <strong>目次</strong>
+  <ul>
+    <li><a href="#install">1. インストールと初回起動</a></li>
+    <li><a href="#window">2. 画面の構成</a></li>
+    <li><a href="#open">3. フォルダと文書を開く</a></li>
+    <li><a href="#edit">4. ライブプレビューで編集する</a></li>
+    <li><a href="#invoice">5. 請求書を作成する</a></li>
+    <li><a href="#testsheet">6. 検証シートを記入する</a></li>
+    <li><a href="#pdf">7. PDF を出力する</a></li>
+    <li><a href="#git">8. Git で変更を管理する</a></li>
+    <li><a href="#layout">9. レイアウトとテーマ</a></li>
+    <li><a href="#update">10. アプリを更新する</a></li>
+    <li><a href="#shortcuts">11. キーボードショートカット</a></li>
+    <li><a href="#trouble">12. 困ったときは</a></li>
+  </ul>
+</section>
+
+<section>
+  <p>
+    <strong>md-business</strong> デスクトップアプリは、Markdown で書いた業務文書（適格請求書・基本設計書・
+    検証シート・API / DB 設計書）を開き、文書種別ごとの専用プレビューを表示します。左側の Markdown を
+    編集すると、右側のプレビューがその場で更新されます。仕上がったら A4 PDF に出力できます。すべての処理は
+    お使いの PC の中だけで完結し、アカウント登録も外部送信もありません。
+  </p>
+</section>
+
+<section id="install">
+  <h2>1. インストールと初回起動</h2>
+  <ol>
+    <li><a href="../../download/">ダウンロードページ</a>からインストーラ（Windows <code>.msi</code> /
+      macOS <code>.dmg</code>）を入手して実行します。</li>
+    <li>初回起動時に「発行元不明」の警告が出ることがあります（現在コード署名は未対応のため）。
+      Windows は <strong>「詳細情報」→「実行」</strong>、macOS は <strong>アプリを右クリック →「開く」</strong>
+      を 1 回行ってください。詳しくは<a href="#trouble">「困ったときは」</a>を参照。</li>
+    <li>起動直後はサンプル文書がエディターに表示され、レイアウトをすぐ確認できます。これはプレビュー用で
+      保存はされません。実ファイルを扱うには、次の手順でフォルダを開きます。</li>
+  </ol>
+</section>
+
+<section id="window">
+  <h2>2. 画面の構成</h2>
+  <p>画面は 3 つの領域に分かれています。</p>
+  <ul>
+    <li><strong>上部バー</strong> — 中央にアプリ名（未保存の変更があるときは丸印が付きます）、右側に
+      <strong>保存</strong>・<strong>PDF</strong>・<strong>テーマ</strong>（ライト / ダーク）・
+      <strong>ヘルプ</strong>、およびウィンドウの最小化 / 最大化 / 閉じるボタン。</li>
+    <li><strong>左レール</strong> — 開いたフォルダのファイルツリーと、変更されたファイルを示すソース管理欄。
+      ファイルをクリックすると開きます。</li>
+    <li><strong>中央</strong> — 左右 2 分割。左が <strong>Markdown エディター</strong>、右が
+      <strong>プレビュー</strong>。間の仕切りをドラッグすると幅を変えられます。</li>
+  </ul>
+</section>
+
+<section id="open">
+  <h2>3. フォルダと文書を開く</h2>
+  <p>
+    本アプリは、Markdown ファイルが入った<strong>フォルダ</strong>単位で作業します（プロジェクトフォルダ・
+    共有ドライブのフォルダ・Git 作業コピーなど）。
+  </p>
+  <ol>
+    <li>左レールの<strong>「フォルダを開く」</strong>から、<code>.md</code> ファイルのあるフォルダを選びます。
+      見つかった Markdown ファイルがツリーに一覧表示されます。</li>
+    <li>ツリーのファイルをクリックするとエディターで開きます。右側のプレビューは、文書の
+      <code>schema:</code> frontmatter から自動で選ばれます（次項参照）。</li>
+    <li>開いたフォルダは記憶され、次回起動時に自動で開き直します。</li>
+  </ol>
+  <div class="callout note">
+    <strong>新しい文書を作るには。</strong>本バージョンはフォルダ内の既存ファイルを編集する方式で、アプリ内に
+    「新規作成」ボタンはまだありません。新しい請求書や検証シートを始めるには、まずひな型をフォルダにコピーします。
+    リポジトリの
+    <a href="https://github.com/meta-taro/md-business/tree/main/templates"><code>templates/</code></a>
+    に invoice / spec / test-spec / api-spec のひな型があります。<code>.md</code> をフォルダに置くとツリーに現れ、
+    開いて編集できます。
+  </div>
+</section>
+
+<section id="edit">
+  <h2>4. ライブプレビューで編集する</h2>
+  <p>
+    左の Markdown エディターに入力すると、入力を止めた少し後に右のプレビューが再描画されます。カーソルを動かすと、
+    編集中の行に合わせてプレビューがスクロール追従します。
+  </p>
+  <p>
+    プレビューの種類は、文書先頭の frontmatter（<code>---</code> で囲むブロック）内の <code>schema:</code> 行で
+    決まります。
+  </p>
+  <table>
+    <thead><tr><th><code>schema:</code></th><th>プレビュー</th></tr></thead>
+    <tbody>
+      <tr><td><code>invoice/v1</code></td><td>適格請求書</td></tr>
+      <tr><td><code>spec/v1</code></td><td>基本設計書</td></tr>
+      <tr><td><code>test-spec/v1</code></td><td>検証シート（テスト設計書）</td></tr>
+      <tr><td><code>api-spec</code></td><td>API 設計書</td></tr>
+      <tr><td><code>db-spec</code></td><td>DB 設計書（RDB）</td></tr>
+      <tr><td><code>nosql-db-spec</code></td><td>NoSQL 設計書</td></tr>
+    </tbody>
+  </table>
+  <p>
+    frontmatter が無い / 書式が誤っていると、プレビューの代わりに注意書きが表示されます。先頭が
+    <code>---</code> で囲まれているか、<code>schema:</code> が設定されているかを確認してください。認識される
+    schema が無い文書は、通常の Markdown プレビューにフォールバックします。
+  </p>
+  <p>
+    変更は<strong>保存</strong>ボタンまたは <kbd>Ctrl / ⌘ + S</kbd> で保存します。文書名の横の丸印は未保存の
+    変更があることを示します。
+  </p>
+</section>
+
+<section id="invoice">
+  <h2>5. 請求書を作成する</h2>
+  <ol>
+    <li>請求書のひな型（例: <code>templates/invoice/standard-ja.md</code>）を作業フォルダにコピーし、
+      <code>2026-07-invoice-0001.md</code> のように名前を付けます。</li>
+    <li>フォルダをアプリで開き、その新規ファイルをクリックします。右に請求書プレビューが表示されます。</li>
+    <li>frontmatter の項目（売り手・買い手・登録番号・明細・税率）を編集します。合計と税区分の内訳は入力に応じて
+      プレビューで自動計算されます。該当しない値は<em>空のまま</em>にしてください（ダッシュや「N/A」で埋めない）。</li>
+    <li><kbd>Ctrl / ⌘ + S</kbd> で保存し、<a href="#pdf">第 7 項</a>の手順で PDF を出力して受け渡します。</li>
+  </ol>
+</section>
+
+<section id="testsheet">
+  <h2>6. 検証シートを記入する</h2>
+  <p>
+    検証シート（<code>schema: test-spec/v1</code>）は、右側が読み取り専用プレビューではなく編集可能な
+    <strong>グリッド</strong>で開きます。表計算のように結果を直接記入できます。
+  </p>
+  <ul>
+    <li>セルをクリックして入力します。矢印キーでの移動、コピー / 貼り付けも表計算と同じ感覚で使えます。</li>
+    <li>グリッド上部の<strong>「全画面」</strong>切り替えでエディターを隠して記入に集中でき、<kbd>Esc</kbd> で
+      分割表示に戻ります。</li>
+    <li>編集内容は自動的に Markdown へ書き戻されるので、<kbd>Ctrl / ⌘ + S</kbd> で他の文書と同じように
+      保存できます。</li>
+  </ul>
+</section>
+
+<section id="pdf">
+  <h2>7. PDF を出力する</h2>
+  <ol>
+    <li>文書を開き、右側にプレビューが表示されている状態にします。</li>
+    <li>上部バーの <strong>PDF</strong>（または <kbd>Ctrl / ⌘ + P</kbd>）を押します。プレビューが A4 ページ
+      として組まれた状態で、システムの印刷ダイアログが開きます。</li>
+    <li>出力先に <strong>「PDF として保存」</strong>を選んで保存します。プレビューと 1:1 の PDF になります。</li>
+  </ol>
+  <p>PDF ボタンは、文書プレビューが表示されている間だけ有効です（グリッド編集中や Git 差分表示中は対象外）。</p>
+</section>
+
+<section id="git">
+  <h2>8. Git で変更を管理する</h2>
+  <p>
+    開いたフォルダが Git 作業コピーの場合、左レールが変更ファイル（追加・変更・未追跡）を色で示します。ソース管理欄で
+    変更ファイルをクリックすると、右ペインがプレビューの代わりに<strong>差分</strong>表示に切り替わります。通常どおり
+    別のファイルを開けばプレビューに戻ります。commit の前に、自分が何を変更したかを正確に確認できます
+    （commit は普段お使いの Git ツールで行ってください）。
+  </p>
+</section>
+
+<section id="layout">
+  <h2>9. レイアウトとテーマ</h2>
+  <ul>
+    <li><strong>分割幅の調整</strong> — エディターとプレビューの間の仕切りをドラッグします。ダブルクリック
+      （または仕切りにフォーカスして <kbd>Enter</kbd> / <kbd>Home</kbd>）で 50/50 に戻り、矢印キーで微調整できます。
+      設定した比率は記憶されます。</li>
+    <li><strong>ライト / ダークテーマ</strong> — 上部バーの<strong>テーマ</strong>で切り替えます。プレビューも
+      同じテーマに追従します。</li>
+  </ul>
+</section>
+
+<section id="update">
+  <h2>10. アプリを更新する</h2>
+  <p>
+    起動時に新しいバージョンを自動確認するほか、<strong>ヘルプ →「更新を確認」</strong>からいつでも確認できます。
+    更新がある場合はダウンロード後に署名を検証してからその場で適用されるため、ダウンロードページから入れ直す
+    必要はありません。ヘルプのポップオーバーには現在のバージョン・キーボードショートカット・ライセンスも表示されます。
+  </p>
+</section>
+
+<section id="shortcuts">
+  <h2>11. キーボードショートカット</h2>
+  <table>
+    <thead><tr><th>操作</th><th>Windows / Linux</th><th>macOS</th></tr></thead>
+    <tbody>
+      <tr><td>保存</td><td><kbd>Ctrl + S</kbd></td><td><kbd>⌘ + S</kbd></td></tr>
+      <tr><td>PDF 出力</td><td><kbd>Ctrl + P</kbd></td><td><kbd>⌘ + P</kbd></td></tr>
+      <tr><td>分割を 50/50 に戻す（仕切りにフォーカス時）</td><td><kbd>Enter</kbd> / <kbd>Home</kbd></td><td><kbd>Enter</kbd> / <kbd>Home</kbd></td></tr>
+      <tr><td>グリッド全画面を抜ける</td><td><kbd>Esc</kbd></td><td><kbd>Esc</kbd></td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section id="trouble">
+  <h2>12. 困ったときは</h2>
+
+  <h3>初回起動で「発行元不明」の警告が出る</h3>
+  <p>
+    まだコード署名をしていないため、初回起動前に OS が警告します。Windows は<strong>「詳細情報」→「実行」</strong>、
+    macOS は<strong>アプリを右クリック（または Control + クリック）→「開く」</strong>を 1 回行えば、以降は通常どおり
+    起動します。未署名ビルドでは想定内の挙動で、ファイルの問題ではありません。
+  </p>
+
+  <h3>プレビューに文書でなく注意書きが出る</h3>
+  <p>
+    frontmatter を読み取れていません。ファイル先頭が <code>---</code> の行で囲まれているか、<a href="#edit">第 4 項</a>の
+    表にある正しい <code>schema:</code> 値が設定されているかを確認してください。
+  </p>
+
+  <h3>保存ボタンが押せない（グレーアウト）</h3>
+  <p>
+    保存は、実ファイルを開いていて未保存の変更があるときだけ有効です。フォルダを開く前に表示されるサンプルは保存
+    できません。先にフォルダとファイルを開いてください（<a href="#open">第 3 項</a>）。
+  </p>
+
+  <h3>アプリ内で新規ファイルを作れない</h3>
+  <p>
+    本バージョンは既存ファイルの編集用です。新しい文書は
+    <a href="https://github.com/meta-taro/md-business/tree/main/templates"><code>templates/</code></a>
+    のひな型をフォルダにコピーして始めてください（<a href="#open">第 3 項</a>）。
+  </p>
+</section>
+
+<section>
+  <h2>質問・フィードバック</h2>
+  <p>
+    不具合の報告や質問は
+    <a href="https://github.com/meta-taro/md-business/issues">GitHub Issues</a>
+    へお寄せください。ソースコードは MIT ライセンスで
+    <a href="https://github.com/meta-taro/md-business">github.com/meta-taro/md-business</a>
+    に公開しています。
+  </p>
+</section>
+
+</main>
+
+<footer>
+  &copy; meta-taro · MIT License · <a href="https://github.com/meta-taro/md-business">github.com/meta-taro/md-business</a>
+</footer>
+
+</body>
+</html>
