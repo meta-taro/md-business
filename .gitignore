@@ -70,3 +70,10 @@ pnpm-debug.log*
 # クローンした開発者ごとに独自運用するため、tracked から外す。
 /.claude/
 /CLAUDE.md
+
+# Auto-update signing keys (minisign private key — NEVER commit)
+# 自動アップデートの署名秘密鍵。漏洩すると第三者が任意の更新を全ユーザーへ
+# 配布できるため、絶対にリポジトリへ含めない。公開鍵は設定ファイルへ文字列で
+# 焼き込むので、鍵ファイル自体はどちらも tracked から外す。
+*.key
+*.key.pub

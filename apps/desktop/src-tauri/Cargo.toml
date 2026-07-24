@@ -20,8 +20,15 @@ tauri-build = { version = "2", features = [] }
 tauri = { version = "2", features = [] }
 # フォルダ選択ダイアログ（Tauri 公式プラグイン・MIT/Apache-2.0）。open のみ利用。
 tauri-plugin-dialog = "2"
+# 更新適用後にアプリを再起動するためのプロセス制御プラグイン。
+tauri-plugin-process = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+
+# 自動アップデートはデスクトップ専用（モバイルは対象外）。GitHub Releases の
+# 署名付き成果物を取得・検証・適用する。ターゲット cfg でデスクトップに限定する。
+[target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
+tauri-plugin-updater = "2"
 
 # リリースビルドはサイズ最適化（デスクトップ配布容量を抑える）。
 [profile.release]
