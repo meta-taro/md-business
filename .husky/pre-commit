@@ -1,7 +1,10 @@
 #!/usr/bin/env sh
-# baseline 項目5（pre-commit）— format / lint / typecheck / unit test
+# コミット前ゲート — 内部参照スキャン / lint / typecheck / unit test。
 # turbo がキャッシュするので変更パッケージのみ再実行される。
 set -e
+
+echo "[pre-commit] OSS 内部参照スキャン..."
+node scripts/oss-guard/check-staged.mjs
 
 echo "[pre-commit] lint..."
 pnpm -w run lint

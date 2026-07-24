@@ -1,0 +1,3 @@
+#!/usr/bin/env sh
+# コミットメッセージにも公開物としての hygiene を適用する（内部参照を弾く）。
+node scripts/oss-guard/check-msg.mjs "$1"

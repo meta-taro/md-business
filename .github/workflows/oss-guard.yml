@@ -1,0 +1,31 @@
+name: OSS guard
+
+# 公開物に内部運用の記述（担当者名・日付帰属コメント・内部ルール参照・内部ハンドル）が
+# 混入していないかを継続検証する。コミット時フックは新規追加分をブロックし、この日次スキャンは
+# 既存バックログを可視化する。バックログがゼロになったら check-tree を --strict へ切り替える。
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: "0 21 * * *" # 毎日 06:00 JST
+  workflow_dispatch:
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+
+      - name: Unit tests (scanner patterns)
+        run: node --test "scripts/oss-guard/*.test.mjs"
+
+      - name: Scan tree for internal references (report-only)
+        # バックログ解消後に `--strict` を付けてブロッキングへ昇格する。
+        run: node scripts/oss-guard/check-tree.mjs
