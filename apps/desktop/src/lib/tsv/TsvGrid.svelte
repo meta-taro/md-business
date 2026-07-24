@@ -43,6 +43,7 @@
     setColMode,
     colModeMenuItems,
   } from './gridColumnMode';
+  import { spillsRight } from './gridSpill';
   import {
     readLayout,
     writeLayoutDirectives,
@@ -887,6 +888,10 @@
               {@const value = cellValue(r, c)}
               {@const issue = issueOf(r, c)}
               {@const active = isActive(r, c)}
+              {@const spill =
+                colModes[c] === 'clip' &&
+                widget?.kind !== 'number' &&
+                spillsRight(doc.rows[r] ?? [], c, doc.columns.length)}
               <td
                 class:invalid={issue !== undefined}
                 class:active
@@ -907,6 +912,7 @@
                     class:num={widget?.kind === 'number'}
                     class:wrap={colModes[c] === 'wrap'}
                     class:overflow={colModes[c] === 'overflow'}
+                    class:spill
                     role="button"
                     tabindex="-1"
                     onclick={(e) => selectCell(r, c, e.shiftKey)}
@@ -996,6 +1002,7 @@
                     class:num={widget?.kind === 'number'}
                     class:wrap={colModes[c] === 'wrap'}
                     class:overflow={colModes[c] === 'overflow'}
+                    class:spill
                     tabindex="-1"
                   >
                     {cellDisplayText(widget?.kind, value)}
@@ -1528,6 +1535,14 @@
      隣セル方向へはみ出して全文を見せる（スプレの既定挙動）。改行は無視して 1 行に。 */
   .cell-view.overflow {
     white-space: nowrap;
+    overflow: visible;
+    text-overflow: clip;
+  }
+
+  /* clip 列の空セルへの自動突き抜け（スプレ既定）。右隣が空のときだけ overflow の見せ方を
+     借りて長文を隣へ流す（spillsRight が判定）。列モードを overflow に切り替えなくても、
+     既定表示のまま右が空いていれば全文を読める。右隣に中身がある列は clip のまま省略。 */
+  .cell-view.spill {
     overflow: visible;
     text-overflow: clip;
   }
