@@ -25,6 +25,9 @@ export interface Messages {
   'action.themeToLight': string;
   'action.themeToDark': string;
   'action.help': string;
+  'action.autosave': string;
+  'action.autosaveOn': string;
+  'action.autosaveOff': string;
   // ウィンドウコントロール
   'window.minimize': string;
   'window.maximize': string;
@@ -72,6 +75,10 @@ export interface Messages {
   'tree.filterNoMatch': string;
   'tree.noFiles': string;
   'tree.truncated': string;
+  // 左レールの右クリックメニュー（reveal / パスコピー / リモートで開く）
+  'tree.menuReveal': string;
+  'tree.menuCopyPath': string;
+  'tree.menuOpenForge': string;
   // Git 変更状態（ツリーのバッジ説明）
   'git.state.modified': string;
   'git.state.added': string;
@@ -90,6 +97,14 @@ export interface Messages {
   'help.checkUpdate': string;
   'help.manual': string;
   'help.shortcuts': string;
+  'help.shortcutsGrid': string;
+  'help.scGridEdit': string;
+  'help.scGridSelect': string;
+  'help.scGridSelectAll': string;
+  'help.scGridCopy': string;
+  'help.scGridPaste': string;
+  'help.scGridUndo': string;
+  'help.scGridExitFullscreen': string;
   'help.license': string;
   'help.repository': string;
   'help.openInBrowser': string;
@@ -132,6 +147,9 @@ const en: Messages = {
   'action.themeToLight': 'Switch to light theme',
   'action.themeToDark': 'Switch to dark theme',
   'action.help': 'Help',
+  'action.autosave': 'Autosave',
+  'action.autosaveOn': 'Autosave: on — click to turn off',
+  'action.autosaveOff': 'Autosave: off — click to turn on',
   'window.minimize': 'Minimize',
   'window.maximize': 'Maximize',
   'window.restore': 'Restore',
@@ -174,6 +192,9 @@ const en: Messages = {
   'tree.filterNoMatch': 'No files match\n"{query}"',
   'tree.noFiles': 'No .md / .tsv\nfiles found',
   'tree.truncated': 'Showing partial results (limit reached)',
+  'tree.menuReveal': 'Reveal in File Explorer',
+  'tree.menuCopyPath': 'Copy full path',
+  'tree.menuOpenForge': 'Open on remote',
   'git.state.modified': 'Modified (uncommitted)',
   'git.state.added': 'Staged addition',
   'git.state.untracked': 'Untracked (new)',
@@ -189,6 +210,14 @@ const en: Messages = {
   'help.checkUpdate': 'Check for updates',
   'help.manual': 'User guide',
   'help.shortcuts': 'Keyboard shortcuts',
+  'help.shortcutsGrid': 'Verification grid',
+  'help.scGridEdit': 'Edit cell',
+  'help.scGridSelect': 'Extend selection',
+  'help.scGridSelectAll': 'Select whole table',
+  'help.scGridCopy': 'Copy selection',
+  'help.scGridPaste': 'Paste',
+  'help.scGridUndo': 'Undo / redo',
+  'help.scGridExitFullscreen': 'Leave full screen',
   'help.license': 'License',
   'help.repository': 'Repository',
   'help.openInBrowser': 'Open in browser',
@@ -226,6 +255,9 @@ const ja: Messages = {
   'action.themeToLight': 'ライトテーマに切替',
   'action.themeToDark': 'ダークテーマに切替',
   'action.help': 'ヘルプ',
+  'action.autosave': '自動保存',
+  'action.autosaveOn': '自動保存: オン（クリックでオフ）',
+  'action.autosaveOff': '自動保存: オフ（クリックでオン）',
   'window.minimize': '最小化',
   'window.maximize': '最大化',
   'window.restore': '元のサイズに戻す',
@@ -268,6 +300,9 @@ const ja: Messages = {
   'tree.filterNoMatch': '「{query}」に\n一致するファイルがありません',
   'tree.noFiles': '.md / .tsv が\n見つかりませんでした',
   'tree.truncated': '一部のみ表示（上限に達したため打ち切りました）',
+  'tree.menuReveal': 'エクスプローラーで表示',
+  'tree.menuCopyPath': 'フルパスをコピー',
+  'tree.menuOpenForge': 'リモートで開く',
   'git.state.modified': '変更あり（未コミット）',
   'git.state.added': 'ステージ済みの追加',
   'git.state.untracked': '未追跡（新規）',
@@ -283,6 +318,14 @@ const ja: Messages = {
   'help.checkUpdate': '更新を確認',
   'help.manual': '操作マニュアル',
   'help.shortcuts': 'キーボードショートカット',
+  'help.shortcutsGrid': '検証グリッド',
+  'help.scGridEdit': 'セルを編集',
+  'help.scGridSelect': '選択範囲を広げる',
+  'help.scGridSelectAll': '表全体を選択',
+  'help.scGridCopy': '選択範囲をコピー',
+  'help.scGridPaste': '貼り付け',
+  'help.scGridUndo': '元に戻す / やり直す',
+  'help.scGridExitFullscreen': '全画面を抜ける',
   'help.license': 'ライセンス',
   'help.repository': 'リポジトリ',
   'help.openInBrowser': 'ブラウザで開く',
@@ -320,6 +363,9 @@ const zh: Messages = {
   'action.themeToLight': '切换到浅色主题',
   'action.themeToDark': '切换到深色主题',
   'action.help': '帮助',
+  'action.autosave': '自动保存',
+  'action.autosaveOn': '自动保存：开（点击关闭）',
+  'action.autosaveOff': '自动保存：关（点击开启）',
   'window.minimize': '最小化',
   'window.maximize': '最大化',
   'window.restore': '还原',
@@ -362,6 +408,9 @@ const zh: Messages = {
   'tree.filterNoMatch': '没有匹配\n“{query}”的文件',
   'tree.noFiles': '未找到\n.md / .tsv 文件',
   'tree.truncated': '仅显示部分（已达上限而截断）',
+  'tree.menuReveal': '在资源管理器中显示',
+  'tree.menuCopyPath': '复制完整路径',
+  'tree.menuOpenForge': '在远程仓库打开',
   'git.state.modified': '已更改（未提交）',
   'git.state.added': '已暂存的新增',
   'git.state.untracked': '未跟踪（新增）',
@@ -377,6 +426,14 @@ const zh: Messages = {
   'help.checkUpdate': '检查更新',
   'help.manual': '操作手册',
   'help.shortcuts': '键盘快捷键',
+  'help.shortcutsGrid': '验证网格',
+  'help.scGridEdit': '编辑单元格',
+  'help.scGridSelect': '扩展选区',
+  'help.scGridSelectAll': '选择整个表格',
+  'help.scGridCopy': '复制选区',
+  'help.scGridPaste': '粘贴',
+  'help.scGridUndo': '撤销 / 重做',
+  'help.scGridExitFullscreen': '退出全屏',
   'help.license': '许可证',
   'help.repository': '仓库',
   'help.openInBrowser': '在浏览器中打开',
@@ -414,6 +471,9 @@ const ko: Messages = {
   'action.themeToLight': '라이트 테마로 전환',
   'action.themeToDark': '다크 테마로 전환',
   'action.help': '도움말',
+  'action.autosave': '자동 저장',
+  'action.autosaveOn': '자동 저장: 켬(클릭하여 끄기)',
+  'action.autosaveOff': '자동 저장: 끔(클릭하여 켜기)',
   'window.minimize': '최소화',
   'window.maximize': '최대화',
   'window.restore': '이전 크기로 복원',
@@ -456,6 +516,9 @@ const ko: Messages = {
   'tree.filterNoMatch': '"{query}"과(와)\n일치하는 파일이 없습니다',
   'tree.noFiles': '.md / .tsv 파일을\n찾을 수 없습니다',
   'tree.truncated': '일부만 표시 (상한에 도달하여 중단)',
+  'tree.menuReveal': '탐색기에서 표시',
+  'tree.menuCopyPath': '전체 경로 복사',
+  'tree.menuOpenForge': '원격 저장소에서 열기',
   'git.state.modified': '변경됨 (커밋 안 됨)',
   'git.state.added': '스테이지된 추가',
   'git.state.untracked': '추적 안 됨 (신규)',
@@ -471,6 +534,14 @@ const ko: Messages = {
   'help.checkUpdate': '업데이트 확인',
   'help.manual': '사용 설명서',
   'help.shortcuts': '키보드 단축키',
+  'help.shortcutsGrid': '검증 그리드',
+  'help.scGridEdit': '셀 편집',
+  'help.scGridSelect': '선택 영역 확장',
+  'help.scGridSelectAll': '표 전체 선택',
+  'help.scGridCopy': '선택 영역 복사',
+  'help.scGridPaste': '붙여넣기',
+  'help.scGridUndo': '실행 취소 / 다시 실행',
+  'help.scGridExitFullscreen': '전체 화면 나가기',
   'help.license': '라이선스',
   'help.repository': '저장소',
   'help.openInBrowser': '브라우저에서 열기',

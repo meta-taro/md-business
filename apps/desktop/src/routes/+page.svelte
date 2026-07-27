@@ -7,7 +7,16 @@
   import { debounce } from '$lib/util/debounce';
   import { parseTsv, serializeTsv, type TsvDocument } from '@md-business/schema-test-spec-tsv';
   import { isTsvSource } from '$lib/tsv/detect';
+  import { preserveTrailingEol } from '$lib/tsv/gridEol';
   import TsvGrid from '$lib/tsv/TsvGrid.svelte';
+  import {
+    initHistory,
+    pushHistory,
+    undo as undoHistory,
+    redo as redoHistory,
+    type GridHistory,
+  } from '$lib/tsv/gridHistory';
+  import { autosave } from '$lib/workspace/autosave.svelte';
   import { browser } from '$app/environment';
   import { workspace } from '$lib/workspace/workspace.svelte';
   import { diffView } from '$lib/git/diffView.svelte';
@@ -44,11 +53,26 @@
     debouncedSource = value;
   }, 200);
 
+  // グリッド編集専用の undo/redo 履歴（正本＝TSV ソース）。エディタは CodeMirror の
+  // 独自 undo を使うため、この履歴はグリッドがアクティブなときだけ動かす。
+  let gridHistory = $state<GridHistory>(initHistory(workspace.source));
+
   // ファイルを開いた瞬間（loadSeq 変化）はプレビューへ即反映する。source を untrack して
-  // 依存を loadSeq だけに絞り、タイプ中の debounce を壊さない。
+  // 依存を loadSeq だけに絞り、タイプ中の debounce を壊さない。開き直し・外部再読込では
+  // グリッド履歴も新しい内容で作り直す（別ファイルの undo が混ざらないように）。
   $effect(() => {
     workspace.loadSeq;
-    debouncedSource = untrack(() => workspace.source);
+    const next = untrack(() => workspace.source);
+    debouncedSource = next;
+    gridHistory = initHistory(next);
+  });
+
+  // 編集（source 変化）と設定変更を受けて、デバウンス保存を予約する。実際の発火可否は
+  // autosave 側の純ロジックが判定する（既定オン・無効化で予約解除）。
+  $effect(() => {
+    workspace.source;
+    autosave.enabled;
+    autosave.schedule();
   });
 
   function handleEditorChange(value: string): void {
@@ -228,10 +252,36 @@
 
   // グリッド編集 → serializeTsv で source（＝正本）へ書き戻し、エディターと即同期する。
   // debouncedSource も即更新して doc を再導出し、グリッドを遅延なく反映する。
+  // 併せて確定スナップショットを履歴へ積む（Ctrl+Z / Ctrl+Y で戻せるように）。
+  // serializeTsv は末尾改行を付けない契約なので、元ソースの末尾改行をここで引き継ぐ
+  // （落とすと編集内容と無関係な 1 行が毎回 diff に出る）。
   function handleGridChange(next: TsvDocument): void {
-    const text = serializeTsv(next);
+    const text = preserveTrailingEol(serializeTsv(next), untrack(() => workspace.source));
+    gridHistory = pushHistory(gridHistory, text);
     workspace.setSource(text);
     debouncedSource = text;
+  }
+
+  // 履歴の present をグリッド／正本へ反映する（undo・redo 共通のグルー）。
+  function applyGridSource(text: string): void {
+    workspace.setSource(text);
+    debouncedSource = text;
+  }
+
+  // グリッドの Ctrl+Z。1 手戻せるなら戻し、正本と表示を同期する。
+  function handleGridUndo(): void {
+    const next = undoHistory(gridHistory);
+    if (next === gridHistory) return;
+    gridHistory = next;
+    applyGridSource(next.present);
+  }
+
+  // グリッドの Ctrl+Y / Ctrl+Shift+Z。undo を取り消す。
+  function handleGridRedo(): void {
+    const next = redoHistory(gridHistory);
+    if (next === gridHistory) return;
+    gridHistory = next;
+    applyGridSource(next.present);
   }
 
   // ── 検証グリッドの全画面 ──
@@ -412,7 +462,12 @@
         </button>
       </div>
       <div class="grid-wrap">
-        <TsvGrid doc={tsvDoc} onChange={handleGridChange} />
+        <TsvGrid
+          doc={tsvDoc}
+          onChange={handleGridChange}
+          onUndo={handleGridUndo}
+          onRedo={handleGridRedo}
+        />
       </div>
     {:else}
     <div class="pane-head">{t('page.previewHead')}{#if preview.ok} — {preview.label}{/if}</div>

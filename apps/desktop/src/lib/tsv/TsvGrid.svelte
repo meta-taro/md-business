@@ -22,6 +22,7 @@
     cellDisplayText,
   } from './gridModel';
   import { planGridKey, type GridMode } from './gridMode';
+  import { nextCell } from './gridNav';
   import { seedFromKey } from './gridEdit';
   import { parseClipboardMatrix, applyPaste, rowToTsv } from './gridClipboard';
   import { duplicateRow, deleteRow, clearRow } from './gridRows';
@@ -43,6 +44,7 @@
     setColMode,
     colModeMenuItems,
   } from './gridColumnMode';
+  import { spillsRight } from './gridSpill';
   import {
     readLayout,
     writeLayoutDirectives,
@@ -55,6 +57,8 @@
     isInRange,
     isSingleCell,
     extendRange,
+    extendRangeTo,
+    wholeRange,
     rangeToTsv,
     rowRange,
   } from './gridRange';
@@ -76,9 +80,13 @@
     doc: TsvDocument;
     /** セル編集で得た新ドキュメントを親へ通知（省略時は読み取り専用）。 */
     onChange?: (next: TsvDocument) => void;
+    /** ナビ中の Ctrl+Z。履歴は親（正本ソース）が持つ。 */
+    onUndo?: () => void;
+    /** ナビ中の Ctrl+Y / Ctrl+Shift+Z。 */
+    onRedo?: () => void;
   }
 
-  let { doc, onChange }: Props = $props();
+  let { doc, onChange, onUndo, onRedo }: Props = $props();
 
   // 列型 → 入力ウィジェット仕様。列定義の変化に追従。
   const widgets = $derived(gridWidgets(doc.columns));
@@ -574,9 +582,42 @@
         selection = extendRange(selection, delta, dims);
         return;
       }
+      // Shift+Home / Shift+End は行頭・行末まで一気に伸長（Ctrl 併用で表の隅まで）。
+      // 移動先は修飾なしの移動と同じ nextCell に決めさせ、伸長との差を anchor 固定だけにする。
+      if (event.shiftKey && (event.key === 'Home' || event.key === 'End')) {
+        const to = nextCell(
+          selection.focus,
+          { key: event.key, ctrl: event.ctrlKey || event.metaKey },
+          dims,
+        );
+        if (to !== null) {
+          event.preventDefault();
+          selection = extendRangeTo(selection, to, dims);
+          return;
+        }
+      }
+      // Ctrl+A は表全体を選択（nav 中のみ。編集中はセル入力側の全選択に譲る）。
+      if ((event.ctrlKey || event.metaKey) && (event.key === 'a' || event.key === 'A')) {
+        event.preventDefault();
+        selection = wholeRange(dims);
+        return;
+      }
       if ((event.ctrlKey || event.metaKey) && (event.key === 'c' || event.key === 'C')) {
         event.preventDefault();
         void copySelection();
+        return;
+      }
+      // undo / redo は履歴を持つ親へ委譲（正本ソースが真）。編集中セルの入力は
+      // それ自身のテキスト undo を使うため、ここ（nav）でだけ横取りする。
+      const key = event.key.toLowerCase();
+      if ((event.ctrlKey || event.metaKey) && key === 'z' && !event.shiftKey) {
+        event.preventDefault();
+        onUndo?.();
+        return;
+      }
+      if ((event.ctrlKey || event.metaKey) && (key === 'y' || (key === 'z' && event.shiftKey))) {
+        event.preventDefault();
+        onRedo?.();
         return;
       }
     }
@@ -887,6 +928,10 @@
               {@const value = cellValue(r, c)}
               {@const issue = issueOf(r, c)}
               {@const active = isActive(r, c)}
+              {@const spill =
+                colModes[c] === 'clip' &&
+                widget?.kind !== 'number' &&
+                spillsRight(doc.rows[r] ?? [], c, doc.columns.length)}
               <td
                 class:invalid={issue !== undefined}
                 class:active
@@ -907,6 +952,7 @@
                     class:num={widget?.kind === 'number'}
                     class:wrap={colModes[c] === 'wrap'}
                     class:overflow={colModes[c] === 'overflow'}
+                    class:spill
                     role="button"
                     tabindex="-1"
                     onclick={(e) => selectCell(r, c, e.shiftKey)}
@@ -996,6 +1042,7 @@
                     class:num={widget?.kind === 'number'}
                     class:wrap={colModes[c] === 'wrap'}
                     class:overflow={colModes[c] === 'overflow'}
+                    class:spill
                     tabindex="-1"
                   >
                     {cellDisplayText(widget?.kind, value)}
@@ -1528,6 +1575,14 @@
      隣セル方向へはみ出して全文を見せる（スプレの既定挙動）。改行は無視して 1 行に。 */
   .cell-view.overflow {
     white-space: nowrap;
+    overflow: visible;
+    text-overflow: clip;
+  }
+
+  /* clip 列の空セルへの自動突き抜け（スプレ既定）。右隣が空のときだけ overflow の見せ方を
+     借りて長文を隣へ流す（spillsRight が判定）。列モードを overflow に切り替えなくても、
+     既定表示のまま右が空いていれば全文を読める。右隣に中身がある列は clip のまま省略。 */
+  .cell-view.spill {
     overflow: visible;
     text-overflow: clip;
   }

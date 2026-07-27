@@ -234,6 +234,62 @@ pub fn detect_forge(remote_url: Option<&str>) -> Option<String> {
     Some(forge.to_string())
 }
 
+/// remote URL（SSH / HTTPS / scp 風）をブラウザで開ける https ベース URL へ正規化する。
+/// 末尾 `.git` と認証情報（`user@`）を除去し、`git@host:owner/repo` / `ssh://git@host/owner/repo`
+/// / `https://host/owner/repo` のいずれも `https://host/owner/repo` へ寄せる。判定不能は None。
+fn remote_to_web_base(remote: &str) -> Option<String> {
+    let url = remote.trim().trim_end_matches('/');
+    if url.is_empty() {
+        return None;
+    }
+    // scheme と認証情報を剥がして "host/owner/repo..." の本体を得る。
+    let body = if let Some(rest) = url
+        .strip_prefix("https://")
+        .or_else(|| url.strip_prefix("http://"))
+        .or_else(|| url.strip_prefix("ssh://"))
+        .or_else(|| url.strip_prefix("git://"))
+    {
+        // scheme 付き: 認証情報 "user@" を落とし、host/path はそのまま（"/" 区切り）。
+        rest.rsplit_once('@').map_or(rest, |(_, after)| after).to_string()
+    } else if let Some(rest) = url.strip_prefix("git@") {
+        // scp 風 "git@host:owner/repo": host と path の区切り ':' を '/' へ。
+        rest.replacen(':', "/", 1)
+    } else if url.contains('@') && url.contains(':') && !url.contains("://") {
+        // scheme 無し scp 風 "user@host:owner/repo"。
+        let after = url.rsplit_once('@').map_or(url, |(_, a)| a);
+        after.replacen(':', "/", 1)
+    } else {
+        return None;
+    };
+    let base = body.trim_end_matches('/').trim_end_matches(".git");
+    // host と最低 1 セグメント（owner/repo 相当）が無ければ URL を作れない。
+    if !base.contains('/') || base.starts_with('/') {
+        return None;
+    }
+    Some(format!("https://{base}"))
+}
+
+/// remote URL + ブランチ + リポジトリ相対パスから、フォージ上のファイル閲覧 URL を組み立てる。
+/// github/gitlab は `/blob/<branch>/<path>`、bitbucket は `/src/<branch>/<path>`。
+/// remote 無し・未知フォージ・不正入力は None（呼び出し側は「フォージで開く」項目を出さない）。
+pub fn build_forge_file_url(remote_url: Option<&str>, branch: &str, rel_path: &str) -> Option<String> {
+    let branch = branch.trim();
+    // rel パスは区切りを '/' へ正規化し、先頭 '/' を除く。
+    let rel = rel_path.trim().replace('\\', "/");
+    let rel = rel.trim_start_matches('/');
+    if branch.is_empty() || rel.is_empty() {
+        return None;
+    }
+    let remote = remote_url?.trim();
+    let base = remote_to_web_base(remote)?;
+    let segment = match detect_forge(Some(remote)).as_deref() {
+        Some("github") | Some("gitlab") => "blob",
+        Some("bitbucket") => "src",
+        _ => return None,
+    };
+    Some(format!("{base}/{segment}/{branch}/{rel}"))
+}
+
 /// `git -C <root> <args...>` を実行し、成功時のみ stdout を UTF-8（lossy）で返す。
 /// git 未導入（spawn 失敗）・非 0 終了（非リポジトリ等）は None（呼び出し側で graceful 劣化）。
 /// `--no-optional-locks` で index.lock 生成を避け、他プロセスの git 操作と競合しないようにする。
@@ -276,6 +332,33 @@ pub fn git_status_impl(root: &Path) -> GitStatus {
 #[tauri::command]
 pub fn git_status(root: String) -> GitStatus {
     git_status_impl(Path::new(&root))
+}
+
+/// 開いたフォルダ基準の相対パスを、フォージ上のファイル閲覧 URL へ解決する（Tauri 非依存の実体）。
+/// git 未導入・非リポジトリ・remote 無し・未知フォージ・detached HEAD では None（コンテキスト
+/// メニューは「フォージで開く」項目を出さない）。`rel_path` は scan と同じく開いたフォルダ基準なので、
+/// `rev-parse --show-prefix` の prefix を前置して repo root 基準へ直してから URL を組む。
+pub fn forge_file_url_impl(root: &Path, rel_path: &str) -> Option<String> {
+    let remote = run_git(root, &["remote", "get-url", "origin"])
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())?;
+    let branch = run_git(root, &["rev-parse", "--abbrev-ref", "HEAD"]).map(|s| s.trim().to_string())?;
+    if branch.is_empty() || branch == "HEAD" {
+        return None; // detached HEAD はブランチ URL を作れない。
+    }
+    let prefix = run_git(root, &["rev-parse", "--show-prefix"])
+        .map(|s| normalize_prefix(&s))
+        .unwrap_or_default();
+    let rel = rel_path.trim().replace('\\', "/");
+    let full_rel = format!("{prefix}{}", rel.trim_start_matches('/'));
+    build_forge_file_url(Some(&remote), &branch, &full_rel)
+}
+
+/// フロントから `invoke("forge_file_url", { root, relPath })` で呼ぶ薄いラッパ。
+/// URL を作れないときは None（フロントはメニュー項目を非表示にする）。
+#[tauri::command]
+pub fn forge_file_url(root: String, rel_path: String) -> Option<String> {
+    forge_file_url_impl(Path::new(&root), &rel_path)
 }
 
 /// `run_git` の Result 版。失敗時は stderr（無ければ終了コード）を Err で返す。
@@ -646,6 +729,75 @@ mod tests {
         );
         assert_eq!(detect_forge(Some("   ")), None);
         assert_eq!(detect_forge(None), None);
+    }
+
+    // ── build_forge_file_url ─────────────────────────────────────────────
+
+    #[test]
+    fn forge_url_github_https_ssh_は同じ_blob_url() {
+        let want = "https://github.com/meta-taro/md-business/blob/main/docs/a.md";
+        assert_eq!(
+            build_forge_file_url(
+                Some("https://github.com/meta-taro/md-business.git"),
+                "main",
+                "docs/a.md"
+            )
+            .as_deref(),
+            Some(want)
+        );
+        assert_eq!(
+            build_forge_file_url(
+                Some("git@github.com:meta-taro/md-business.git"),
+                "main",
+                "docs/a.md"
+            )
+            .as_deref(),
+            Some(want)
+        );
+    }
+
+    #[test]
+    fn forge_url_gitlab_は_blob_bitbucket_は_src() {
+        assert_eq!(
+            build_forge_file_url(Some("https://gitlab.com/g/p.git"), "dev", "x.tsv").as_deref(),
+            Some("https://gitlab.com/g/p/blob/dev/x.tsv")
+        );
+        assert_eq!(
+            build_forge_file_url(Some("git@bitbucket.org:t/r.git"), "main", "y.md").as_deref(),
+            Some("https://bitbucket.org/t/r/src/main/y.md")
+        );
+    }
+
+    #[test]
+    fn forge_url_relパスの区切りと先頭スラッシュを正規化() {
+        assert_eq!(
+            build_forge_file_url(
+                Some("https://github.com/o/r"),
+                "main",
+                "\\sub\\file.md"
+            )
+            .as_deref(),
+            Some("https://github.com/o/r/blob/main/sub/file.md")
+        );
+    }
+
+    #[test]
+    fn forge_url_未知フォージや空入力は_none() {
+        // 未知フォージ（other）は URL を作らない。
+        assert_eq!(
+            build_forge_file_url(Some("https://git.example.com/x.git"), "main", "a.md"),
+            None
+        );
+        // remote 無し・ブランチ空・パス空は None。
+        assert_eq!(build_forge_file_url(None, "main", "a.md"), None);
+        assert_eq!(
+            build_forge_file_url(Some("https://github.com/o/r"), "", "a.md"),
+            None
+        );
+        assert_eq!(
+            build_forge_file_url(Some("https://github.com/o/r"), "main", "   "),
+            None
+        );
     }
 
     // ── normalize_prefix ─────────────────────────────────────────────────
