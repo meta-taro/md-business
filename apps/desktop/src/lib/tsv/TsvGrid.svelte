@@ -22,6 +22,7 @@
     cellDisplayText,
   } from './gridModel';
   import { planGridKey, type GridMode } from './gridMode';
+  import { nextCell } from './gridNav';
   import { seedFromKey } from './gridEdit';
   import { parseClipboardMatrix, applyPaste, rowToTsv } from './gridClipboard';
   import { duplicateRow, deleteRow, clearRow } from './gridRows';
@@ -56,6 +57,8 @@
     isInRange,
     isSingleCell,
     extendRange,
+    extendRangeTo,
+    wholeRange,
     rangeToTsv,
     rowRange,
   } from './gridRange';
@@ -577,6 +580,26 @@
       if (event.shiftKey && delta) {
         event.preventDefault();
         selection = extendRange(selection, delta, dims);
+        return;
+      }
+      // Shift+Home / Shift+End は行頭・行末まで一気に伸長（Ctrl 併用で表の隅まで）。
+      // 移動先は修飾なしの移動と同じ nextCell に決めさせ、伸長との差を anchor 固定だけにする。
+      if (event.shiftKey && (event.key === 'Home' || event.key === 'End')) {
+        const to = nextCell(
+          selection.focus,
+          { key: event.key, ctrl: event.ctrlKey || event.metaKey },
+          dims,
+        );
+        if (to !== null) {
+          event.preventDefault();
+          selection = extendRangeTo(selection, to, dims);
+          return;
+        }
+      }
+      // Ctrl+A は表全体を選択（nav 中のみ。編集中はセル入力側の全選択に譲る）。
+      if ((event.ctrlKey || event.metaKey) && (event.key === 'a' || event.key === 'A')) {
+        event.preventDefault();
+        selection = wholeRange(dims);
         return;
       }
       if ((event.ctrlKey || event.metaKey) && (event.key === 'c' || event.key === 'C')) {

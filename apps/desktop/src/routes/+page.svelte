@@ -7,6 +7,7 @@
   import { debounce } from '$lib/util/debounce';
   import { parseTsv, serializeTsv, type TsvDocument } from '@md-business/schema-test-spec-tsv';
   import { isTsvSource } from '$lib/tsv/detect';
+  import { preserveTrailingEol } from '$lib/tsv/gridEol';
   import TsvGrid from '$lib/tsv/TsvGrid.svelte';
   import {
     initHistory,
@@ -252,8 +253,10 @@
   // グリッド編集 → serializeTsv で source（＝正本）へ書き戻し、エディターと即同期する。
   // debouncedSource も即更新して doc を再導出し、グリッドを遅延なく反映する。
   // 併せて確定スナップショットを履歴へ積む（Ctrl+Z / Ctrl+Y で戻せるように）。
+  // serializeTsv は末尾改行を付けない契約なので、元ソースの末尾改行をここで引き継ぐ
+  // （落とすと編集内容と無関係な 1 行が毎回 diff に出る）。
   function handleGridChange(next: TsvDocument): void {
-    const text = serializeTsv(next);
+    const text = preserveTrailingEol(serializeTsv(next), untrack(() => workspace.source));
     gridHistory = pushHistory(gridHistory, text);
     workspace.setSource(text);
     debouncedSource = text;
