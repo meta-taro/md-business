@@ -67,6 +67,11 @@ class WorkspaceStore {
   savedSource = $state<string>(apiSpecSample);
   /** 保存中フラグ（多重 save 抑止・UI の保存インジケータ用）。 */
   saving = $state<boolean>(false);
+  /**
+   * 最後に保存できた時刻（未保存なら null）。
+   * 自動保存は静止後に黙って走るため、効いていることを時刻で見せる。
+   */
+  savedAt = $state<Date | null>(null);
   /** 走査が深さ / 件数上限で打ち切られたか（警告表示用）。 */
   truncated = $state<boolean>(false);
   /** 直近の走査 / 読込エラー（左レールに表示）。 */
@@ -306,6 +311,8 @@ class WorkspaceStore {
       this.source = content;
       this.savedSource = content; // 開いた直後は未編集（dirty=false）
       this.activePath = relPath;
+      // 保存時刻は開いているファイルのもの。別のファイルの時刻を引き継がせない。
+      this.savedAt = null;
       this.loadSeq += 1;
       this.error = null;
     } catch (e) {
@@ -341,6 +348,7 @@ class WorkspaceStore {
     try {
       await invoke('write_document', { root: this.root, relPath, content: snapshot });
       this.savedSource = snapshot;
+      this.savedAt = new Date();
       this.error = null;
       // 保存でファイルの git 状態（modified など）が変わるので再取得する。
       void git.refresh(this.root);

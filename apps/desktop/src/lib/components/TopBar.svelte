@@ -82,7 +82,9 @@
         <span>{workspace.saving ? t('action.saving') : t('action.save')}</span>
       </button>
       <!-- オートセーブのオン/オフ（既定オン）。オンの間は編集の静止後に自動保存する。
-           循環矢印＝自動反映の普遍アイコン。オン時は色でも状態を示す。 -->
+           循環矢印＝自動反映の普遍アイコン。押しても画面が変わらないと「何が起きたのか」が
+           分からないので、色だけでなく現在の状態を語で出す。実際に保存されたことは
+           ステータスバーの保存時刻で分かる。 -->
       <button
         class="btn ghost with-icon"
         class:is-on={autosave.enabled}
@@ -110,6 +112,7 @@
           />
         </svg>
         <span>{t('action.autosave')}</span>
+        <span class="state-pill">{autosave.enabled ? t('state.on') : t('state.off')}</span>
       </button>
       <!-- PDF 出力（§6.4・Ctrl+P / ⌘P と等価）。プレビュー描画中だけ活性。押すと
            WebView の印刷（→「PDF として保存」）でプレビュー見た目のまま A4 出力する。
@@ -430,6 +433,17 @@
   /* オートセーブ ON はアクセント色で点灯し、無効/有効が一目で分かるようにする。 */
   .btn.is-on {
     color: var(--accent);
+  }
+
+  /* オン/オフの語。色を見分けられなくても状態が分かるよう、枠付きの小片で並べる。 */
+  .state-pill {
+    flex: none;
+    padding: 0 var(--space-1);
+    border: 1px solid currentColor;
+    border-radius: var(--radius-sm);
+    font-size: var(--text-2xs-size);
+    line-height: 1.5;
+    opacity: 0.85;
   }
 
   /* ── ウィンドウコントロール（Windows 慣習：右上角に密着・フル高） ── */

@@ -28,6 +28,8 @@ export interface Messages {
   'action.autosave': string;
   'action.autosaveOn': string;
   'action.autosaveOff': string;
+  'state.on': string;
+  'state.off': string;
   // ウィンドウコントロール
   'window.minimize': string;
   'window.maximize': string;
@@ -59,6 +61,10 @@ export interface Messages {
   'status.sourceControl': string;
   'status.forge': string;
   'status.mcp': string;
+  'status.saving': string;
+  'status.unsaved': string;
+  'status.savedAt': string;
+  'status.savedAtTitle': string;
   // 左レール（ファイルツリー / エクスプローラー）
   'tree.label': string;
   'tree.expandExplorer': string;
@@ -154,6 +160,8 @@ const en: Messages = {
   'action.autosave': 'Autosave',
   'action.autosaveOn': 'Autosave: on — click to turn off',
   'action.autosaveOff': 'Autosave: off — click to turn on',
+  'state.on': 'On',
+  'state.off': 'Off',
   'window.minimize': 'Minimize',
   'window.maximize': 'Maximize',
   'window.restore': 'Restore',
@@ -181,6 +189,10 @@ const en: Messages = {
   'status.sourceControl': 'Source control',
   'status.forge': 'forge: {name}',
   'status.mcp': 'MCP: disconnected',
+  'status.saving': 'Saving…',
+  'status.unsaved': 'Unsaved changes',
+  'status.savedAt': 'Saved at {time}',
+  'status.savedAtTitle': 'Time of the last successful save of the open file',
   'tree.label': 'File tree',
   'tree.expandExplorer': 'Open explorer',
   'tree.collapseExplorer': 'Collapse explorer',
@@ -266,6 +278,8 @@ const ja: Messages = {
   'action.autosave': '自動保存',
   'action.autosaveOn': '自動保存: オン（クリックでオフ）',
   'action.autosaveOff': '自動保存: オフ（クリックでオン）',
+  'state.on': 'オン',
+  'state.off': 'オフ',
   'window.minimize': '最小化',
   'window.maximize': '最大化',
   'window.restore': '元のサイズに戻す',
@@ -293,6 +307,10 @@ const ja: Messages = {
   'status.sourceControl': 'ソース管理',
   'status.forge': 'forge: {name}',
   'status.mcp': 'MCP: 未接続',
+  'status.saving': '保存中…',
+  'status.unsaved': '未保存の変更',
+  'status.savedAt': '{time} に保存',
+  'status.savedAtTitle': '開いているファイルを最後に保存できた時刻',
   'tree.label': 'ファイルツリー',
   'tree.expandExplorer': 'エクスプローラーを開く',
   'tree.collapseExplorer': 'エクスプローラーを畳む',
@@ -378,6 +396,8 @@ const zh: Messages = {
   'action.autosave': '自动保存',
   'action.autosaveOn': '自动保存：开（点击关闭）',
   'action.autosaveOff': '自动保存：关（点击开启）',
+  'state.on': '开',
+  'state.off': '关',
   'window.minimize': '最小化',
   'window.maximize': '最大化',
   'window.restore': '还原',
@@ -405,6 +425,10 @@ const zh: Messages = {
   'status.sourceControl': '源代码管理',
   'status.forge': 'forge: {name}',
   'status.mcp': 'MCP: 未连接',
+  'status.saving': '保存中…',
+  'status.unsaved': '未保存的更改',
+  'status.savedAt': '{time} 已保存',
+  'status.savedAtTitle': '当前文件最后一次成功保存的时间',
   'tree.label': '文件树',
   'tree.expandExplorer': '打开资源管理器',
   'tree.collapseExplorer': '折叠资源管理器',
@@ -490,6 +514,8 @@ const ko: Messages = {
   'action.autosave': '자동 저장',
   'action.autosaveOn': '자동 저장: 켬(클릭하여 끄기)',
   'action.autosaveOff': '자동 저장: 끔(클릭하여 켜기)',
+  'state.on': '켬',
+  'state.off': '끔',
   'window.minimize': '최소화',
   'window.maximize': '최대화',
   'window.restore': '이전 크기로 복원',
@@ -517,6 +543,10 @@ const ko: Messages = {
   'status.sourceControl': '소스 제어',
   'status.forge': 'forge: {name}',
   'status.mcp': 'MCP: 미연결',
+  'status.saving': '저장 중…',
+  'status.unsaved': '저장되지 않은 변경',
+  'status.savedAt': '{time}에 저장',
+  'status.savedAtTitle': '열려 있는 파일을 마지막으로 저장한 시각',
   'tree.label': '파일 트리',
   'tree.expandExplorer': '탐색기 열기',
   'tree.collapseExplorer': '탐색기 접기',
