@@ -86,9 +86,17 @@ export interface Messages {
   'tree.recentPick': string;
   'tree.recentMissing': string;
   'tree.recentForget': string;
+  'tree.menuRename': string;
   'tree.menuReveal': string;
+  'tree.menuCopyName': string;
+  'tree.menuCopyRelPath': string;
   'tree.menuCopyPath': string;
   'tree.menuOpenForge': string;
+  'tree.renameHint': string;
+  'tree.renameErrorEmpty': string;
+  'tree.renameErrorSeparator': string;
+  'tree.renameErrorInvalidChar': string;
+  'tree.renameErrorExtension': string;
   // Git 変更状態（ツリーのバッジ説明）
   'git.state.modified': string;
   'git.state.added': string;
@@ -212,9 +220,17 @@ const en: Messages = {
   'tree.recentPick': 'Pick a recent folder',
   'tree.recentMissing': 'Not found',
   'tree.recentForget': 'Remove from list',
+  'tree.menuRename': 'Rename',
   'tree.menuReveal': 'Reveal in File Explorer',
+  'tree.menuCopyName': 'Copy name',
+  'tree.menuCopyRelPath': 'Copy relative path',
   'tree.menuCopyPath': 'Copy full path',
   'tree.menuOpenForge': 'Open on remote',
+  'tree.renameHint': 'Enter to apply, Esc to cancel',
+  'tree.renameErrorEmpty': 'Enter a name',
+  'tree.renameErrorSeparator': 'A name cannot contain path separators',
+  'tree.renameErrorInvalidChar': 'That name contains characters that cannot be used',
+  'tree.renameErrorExtension': 'The extension must stay .md or .tsv',
   'git.state.modified': 'Modified (uncommitted)',
   'git.state.added': 'Staged addition',
   'git.state.untracked': 'Untracked (new)',
@@ -330,9 +346,17 @@ const ja: Messages = {
   'tree.recentPick': '最近開いたフォルダから選ぶ',
   'tree.recentMissing': '見つかりません',
   'tree.recentForget': '一覧から削除',
+  'tree.menuRename': '名前の変更',
   'tree.menuReveal': 'エクスプローラーで表示',
+  'tree.menuCopyName': '名前をコピー',
+  'tree.menuCopyRelPath': '相対パスをコピー',
   'tree.menuCopyPath': 'フルパスをコピー',
   'tree.menuOpenForge': 'リモートで開く',
+  'tree.renameHint': 'Enter で確定・Esc で取り消し',
+  'tree.renameErrorEmpty': '名前を入力してください',
+  'tree.renameErrorSeparator': '名前に区切り文字は使えません',
+  'tree.renameErrorInvalidChar': '名前に使えない文字が含まれています',
+  'tree.renameErrorExtension': '拡張子は .md / .tsv のままにしてください',
   'git.state.modified': '変更あり（未コミット）',
   'git.state.added': 'ステージ済みの追加',
   'git.state.untracked': '未追跡（新規）',
@@ -448,9 +472,17 @@ const zh: Messages = {
   'tree.recentPick': '从最近打开的文件夹中选择',
   'tree.recentMissing': '未找到',
   'tree.recentForget': '从列表中移除',
+  'tree.menuRename': '重命名',
   'tree.menuReveal': '在资源管理器中显示',
+  'tree.menuCopyName': '复制名称',
+  'tree.menuCopyRelPath': '复制相对路径',
   'tree.menuCopyPath': '复制完整路径',
   'tree.menuOpenForge': '在远程仓库打开',
+  'tree.renameHint': 'Enter 确认，Esc 取消',
+  'tree.renameErrorEmpty': '请输入名称',
+  'tree.renameErrorSeparator': '名称中不能包含路径分隔符',
+  'tree.renameErrorInvalidChar': '名称中包含无法使用的字符',
+  'tree.renameErrorExtension': '扩展名必须保持为 .md 或 .tsv',
   'git.state.modified': '已更改（未提交）',
   'git.state.added': '已暂存的新增',
   'git.state.untracked': '未跟踪（新增）',
@@ -566,9 +598,17 @@ const ko: Messages = {
   'tree.recentPick': '최근 연 폴더에서 선택',
   'tree.recentMissing': '찾을 수 없음',
   'tree.recentForget': '목록에서 삭제',
+  'tree.menuRename': '이름 바꾸기',
   'tree.menuReveal': '탐색기에서 표시',
+  'tree.menuCopyName': '이름 복사',
+  'tree.menuCopyRelPath': '상대 경로 복사',
   'tree.menuCopyPath': '전체 경로 복사',
   'tree.menuOpenForge': '원격 저장소에서 열기',
+  'tree.renameHint': 'Enter로 확정, Esc로 취소',
+  'tree.renameErrorEmpty': '이름을 입력하세요',
+  'tree.renameErrorSeparator': '이름에 경로 구분자는 사용할 수 없습니다',
+  'tree.renameErrorInvalidChar': '이름에 사용할 수 없는 문자가 있습니다',
+  'tree.renameErrorExtension': '확장자는 .md 또는 .tsv 여야 합니다',
   'git.state.modified': '변경됨 (커밋 안 됨)',
   'git.state.added': '스테이지된 추가',
   'git.state.untracked': '추적 안 됨 (신규)',

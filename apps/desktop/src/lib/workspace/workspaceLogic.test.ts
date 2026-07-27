@@ -6,6 +6,7 @@ import {
   flattenVisible,
   computeDirty,
   shouldReopenFile,
+  remapRenamedPath,
   filterTree,
   collectFolderPaths,
   shouldClearFilter,
@@ -113,6 +114,30 @@ describe('shouldReopenFile', () => {
 
   it('未オープン（activePath=null）は false', () => {
     expect(shouldReopenFile(null, ['docs/a.md'])).toBe(false);
+  });
+});
+
+describe('remapRenamedPath', () => {
+  it('開いていたファイル自身が改名されたら新しいパスを返す', () => {
+    expect(remapRenamedPath('docs/旧名.tsv', 'docs/旧名.tsv', 'docs/新名.tsv')).toBe(
+      'docs/新名.tsv',
+    );
+  });
+
+  it('親フォルダが改名されたら配下も付け替える', () => {
+    expect(remapRenamedPath('旧/検証/a.md', '旧', '新')).toBe('新/検証/a.md');
+  });
+
+  it('無関係なファイルはそのまま', () => {
+    expect(remapRenamedPath('other/a.md', 'docs', 'documents')).toBe('other/a.md');
+  });
+
+  it('名前の前方一致だけでは付け替えない（旧 と 旧フォルダ を混同しない）', () => {
+    expect(remapRenamedPath('旧フォルダ/a.md', '旧', '新')).toBe('旧フォルダ/a.md');
+  });
+
+  it('未オープンなら null のまま', () => {
+    expect(remapRenamedPath(null, 'docs', 'documents')).toBeNull();
   });
 });
 

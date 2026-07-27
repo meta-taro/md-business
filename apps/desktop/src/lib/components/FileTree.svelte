@@ -18,8 +18,16 @@
   import { diffView } from '$lib/git/diffView.svelte';
   import { gitMarkLetter, type GitFileState } from '$lib/git/gitStatus';
   import { t } from '$lib/i18n/i18n.svelte';
+  import type { MessageKey } from '$lib/i18n/messages';
   import { folderLabel } from '$lib/workspace/recentFolders';
-  import { toAbsolutePath, menuActionsForKind, type FileTreeMenuAction } from './fileTreeMenu';
+  import {
+    toAbsolutePath,
+    menuActionsForKind,
+    baseName,
+    validateNewName,
+    renamedPath,
+    type FileTreeMenuAction,
+  } from './fileTreeMenu';
 
   // git 状態 → ホバー説明（バッジ title）。色マークの意味を言葉でも補う。
   // t() はロケール反応なので関数で都度引く（キーは git.state.<state>）。
@@ -68,6 +76,8 @@
   }
 
   function onTreeKeydown(e: KeyboardEvent): void {
+    // 改名の入力中は、左右キーがカーソル移動として要る。ツリーの移動には回さない。
+    if (renaming !== null) return;
     const action = decideTreeKey(e.key, {
       rows,
       index: focusIndex,
@@ -118,12 +128,16 @@
     forgeUrl: string | null;
   } | null>(null);
 
-  const menuLabel = (action: FileTreeMenuAction): string =>
-    action === 'reveal'
-      ? t('tree.menuReveal')
-      : action === 'copyPath'
-        ? t('tree.menuCopyPath')
-        : t('tree.menuOpenForge');
+  const MENU_LABEL_KEYS: Record<FileTreeMenuAction, MessageKey> = {
+    rename: 'tree.menuRename',
+    reveal: 'tree.menuReveal',
+    copyName: 'tree.menuCopyName',
+    copyRelPath: 'tree.menuCopyRelPath',
+    copyPath: 'tree.menuCopyPath',
+    openForge: 'tree.menuOpenForge',
+  };
+
+  const menuLabel = (action: FileTreeMenuAction): string => t(MENU_LABEL_KEYS[action]);
 
   function openMenu(event: MouseEvent, path: string, kind: 'folder' | 'file'): void {
     event.preventDefault();
@@ -148,8 +162,15 @@
     closeMenu();
     if (m === null || workspace.root === null) return;
     const abs = toAbsolutePath(workspace.root, m.path);
-    if (action === 'reveal') {
+    if (action === 'rename') {
+      startRename(m.path, m.kind);
+    } else if (action === 'reveal') {
       await revealItemInDir(abs).catch(() => undefined);
+    } else if (action === 'copyName') {
+      await navigator.clipboard.writeText(baseName(m.path)).catch(() => undefined);
+    } else if (action === 'copyRelPath') {
+      // 走査と同じ "/" 区切りのまま。設計書の相互参照や frontmatter へそのまま貼れる形。
+      await navigator.clipboard.writeText(m.path).catch(() => undefined);
     } else if (action === 'copyPath') {
       await navigator.clipboard.writeText(abs).catch(() => undefined);
     } else if (action === 'openForge' && m.forgeUrl !== null) {
@@ -157,10 +178,88 @@
     }
   }
 
+  // ── 名前の変更 ────────────────────────────────────────────────
+  // 別ダイアログを出さず、対象の行をその場で入力欄に差し替える（名前と位置が見えたまま直せる）。
+  // 名前の可否判定は fileTreeMenu の純関数（テスト済み）に委ね、ここは入力と確定だけ持つ。
+  let renaming = $state<{ path: string; kind: 'file' | 'folder'; value: string } | null>(null);
+  let renameError = $state<string | null>(null);
+  let renameBusy = $state(false);
+
+  const RENAME_ERROR_KEYS = {
+    empty: 'tree.renameErrorEmpty',
+    separator: 'tree.renameErrorSeparator',
+    invalidChar: 'tree.renameErrorInvalidChar',
+    extension: 'tree.renameErrorExtension',
+  } as const satisfies Record<string, MessageKey>;
+
+  function startRename(path: string, kind: 'file' | 'folder'): void {
+    renaming = { path, kind, value: baseName(path) };
+    renameError = null;
+  }
+
+  function cancelRename(): void {
+    renaming = null;
+    renameError = null;
+  }
+
+  /** 入力欄が出たら中身を選択状態にする（拡張子まで消さずに書き換えられる）。 */
+  function focusRenameInput(node: HTMLInputElement): void {
+    node.focus();
+    const dot = node.value.lastIndexOf('.');
+    // ファイルは拡張子の手前まで、フォルダは全体を選ぶ。
+    if (dot > 0) node.setSelectionRange(0, dot);
+    else node.select();
+  }
+
+  async function commitRename(): Promise<void> {
+    const r = renaming;
+    if (r === null || renameBusy) return;
+    const next = r.value.trim();
+    // 変えていないなら何もせず閉じる（誤って開いたときに書き込みを起こさない）。
+    if (next === baseName(r.path)) {
+      cancelRename();
+      return;
+    }
+    const invalid = validateNewName(next, r.kind);
+    if (invalid !== null) {
+      renameError = t(RENAME_ERROR_KEYS[invalid]);
+      return;
+    }
+    renameBusy = true;
+    try {
+      await workspace.renameEntry(r.path, next);
+      renaming = null;
+      renameError = null;
+      // 走査し直しで行が入れ替わるので、改名後の行へ選択位置を寄せ直す。
+      await tick();
+      const index = rows.findIndex((row) => row.node.path === renamedPath(r.path, next));
+      if (index >= 0) void focusRow(index);
+    } catch (e) {
+      // Rust 側の Err（衝突・OS エラー）は入力欄に出す。閉じると理由が見えなくなる。
+      renameError = e instanceof Error ? e.message : String(e);
+    } finally {
+      renameBusy = false;
+    }
+  }
+
+  function onRenameKeydown(e: KeyboardEvent): void {
+    // 変換確定の Enter を確定と取り違えない。
+    if (e.isComposing) return;
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      void commitRename();
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      cancelRename();
+    }
+  }
+
   // メニュー / 履歴ポップオーバー表示中の Esc で閉じる
   // （フィルタ入力の Esc とは、開いているものを優先することで排他になる）。
   function onWindowKeydown(e: KeyboardEvent): void {
     if (e.key !== 'Escape') return;
+    // 改名中の Esc は入力欄側が受ける（ここで履歴ポップオーバーまで畳まない）。
+    if (renaming !== null) return;
     if (menu !== null) {
       e.preventDefault();
       closeMenu();
@@ -354,6 +453,31 @@
         {@const gitState = node.kind === 'file' ? git.stateOf(node.path) : null}
         {@const selected = node.kind === 'file' && workspace.activePath === node.path}
         <li role="none">
+          {#if renaming !== null && renaming.path === node.path}
+            <!-- 改名中はこの行だけ入力欄に差し替える。位置と階層はそのまま見せたいので
+                 行の余白（--depth）は同じものを使う。 -->
+            <div class="row renaming" style="--depth: {row.depth}">
+              <span class="caret spacer" aria-hidden="true"></span>
+              <!-- svelte-ignore a11y_autofocus -->
+              <input
+                class="rename-input"
+                class:invalid={renameError !== null}
+                type="text"
+                bind:value={renaming.value}
+                disabled={renameBusy}
+                aria-label={t('tree.menuRename')}
+                aria-invalid={renameError !== null}
+                title={renameError ?? t('tree.renameHint')}
+                use:focusRenameInput
+                onkeydown={onRenameKeydown}
+                oninput={() => (renameError = null)}
+                onblur={cancelRename}
+              />
+            </div>
+            {#if renameError !== null}
+              <p class="rename-error" style="--depth: {row.depth}" role="alert">{renameError}</p>
+            {/if}
+          {:else}
           <button
             class="row"
             class:active={selected}
@@ -409,6 +533,7 @@
               <span class="git-mark" title={gitTitle(gitState)}>{gitMarkLetter(gitState)}</span>
             {/if}
           </button>
+          {/if}
         </li>
       {/each}
     </ul>
@@ -889,6 +1014,46 @@
   .row:focus-visible {
     outline: none;
     box-shadow: inset 0 0 0 2px var(--accent);
+  }
+
+  /* 改名中の行。押せる行ではないのでホバーの地色は出さない。 */
+  .row.renaming {
+    cursor: default;
+  }
+
+  .row.renaming:hover {
+    background: transparent;
+  }
+
+  .rename-input {
+    flex: 1 1 auto;
+    min-width: 0;
+    height: 20px;
+    padding: 0 var(--space-1);
+    border: 1px solid var(--accent);
+    border-radius: var(--radius-sm);
+    background: var(--bg-elevated);
+    color: var(--text-primary);
+    font-family: inherit;
+    font-size: var(--text-sm-size);
+  }
+
+  .rename-input:focus {
+    outline: none;
+  }
+
+  .rename-input.invalid {
+    border-color: var(--danger-fg, #c7502f);
+  }
+
+  /* 入力欄の直下に理由を出す。行の余白に合わせて、どの行の話かを見失わせない。 */
+  .rename-error {
+    margin: 0 0 var(--space-1);
+    padding: 0 var(--space-3) 0 calc(var(--space-3) + var(--depth) * 14px + 14px);
+    color: var(--danger-fg, #c7502f);
+    font-size: var(--text-2xs-size, 10px);
+    white-space: pre-wrap;
+    word-break: break-word;
   }
 
   .caret {

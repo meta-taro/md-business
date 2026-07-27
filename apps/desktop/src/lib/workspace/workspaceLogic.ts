@@ -57,6 +57,24 @@ export function shouldReopenFile(
 }
 
 /**
+ * 改名の前後で、開いていたファイルの relPath を付け替える。
+ *
+ * 改名したのがそのファイル自身でも、それを含むフォルダでも、開いているのは同じ中身なので
+ * 新しいパスで開き直せるようにする。区切りまで含めて前方一致を見るのは、`旧` の改名で
+ * `旧フォルダ/…` まで巻き込まないため。
+ */
+export function remapRenamedPath(
+  activePath: string | null,
+  oldPath: string,
+  newPath: string,
+): string | null {
+  if (activePath === null) return null;
+  if (activePath === oldPath) return newPath;
+  const prefix = `${oldPath}/`;
+  return activePath.startsWith(prefix) ? `${newPath}/${activePath.slice(prefix.length)}` : activePath;
+}
+
+/**
  * 照合キーへ揃える（表示名は変えず、突き合わせのときだけ使う）。
  *
  * NFKC で互換文字を畳むと、見た目が同じで内部表現が違うものが一致するようになる。

@@ -20,6 +20,7 @@ import {
   toggleExpanded,
   computeDirty,
   shouldReopenFile,
+  remapRenamedPath,
 } from './workspaceLogic';
 import { parseStoredFolder } from './lastFolder';
 import {
@@ -283,6 +284,25 @@ class WorkspaceStore {
     if (shouldReopenFile(prevActive, this.allFilePaths())) {
       // shouldReopenFile が true なら prevActive は非 null。
       await this.select(prevActive as string);
+    }
+  }
+
+  /**
+   * ルート配下のファイル / フォルダの名前を変更し、ツリーを取り直す。
+   *
+   * 開いていたファイルが改名対象（またはその配下）なら、新しいパスで開き直す。名前が
+   * 使えないときや衝突したときは Rust 側が Err を返すので、そのまま投げて呼び出し元が
+   * 入力欄にその理由を出す（ここでエラー表示に流すと、入力中の欄から目が離れるため）。
+   */
+  async renameEntry(relPath: string, newName: string): Promise<void> {
+    if (this.root === null) return;
+    const newPath = await invoke<string>('rename_entry', { root: this.root, relPath, newName });
+    const prevActive = this.activePath;
+    await this.scan(this.root); // activePath は null に戻る
+    const next = remapRenamedPath(prevActive, relPath, newPath);
+    if (shouldReopenFile(next, this.allFilePaths())) {
+      // shouldReopenFile が true なら next は非 null。
+      await this.select(next as string);
     }
   }
 

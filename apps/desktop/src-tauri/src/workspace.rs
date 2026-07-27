@@ -194,6 +194,67 @@ pub fn create_document_impl(root: &Path, rel_path: &str, content: &str) -> Resul
     std::fs::write(&final_path, content).map_err(|e| format!("書き込み失敗: {}", e))
 }
 
+/// ルート配下のファイル / フォルダの名前を変更する（Tauri 非依存の実体）。
+///
+/// 受け取るのは「名前だけ」で、移動には使わせない（区切り文字・`.` / `..` を拒否）。対象は
+/// `canonicalize` 後に root 配下判定してパストラバーサルを封じ、ファイルなら変更後も
+/// `.md` / `.tsv` を要求する（拡張子を変えると走査対象から外れ、ツリーから消えて行方不明に
+/// なるため）。既存の名前とぶつかる場合は上書きせず Err。戻り値は走査と同じ "/" 区切りの
+/// 新しい相対パス（呼び出し側が開き直しに使う）。
+pub fn rename_entry_impl(root: &Path, rel_path: &str, new_name: &str) -> Result<String, String> {
+    let name = new_name.trim();
+    if name.is_empty() {
+        return Err("名前を入力してください".to_string());
+    }
+    if name.contains('/') || name.contains('\\') {
+        return Err("名前に区切り文字は使えません".to_string());
+    }
+    if name == "." || name == ".." {
+        return Err("その名前は使えません".to_string());
+    }
+    // OS が受け付けない文字は、分かりにくい OS エラーになる前に理由を付けて返す。
+    if name.contains(|c: char| matches!(c, ':' | '*' | '?' | '"' | '<' | '>' | '|') || c.is_control())
+    {
+        return Err("名前に使えない文字が含まれています".to_string());
+    }
+
+    let canon_root = std::fs::canonicalize(root).map_err(|e| format!("ルート解決失敗: {}", e))?;
+    let canon =
+        std::fs::canonicalize(root.join(rel_path)).map_err(|e| format!("対象の解決失敗: {}", e))?;
+    // ルート自身の改名は、開いているフォルダごと足元を崩すので対象外。
+    if !canon.starts_with(&canon_root) || canon == canon_root {
+        return Err("ルート外へのアクセスは拒否されます".to_string());
+    }
+
+    let is_dir = canon.is_dir();
+    if !is_dir && (allowed_ext(&canon).is_none() || allowed_ext(Path::new(name)).is_none()) {
+        return Err("対応拡張子は .md / .tsv のみです".to_string());
+    }
+
+    let target = canon
+        .parent()
+        .ok_or_else(|| "親ディレクトリが不正です".to_string())?
+        .join(name);
+    // 大文字小文字を区別しない FS では、綴りだけ直す改名も「既存」に見える。同じ実体なら通す。
+    let same_entry = std::fs::canonicalize(&target)
+        .map(|t| t == canon)
+        .unwrap_or(false);
+    if target.exists() && !same_entry {
+        return Err("同じ名前が既に存在します".to_string());
+    }
+
+    std::fs::rename(&canon, &target).map_err(|e| format!("名前の変更に失敗: {}", e))?;
+
+    let rel = target
+        .strip_prefix(&canon_root)
+        .map_err(|_| "相対パスの組み立てに失敗しました".to_string())?;
+    Ok(rel
+        .components()
+        .map(|c| c.as_os_str().to_string_lossy().into_owned())
+        .collect::<Vec<_>>()
+        .join("/"))
+}
+
 /// パスが今も開けるディレクトリかを返す。
 ///
 /// 履歴に残したフォルダは、移動・削除・外付けや共有ドライブの切断で消えることがある。
@@ -256,6 +317,13 @@ pub fn create_document(
         record_self_write(&state, canon);
     }
     Ok(())
+}
+
+/// フロントから `invoke("rename_entry", { root, relPath, newName })` で呼ぶ薄いラッパ。
+/// 左レールの右クリックメニュー「名前の変更」から使う。戻り値は新しい相対パス。
+#[tauri::command]
+pub fn rename_entry(root: String, rel_path: String, new_name: String) -> Result<String, String> {
+    rename_entry_impl(Path::new(&root), &rel_path, &new_name)
 }
 
 #[cfg(test)]
@@ -631,5 +699,105 @@ mod tests {
         let dir = root.path.join("業務/検証シート");
         std::fs::create_dir_all(&dir).expect("作成");
         assert!(directory_exists_impl(&dir));
+    }
+
+    // ── rename_entry_impl ────────────────────────────────────────────────
+
+    #[test]
+    fn rename_ファイル名を変更し新しい相対パスを返す() {
+        let root = TempRoot::new("ren_file");
+        root.file("a.md", "# a");
+        let rel = rename_entry_impl(&root.path, "a.md", "b.md").expect("改名成功");
+        assert_eq!(rel, "b.md");
+        assert!(!root.path.join("a.md").exists());
+        assert_eq!(
+            std::fs::read_to_string(root.path.join("b.md")).expect("読み取り"),
+            "# a"
+        );
+    }
+
+    #[test]
+    fn rename_サブディレクトリ内でも親の位置は保つ() {
+        let root = TempRoot::new("ren_sub");
+        root.file("docs/検証/旧名.tsv", "x\ty");
+        let rel = rename_entry_impl(&root.path, "docs/検証/旧名.tsv", "新名.tsv").expect("改名成功");
+        assert_eq!(rel, "docs/検証/新名.tsv");
+    }
+
+    #[test]
+    fn rename_フォルダも名前を変更できる() {
+        let root = TempRoot::new("ren_dir");
+        root.file("旧フォルダ/a.md", "# a");
+        let rel = rename_entry_impl(&root.path, "旧フォルダ", "新フォルダ").expect("改名成功");
+        assert_eq!(rel, "新フォルダ");
+        assert!(root.path.join("新フォルダ/a.md").is_file());
+    }
+
+    #[test]
+    fn rename_名前に区切り文字を含む場合は移動させない() {
+        let root = TempRoot::new("ren_sep");
+        root.file("a.md", "# a");
+        assert!(rename_entry_impl(&root.path, "a.md", "sub/b.md").is_err());
+        assert!(rename_entry_impl(&root.path, "a.md", "sub\\b.md").is_err());
+        assert!(root.path.join("a.md").is_file());
+    }
+
+    #[test]
+    fn rename_親へ抜ける名前は拒否する() {
+        let root = TempRoot::new("ren_dots");
+        root.file("a.md", "# a");
+        assert!(rename_entry_impl(&root.path, "a.md", "..").is_err());
+        assert!(rename_entry_impl(&root.path, "a.md", ".").is_err());
+    }
+
+    #[test]
+    fn rename_空の名前は拒否する() {
+        let root = TempRoot::new("ren_empty");
+        root.file("a.md", "# a");
+        assert!(rename_entry_impl(&root.path, "a.md", "   ").is_err());
+    }
+
+    #[test]
+    fn rename_使えない文字を含む名前は拒否する() {
+        let root = TempRoot::new("ren_bad_char");
+        root.file("a.md", "# a");
+        assert!(rename_entry_impl(&root.path, "a.md", "a:b.md").is_err());
+        assert!(rename_entry_impl(&root.path, "a.md", "a?b.md").is_err());
+    }
+
+    #[test]
+    fn rename_既存の名前とぶつかる場合は上書きしない() {
+        let root = TempRoot::new("ren_dup");
+        root.file("a.md", "# a");
+        root.file("b.md", "# b");
+        assert!(rename_entry_impl(&root.path, "a.md", "b.md").is_err());
+        assert_eq!(
+            std::fs::read_to_string(root.path.join("b.md")).expect("読み取り"),
+            "# b"
+        );
+    }
+
+    #[test]
+    fn rename_大文字小文字だけの変更は通す() {
+        let root = TempRoot::new("ren_case");
+        root.file("a.md", "# a");
+        let rel = rename_entry_impl(&root.path, "a.md", "A.md").expect("改名成功");
+        assert_eq!(rel, "A.md");
+    }
+
+    #[test]
+    fn rename_対応外の拡張子へは変更できない() {
+        let root = TempRoot::new("ren_ext");
+        root.file("a.md", "# a");
+        assert!(rename_entry_impl(&root.path, "a.md", "a.txt").is_err());
+        assert!(root.path.join("a.md").is_file());
+    }
+
+    #[test]
+    fn rename_ルート外の対象は拒否する() {
+        let root = TempRoot::new("ren_outside");
+        root.file("a.md", "# a");
+        assert!(rename_entry_impl(&root.path, "../a.md", "b.md").is_err());
+        assert!(rename_entry_impl(&root.path, "", "b").is_err());
     }
 }
