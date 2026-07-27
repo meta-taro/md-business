@@ -130,6 +130,78 @@ export function collectFolderPaths(tree: readonly TreeNode[]): string[] {
   return paths;
 }
 
+/** 十字キー操作の結果。何も起きない場合は null。 */
+export type TreeKeyAction =
+  | { kind: 'move'; index: number }
+  | { kind: 'expand'; path: string }
+  | { kind: 'collapse'; path: string };
+
+/** 十字キー操作の判断材料。 */
+export interface TreeKeyContext {
+  /** 画面に出ている行（平坦化済み）。 */
+  rows: readonly VisibleRow[];
+  /** いま選択されている行の位置。 */
+  index: number;
+  /** 展開中のフォルダ path。 */
+  expanded: ReadonlySet<string>;
+  /** 開閉を許すか。絞り込み中は全展開の一時ツリーなので移動だけにする。 */
+  toggleable: boolean;
+}
+
+/**
+ * 十字キー・Home・End が起こす操作を決める。
+ *
+ * 上下は行送り、左右はフォルダの開閉と階層移動に割り当てる（ファイルツリーの一般的な作法）。
+ * 端では止め、押しっぱなしで先頭・末尾を巻き込まないようにする。
+ * Enter / Space は行が button なので既定動作に任せ、ここでは扱わない。
+ */
+export function decideTreeKey(key: string, ctx: TreeKeyContext): TreeKeyAction | null {
+  const { rows, expanded, toggleable } = ctx;
+  if (rows.length === 0) return null;
+  // 走査後に行数が変わると選択位置が浮くことがある。まず先頭へ寄せて操作可能に戻す。
+  if (ctx.index < 0 || ctx.index >= rows.length) {
+    return key.startsWith('Arrow') || key === 'Home' || key === 'End'
+      ? { kind: 'move', index: 0 }
+      : null;
+  }
+
+  const index = ctx.index;
+  const row = rows[index];
+  const move = (to: number): TreeKeyAction | null => (to === index ? null : { kind: 'move', index: to });
+
+  switch (key) {
+    case 'ArrowDown':
+      return move(Math.min(index + 1, rows.length - 1));
+    case 'ArrowUp':
+      return move(Math.max(index - 1, 0));
+    case 'Home':
+      return move(0);
+    case 'End':
+      return move(rows.length - 1);
+    case 'ArrowRight': {
+      if (row.node.kind !== 'folder') return null;
+      if (!expanded.has(row.node.path)) {
+        return toggleable ? { kind: 'expand', path: row.node.path } : null;
+      }
+      // 展開済みなら最初の子へ入る。子が無ければ次の行は同階層以上なので動かさない。
+      const next = rows[index + 1];
+      return next !== undefined && next.depth > row.depth ? move(index + 1) : null;
+    }
+    case 'ArrowLeft': {
+      if (toggleable && row.node.kind === 'folder' && expanded.has(row.node.path)) {
+        return { kind: 'collapse', path: row.node.path };
+      }
+      // それ以外は親フォルダへ戻る（手前に向かって最初に見つかる浅い行）。
+      for (let i = index - 1; i >= 0; i -= 1) {
+        if (rows[i].depth < row.depth) return move(i);
+      }
+      return null;
+    }
+    default:
+      return null;
+  }
+}
+
 /**
  * 展開集合に従い可視ノードを深さ優先で平坦化する。
  * フォルダはその `path` が `expanded` に含まれる時だけ children を辿る。

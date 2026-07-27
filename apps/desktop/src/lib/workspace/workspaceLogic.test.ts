@@ -9,6 +9,7 @@ import {
   filterTree,
   collectFolderPaths,
   shouldClearFilter,
+  decideTreeKey,
   type VisibleRow,
 } from './workspaceLogic';
 
@@ -287,5 +288,122 @@ describe('collectFolderPaths', () => {
   it('フォルダが無ければ空配列', () => {
     const tree = buildTree(entries('x.md', 'y.md'));
     expect(collectFolderPaths(tree)).toEqual([]);
+  });
+});
+
+describe('decideTreeKey', () => {
+  // docs/                (0)
+  //   sub/               (1)
+  //     a.md             (2)
+  //   b.md               (3)
+  // empty/               (4)
+  // z.md                 (5)
+  const tree = buildTree(entries('docs/sub/a.md', 'docs/b.md', 'z.md'));
+  const withEmpty = [
+    ...tree.filter((n) => n.path === 'docs'),
+    { name: 'empty', path: 'empty', kind: 'folder' as const, children: [] },
+    ...tree.filter((n) => n.path === 'z.md'),
+  ];
+  const allOpen = new Set(['docs', 'docs/sub', 'empty']);
+  const rows = flattenVisible(withEmpty, allOpen);
+  const ctx = (index: number, expanded: ReadonlySet<string> = allOpen) => ({
+    rows,
+    index,
+    expanded,
+    toggleable: true,
+  });
+
+  it('行の並びが前提どおり', () => {
+    expect(rowLabels(rows)).toEqual([
+      '0:folder:docs',
+      '1:folder:docs/sub',
+      '2:file:docs/sub/a.md',
+      '1:file:docs/b.md',
+      '0:folder:empty',
+      '0:file:z.md',
+    ]);
+  });
+
+  it('下キーで次の行へ、末尾では止まる', () => {
+    expect(decideTreeKey('ArrowDown', ctx(0))).toEqual({ kind: 'move', index: 1 });
+    expect(decideTreeKey('ArrowDown', ctx(5))).toBeNull();
+  });
+
+  it('上キーで前の行へ、先頭では止まる', () => {
+    expect(decideTreeKey('ArrowUp', ctx(3))).toEqual({ kind: 'move', index: 2 });
+    expect(decideTreeKey('ArrowUp', ctx(0))).toBeNull();
+  });
+
+  it('Home / End で先頭・末尾へ飛ぶ', () => {
+    expect(decideTreeKey('Home', ctx(3))).toEqual({ kind: 'move', index: 0 });
+    expect(decideTreeKey('End', ctx(0))).toEqual({ kind: 'move', index: 5 });
+    expect(decideTreeKey('Home', ctx(0))).toBeNull();
+    expect(decideTreeKey('End', ctx(5))).toBeNull();
+  });
+
+  it('右キー: 閉じたフォルダは開く', () => {
+    const closed = new Set<string>();
+    const closedRows = flattenVisible(withEmpty, closed);
+    expect(
+      decideTreeKey('ArrowRight', { rows: closedRows, index: 0, expanded: closed, toggleable: true }),
+    ).toEqual({ kind: 'expand', path: 'docs' });
+  });
+
+  it('右キー: 開いたフォルダは最初の子へ入る', () => {
+    expect(decideTreeKey('ArrowRight', ctx(0))).toEqual({ kind: 'move', index: 1 });
+  });
+
+  it('右キー: 子の無いフォルダでは動かない', () => {
+    expect(decideTreeKey('ArrowRight', ctx(4))).toBeNull();
+  });
+
+  it('右キー: ファイルでは動かない', () => {
+    expect(decideTreeKey('ArrowRight', ctx(2))).toBeNull();
+  });
+
+  it('左キー: 開いたフォルダは閉じる', () => {
+    expect(decideTreeKey('ArrowLeft', ctx(1))).toEqual({ kind: 'collapse', path: 'docs/sub' });
+  });
+
+  it('左キー: ファイルは親フォルダへ戻る', () => {
+    expect(decideTreeKey('ArrowLeft', ctx(2))).toEqual({ kind: 'move', index: 1 });
+    expect(decideTreeKey('ArrowLeft', ctx(3))).toEqual({ kind: 'move', index: 0 });
+  });
+
+  it('左キー: 閉じたフォルダは親フォルダへ戻る', () => {
+    const expanded = new Set(['docs']);
+    const partial = flattenVisible(withEmpty, expanded);
+    // 0:docs / 1:docs/sub(閉) / 2:docs/b.md / 3:empty / 4:z.md
+    expect(decideTreeKey('ArrowLeft', { rows: partial, index: 1, expanded, toggleable: true })).toEqual({
+      kind: 'move',
+      index: 0,
+    });
+  });
+
+  it('左キー: 最上位では動かない', () => {
+    expect(decideTreeKey('ArrowLeft', ctx(5))).toBeNull();
+  });
+
+  it('フィルタ中（toggleable=false）は開閉せず移動だけになる', () => {
+    expect(decideTreeKey('ArrowLeft', { ...ctx(1), toggleable: false })).toEqual({
+      kind: 'move',
+      index: 0,
+    });
+    const closed = new Set<string>();
+    const closedRows = flattenVisible(withEmpty, closed);
+    expect(
+      decideTreeKey('ArrowRight', { rows: closedRows, index: 0, expanded: closed, toggleable: false }),
+    ).toBeNull();
+  });
+
+  it('対象外のキー・行が無いときは何もしない', () => {
+    expect(decideTreeKey('a', ctx(0))).toBeNull();
+    expect(decideTreeKey('Enter', ctx(0))).toBeNull();
+    expect(decideTreeKey('ArrowDown', { rows: [], index: 0, expanded: allOpen, toggleable: true })).toBeNull();
+  });
+
+  it('選択行が失われている（index が範囲外）ときは先頭へ寄せる', () => {
+    expect(decideTreeKey('ArrowDown', ctx(99))).toEqual({ kind: 'move', index: 0 });
+    expect(decideTreeKey('ArrowUp', ctx(-1))).toEqual({ kind: 'move', index: 0 });
   });
 });

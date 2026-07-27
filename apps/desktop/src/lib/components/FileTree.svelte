@@ -3,6 +3,7 @@
   // （DOC-SPEC-DESKTOP-2026-0001 §3.3 / §6.1）。走査・読込は Rust コマンド、可視行の
   // 平坦化は workspaceLogic の純関数（単体テスト済み）に委譲する。スキーマ別アイコン色・
   // 選択ハイライトの仕上げは Phase D。
+  import { tick } from 'svelte';
   import { invoke } from '@tauri-apps/api/core';
   import { openUrl, revealItemInDir } from '@tauri-apps/plugin-opener';
   import { workspace } from '$lib/workspace/workspace.svelte';
@@ -11,6 +12,7 @@
     filterTree,
     collectFolderPaths,
     shouldClearFilter,
+    decideTreeKey,
   } from '$lib/workspace/workspaceLogic';
   import { git } from '$lib/git/git.svelte';
   import { diffView } from '$lib/git/diffView.svelte';
@@ -47,6 +49,39 @@
       // （差分は「ソース管理パネルで変更ファイルをクリックした間だけ」の一時表示）。
       diffView.reset();
       void workspace.select(path);
+    }
+  }
+
+  // ── 十字キー操作 ──────────────────────────────────────────────
+  // ツリー全体で Tab 位置を 1 つに絞り（roving tabindex）、中の移動は十字キーで行う。
+  // 何が起きるかの判断は decideTreeKey（単体テスト済み）に委ね、ここは focus 当てだけ持つ。
+  let treeEl = $state<HTMLElement | null>(null);
+  let focusIndex = $state(0);
+  // 走査やフィルタで行が減ると位置が浮く。Tab で必ずどこかに入れるよう先頭へ寄せる。
+  const tabIndex = $derived(focusIndex < rows.length ? focusIndex : 0);
+
+  async function focusRow(index: number): Promise<void> {
+    focusIndex = index;
+    // 開閉直後は行数が変わる。DOM が揃ってから当てる。
+    await tick();
+    treeEl?.querySelectorAll<HTMLButtonElement>('button.row')[index]?.focus();
+  }
+
+  function onTreeKeydown(e: KeyboardEvent): void {
+    const action = decideTreeKey(e.key, {
+      rows,
+      index: focusIndex,
+      expanded: workspace.expanded,
+      // 絞り込み中は全展開の一時ツリーなので、開閉はさせず移動だけにする。
+      toggleable: !filtering,
+    });
+    if (action === null) return;
+    e.preventDefault();
+    if (action.kind === 'move') {
+      void focusRow(action.index);
+    } else {
+      // expand は畳んだフォルダ、collapse は開いたフォルダにだけ返るので切替で足りる。
+      workspace.toggle(action.path);
     }
   }
 
@@ -312,18 +347,28 @@
       {/if}
     </div>
   {:else}
-    <ul class="tree" onscroll={closeMenu}>
-      {#each rows as row (row.node.path)}
+    <!-- 十字キーはツリー全体で受け、行の button には roving tabindex を配る。 -->
+    <ul class="tree" role="tree" bind:this={treeEl} onscroll={closeMenu} onkeydown={onTreeKeydown}>
+      {#each rows as row, i (row.node.path)}
         {@const node = row.node}
         {@const gitState = node.kind === 'file' ? git.stateOf(node.path) : null}
-        <li>
+        {@const selected = node.kind === 'file' && workspace.activePath === node.path}
+        <li role="none">
           <button
             class="row"
-            class:active={node.kind === 'file' && workspace.activePath === node.path}
+            class:active={selected}
             type="button"
+            role="treeitem"
+            tabindex={i === tabIndex ? 0 : -1}
+            aria-level={row.depth + 1}
+            aria-selected={selected}
+            aria-expanded={node.kind === 'folder' ? workspace.expanded.has(node.path) : undefined}
             style="--depth: {row.depth}"
             data-git={gitState}
-            onclick={() => onRowClick(node.path, node.kind)}
+            onclick={() => {
+              focusIndex = i;
+              onRowClick(node.path, node.kind);
+            }}
             oncontextmenu={(e) => openMenu(e, node.path, node.kind)}
             title={node.path}
           >
