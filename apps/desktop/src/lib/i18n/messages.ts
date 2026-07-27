@@ -97,6 +97,14 @@ export interface Messages {
   'help.checkUpdate': string;
   'help.manual': string;
   'help.shortcuts': string;
+  'help.shortcutsGrid': string;
+  'help.scGridEdit': string;
+  'help.scGridSelect': string;
+  'help.scGridSelectAll': string;
+  'help.scGridCopy': string;
+  'help.scGridPaste': string;
+  'help.scGridUndo': string;
+  'help.scGridExitFullscreen': string;
   'help.license': string;
   'help.repository': string;
   'help.openInBrowser': string;
@@ -202,6 +210,14 @@ const en: Messages = {
   'help.checkUpdate': 'Check for updates',
   'help.manual': 'User guide',
   'help.shortcuts': 'Keyboard shortcuts',
+  'help.shortcutsGrid': 'Verification grid',
+  'help.scGridEdit': 'Edit cell',
+  'help.scGridSelect': 'Extend selection',
+  'help.scGridSelectAll': 'Select whole table',
+  'help.scGridCopy': 'Copy selection',
+  'help.scGridPaste': 'Paste',
+  'help.scGridUndo': 'Undo / redo',
+  'help.scGridExitFullscreen': 'Leave full screen',
   'help.license': 'License',
   'help.repository': 'Repository',
   'help.openInBrowser': 'Open in browser',
@@ -302,6 +318,14 @@ const ja: Messages = {
   'help.checkUpdate': '更新を確認',
   'help.manual': '操作マニュアル',
   'help.shortcuts': 'キーボードショートカット',
+  'help.shortcutsGrid': '検証グリッド',
+  'help.scGridEdit': 'セルを編集',
+  'help.scGridSelect': '選択範囲を広げる',
+  'help.scGridSelectAll': '表全体を選択',
+  'help.scGridCopy': '選択範囲をコピー',
+  'help.scGridPaste': '貼り付け',
+  'help.scGridUndo': '元に戻す / やり直す',
+  'help.scGridExitFullscreen': '全画面を抜ける',
   'help.license': 'ライセンス',
   'help.repository': 'リポジトリ',
   'help.openInBrowser': 'ブラウザで開く',
@@ -402,6 +426,14 @@ const zh: Messages = {
   'help.checkUpdate': '检查更新',
   'help.manual': '操作手册',
   'help.shortcuts': '键盘快捷键',
+  'help.shortcutsGrid': '验证网格',
+  'help.scGridEdit': '编辑单元格',
+  'help.scGridSelect': '扩展选区',
+  'help.scGridSelectAll': '选择整个表格',
+  'help.scGridCopy': '复制选区',
+  'help.scGridPaste': '粘贴',
+  'help.scGridUndo': '撤销 / 重做',
+  'help.scGridExitFullscreen': '退出全屏',
   'help.license': '许可证',
   'help.repository': '仓库',
   'help.openInBrowser': '在浏览器中打开',
@@ -502,6 +534,14 @@ const ko: Messages = {
   'help.checkUpdate': '업데이트 확인',
   'help.manual': '사용 설명서',
   'help.shortcuts': '키보드 단축키',
+  'help.shortcutsGrid': '검증 그리드',
+  'help.scGridEdit': '셀 편집',
+  'help.scGridSelect': '선택 영역 확장',
+  'help.scGridSelectAll': '표 전체 선택',
+  'help.scGridCopy': '선택 영역 복사',
+  'help.scGridPaste': '붙여넣기',
+  'help.scGridUndo': '실행 취소 / 다시 실행',
+  'help.scGridExitFullscreen': '전체 화면 나가기',
   'help.license': '라이선스',
   'help.repository': '저장소',
   'help.openInBrowser': '브라우저에서 열기',

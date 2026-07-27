@@ -59,6 +59,18 @@
     { keys: 'Ctrl / ⌘ + S', label: t('action.save') },
     { keys: 'Ctrl / ⌘ + P', label: t('action.pdfExport') },
   ]);
+
+  // 検証グリッドのキー操作。表計算と同じ手癖で記入できることが売りなので、
+  // どのキーが効くかをここに集約して見せる（TsvGrid の onGridKeydown と対応）。
+  const gridShortcuts = $derived<{ keys: string; label: string }[]>([
+    { keys: 'Enter / F2', label: t('help.scGridEdit') },
+    { keys: 'Shift + ↑↓←→ / Home / End', label: t('help.scGridSelect') },
+    { keys: 'Ctrl / ⌘ + A', label: t('help.scGridSelectAll') },
+    { keys: 'Ctrl / ⌘ + C', label: t('help.scGridCopy') },
+    { keys: 'Ctrl / ⌘ + V', label: t('help.scGridPaste') },
+    { keys: 'Ctrl / ⌘ + Z / Y', label: t('help.scGridUndo') },
+    { keys: 'Esc', label: t('help.scGridExitFullscreen') },
+  ]);
 </script>
 
 <svelte:window onkeydown={onKeydown} />
@@ -171,6 +183,15 @@
         <h3 class="block-title">{t('help.shortcuts')}</h3>
         <ul class="sc-list">
           {#each shortcuts as sc (sc.label)}
+            <li class="sc-row">
+              <span class="sc-label">{sc.label}</span>
+              <kbd class="sc-keys">{sc.keys}</kbd>
+            </li>
+          {/each}
+        </ul>
+        <h4 class="sc-sub">{t('help.shortcutsGrid')}</h4>
+        <ul class="sc-list">
+          {#each gridShortcuts as sc (sc.label)}
             <li class="sc-row">
               <span class="sc-label">{sc.label}</span>
               <kbd class="sc-keys">{sc.keys}</kbd>
@@ -327,6 +348,15 @@
     font-size: var(--text-xs-size);
     font-weight: 600;
     color: var(--text-secondary);
+  }
+
+  /* ショートカット一覧の中見出し（グリッド操作の塊）。見出し自体は控えめに。 */
+  .sc-sub {
+    margin: var(--space-3) 0 var(--space-1);
+    font-size: var(--text-2xs-size, 10px);
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    color: var(--text-tertiary);
   }
 
   /* 「更新を確認」。パネル幅いっぱいの行アクション。押すとポップオーバーを閉じ、

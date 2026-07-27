@@ -27,10 +27,23 @@ md-business の価値は **git diff / 履歴レビューが効く**こと。カ�
 
 `escapeCell` / `unescapeCell` がこの変換を担う（`unescapeCell(escapeCell(x)) === x`）。
 
-## 状態
+## 公開 API
 
-Phase 1 実装中（Issue 010）。現状はエスケープ純関数のみ公開。
-パーサ / シリアライザ / バリデーション / Desktop グリッドビューは順次追加。
+| 関数 | 役割 |
+|---|---|
+| `escapeCell` / `unescapeCell` | セルのバックスラッシュエスケープ（上表の 4 種） |
+| `classifyLine` | 物理行の種別判定（magic / meta / directive / data / blank） |
+| `parseTypedHeader` / `serializeHeader` | 型付きヘッダ `列名[:型(パラメータ)][!]` の解釈と書き戻し |
+| `parseTsv` | TSV テキスト → `TsvDocument`（formatId / meta / directives / columns / rows） |
+| `validateTsv` | 列型に沿ったデータセルの検査（required / enum / date / number / url ほか） |
+| `serializeTsv` | `TsvDocument` → TSV テキスト（`parseTsv` の逆変換） |
+
+`parseTsv(serializeTsv(doc))` は正規化済みドキュメントを復元する（round-trip）。
+
+## 仕様書
+
+形式の詳細（行種別・`#@` ディレクティブ・型付きヘッダ・バリデーションコード・ラウンドトリップの
+留意点）は [`docs/spec/test-spec-tsv-v1.md`](../../docs/spec/test-spec-tsv-v1.md) を参照。
 
 ## ライセンス
 
