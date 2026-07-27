@@ -256,11 +256,13 @@ describe('updateDocument', () => {
     expect(after.body).toContain('改訂');
   });
 
+  // 壊す対象は autofill で導出できない項目を選ぶ。taxSummary / totals は items から
+  // 再計算されるため、消しても検証は通る（省略できることが schema-invoice の仕様）。
   it('更新で必須が壊れれば valid:false / errors 非空', async () => {
     const store = seed();
     const r = await updateDocument(store, {
       path: 'invoices/INV-2026-0001.md',
-      frontmatter: { totals: null },
+      frontmatter: { invoiceNumber: null },
     });
     expect(r.ok).toBe(true);
     if (r.ok) {

@@ -14,15 +14,42 @@ import type { CompiledValidator } from '@md-business/core';
 import Ajv2020 from 'ajv/dist/2020.js';
 import addFormats from 'ajv-formats';
 
-import { invoiceSchema, SCHEMA_VERSION as INVOICE_ID } from '@md-business/schema-invoice';
-import { specSchema, SCHEMA_VERSION as SPEC_ID } from '@md-business/schema-spec';
-import { testSpecSchema, SCHEMA_VERSION as TEST_SPEC_ID } from '@md-business/schema-test-spec';
-import { dbSpecSchema, SCHEMA_VERSION as DB_SPEC_ID } from '@md-business/schema-db-spec';
+import {
+  invoiceSchema,
+  normalizeInvoiceFrontmatter,
+  autofillInvoice,
+  SCHEMA_VERSION as INVOICE_ID,
+} from '@md-business/schema-invoice';
+import {
+  specSchema,
+  normalizeSpecFrontmatter,
+  autofillSpec,
+  SCHEMA_VERSION as SPEC_ID,
+} from '@md-business/schema-spec';
+import {
+  testSpecSchema,
+  normalizeTestSpecFrontmatter,
+  autofillTestSpec,
+  SCHEMA_VERSION as TEST_SPEC_ID,
+} from '@md-business/schema-test-spec';
+import {
+  dbSpecSchema,
+  normalizeDbSpecFrontmatter,
+  autofillDbSpec,
+  SCHEMA_VERSION as DB_SPEC_ID,
+} from '@md-business/schema-db-spec';
 import {
   nosqlDbSpecSchema,
+  normalizeNosqlDbSpecFrontmatter,
+  autofillNosqlDbSpec,
   SCHEMA_VERSION as NOSQL_ID,
 } from '@md-business/schema-nosql-db-spec';
-import { apiSpecSchema, SCHEMA_VERSION as API_ID } from '@md-business/schema-api-spec';
+import {
+  apiSpecSchema,
+  normalizeApiSpecFrontmatter,
+  autofillApiSpec,
+  SCHEMA_VERSION as API_ID,
+} from '@md-business/schema-api-spec';
 
 /*
  * validator は各 schema パッケージの JSON Schema から実行時に Ajv でコンパイルする。
@@ -38,17 +65,47 @@ import { apiSpecSchema, SCHEMA_VERSION as API_ID } from '@md-business/schema-api
 const ajv = new Ajv2020({ allErrors: true, strict: false });
 addFormats(ajv);
 
-/** JSON Schema を CompiledValidator（standalone と同形の検証関数）へコンパイルする。 */
-function compile(schema: object): CompiledValidator {
-  return ajv.compile(schema) as CompiledValidator;
+/** 各 schema パッケージの前処理（normalize / autofill）の共通シグネチャ。 */
+type Transform = (input: unknown) => { data: Record<string, unknown> };
+
+/**
+ * JSON Schema を CompiledValidator（standalone と同形の検証関数）へコンパイルし、
+ * **検証の直前に各パッケージの前処理を通す**ラッパを返す。
+ *
+ * schema パッケージが定める文書パイプラインは normalize → autofill → validate の 3 段で、
+ * JSON Schema は最終段の正準形しか知らない。前 2 段を飛ばすと、
+ *
+ * - `normalize` 抜け … 日本語キーの文書が「必須プロパティが無い」で全滅する
+ * - `autofill` 抜け … 集計欄を省いた文書が落ち、`taxRounding` のような autofill 専用の
+ *   指示キーが `additionalProperties` 違反として残る
+ *
+ * となり、正しい文書が invalid と報告される。ここで 3 段を揃えることで、MCP 経由でも
+ * 各パッケージのパーサ（`parse*Markdown`）と同じ判定になる。
+ *
+ * 変換するのは **検証に渡すコピーだけ**。呼び出し側が保持する frontmatter には触れないので、
+ * ファイルへ書き出される文書は書き手が選んだ言語のキーと省略のまま残る。
+ */
+function compile(schema: object, ...transforms: Transform[]): CompiledValidator {
+  const validate = ajv.compile(schema) as CompiledValidator;
+  const wrapped: CompiledValidator = (data: unknown) => {
+    const prepared = transforms.reduce<unknown>((acc, transform) => transform(acc).data, data);
+    const ok = validate(prepared);
+    wrapped.errors = validate.errors ?? null;
+    return ok;
+  };
+  return wrapped;
 }
 
-const validateInvoice = compile(invoiceSchema);
-const validateSpec = compile(specSchema);
-const validateTestSpec = compile(testSpecSchema);
-const validateDbSpec = compile(dbSpecSchema);
-const validateNosqlDbSpec = compile(nosqlDbSpecSchema);
-const validateApiSpec = compile(apiSpecSchema);
+const validateInvoice = compile(invoiceSchema, normalizeInvoiceFrontmatter, autofillInvoice);
+const validateSpec = compile(specSchema, normalizeSpecFrontmatter, autofillSpec);
+const validateTestSpec = compile(testSpecSchema, normalizeTestSpecFrontmatter, autofillTestSpec);
+const validateDbSpec = compile(dbSpecSchema, normalizeDbSpecFrontmatter, autofillDbSpec);
+const validateNosqlDbSpec = compile(
+  nosqlDbSpecSchema,
+  normalizeNosqlDbSpecFrontmatter,
+  autofillNosqlDbSpec,
+);
+const validateApiSpec = compile(apiSpecSchema, normalizeApiSpecFrontmatter, autofillApiSpec);
 
 /** レジストリ 1 エントリ。MCP ツールが必要とする最小限（描画は持たない）。 */
 export interface SchemaEntry {
