@@ -76,6 +76,10 @@ export interface Messages {
   'tree.noFiles': string;
   'tree.truncated': string;
   // 左レールの右クリックメニュー（reveal / パスコピー / リモートで開く）
+  'tree.recent': string;
+  'tree.recentPick': string;
+  'tree.recentMissing': string;
+  'tree.recentForget': string;
   'tree.menuReveal': string;
   'tree.menuCopyPath': string;
   'tree.menuOpenForge': string;
@@ -192,6 +196,10 @@ const en: Messages = {
   'tree.filterNoMatch': 'No files match\n"{query}"',
   'tree.noFiles': 'No .md / .tsv\nfiles found',
   'tree.truncated': 'Showing partial results (limit reached)',
+  'tree.recent': 'Recent folders',
+  'tree.recentPick': 'Pick a recent folder',
+  'tree.recentMissing': 'Not found',
+  'tree.recentForget': 'Remove from list',
   'tree.menuReveal': 'Reveal in File Explorer',
   'tree.menuCopyPath': 'Copy full path',
   'tree.menuOpenForge': 'Open on remote',
@@ -300,6 +308,10 @@ const ja: Messages = {
   'tree.filterNoMatch': '「{query}」に\n一致するファイルがありません',
   'tree.noFiles': '.md / .tsv が\n見つかりませんでした',
   'tree.truncated': '一部のみ表示（上限に達したため打ち切りました）',
+  'tree.recent': '最近開いたフォルダ',
+  'tree.recentPick': '最近開いたフォルダから選ぶ',
+  'tree.recentMissing': '見つかりません',
+  'tree.recentForget': '一覧から削除',
   'tree.menuReveal': 'エクスプローラーで表示',
   'tree.menuCopyPath': 'フルパスをコピー',
   'tree.menuOpenForge': 'リモートで開く',
@@ -408,6 +420,10 @@ const zh: Messages = {
   'tree.filterNoMatch': '没有匹配\n“{query}”的文件',
   'tree.noFiles': '未找到\n.md / .tsv 文件',
   'tree.truncated': '仅显示部分（已达上限而截断）',
+  'tree.recent': '最近打开的文件夹',
+  'tree.recentPick': '从最近打开的文件夹中选择',
+  'tree.recentMissing': '未找到',
+  'tree.recentForget': '从列表中移除',
   'tree.menuReveal': '在资源管理器中显示',
   'tree.menuCopyPath': '复制完整路径',
   'tree.menuOpenForge': '在远程仓库打开',
@@ -516,6 +532,10 @@ const ko: Messages = {
   'tree.filterNoMatch': '"{query}"과(와)\n일치하는 파일이 없습니다',
   'tree.noFiles': '.md / .tsv 파일을\n찾을 수 없습니다',
   'tree.truncated': '일부만 표시 (상한에 도달하여 중단)',
+  'tree.recent': '최근 연 폴더',
+  'tree.recentPick': '최근 연 폴더에서 선택',
+  'tree.recentMissing': '찾을 수 없음',
+  'tree.recentForget': '목록에서 삭제',
   'tree.menuReveal': '탐색기에서 표시',
   'tree.menuCopyPath': '전체 경로 복사',
   'tree.menuOpenForge': '원격 저장소에서 열기',

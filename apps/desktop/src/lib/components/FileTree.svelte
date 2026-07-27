@@ -16,6 +16,7 @@
   import { diffView } from '$lib/git/diffView.svelte';
   import { gitMarkLetter, type GitFileState } from '$lib/git/gitStatus';
   import { t } from '$lib/i18n/i18n.svelte';
+  import { folderLabel } from '$lib/workspace/recentFolders';
   import { toAbsolutePath, menuActionsForKind, type FileTreeMenuAction } from './fileTreeMenu';
 
   // git 状態 → ホバー説明（バッジ title）。色マークの意味を言葉でも補う。
@@ -55,6 +56,19 @@
       e.preventDefault();
       filterQuery = '';
     }
+  }
+
+  // ── 最近開いたフォルダ ────────────────────────────────────────
+  // 空状態では一覧をそのまま並べ、フォルダを開いている間はヘッダーの ▾ から出す
+  // （開いている一覧は場所を取るので、必要なときだけ開く）。
+  let recentOpen = $state(false);
+  // 今開いているフォルダは選び直す意味がないので一覧から外す。
+  const recentList = $derived(workspace.recent.filter((p) => p !== workspace.root));
+
+  async function pickRecent(path: string): Promise<void> {
+    await workspace.openRecent(path);
+    // 開けなかったフォルダには一覧上で印が付く。閉じると何が起きたか分からないので開いたまま。
+    if (!workspace.missingRecent.has(path)) recentOpen = false;
   }
 
   // ── 右クリックコンテキストメニュー（reveal / パスコピー / リモートで開く）──
@@ -108,14 +122,52 @@
     }
   }
 
-  // メニュー表示中の Esc で閉じる（フィルタ入力の Esc とは menu!==null で排他）。
+  // メニュー / 履歴ポップオーバー表示中の Esc で閉じる
+  // （フィルタ入力の Esc とは、開いているものを優先することで排他になる）。
   function onWindowKeydown(e: KeyboardEvent): void {
-    if (e.key === 'Escape' && menu !== null) {
+    if (e.key !== 'Escape') return;
+    if (menu !== null) {
       e.preventDefault();
       closeMenu();
+    } else if (recentOpen) {
+      e.preventDefault();
+      recentOpen = false;
     }
   }
 </script>
+
+<!-- 履歴 1 件分の行。空状態の一覧とヘッダーのポップオーバーで同じ見た目を使う。 -->
+{#snippet recentRow(path: string)}
+  {@const label = folderLabel(path)}
+  {@const missing = workspace.missingRecent.has(path)}
+  <li class="recent-item" class:missing>
+    <button
+      class="recent-pick"
+      type="button"
+      onclick={() => pickRecent(path)}
+      disabled={workspace.loading}
+      title={path}
+    >
+      <span class="recent-name">{label.name}</span>
+      {#if missing}
+        <span class="recent-badge">{t('tree.recentMissing')}</span>
+      {/if}
+      {#if label.parent !== ''}
+        <!-- 同名フォルダを見分けるための親パス。長いので右側から詰めて見せる。 -->
+        <span class="recent-parent">{label.parent}</span>
+      {/if}
+    </button>
+    <button
+      class="recent-forget"
+      type="button"
+      onclick={() => workspace.forgetRecent(path)}
+      title={t('tree.recentForget')}
+      aria-label={t('tree.recentForget')}
+    >
+      ✕
+    </button>
+  </li>
+{/snippet}
 
 <nav class="filetree" class:collapsed aria-label={t('tree.label')}>
   {#if collapsed}
@@ -144,17 +196,52 @@
       <span class="title">{t('tree.explorer')}</span>
     </div>
     {#if workspace.root !== null}
-      <button
-        class="reopen"
-        type="button"
-        onclick={() => workspace.openFolder()}
-        title={t('tree.openOtherFolder')}
-        aria-label={t('tree.openOtherFolder')}
-      >
-        {t('tree.open')}
-      </button>
+      <div class="head-actions">
+        <button
+          class="reopen"
+          type="button"
+          onclick={() => workspace.openFolder()}
+          title={t('tree.openOtherFolder')}
+          aria-label={t('tree.openOtherFolder')}
+        >
+          {t('tree.open')}
+        </button>
+        {#if recentList.length > 0}
+          <!-- 履歴からの選び直し。開いているフォルダは除いてあるので、1 件でも意味がある。 -->
+          <button
+            class="reopen recent-toggle"
+            class:on={recentOpen}
+            type="button"
+            onclick={() => (recentOpen = !recentOpen)}
+            title={t('tree.recentPick')}
+            aria-label={t('tree.recentPick')}
+            aria-expanded={recentOpen}
+          >
+            ▾
+          </button>
+        {/if}
+      </div>
     {/if}
   </div>
+
+  {#if recentOpen && recentList.length > 0}
+    <!-- クリック外しで閉じる（ポップオーバーの外側全面）。 -->
+    <button
+      class="recent-backdrop"
+      type="button"
+      tabindex="-1"
+      aria-hidden="true"
+      onclick={() => (recentOpen = false)}
+    ></button>
+    <div class="recent-pop">
+      <p class="recent-head">{t('tree.recent')}</p>
+      <ul class="recent-list">
+        {#each recentList as path (path)}
+          {@render recentRow(path)}
+        {/each}
+      </ul>
+    </div>
+  {/if}
 
   {#if workspace.root !== null}
     <!-- ファイル名フィルタ（エクスプローラーヘッダー直下）。入力中は絞り込みツリーを全展開表示。 -->
@@ -203,6 +290,17 @@
       >
         {workspace.loading ? t('tree.loading') : t('tree.openFolder')}
       </button>
+      {#if recentList.length > 0}
+        <!-- 起動直後に毎回ダイアログを辿らずに済むよう、過去に開いたフォルダを直接並べる。 -->
+        <div class="recent-empty">
+          <p class="recent-head">{t('tree.recent')}</p>
+          <ul class="recent-list">
+            {#each recentList as path (path)}
+              {@render recentRow(path)}
+            {/each}
+          </ul>
+        </div>
+      {/if}
     </div>
   {:else if rows.length === 0}
     <!-- フィルタで 0 件 か 空フォルダ かで文言を分ける。 -->
@@ -312,6 +410,8 @@
     height: 100%;
     display: flex;
     flex-direction: column;
+    /* 履歴ポップオーバーをヘッダー直下へ重ねるための基準。 */
+    position: relative;
     background: var(--bg-subtle);
     border-right: 1px solid var(--border);
     overflow: hidden;
@@ -395,6 +495,13 @@
     color: var(--text-tertiary);
   }
 
+  .head-actions {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    flex: none;
+  }
+
   .reopen {
     height: 22px;
     padding: 0 var(--space-2);
@@ -409,6 +516,166 @@
   .reopen:hover {
     background: var(--bg-hover);
     color: var(--text-primary);
+  }
+
+  /* ── 最近開いたフォルダ ───────────────────────────────────── */
+  .recent-toggle {
+    padding: 0 var(--space-1);
+    font-size: 10px;
+    line-height: 1;
+  }
+
+  .recent-toggle.on {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+  }
+
+  .recent-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 80;
+    border: none;
+    padding: 0;
+    background: transparent;
+    cursor: default;
+  }
+
+  /* ヘッダー直下に重ねる。ツリーを押し下げず、閉じれば元の見え方に戻る。 */
+  .recent-pop {
+    position: absolute;
+    z-index: 81;
+    top: 34px;
+    left: var(--space-2);
+    right: var(--space-2);
+    padding: var(--space-1);
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    box-shadow: 0 6px 20px rgb(0 0 0 / 0.28);
+  }
+
+  /* 空状態では一覧を本文として置く（重ねる相手がいないため）。 */
+  .recent-empty {
+    width: 100%;
+    text-align: left;
+  }
+
+  .recent-head {
+    margin: 0 0 var(--space-1);
+    padding: 0 var(--space-2);
+    font-size: var(--text-2xs-size);
+    font-weight: var(--text-2xs-weight);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--text-tertiary);
+  }
+
+  .recent-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    /* 上限まで貯まっても畳の外へはみ出さない。 */
+    max-height: 240px;
+    overflow-y: auto;
+  }
+
+  .recent-item {
+    display: flex;
+    align-items: center;
+    border-radius: var(--radius-sm);
+  }
+
+  .recent-item:hover {
+    background: var(--bg-hover);
+  }
+
+  .recent-pick {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-2);
+    height: 28px;
+    padding: 0 var(--space-2);
+    border: none;
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: var(--text-sm-size);
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .recent-pick:hover {
+    color: var(--text-primary);
+  }
+
+  .recent-pick:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+
+  .recent-pick:focus-visible,
+  .recent-forget:focus-visible {
+    outline: none;
+    box-shadow: inset 0 0 0 2px var(--accent);
+  }
+
+  .recent-name {
+    flex: none;
+    white-space: nowrap;
+  }
+
+  /* 親パスは同名フォルダの見分け用の補助情報。入り切らない分は省略し、全体は title で見せる。 */
+  .recent-parent {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    text-align: right;
+    font-size: var(--text-2xs-size);
+    color: var(--text-tertiary);
+  }
+
+  .recent-badge {
+    flex: none;
+    font-size: var(--text-2xs-size);
+    color: var(--danger-fg);
+  }
+
+  /* 見つからないフォルダは畳まず残す（繋ぎ直せば使えるため）。押せるが薄く見せる。 */
+  .recent-item.missing .recent-name {
+    color: var(--text-tertiary);
+    text-decoration: line-through;
+  }
+
+  .recent-forget {
+    flex: none;
+    width: 20px;
+    height: 20px;
+    margin-right: var(--space-1);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    border-radius: var(--radius-full);
+    background: transparent;
+    color: var(--text-tertiary);
+    font-size: 10px;
+    line-height: 1;
+    cursor: pointer;
+    /* 誤って履歴を消さないよう、行に触れるまでは出さない。 */
+    opacity: 0;
+  }
+
+  .recent-item:hover .recent-forget,
+  .recent-forget:focus-visible {
+    opacity: 1;
+  }
+
+  .recent-forget:hover {
+    background: var(--bg-app);
+    color: var(--danger-fg);
   }
 
   /* ── ファイル名フィルタ ───────────────────────────────────── */

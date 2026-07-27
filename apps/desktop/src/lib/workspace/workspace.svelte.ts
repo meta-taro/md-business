@@ -22,9 +22,18 @@ import {
   shouldReopenFile,
 } from './workspaceLogic';
 import { parseStoredFolder } from './lastFolder';
+import {
+  addRecentFolder,
+  removeRecentFolder,
+  restoreRecentFolders,
+  serializeRecentFolders,
+} from './recentFolders';
 
 /** 最後に開いたフォルダの localStorage キー（左レール幅等と同じ名前空間）。 */
 const LAST_FOLDER_KEY = 'md-business:desktop:last-folder';
+
+/** 過去に開いたフォルダ一覧の localStorage キー。 */
+const RECENT_FOLDERS_KEY = 'md-business:desktop:recent-folders';
 
 /** Rust `scan_documents` の戻り（serde camelCase）。 */
 interface ScanResult {
@@ -64,6 +73,13 @@ class WorkspaceStore {
   error = $state<string | null>(null);
   /** 走査中フラグ。 */
   loading = $state<boolean>(false);
+  /** 過去に開いたフォルダ（最近開いた順）。空状態からの再オープンに使う。 */
+  recent = $state<string[]>([]);
+  /**
+   * 履歴のうち、今は開けないと分かっているフォルダ。移動・削除・共有ドライブの切断で起きる。
+   * 履歴からは消さず印だけ付ける（切断が一時的なら、繋ぎ直せばそのまま使えるため）。
+   */
+  missingRecent = $state<Set<string>>(new Set());
   /**
    * ファイルを開いた回数。編集では増えない。+page はこれを依存にして「開いた瞬間だけ」
    * プレビューへ即反映する（タイプ中の debounce を壊さないため）。
@@ -83,6 +99,79 @@ class WorkspaceStore {
     if (this.root === null) {
       localStorage.removeItem(LAST_FOLDER_KEY);
       this.error = null;
+    }
+  }
+
+  /**
+   * 過去に開いたフォルダ一覧を復元し、各フォルダが今も開けるかを確かめる（onMount から 1 回）。
+   * 存在確認は一覧表示より遅れて届いてよいので、待たずに走らせる。
+   */
+  loadRecent(): void {
+    if (!browser) return;
+    this.recent = restoreRecentFolders(
+      localStorage.getItem(RECENT_FOLDERS_KEY),
+      parseStoredFolder(localStorage.getItem(LAST_FOLDER_KEY)),
+    );
+    void this.checkRecent();
+  }
+
+  /** 履歴の各フォルダが今も開けるかを確かめ、開けないものへ印を付ける。 */
+  private async checkRecent(): Promise<void> {
+    const targets = this.recent;
+    const results = await Promise.all(
+      targets.map(async (path) => {
+        try {
+          return { path, exists: await invoke<boolean>('directory_exists', { path }) };
+        } catch {
+          // 確認自体に失敗した場合は「消えた」と決めつけない（印を付けず開かせてみる）。
+          return { path, exists: true };
+        }
+      }),
+    );
+    this.missingRecent = new Set(results.filter((r) => !r.exists).map((r) => r.path));
+  }
+
+  /** 「開けない」印を落とす（開けた・履歴から消した時）。 */
+  private unmarkMissing(path: string): void {
+    if (!this.missingRecent.has(path)) return;
+    const next = new Set(this.missingRecent);
+    next.delete(path);
+    this.missingRecent = next;
+  }
+
+  /** 履歴を localStorage へ書き戻す。 */
+  private persistRecent(): void {
+    if (browser) localStorage.setItem(RECENT_FOLDERS_KEY, serializeRecentFolders(this.recent));
+  }
+
+  /**
+   * 履歴から選んで開く。開く直前に存在を確かめ、消えていれば印を付けて走査しない
+   * （走査の失敗メッセージより、一覧上で消えていると分かるほうが直しやすい）。
+   */
+  async openRecent(path: string): Promise<void> {
+    this.error = null;
+    let exists = true;
+    try {
+      exists = await invoke<boolean>('directory_exists', { path });
+    } catch {
+      exists = true; // 確認できないだけなら、そのまま開いてみる
+    }
+    if (!exists) {
+      this.missingRecent = new Set([...this.missingRecent, path]);
+      return;
+    }
+    this.unmarkMissing(path);
+    await this.scan(path);
+  }
+
+  /** 履歴から取り除く（一覧の × 印）。開いているフォルダ自体には触れない。 */
+  forgetRecent(path: string): void {
+    this.recent = removeRecentFolder(this.recent, path);
+    this.unmarkMissing(path);
+    this.persistRecent();
+    // 最後に開いたフォルダを忘れさせたなら、次回起動で復元しないよう記憶も消す。
+    if (browser && parseStoredFolder(localStorage.getItem(LAST_FOLDER_KEY)) === path) {
+      localStorage.removeItem(LAST_FOLDER_KEY);
     }
   }
 
@@ -117,6 +206,10 @@ class WorkspaceStore {
       this.error = null;
       // 次回起動で自動復元できるよう、開けたフォルダを記憶する（WebView の localStorage）。
       if (browser) localStorage.setItem(LAST_FOLDER_KEY, root);
+      // 開けたフォルダは履歴の先頭へ。開けた直後なので「消えた」印は落とす。
+      this.recent = addRecentFolder(this.recent, root);
+      this.unmarkMissing(root);
+      this.persistRecent();
       // 外部（AI/CLI/他エディタ）編集の即時検知を開始する。旧 watcher は Rust 側で張り替える
       // ので再走査でも安全。監視の失敗は起動をブロックしない（検知が来なくなるだけの劣化）。
       this.startWatch(root);

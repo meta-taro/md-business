@@ -66,6 +66,18 @@ export function removeRecentFolder(paths: readonly string[], path: string): stri
 }
 
 /**
+ * 保存済みの履歴を復元する。
+ *
+ * 履歴を持たない版から更新した場合、履歴は空でも「最後に開いたフォルダ」は残っている。
+ * その 1 件を初回の履歴として引き継ぎ、更新直後の一覧が空で始まらないようにする。
+ */
+export function restoreRecentFolders(rawRecent: string | null, lastFolder: string | null): string[] {
+  const recent = parseRecentFolders(rawRecent);
+  if (recent.length > 0) return recent;
+  return lastFolder === null ? [] : addRecentFolder([], lastFolder);
+}
+
+/**
  * 表示用にフォルダ名と親パスへ分ける。一覧では末尾のフォルダ名だけが手掛かりになるが、
  * 同名フォルダ（`docs` が複数）を見分けるには親も要るため、2 段で見せられる形にする。
  * 区切りは Windows / POSIX の両方を受ける（保存値は OS が返したパスそのまま）。

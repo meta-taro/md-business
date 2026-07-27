@@ -4,6 +4,7 @@ import {
   serializeRecentFolders,
   addRecentFolder,
   removeRecentFolder,
+  restoreRecentFolders,
   folderLabel,
   RECENT_FOLDERS_MAX,
 } from './recentFolders';
@@ -101,6 +102,26 @@ describe('removeRecentFolder', () => {
     const list = ['/a', '/b'];
     removeRecentFolder(list, '/a');
     expect(list).toEqual(['/a', '/b']);
+  });
+});
+
+describe('restoreRecentFolders', () => {
+  it('保存済みの履歴をそのまま返す', () => {
+    expect(restoreRecentFolders('["/a","/b"]', null)).toEqual(['/a', '/b']);
+  });
+
+  it('履歴が空なら最後に開いたフォルダを 1 件目として引き継ぐ', () => {
+    expect(restoreRecentFolders(null, '/last')).toEqual(['/last']);
+    expect(restoreRecentFolders('[]', '/last')).toEqual(['/last']);
+  });
+
+  it('履歴があれば最後に開いたフォルダで上書きしない', () => {
+    expect(restoreRecentFolders('["/a"]', '/last')).toEqual(['/a']);
+  });
+
+  it('どちらも無ければ空', () => {
+    expect(restoreRecentFolders(null, null)).toEqual([]);
+    expect(restoreRecentFolders('壊れた値', '   ')).toEqual([]);
   });
 });
 
