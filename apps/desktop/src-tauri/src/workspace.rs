@@ -381,6 +381,19 @@ mod tests {
     }
 
     #[test]
+    fn scan_韓国語中国語のファイル名も保って収集する() {
+        // UI は en/ja/zh/ko を出すため、ファイル名も同じ言語圏で運用されうる。
+        let root = TempRoot::new("scan_ko_zh");
+        root.file("설계서/기본설계서.md", "# 설계");
+        root.file("设计文档/概要设计.md", "# 设计");
+        let result = scan_documents_impl(&root.path).expect("走査成功");
+        assert_eq!(
+            rel_paths(&result),
+            vec!["设计文档/概要设计.md", "설계서/기본설계서.md"]
+        );
+    }
+
+    #[test]
     fn scan_全角括弧やスペースを含む名前も収集する() {
         // 「請求書（2026年6月分） 控え.md」のような名前は実務で普通に現れる。
         let root = TempRoot::new("scan_ja_sym");

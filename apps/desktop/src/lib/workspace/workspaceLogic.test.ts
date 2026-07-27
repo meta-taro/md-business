@@ -217,6 +217,49 @@ describe('filterTree（日本語ファイル名）', () => {
   });
 });
 
+// UI は en/ja/zh/ko を出すので、ファイル名も同じ言語圏で運用されうる。
+describe('filterTree（韓国語・中国語のファイル名）', () => {
+  it('韓国語のファイル名を韓国語クエリで絞り込める', () => {
+    const tree = buildTree(entries('설계서/기본설계서.md', '설계서/API명세서.md', '청구서.md'));
+    const filtered = filterTree(tree, '기본설계');
+    expect(rowLabels(flattenVisible(filtered, new Set(collectFolderPaths(filtered))))).toEqual([
+      '0:folder:설계서',
+      '1:file:설계서/기본설계서.md',
+    ]);
+  });
+
+  it('ハングルが字母に分解された名前（NFD）を通常入力（NFC）で引ける', () => {
+    // ハングルは合成済み音節と字母列の 2 通りの表し方がある。macOS の走査結果は
+    // 分解形で返ることがあり、日本語の濁点と同じ不一致が起きる。
+    const tree = buildTree(entries('검증시트.tsv'.normalize('NFD')));
+    const filtered = filterTree(tree, '검증'.normalize('NFC'));
+    expect(filtered.length).toBe(1);
+  });
+
+  it('中国語のファイル名を中国語クエリで絞り込める', () => {
+    const tree = buildTree(entries('设计文档/概要设计.md', '设计文档/接口说明.md', '发票.md'));
+    const filtered = filterTree(tree, '概要');
+    expect(rowLabels(flattenVisible(filtered, new Set(collectFolderPaths(filtered))))).toEqual([
+      '0:folder:设计文档',
+      '1:file:设计文档/概要设计.md',
+    ]);
+  });
+
+  it('中国語の全角括弧を含む名前を引ける', () => {
+    const tree = buildTree(entries('发票（2026年6月）.md', '其他.md'));
+    const filtered = filterTree(tree, '发票');
+    expect(filtered.map((n) => n.path)).toEqual(['发票（2026年6月）.md']);
+  });
+
+  it('簡体字と繁体字は畳まない（別の字として扱う）', () => {
+    // NFKC は互換文字だけを畳む。簡繁変換は正規化の仕事ではなく、
+    // 畳むと「発票」と「发票」が混ざって検索結果が読めなくなる。
+    const tree = buildTree(entries('发票.md', '發票.md'));
+    expect(filterTree(tree, '发票').map((n) => n.path)).toEqual(['发票.md']);
+    expect(filterTree(tree, '發票').map((n) => n.path)).toEqual(['發票.md']);
+  });
+});
+
 describe('shouldClearFilter', () => {
   it('Escape で入力があればクリアする', () => {
     expect(shouldClearFilter('Escape', false, '検証')).toBe(true);
