@@ -71,7 +71,6 @@ export interface Messages {
   'tree.collapseExplorer': string;
   'tree.explorer': string;
   'tree.openOtherFolder': string;
-  'tree.open': string;
   'tree.filterPlaceholder': string;
   'tree.filterClearTitle': string;
   'tree.filterClear': string;
@@ -208,7 +207,6 @@ const en: Messages = {
   'tree.collapseExplorer': 'Collapse explorer',
   'tree.explorer': 'Explorer',
   'tree.openOtherFolder': 'Open another folder',
-  'tree.open': 'Open',
   'tree.filterPlaceholder': 'Filter by file name',
   'tree.filterClearTitle': 'Clear filter (Esc)',
   'tree.filterClear': 'Clear filter',
@@ -336,7 +334,6 @@ const ja: Messages = {
   'tree.collapseExplorer': 'エクスプローラーを畳む',
   'tree.explorer': 'エクスプローラー',
   'tree.openOtherFolder': '別のフォルダを開く',
-  'tree.open': '開く',
   'tree.filterPlaceholder': 'ファイル名で絞り込み',
   'tree.filterClearTitle': 'フィルタをクリア（Esc）',
   'tree.filterClear': 'フィルタをクリア',
@@ -464,7 +461,6 @@ const zh: Messages = {
   'tree.collapseExplorer': '折叠资源管理器',
   'tree.explorer': '资源管理器',
   'tree.openOtherFolder': '打开其他文件夹',
-  'tree.open': '打开',
   'tree.filterPlaceholder': '按文件名筛选',
   'tree.filterClearTitle': '清除筛选（Esc）',
   'tree.filterClear': '清除筛选',
@@ -592,7 +588,6 @@ const ko: Messages = {
   'tree.collapseExplorer': '탐색기 접기',
   'tree.explorer': '탐색기',
   'tree.openOtherFolder': '다른 폴더 열기',
-  'tree.open': '열기',
   'tree.filterPlaceholder': '파일 이름으로 필터',
   'tree.filterClearTitle': '필터 지우기 (Esc)',
   'tree.filterClear': '필터 지우기',

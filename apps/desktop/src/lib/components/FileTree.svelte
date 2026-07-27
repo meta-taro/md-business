@@ -340,51 +340,66 @@
       </button>
       <span class="title">{t('tree.explorer')}</span>
     </div>
-    {#if workspace.root !== null}
-      <div class="head-actions">
-        <button
-          class="reopen"
-          type="button"
-          onclick={() => workspace.openFolder()}
-          title={t('tree.openOtherFolder')}
-          aria-label={t('tree.openOtherFolder')}
-        >
-          {t('tree.open')}
-        </button>
-        {#if recentList.length > 0}
-          <!-- 履歴からの選び直し。開いているフォルダは除いてあるので、1 件でも意味がある。 -->
-          <button
-            class="reopen recent-toggle"
-            class:on={recentOpen}
-            type="button"
-            onclick={() => (recentOpen = !recentOpen)}
-            title={t('tree.recentPick')}
-            aria-label={t('tree.recentPick')}
-            aria-expanded={recentOpen}
-          >
-            ▾
-          </button>
-        {/if}
-      </div>
-    {/if}
   </div>
 
-  {#if recentOpen && recentList.length > 0}
-    <!-- クリック外しで閉じる（ポップオーバーの外側全面）。 -->
-    <button
-      class="recent-backdrop"
-      type="button"
-      tabindex="-1"
-      aria-hidden="true"
-      onclick={() => (recentOpen = false)}
-    ></button>
-    <div class="recent-pop">
-      <p class="recent-head">{t('tree.recent')}</p>
-      <ul class="recent-list">
-        {#each recentList as path (path)}
-          {@render recentRow(path)}
-        {/each}
-      </ul>
+  {#if workspace.root !== null}
+    <!-- 開いているフォルダ。ツリーには root 直下しか出ないため、どこを開いているかは
+         ここでしか分からない。同時に履歴の入口にする（小さな ▾ だけでは、選び直せることも
+         前回の続きを覚えていることも気付かれない）。 -->
+    <div class="folderbar-wrap">
+      <button
+        class="folderbar"
+        class:on={recentOpen}
+        type="button"
+        onclick={() => (recentOpen = !recentOpen)}
+        title={workspace.root}
+        aria-haspopup="menu"
+        aria-expanded={recentOpen}
+      >
+        <svg class="folder-ico" viewBox="0 0 16 16" aria-hidden="true">
+          <path
+            d="M1.8 4.2A1.2 1.2 0 0 1 3 3h3.2l1.2 1.4H13a1.2 1.2 0 0 1 1.2 1.2v6.2A1.2 1.2 0 0 1 13 13H3a1.2 1.2 0 0 1-1.2-1.2z"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.2"
+            stroke-linejoin="round"
+          />
+        </svg>
+        <span class="folder-name">{folderLabel(workspace.root).name}</span>
+        <span class="folder-caret" class:up={recentOpen} aria-hidden="true">▾</span>
+      </button>
+
+      {#if recentOpen}
+        <!-- クリック外しで閉じる（ポップオーバーの外側全面）。 -->
+        <button
+          class="recent-backdrop"
+          type="button"
+          tabindex="-1"
+          aria-hidden="true"
+          onclick={() => (recentOpen = false)}
+        ></button>
+        <div class="recent-pop">
+          {#if recentList.length > 0}
+            <p class="recent-head">{t('tree.recent')}</p>
+            <ul class="recent-list">
+              {#each recentList as path (path)}
+                {@render recentRow(path)}
+              {/each}
+            </ul>
+          {/if}
+          <!-- 履歴に無いフォルダへも、ここから続けて行ける（開き直す入口を 1 か所に集める）。 -->
+          <button
+            class="recent-open"
+            type="button"
+            onclick={() => {
+              recentOpen = false;
+              void workspace.openFolder();
+            }}
+          >
+            {t('tree.openOtherFolder')}
+          </button>
+        </div>
+      {/if}
     </div>
   {/if}
 
@@ -668,7 +683,12 @@
     color: var(--text-primary);
   }
 
+  /* 見出しは幅が足りなければ縮む側（サイドバーは細くできる）。 */
   .title {
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
     font-size: var(--text-2xs-size);
     font-weight: var(--text-2xs-weight);
     letter-spacing: 0.04em;
@@ -676,41 +696,70 @@
     color: var(--text-tertiary);
   }
 
-  .head-actions {
-    display: flex;
-    align-items: center;
-    gap: 2px;
+  /* ── 開いているフォルダ（履歴の入口） ─────────────────────── */
+  .folderbar-wrap {
+    position: relative;
     flex: none;
+    margin: 0 var(--space-2) var(--space-1);
   }
 
-  .reopen {
-    height: 22px;
+  .folderbar {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    width: 100%;
+    height: 28px;
     padding: 0 var(--space-2);
-    border: 1px solid var(--border);
+    border: 1px solid transparent;
     border-radius: var(--radius-sm);
-    background: transparent;
-    color: var(--text-secondary);
-    font-size: var(--text-2xs-size);
+    background: var(--bg-sunken);
+    color: var(--text-primary);
+    font-size: var(--text-sm-size);
+    text-align: left;
     cursor: pointer;
   }
 
-  .reopen:hover {
-    background: var(--bg-hover);
-    color: var(--text-primary);
+  .folderbar:hover,
+  .folderbar.on {
+    border-color: var(--border-strong);
+  }
+
+  .folderbar:focus-visible {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-subtle);
+  }
+
+  .folder-ico {
+    width: 14px;
+    height: 14px;
+    flex: none;
+    color: var(--text-tertiary);
+  }
+
+  /* 長い日本語フォルダ名は右端で省略し、全体（フルパス）は title で見せる。 */
+  .folder-name {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    font-weight: 500;
+  }
+
+  .folder-caret {
+    flex: none;
+    font-size: 10px;
+    line-height: 1;
+    color: var(--text-tertiary);
+    transition: transform var(--dur-fast) var(--ease);
+  }
+
+  .folder-caret.up {
+    transform: rotate(180deg);
   }
 
   /* ── 最近開いたフォルダ ───────────────────────────────────── */
-  .recent-toggle {
-    padding: 0 var(--space-1);
-    font-size: 10px;
-    line-height: 1;
-  }
-
-  .recent-toggle.on {
-    background: var(--bg-hover);
-    color: var(--text-primary);
-  }
-
   .recent-backdrop {
     position: fixed;
     inset: 0;
@@ -721,13 +770,13 @@
     cursor: default;
   }
 
-  /* ヘッダー直下に重ねる。ツリーを押し下げず、閉じれば元の見え方に戻る。 */
+  /* フォルダ名の真下へ重ねる。ツリーを押し下げず、閉じれば元の見え方に戻る。 */
   .recent-pop {
     position: absolute;
     z-index: 81;
-    top: 34px;
-    left: var(--space-2);
-    right: var(--space-2);
+    top: calc(100% + 2px);
+    left: 0;
+    right: 0;
     padding: var(--space-1);
     background: var(--bg-elevated);
     border: 1px solid var(--border);
@@ -874,6 +923,38 @@
   .recent-forget:hover {
     background: var(--bg-app);
     color: var(--danger-fg);
+  }
+
+  /* 履歴の続きに置く「別のフォルダを開く」。履歴が空でもこの 1 行は必ず出る。 */
+  .recent-open {
+    width: 100%;
+    min-height: 28px;
+    margin-top: var(--space-1);
+    padding: var(--space-1) var(--space-2);
+    border: none;
+    border-top: 1px solid var(--border);
+    border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: var(--text-sm-size);
+    text-align: left;
+    cursor: pointer;
+  }
+
+  /* 履歴が無いときは区切り線が浮くので消す。 */
+  .recent-open:first-child {
+    margin-top: 0;
+    border-top: none;
+  }
+
+  .recent-open:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+  }
+
+  .recent-open:focus-visible {
+    outline: none;
+    box-shadow: inset 0 0 0 2px var(--accent);
   }
 
   /* ── ファイル名フィルタ ───────────────────────────────────── */
