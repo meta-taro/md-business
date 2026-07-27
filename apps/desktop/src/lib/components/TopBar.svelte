@@ -261,6 +261,7 @@
     font-weight: 600;
     color: var(--text-primary);
     letter-spacing: var(--tracking-tight);
+    white-space: nowrap;
   }
 
   .center {
@@ -334,6 +335,68 @@
     width: 15px;
     height: 15px;
     flex: none;
+  }
+
+  /* ── ウィンドウ幅に応じたアクション群の段階的縮退 ───────────────────
+     タイトルバーを兼ねる帯なので、ウィンドウが狭まると .actions が押し潰されて
+     ラベルが 2 行に折り返し、帯の高さと文書名の位置が崩れる。折り返しは禁じたうえで
+       全文 → 末尾を … で省略 → アイコンのみ
+     と段階的に落とし、最後までアイコンとクリック領域は残す（title / aria-label が
+     残るので、ラベルが消えても何のボタンかは辿れる）。
+     言語セレクタとヘルプは子コンポーネント側の scoped CSS を持つため、
+     ここからは :global で同じ体裁に揃える。 */
+  .actions :global(.btn),
+  .actions :global(.lang) {
+    white-space: nowrap;
+  }
+
+  @media (max-width: 1120px) {
+    .actions :global(.btn > span) {
+      display: inline-block;
+      max-width: 4.5em;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      vertical-align: middle;
+    }
+
+    /* ネイティブ select は文字を … で省略できないので、幅で頭出しだけ残す。 */
+    .actions :global(.lang-select) {
+      max-width: 5em;
+    }
+
+    .actions {
+      gap: 0;
+    }
+  }
+
+  @media (max-width: 900px) {
+    /* 帯の幅を文書名に譲る。ブランドドットは残るので出自は分かる。 */
+    .brand {
+      display: none;
+    }
+
+    .actions :global(.btn > span) {
+      display: none;
+    }
+
+    .actions :global(.btn) {
+      padding: 0 var(--space-2);
+    }
+
+    /* select は畳めないので、地球儀アイコンの上へ透明なまま重ねて当たり判定にする
+       （不可視でもネイティブのドロップダウンは通常どおり開く）。 */
+    .actions :global(.lang) {
+      position: relative;
+    }
+
+    .actions :global(.lang-select) {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      max-width: none;
+      padding: 0;
+      opacity: 0;
+    }
   }
 
   .btn:hover:not(:disabled) {
