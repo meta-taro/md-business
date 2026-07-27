@@ -225,7 +225,12 @@
   .topbar {
     height: var(--topbar-h);
     display: grid;
-    grid-template-columns: 1fr auto 1fr;
+    /* 左右を等分の 1fr にして中央列（文書名）を窓の中央へ置く。ただし素の 1fr / auto は
+       min-content を下回れないため、幅が足りなくなるとトラックが帯からはみ出し、
+       中央寄せの文書名と右寄せのアクション群が重なる。左と中央は 0 まで縮められるように、
+       右はアクション群の min-content を下限にして、詰まったときは
+       「左が縮む → 文書名が … で省略される」の順に潰れるようにする。 */
+    grid-template-columns: minmax(0, 1fr) minmax(0, auto) minmax(min-content, 1fr);
     align-items: center;
     gap: var(--space-3);
     /* 右端はウィンドウコントロールを角まで寄せるため padding を持たない */
@@ -246,6 +251,8 @@
     align-items: center;
     gap: var(--space-2);
     min-width: 0;
+    /* 縮んだときにブランド名が中央列へはみ出さないよう切り落とす。 */
+    overflow: hidden;
   }
 
   .brand-dot {
@@ -265,7 +272,11 @@
   }
 
   .center {
-    justify-self: center;
+    /* justify-self: center は要素を内容幅のまま中央に置くため、トラックより広いと
+       そのまま溢れて右のアクション群へ重なる。トラックいっぱいに広げたうえで
+       中身を中央寄せし、狭いときは文書名が … で省略されるようにする。 */
+    justify-self: stretch;
+    justify-content: center;
     min-width: 0;
     display: flex;
     align-items: center;
@@ -298,7 +309,8 @@
     align-self: stretch;
     display: flex;
     align-items: center;
-    min-width: 0;
+    /* min-width は詰めない。ここを 0 にすると min-content が 0 と評価され、
+       .topbar のトラック下限（minmax(min-content, 1fr)）が効かなくなる。 */
   }
 
   .actions {
