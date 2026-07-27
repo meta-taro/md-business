@@ -74,6 +74,7 @@
     writeGroups,
     setGroup,
   } from './gridHeaderDirectives';
+  import { readRowTints, rowTintOf } from './gridStyleDirectives';
 
   interface Props {
     /** 表示・編集対象の TSV ドキュメント（`parseTsv` の結果）。 */
@@ -94,6 +95,10 @@
   // スプレッドシート列座標（A,B,C…AA,AB）。型付きヘッダとは別レイヤーの位置参照バー。
   // フォーマットは変えず、描画専用に列数から算出する。
   const colLetters = $derived(columnLabels(doc.columns.length));
+
+  // 条件付き書式（#@ style …）。指定列の値で行全体を薄く塗り、実施状況を縦に眺めて
+  // 掴めるようにする。色は tsv 側に持つので、シートごとに凡例と塗りを揃えられる。
+  const rowTints = $derived(readRowTints(doc.directives, doc.columns.map((c) => c.name)));
 
   // 表の上の補足行（#@ note …）。型付きヘッダの上に全幅で敷く（表の上に補足を置く）。
   // フォーマット不変・#@ ディレクティブから読む。追加/編集/削除は
@@ -902,7 +907,10 @@
       <tbody>
         <!-- 実データ行 + pad 空行を通し番号で描く。pad 行のセルは cellValue が '' を返す。 -->
         {#each Array(displayRows) as _row, r (r)}
-          <tr style={`height:${rowHeights[r] ?? DEFAULT_ROW_HEIGHT}px`}>
+          {@const tint = rowTintOf(rowTints, doc.rows[r] ?? [])}
+          <tr
+            style={`height:${rowHeights[r] ?? DEFAULT_ROW_HEIGHT}px${tint ? `; --row-tint:${tint}` : ''}`}
+          >
             <!-- 行番号クリックで行全体を選択（スプレ同様）。下端のグリップは行高リサイズ。 -->
             <!-- svelte-ignore a11y_click_events_have_key_events -->
             <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
@@ -1273,6 +1281,14 @@
     padding: 0; /* 入力ウィジェット / 静的表示がセルいっぱいに敷くので td 自身は余白ゼロ */
     height: 30px;
     vertical-align: middle;
+  }
+
+  /* 条件付き書式（#@ style）の行背景。--row-tint は行ごとにインラインで入る。
+     tsv 側の色はライト前提のパステルなので、ダークでは --row-tint-strength を
+     下げて薄い被膜にする（色相だけ残し、文字のコントラストを守る）。
+     選択・編集中のセルは td 側の背景が上に乗るので、色付き行でも現在位置は見失わない。 */
+  tbody tr {
+    background: color-mix(in srgb, var(--row-tint, transparent) var(--row-tint-strength), transparent);
   }
 
   /* 行番号列＝横スクロールでも固定（sticky left）。左上隅も固定。 */
