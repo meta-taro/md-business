@@ -78,6 +78,35 @@ export function extendRange(
 }
 
 /**
+ * focus を指定セルへ飛ばした **新しい** 範囲を返す（anchor は固定・入力は不変）。
+ * 相対移動の {@link extendRange} に対し、こちらは行頭・行末・表の隅など
+ * 移動先が絶対座標で決まる伸長（Shift+Home / Shift+End）に使う。
+ */
+export function extendRangeTo(range: CellRange, focus: CellPos, dims: GridDims): CellRange {
+  return {
+    anchor: range.anchor,
+    focus: {
+      row: clamp(focus.row, dims.rows - 1),
+      col: clamp(focus.col, dims.cols - 1),
+    },
+  };
+}
+
+/**
+ * グリッド全体を覆う範囲（Ctrl+A の全選択）。
+ * 行・列が 0 のときは (0,0) の単一セルに畳む（負の座標を作らない）。
+ */
+export function wholeRange(dims: GridDims): CellRange {
+  return {
+    anchor: { row: 0, col: 0 },
+    focus: {
+      row: Math.max(0, dims.rows - 1),
+      col: Math.max(0, dims.cols - 1),
+    },
+  };
+}
+
+/**
  * 矩形範囲をクリップボード用の TSV（行はタブ区切り・行間は改行）へ直列化する。
  * 欠けたセルは空文字で位置を保つ。セル内改行・タブはクオートせず素のまま
  * （本グリッドの貼り付けパーサ {@link ./gridClipboard} と対称に保つため）。

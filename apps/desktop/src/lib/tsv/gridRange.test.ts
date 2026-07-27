@@ -5,6 +5,8 @@ import {
   isInRange,
   isSingleCell,
   extendRange,
+  extendRangeTo,
+  wholeRange,
   rangeToTsv,
   rowRange,
 } from './gridRange';
@@ -118,6 +120,54 @@ describe('rowRange', () => {
     expect(rowRange(1, 0)).toEqual({
       anchor: { row: 1, col: 0 },
       focus: { row: 1, col: 0 },
+    });
+  });
+});
+
+describe('extendRangeTo', () => {
+  const dims = { rows: 4, cols: 3 };
+  const range = { anchor: { row: 1, col: 1 }, focus: { row: 1, col: 1 } };
+
+  it('anchor を固定したまま focus を指定セルへ飛ばす（Shift+Home / Shift+End）', () => {
+    expect(extendRangeTo(range, { row: 1, col: 0 }, dims)).toEqual({
+      anchor: { row: 1, col: 1 },
+      focus: { row: 1, col: 0 },
+    });
+  });
+
+  it('グリッド外の座標は端でクランプする', () => {
+    expect(extendRangeTo(range, { row: 99, col: 99 }, dims)).toEqual({
+      anchor: { row: 1, col: 1 },
+      focus: { row: 3, col: 2 },
+    });
+  });
+
+  it('負の座標も 0 でクランプする', () => {
+    expect(extendRangeTo(range, { row: -5, col: -5 }, dims)).toEqual({
+      anchor: { row: 1, col: 1 },
+      focus: { row: 0, col: 0 },
+    });
+  });
+
+  it('入力の範囲は変更しない（不変）', () => {
+    const before = { anchor: { row: 0, col: 0 }, focus: { row: 0, col: 0 } };
+    extendRangeTo(before, { row: 2, col: 2 }, dims);
+    expect(before).toEqual({ anchor: { row: 0, col: 0 }, focus: { row: 0, col: 0 } });
+  });
+});
+
+describe('wholeRange', () => {
+  it('左上から右下までグリッド全体を覆う（Ctrl+A）', () => {
+    expect(wholeRange({ rows: 4, cols: 3 })).toEqual({
+      anchor: { row: 0, col: 0 },
+      focus: { row: 3, col: 2 },
+    });
+  });
+
+  it('空グリッドは単一セル（0,0）に畳む', () => {
+    expect(wholeRange({ rows: 0, cols: 0 })).toEqual({
+      anchor: { row: 0, col: 0 },
+      focus: { row: 0, col: 0 },
     });
   });
 });
