@@ -1283,17 +1283,23 @@
     vertical-align: middle;
   }
 
-  /* 条件付き書式（#@ style）の行背景。--row-tint は行ごとにインラインで入る。
-     地に合わせた色の作り直しはテーマトークン（--row-tint-bg）が持つ。
+  /* 条件付き書式（#@ style）の行背景。--row-tint は行ごとにインラインで入るので、
+     色の組み立てはこの行側でしか成立しない（テーマ側の変数に組んでも、そこでは
+     --row-tint が未設定のまま「色なし」に確定し、その結果が全行へ継承される）。
      選択・編集中のセルは td 側の背景が上に乗るので、色付き行でも現在位置は見失わない。 */
   tbody tr {
-    /* 相対色が使えないエンジン向けの控え。色味は薄れるが明度差だけは付く。 */
+    /* ライトは tsv の色をそのまま敷く（濃度 100%）。相対色が使えないエンジンでは
+       ダークもここに落ちる（濃度を下げるので色味は薄れるが、明度差だけは付く）。 */
     background: color-mix(in srgb, var(--row-tint, transparent) var(--row-tint-strength), transparent);
   }
 
   @supports (background: oklch(from red l c h)) {
-    tbody tr {
-      background: var(--row-tint-bg);
+    /* ダークは明度を暗い地に合わせて置き換え、彩度は逆に持ち上げて色の違いだけを残す
+       （数値の意図はテーマトークン側のコメント参照）。元が透明な行は透明のまま。 */
+    :global(:root[data-theme='dark']) tbody tr {
+      background: oklch(
+        from var(--row-tint, #0000) var(--row-tint-dark-l) min(c * 3, var(--row-tint-dark-c-max)) h
+      );
     }
   }
 
