@@ -125,4 +125,11 @@ describe('日本語ファイル名', () => {
     const tree = buildTree([entry('ハ.md'), entry('あ.md'), entry('ア.md')]);
     expect(tree.map((n) => n.name)).toEqual(['あ.md', 'ア.md', 'ハ.md']);
   });
+
+  it('漢字の並びが実行環境の既定ロケールで変わらない', () => {
+    // この 2 つは英語ロケールと日本語ロケールで前後が逆になる。照合順序を固定していないと、
+    // 同じフォルダを開いても開いたマシンによって並びが変わる。
+    const tree = buildTree([entry('受発注.tsv'), entry('在庫.tsv')]);
+    expect(tree.map((n) => n.name)).toEqual(['在庫.tsv', '受発注.tsv']);
+  });
 });
