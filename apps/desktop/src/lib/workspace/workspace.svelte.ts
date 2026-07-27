@@ -19,10 +19,20 @@ import {
   initialExpandedPaths,
   toggleExpanded,
   computeDirty,
+  collectFolderPaths,
   shouldReopenFile,
   remapRenamedPath,
 } from './workspaceLogic';
 import { parseStoredFolder } from './lastFolder';
+import {
+  forgetTreeState,
+  parseTreeStates,
+  pickTreeState,
+  rememberTreeState,
+  restoreExpanded,
+  serializeTreeStates,
+  type TreeViewState,
+} from './treeState';
 import {
   addRecentFolder,
   removeRecentFolder,
@@ -35,6 +45,9 @@ const LAST_FOLDER_KEY = 'md-business:desktop:last-folder';
 
 /** 過去に開いたフォルダ一覧の localStorage キー。 */
 const RECENT_FOLDERS_KEY = 'md-business:desktop:recent-folders';
+
+/** フォルダごとのツリー表示状態（展開・開いていたファイル）の localStorage キー。 */
+const TREE_STATES_KEY = 'md-business:desktop:tree-states';
 
 /** Rust `scan_documents` の戻り（serde camelCase）。 */
 interface ScanResult {
@@ -91,6 +104,12 @@ class WorkspaceStore {
    * プレビューへ即反映する（タイプ中の debounce を壊さないため）。
    */
   loadSeq = $state<number>(0);
+  /**
+   * フォルダごとのツリー表示状態（展開・開いていたファイル）。画面が読むのは復元先の
+   * `expanded` / `activePath` 自身なので、ここは反応状態にしない。
+   * 初回参照時に localStorage から読む（+layout の呼び出し順に依存させないため）。
+   */
+  private treeStates: TreeViewState[] | null = null;
 
   /**
    * 起動時に「最後に開いたフォルダ」を復元する（+layout の onMount から 1 回呼ぶ）。
@@ -145,6 +164,35 @@ class WorkspaceStore {
     this.missingRecent = next;
   }
 
+  /** 記憶済みのツリー表示状態（初回だけ localStorage から読む）。 */
+  private viewStates(): TreeViewState[] {
+    if (this.treeStates === null) {
+      this.treeStates = browser ? parseTreeStates(localStorage.getItem(TREE_STATES_KEY)) : [];
+    }
+    return this.treeStates;
+  }
+
+  /** ツリー表示状態を localStorage へ書き戻す。 */
+  private persistViewStates(states: TreeViewState[]): void {
+    this.treeStates = states;
+    if (browser) localStorage.setItem(TREE_STATES_KEY, serializeTreeStates(states));
+  }
+
+  /**
+   * 今の展開・選択を、開いているフォルダの記憶として書き戻す。
+   * 開閉・ファイル選択のたびに呼ぶ（アプリを落とすタイミングは掴めないので、その都度残す）。
+   */
+  private persistView(): void {
+    if (this.root === null) return;
+    this.persistViewStates(
+      rememberTreeState(this.viewStates(), {
+        root: this.root,
+        expanded: [...this.expanded],
+        active: this.activePath,
+      }),
+    );
+  }
+
   /** 履歴を localStorage へ書き戻す。 */
   private persistRecent(): void {
     if (browser) localStorage.setItem(RECENT_FOLDERS_KEY, serializeRecentFolders(this.recent));
@@ -175,6 +223,8 @@ class WorkspaceStore {
     this.recent = removeRecentFolder(this.recent, path);
     this.unmarkMissing(path);
     this.persistRecent();
+    // 一覧から消したフォルダの表示状態も残さない（もう開く手段が無いものを溜めない）。
+    this.persistViewStates(forgetTreeState(this.viewStates(), path));
     // 最後に開いたフォルダを忘れさせたなら、次回起動で復元しないよう記憶も消す。
     if (browser && parseStoredFolder(localStorage.getItem(LAST_FOLDER_KEY)) === path) {
       localStorage.removeItem(LAST_FOLDER_KEY);
@@ -202,9 +252,16 @@ class WorkspaceStore {
     try {
       const result = await invoke<ScanResult>('scan_documents', { root });
       const tree = buildTree(result.entries);
+      // 同じフォルダを取り直しただけ（保存・改名・ブランチ切替）なら今の見え方を保つ。
+      // 別のフォルダへ移るときだけ、そのフォルダの記憶（初めてなら既定）から組み立て直す。
+      const sameRoot = this.root === root;
+      const remembered = sameRoot ? null : pickTreeState(this.viewStates(), root);
+      const keep = sameRoot ? [...this.expanded] : (remembered?.expanded ?? null);
       this.root = root;
       this.tree = tree;
-      this.expanded = new Set(initialExpandedPaths(tree));
+      this.expanded = new Set(
+        restoreExpanded(keep, collectFolderPaths(tree), initialExpandedPaths(tree)),
+      );
       this.activePath = null;
       // フォルダを開き直したら前フォルダの差分表示は無効。通常プレビューへ戻す。
       diffView.reset();
@@ -222,6 +279,14 @@ class WorkspaceStore {
       // 開いたフォルダの git 状態とブランチ一覧を取得（非リポジトリでも無害・fire-and-forget）。
       void git.refresh(root);
       void git.loadBranches(root);
+      // 別のフォルダへ移ったときは、前回そこで開いていたファイルを開き直す。
+      // 同じフォルダの取り直しは、呼び出し元が自前で開き直す（改名なら新しいパスで開く等）。
+      const rememberedActive = remembered?.active ?? null;
+      if (shouldReopenFile(rememberedActive, this.allFilePaths())) {
+        // shouldReopenFile が true なら rememberedActive は非 null。
+        await this.select(rememberedActive as string);
+      }
+      this.persistView();
     } catch (e) {
       this.error = errorMessage(e);
     } finally {
@@ -232,6 +297,7 @@ class WorkspaceStore {
   /** フォルダの開閉トグル。 */
   toggle(path: string): void {
     this.expanded = toggleExpanded(this.expanded, path);
+    this.persistView();
   }
 
   /** ツリー全体のファイル relPath を平坦に集める（切替後の再オープン判定用）。 */
@@ -335,6 +401,8 @@ class WorkspaceStore {
       this.savedAt = null;
       this.loadSeq += 1;
       this.error = null;
+      // 次にこのフォルダを開いたとき、同じファイルから再開できるようにする。
+      this.persistView();
     } catch (e) {
       this.error = errorMessage(e);
     }
