@@ -66,7 +66,7 @@ apps/desktop/
 │   ├── src/             # main.rs / lib.rs（command 登録は Phase 3-4）
 │   ├── capabilities/    # Tauri 2 権限定義
 │   ├── icons/           # アプリアイコン一式
-│   └── tauri.conf.json  # Tauri 設定（devUrl=1420 / frontendDist=../build）
+│   └── tauri.conf.json  # Tauri 設定（devUrl=1430 / frontendDist=../build）
 ├── svelte.config.js
-└── vite.config.ts       # dev サーバー port 1420 固定
+└── vite.config.ts       # dev サーバー port 1430 固定
 ```
