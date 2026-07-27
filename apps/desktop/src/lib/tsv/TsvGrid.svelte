@@ -1284,11 +1284,17 @@
   }
 
   /* 条件付き書式（#@ style）の行背景。--row-tint は行ごとにインラインで入る。
-     tsv 側の色はライト前提のパステルなので、ダークでは --row-tint-strength を
-     下げて薄い被膜にする（色相だけ残し、文字のコントラストを守る）。
+     地に合わせた色の作り直しはテーマトークン（--row-tint-bg）が持つ。
      選択・編集中のセルは td 側の背景が上に乗るので、色付き行でも現在位置は見失わない。 */
   tbody tr {
+    /* 相対色が使えないエンジン向けの控え。色味は薄れるが明度差だけは付く。 */
     background: color-mix(in srgb, var(--row-tint, transparent) var(--row-tint-strength), transparent);
+  }
+
+  @supports (background: oklch(from red l c h)) {
+    tbody tr {
+      background: var(--row-tint-bg);
+    }
   }
 
   /* 行番号列＝横スクロールでも固定（sticky left）。左上隅も固定。 */
