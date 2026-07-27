@@ -8,6 +8,7 @@ import {
   shouldReopenFile,
   filterTree,
   collectFolderPaths,
+  shouldClearFilter,
   type VisibleRow,
 } from './workspaceLogic';
 
@@ -162,6 +163,75 @@ describe('filterTree', () => {
     // 元の docs フォルダは children 2 件のまま。
     const docs = tree.find((n) => n.path === 'docs');
     expect(docs?.children.length).toBe(2);
+  });
+});
+
+// 業務文書のファイル名は日本語が既定と考えてよいため、絞り込みは日本語入力の
+// 実情（IME・全角・濁点の合成揺れ）に耐える必要がある。
+describe('filterTree（日本語ファイル名）', () => {
+  it('日本語のファイル名を日本語クエリで絞り込める', () => {
+    const tree = buildTree(entries('設計/基本設計書.md', '設計/API仕様書.md', '請求書.md'));
+    const filtered = filterTree(tree, '基本設計');
+    expect(rowLabels(flattenVisible(filtered, new Set(collectFolderPaths(filtered))))).toEqual([
+      '0:folder:設計',
+      '1:file:設計/基本設計書.md',
+    ]);
+  });
+
+  it('日本語のフォルダ名がマッチしたら配下を丸ごと残す', () => {
+    const tree = buildTree(entries('検証シート/受発注.tsv', '検証シート/在庫.tsv', '他/x.md'));
+    const filtered = filterTree(tree, '検証');
+    expect(rowLabels(flattenVisible(filtered, new Set(collectFolderPaths(filtered))))).toEqual([
+      '0:folder:検証シート',
+      '1:file:検証シート/在庫.tsv',
+      '1:file:検証シート/受発注.tsv',
+    ]);
+  });
+
+  it('サロゲートペアを含む名前を引ける', () => {
+    // 𠮷 は基本多言語面外（UTF-16 で 2 コード単位）。人名・屋号のファイル名で実際に現れる。
+    const tree = buildTree(entries('𠮷野家_見積.md', '山田_見積.md'));
+    const filtered = filterTree(tree, '𠮷野');
+    expect(filtered.map((n) => n.path)).toEqual(['𠮷野家_見積.md']);
+  });
+
+  it('濁点が分解された名前（NFD）を通常入力（NFC）で引ける', () => {
+    // macOS の走査結果は濁点が分解された形で返ることがある。見た目が同じでも
+    // コード列が違うため、素の includes では一致しない。
+    const tree = buildTree(entries('ダイジェスト.md'.normalize('NFD')));
+    const filtered = filterTree(tree, 'ダイジェスト'.normalize('NFC'));
+    expect(filtered.length).toBe(1);
+  });
+
+  it('全角で入力した英数クエリで半角のファイル名を引ける', () => {
+    // IME を on にしたまま英字を打つと全角になる。見た目上は同じ語なので一致させる。
+    const tree = buildTree(entries('api-spec.md', 'other.md'));
+    const filtered = filterTree(tree, 'ＡＰＩ');
+    expect(filtered.map((n) => n.path)).toEqual(['api-spec.md']);
+  });
+
+  it('半角カナのクエリで全角カナのファイル名を引ける', () => {
+    const tree = buildTree(entries('シフト表.tsv', '請求書.md'));
+    const filtered = filterTree(tree, 'ｼﾌﾄ');
+    expect(filtered.map((n) => n.path)).toEqual(['シフト表.tsv']);
+  });
+});
+
+describe('shouldClearFilter', () => {
+  it('Escape で入力があればクリアする', () => {
+    expect(shouldClearFilter('Escape', false, '検証')).toBe(true);
+  });
+
+  it('IME 変換中の Escape はクリアしない（変換の取り消し操作のため）', () => {
+    expect(shouldClearFilter('Escape', true, 'けんしょう')).toBe(false);
+  });
+
+  it('入力が空なら何もしない', () => {
+    expect(shouldClearFilter('Escape', false, '')).toBe(false);
+  });
+
+  it('Escape 以外のキーでは何もしない', () => {
+    expect(shouldClearFilter('Enter', false, '検証')).toBe(false);
   });
 });
 

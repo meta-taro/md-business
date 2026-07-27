@@ -57,20 +57,33 @@ export function shouldReopenFile(
 }
 
 /**
+ * 照合キーへ揃える（表示名は変えず、突き合わせのときだけ使う）。
+ *
+ * NFKC で互換文字を畳むと、見た目が同じで内部表現が違うものが一致するようになる。
+ * 日本語のファイル名では次の 3 つが実際に起きる。
+ * - 濁点の合成揺れ（走査結果が `タ` + 濁点で返る環境がある）
+ * - IME を on にしたまま打った全角英数（`ＡＰＩ` と `API`）
+ * - 半角カナ（`ｼﾌﾄ` と `シフト`）
+ */
+function foldForMatch(text: string): string {
+  return text.normalize('NFKC').toLowerCase();
+}
+
+/**
  * ツリーをクエリで絞り込む（エクスプローラーのフィルタ検索）。
- * ファイル名 or パスにクエリ（大文字小文字無視）を含むファイルを残し、その祖先フォルダも
- * 文脈として保持する。フォルダ名自体がマッチした場合は配下を丸ごと残す。空・空白のみの
- * クエリは元のツリーを **同一参照のまま** 返す（呼び出し側で通常表示に分岐しやすくする）。
- * 入力ツリーは破壊せず、絞り込んだフォルダは children を差し替えた新ノードを返す。
+ * ファイル名 or パスにクエリ（大文字小文字・全半角・濁点の合成を無視）を含むファイルを残し、
+ * その祖先フォルダも文脈として保持する。フォルダ名自体がマッチした場合は配下を丸ごと残す。
+ * 空・空白のみのクエリは元のツリーを **同一参照のまま** 返す（呼び出し側で通常表示に分岐
+ * しやすくする）。入力ツリーは破壊せず、絞り込んだフォルダは children を差し替えた新ノードを返す。
  */
 export function filterTree(tree: readonly TreeNode[], query: string): TreeNode[] {
-  const q = query.trim().toLowerCase();
+  const q = foldForMatch(query.trim());
   if (q === '') return tree as TreeNode[];
   const walk = (nodes: readonly TreeNode[]): TreeNode[] => {
     const out: TreeNode[] = [];
     for (const node of nodes) {
       const selfMatch =
-        node.name.toLowerCase().includes(q) || node.path.toLowerCase().includes(q);
+        foldForMatch(node.name).includes(q) || foldForMatch(node.path).includes(q);
       if (node.kind === 'folder') {
         if (selfMatch) {
           // フォルダ名がヒット → 配下すべてを残す（元ノードをそのまま参照）。
@@ -86,6 +99,17 @@ export function filterTree(tree: readonly TreeNode[], query: string): TreeNode[]
     return out;
   };
   return walk(tree);
+}
+
+/**
+ * フィルタ入力の Escape でクエリを消すべきか。
+ *
+ * 日本語入力では Escape が「変換の取り消し」に割り当たっているため、変換中
+ * （`KeyboardEvent.isComposing`）の Escape で消してしまうと、確定前の候補を戻そうとした
+ * だけで入力欄ごと空になる。変換中は IME に譲り、確定後の Escape だけをクリアに使う。
+ */
+export function shouldClearFilter(key: string, isComposing: boolean, query: string): boolean {
+  return key === 'Escape' && !isComposing && query !== '';
 }
 
 /**

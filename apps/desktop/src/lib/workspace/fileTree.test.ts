@@ -100,3 +100,29 @@ describe('buildTree', () => {
     expect(c.children[0].path).toBe('a/b/c/d.md');
   });
 });
+
+// 業務文書のファイル名は日本語が既定と考えてよいため、木構築も日本語名で担保する。
+describe('日本語ファイル名', () => {
+  it('日本語のフォルダ・ファイル名で木を組み、拡張子を取り出せる', () => {
+    const tree = buildTree([entry('設計書/基本設計書.md'), entry('設計書/検証シート.tsv')]);
+    expect(tree[0].name).toBe('設計書');
+    expect(tree[0].children.map((n) => `${n.name}:${n.ext}`)).toEqual([
+      '基本設計書.md:md',
+      '検証シート.tsv:tsv',
+    ]);
+  });
+
+  it('スペース・括弧・全角記号を含む名前でも path が壊れない', () => {
+    // Windows で許容される文字のうち、業務文書名で実際によく使われるもの。
+    const name = '請求書（2026年6月分）　控え.md';
+    const tree = buildTree([entry(`経理/${name}`)]);
+    expect(tree[0].children[0].path).toBe(`経理/${name}`);
+    expect(tree[0].children[0].name).toBe(name);
+  });
+
+  it('日本語名は五十音順に並ぶ（コードポイント順ではない）', () => {
+    // ひらがな・カタカナ・漢字が混じるとコードポイント順は読み順と一致しない。
+    const tree = buildTree([entry('ハ.md'), entry('あ.md'), entry('ア.md')]);
+    expect(tree.map((n) => n.name)).toEqual(['あ.md', 'ア.md', 'ハ.md']);
+  });
+});

@@ -10,6 +10,7 @@
     flattenVisible,
     filterTree,
     collectFolderPaths,
+    shouldClearFilter,
   } from '$lib/workspace/workspaceLogic';
   import { git } from '$lib/git/git.svelte';
   import { diffView } from '$lib/git/diffView.svelte';
@@ -48,9 +49,9 @@
     }
   }
 
-  // Esc でフィルタをクリア（入力が空なら何もしない）。
+  // Esc でフィルタをクリア（入力が空・IME 変換中は何もしない）。判定は純ロジックへ委譲。
   function onFilterKeydown(e: KeyboardEvent): void {
-    if (e.key === 'Escape' && filterQuery !== '') {
+    if (shouldClearFilter(e.key, e.isComposing, filterQuery)) {
       e.preventDefault();
       filterQuery = '';
     }

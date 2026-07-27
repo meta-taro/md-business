@@ -364,6 +364,32 @@ mod tests {
         assert!(rel_paths(&result).contains(&"shallow.md".to_string()));
     }
 
+    #[test]
+    fn scan_日本語のファイル名とディレクトリ名を保って収集する() {
+        // 業務文書のファイル名は日本語が既定と考えてよい。走査結果の名前と相対パスが
+        // 入力どおりに保たれること（文字化け・脱落がないこと）を担保する。
+        let root = TempRoot::new("scan_ja");
+        root.file("設計書/基本設計書.md", "# 設計");
+        root.file("検証シート/受発注ワークフロー.tsv", "No.\t項目");
+        let result = scan_documents_impl(&root.path).expect("走査成功");
+        assert_eq!(
+            rel_paths(&result),
+            vec!["検証シート/受発注ワークフロー.tsv", "設計書/基本設計書.md"]
+        );
+        let names: Vec<&str> = result.entries.iter().map(|e| e.name.as_str()).collect();
+        assert_eq!(names, vec!["受発注ワークフロー.tsv", "基本設計書.md"]);
+    }
+
+    #[test]
+    fn scan_全角括弧やスペースを含む名前も収集する() {
+        // 「請求書（2026年6月分） 控え.md」のような名前は実務で普通に現れる。
+        let root = TempRoot::new("scan_ja_sym");
+        let name = "請求書（2026年6月分）　控え.md";
+        root.file(name, "本文");
+        let result = scan_documents_impl(&root.path).expect("走査成功");
+        assert_eq!(rel_paths(&result), vec![name]);
+    }
+
     // ── read_document_impl ───────────────────────────────────────────────
 
     #[test]
@@ -405,6 +431,15 @@ mod tests {
     fn read_存在しないファイルはエラー() {
         let root = TempRoot::new("read_missing");
         assert!(read_document_impl(&root.path, "nope.md").is_err());
+    }
+
+    #[test]
+    fn read_日本語のファイル名とディレクトリ名で読める() {
+        let root = TempRoot::new("read_ja");
+        root.file("検証シート/受発注ワークフロー.tsv", "No.:number\t項目\t結果");
+        let body =
+            read_document_impl(&root.path, "検証シート/受発注ワークフロー.tsv").expect("読込成功");
+        assert_eq!(body, "No.:number\t項目\t結果");
     }
 
     // ── write_document_impl ──────────────────────────────────────────────
@@ -454,6 +489,17 @@ mod tests {
         // canonicalize は実在パスにのみ成功するため、write は既存のみ（新規は create_document）。
         let root = TempRoot::new("write_missing");
         assert!(write_document_impl(&root.path, "nope.md", "本文").is_err());
+    }
+
+    #[test]
+    fn write_日本語のファイル名へ書き戻せる() {
+        let root = TempRoot::new("write_ja");
+        root.file("検証シート/受発注ワークフロー.tsv", "旧");
+        write_document_impl(&root.path, "検証シート/受発注ワークフロー.tsv", "新\t内容")
+            .expect("書込成功");
+        let body =
+            read_document_impl(&root.path, "検証シート/受発注ワークフロー.tsv").expect("読込成功");
+        assert_eq!(body, "新\t内容");
     }
 
     // ── create_document_impl ─────────────────────────────────────────────
