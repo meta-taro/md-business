@@ -29,6 +29,7 @@ pub fn run() {
             workspace::read_document,
             workspace::write_document,
             workspace::create_document,
+            workspace::directory_exists,
             watch::watch_workspace,
             watch::unwatch_workspace,
             git::git_status,

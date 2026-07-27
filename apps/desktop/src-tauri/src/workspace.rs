@@ -194,10 +194,25 @@ pub fn create_document_impl(root: &Path, rel_path: &str, content: &str) -> Resul
     std::fs::write(&final_path, content).map_err(|e| format!("書き込み失敗: {}", e))
 }
 
+/// パスが今も開けるディレクトリかを返す。
+///
+/// 履歴に残したフォルダは、移動・削除・外付けや共有ドライブの切断で消えることがある。
+/// 開いてから走査エラーで気付かせるのではなく、一覧の時点で開けないものを示すために使う。
+/// 走査と違い中身は見ないので、件数の多い履歴でも一覧表示のたびに呼べる。
+pub fn directory_exists_impl(path: &Path) -> bool {
+    path.is_dir()
+}
+
 /// フロントから `invoke("scan_documents", { root })` で呼ぶ薄いラッパ。
 #[tauri::command]
 pub fn scan_documents(root: String) -> Result<ScanResult, String> {
     scan_documents_impl(Path::new(&root))
+}
+
+/// フロントから `invoke("directory_exists", { path })` で呼ぶ薄いラッパ。
+#[tauri::command]
+pub fn directory_exists(path: String) -> bool {
+    directory_exists_impl(Path::new(&path))
 }
 
 /// フロントから `invoke("read_document", { root, relPath })` で呼ぶ薄いラッパ。
@@ -578,5 +593,43 @@ mod tests {
     /// 拡張子チェックを迂回してファイル内容を確認するためのテスト補助。
     fn read_document_impl_raw(root: &Path, rel: &str) -> String {
         std::fs::read_to_string(root.join(rel)).unwrap_or_default()
+    }
+
+    // ── directory_exists_impl ────────────────────────────────────────────
+
+    #[test]
+    fn exists_実在するディレクトリはtrue() {
+        let root = TempRoot::new("exists_dir");
+        assert!(directory_exists_impl(&root.path));
+    }
+
+    #[test]
+    fn exists_消えたディレクトリはfalse() {
+        let root = TempRoot::new("exists_gone");
+        let gone = root.path.join("削除済みフォルダ");
+        std::fs::create_dir_all(&gone).expect("作成");
+        assert!(directory_exists_impl(&gone));
+        std::fs::remove_dir_all(&gone).expect("削除");
+        assert!(!directory_exists_impl(&gone));
+    }
+
+    #[test]
+    fn exists_ファイルはディレクトリではないのでfalse() {
+        let root = TempRoot::new("exists_file");
+        let file = root.file("a.md", "# a");
+        assert!(!directory_exists_impl(&file));
+    }
+
+    #[test]
+    fn exists_空文字は存在しない扱い() {
+        assert!(!directory_exists_impl(Path::new("")));
+    }
+
+    #[test]
+    fn exists_日本語のディレクトリ名でも判定できる() {
+        let root = TempRoot::new("exists_ja");
+        let dir = root.path.join("業務/検証シート");
+        std::fs::create_dir_all(&dir).expect("作成");
+        assert!(directory_exists_impl(&dir));
     }
 }
