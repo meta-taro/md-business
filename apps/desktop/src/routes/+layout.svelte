@@ -164,6 +164,8 @@
     i18n.init();
     // オートセーブ設定を確定する（未保存なら既定オン）。
     autosave.init();
+    // 過去に開いたフォルダ一覧を復元する（空状態から選び直せるように）。
+    workspace.loadRecent();
     // 前回開いていたフォルダがあれば自動で開き直す（毎回の選択を不要にする）。
     void workspace.restoreLastFolder();
     // 外部（AI/CLI/他エディタ）編集を Rust の watcher から受け、画面状態に応じて反応する。

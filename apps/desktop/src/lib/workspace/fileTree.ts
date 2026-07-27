@@ -35,10 +35,20 @@ export function toDocEntry(relPath: string): DocEntry {
   return { relPath: normalized, name, ext };
 }
 
-/** フォルダ先行 → 名前昇順（localeCompare）。同 kind 内は名前で安定ソート。 */
+/**
+ * 名前の並び順。
+ *
+ * 照合順序を実行環境の既定ロケールに委ねると、同じフォルダでもマシンによって並びが変わる
+ * （漢字の順序は英語ロケールと日本語ロケールで逆になることがある）。対象が日本語の業務文書
+ * なので日本語の照合順序に固定し、どこで開いても同じ並びにする。
+ * Collator は使い回す（1 フォルダに数百件あっても比較のたびに作らない）。
+ */
+const collator = new Intl.Collator('ja');
+
+/** フォルダ先行 → 名前昇順。同 kind 内は名前で安定ソート。 */
 function compareNodes(a: TreeNode, b: TreeNode): number {
   if (a.kind !== b.kind) return a.kind === 'folder' ? -1 : 1;
-  return a.name.localeCompare(b.name);
+  return collator.compare(a.name, b.name);
 }
 
 function sortRecursive(nodes: TreeNode[]): TreeNode[] {

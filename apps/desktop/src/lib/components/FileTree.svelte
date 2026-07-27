@@ -3,6 +3,7 @@
   // （DOC-SPEC-DESKTOP-2026-0001 §3.3 / §6.1）。走査・読込は Rust コマンド、可視行の
   // 平坦化は workspaceLogic の純関数（単体テスト済み）に委譲する。スキーマ別アイコン色・
   // 選択ハイライトの仕上げは Phase D。
+  import { tick } from 'svelte';
   import { invoke } from '@tauri-apps/api/core';
   import { openUrl, revealItemInDir } from '@tauri-apps/plugin-opener';
   import { workspace } from '$lib/workspace/workspace.svelte';
@@ -10,12 +11,24 @@
     flattenVisible,
     filterTree,
     collectFolderPaths,
+    shouldClearFilter,
+    decideTreeKey,
   } from '$lib/workspace/workspaceLogic';
   import { git } from '$lib/git/git.svelte';
   import { diffView } from '$lib/git/diffView.svelte';
   import { gitMarkLetter, type GitFileState } from '$lib/git/gitStatus';
   import { t } from '$lib/i18n/i18n.svelte';
-  import { toAbsolutePath, menuActionsForKind, type FileTreeMenuAction } from './fileTreeMenu';
+  import type { MessageKey } from '$lib/i18n/messages';
+  import { folderLabel } from '$lib/workspace/recentFolders';
+  import { fileLabel } from '$lib/workspace/treeState';
+  import {
+    toAbsolutePath,
+    menuActionsForKind,
+    baseName,
+    validateNewName,
+    renamedPath,
+    type FileTreeMenuAction,
+  } from './fileTreeMenu';
 
   // git 状態 → ホバー説明（バッジ title）。色マークの意味を言葉でも補う。
   // t() はロケール反応なので関数で都度引く（キーは git.state.<state>）。
@@ -48,12 +61,60 @@
     }
   }
 
-  // Esc でフィルタをクリア（入力が空なら何もしない）。
+  // ── 十字キー操作 ──────────────────────────────────────────────
+  // ツリー全体で Tab 位置を 1 つに絞り（roving tabindex）、中の移動は十字キーで行う。
+  // 何が起きるかの判断は decideTreeKey（単体テスト済み）に委ね、ここは focus 当てだけ持つ。
+  let treeEl = $state<HTMLElement | null>(null);
+  let focusIndex = $state(0);
+  // 走査やフィルタで行が減ると位置が浮く。Tab で必ずどこかに入れるよう先頭へ寄せる。
+  const tabIndex = $derived(focusIndex < rows.length ? focusIndex : 0);
+
+  async function focusRow(index: number): Promise<void> {
+    focusIndex = index;
+    // 開閉直後は行数が変わる。DOM が揃ってから当てる。
+    await tick();
+    treeEl?.querySelectorAll<HTMLButtonElement>('button.row')[index]?.focus();
+  }
+
+  function onTreeKeydown(e: KeyboardEvent): void {
+    // 改名の入力中は、左右キーがカーソル移動として要る。ツリーの移動には回さない。
+    if (renaming !== null) return;
+    const action = decideTreeKey(e.key, {
+      rows,
+      index: focusIndex,
+      expanded: workspace.expanded,
+      // 絞り込み中は全展開の一時ツリーなので、開閉はさせず移動だけにする。
+      toggleable: !filtering,
+    });
+    if (action === null) return;
+    e.preventDefault();
+    if (action.kind === 'move') {
+      void focusRow(action.index);
+    } else {
+      // expand は畳んだフォルダ、collapse は開いたフォルダにだけ返るので切替で足りる。
+      workspace.toggle(action.path);
+    }
+  }
+
+  // Esc でフィルタをクリア（入力が空・IME 変換中は何もしない）。判定は純ロジックへ委譲。
   function onFilterKeydown(e: KeyboardEvent): void {
-    if (e.key === 'Escape' && filterQuery !== '') {
+    if (shouldClearFilter(e.key, e.isComposing, filterQuery)) {
       e.preventDefault();
       filterQuery = '';
     }
+  }
+
+  // ── 最近開いたフォルダ ────────────────────────────────────────
+  // 空状態では一覧をそのまま並べ、フォルダを開いている間はヘッダーの ▾ から出す
+  // （開いている一覧は場所を取るので、必要なときだけ開く）。
+  let recentOpen = $state(false);
+  // 今開いているフォルダは選び直す意味がないので一覧から外す。
+  const recentList = $derived(workspace.recent.filter((p) => p !== workspace.root));
+
+  async function pickRecent(path: string): Promise<void> {
+    await workspace.openRecent(path);
+    // 開けなかったフォルダには一覧上で印が付く。閉じると何が起きたか分からないので開いたまま。
+    if (!workspace.missingRecent.has(path)) recentOpen = false;
   }
 
   // ── 右クリックコンテキストメニュー（reveal / パスコピー / リモートで開く）──
@@ -68,12 +129,16 @@
     forgeUrl: string | null;
   } | null>(null);
 
-  const menuLabel = (action: FileTreeMenuAction): string =>
-    action === 'reveal'
-      ? t('tree.menuReveal')
-      : action === 'copyPath'
-        ? t('tree.menuCopyPath')
-        : t('tree.menuOpenForge');
+  const MENU_LABEL_KEYS: Record<FileTreeMenuAction, MessageKey> = {
+    rename: 'tree.menuRename',
+    reveal: 'tree.menuReveal',
+    copyName: 'tree.menuCopyName',
+    copyRelPath: 'tree.menuCopyRelPath',
+    copyPath: 'tree.menuCopyPath',
+    openForge: 'tree.menuOpenForge',
+  };
+
+  const menuLabel = (action: FileTreeMenuAction): string => t(MENU_LABEL_KEYS[action]);
 
   function openMenu(event: MouseEvent, path: string, kind: 'folder' | 'file'): void {
     event.preventDefault();
@@ -98,8 +163,15 @@
     closeMenu();
     if (m === null || workspace.root === null) return;
     const abs = toAbsolutePath(workspace.root, m.path);
-    if (action === 'reveal') {
+    if (action === 'rename') {
+      startRename(m.path, m.kind);
+    } else if (action === 'reveal') {
       await revealItemInDir(abs).catch(() => undefined);
+    } else if (action === 'copyName') {
+      await navigator.clipboard.writeText(baseName(m.path)).catch(() => undefined);
+    } else if (action === 'copyRelPath') {
+      // 走査と同じ "/" 区切りのまま。設計書の相互参照や frontmatter へそのまま貼れる形。
+      await navigator.clipboard.writeText(m.path).catch(() => undefined);
     } else if (action === 'copyPath') {
       await navigator.clipboard.writeText(abs).catch(() => undefined);
     } else if (action === 'openForge' && m.forgeUrl !== null) {
@@ -107,14 +179,140 @@
     }
   }
 
-  // メニュー表示中の Esc で閉じる（フィルタ入力の Esc とは menu!==null で排他）。
+  // ── 名前の変更 ────────────────────────────────────────────────
+  // 別ダイアログを出さず、対象の行をその場で入力欄に差し替える（名前と位置が見えたまま直せる）。
+  // 名前の可否判定は fileTreeMenu の純関数（テスト済み）に委ね、ここは入力と確定だけ持つ。
+  let renaming = $state<{ path: string; kind: 'file' | 'folder'; value: string } | null>(null);
+  let renameError = $state<string | null>(null);
+  let renameBusy = $state(false);
+
+  const RENAME_ERROR_KEYS = {
+    empty: 'tree.renameErrorEmpty',
+    separator: 'tree.renameErrorSeparator',
+    invalidChar: 'tree.renameErrorInvalidChar',
+    extension: 'tree.renameErrorExtension',
+  } as const satisfies Record<string, MessageKey>;
+
+  function startRename(path: string, kind: 'file' | 'folder'): void {
+    renaming = { path, kind, value: baseName(path) };
+    renameError = null;
+  }
+
+  function cancelRename(): void {
+    renaming = null;
+    renameError = null;
+  }
+
+  /** 入力欄が出たら中身を選択状態にする（拡張子まで消さずに書き換えられる）。 */
+  function focusRenameInput(node: HTMLInputElement): void {
+    node.focus();
+    const dot = node.value.lastIndexOf('.');
+    // ファイルは拡張子の手前まで、フォルダは全体を選ぶ。
+    if (dot > 0) node.setSelectionRange(0, dot);
+    else node.select();
+  }
+
+  async function commitRename(): Promise<void> {
+    const r = renaming;
+    if (r === null || renameBusy) return;
+    const next = r.value.trim();
+    // 変えていないなら何もせず閉じる（誤って開いたときに書き込みを起こさない）。
+    if (next === baseName(r.path)) {
+      cancelRename();
+      return;
+    }
+    const invalid = validateNewName(next, r.kind);
+    if (invalid !== null) {
+      renameError = t(RENAME_ERROR_KEYS[invalid]);
+      return;
+    }
+    renameBusy = true;
+    try {
+      await workspace.renameEntry(r.path, next);
+      renaming = null;
+      renameError = null;
+      // 走査し直しで行が入れ替わるので、改名後の行へ選択位置を寄せ直す。
+      await tick();
+      const index = rows.findIndex((row) => row.node.path === renamedPath(r.path, next));
+      if (index >= 0) void focusRow(index);
+    } catch (e) {
+      // Rust 側の Err（衝突・OS エラー）は入力欄に出す。閉じると理由が見えなくなる。
+      renameError = e instanceof Error ? e.message : String(e);
+    } finally {
+      renameBusy = false;
+    }
+  }
+
+  function onRenameKeydown(e: KeyboardEvent): void {
+    // 変換確定の Enter を確定と取り違えない。
+    if (e.isComposing) return;
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      void commitRename();
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      cancelRename();
+    }
+  }
+
+  // メニュー / 履歴ポップオーバー表示中の Esc で閉じる
+  // （フィルタ入力の Esc とは、開いているものを優先することで排他になる）。
   function onWindowKeydown(e: KeyboardEvent): void {
-    if (e.key === 'Escape' && menu !== null) {
+    if (e.key !== 'Escape') return;
+    // 改名中の Esc は入力欄側が受ける（ここで履歴ポップオーバーまで畳まない）。
+    if (renaming !== null) return;
+    if (menu !== null) {
       e.preventDefault();
       closeMenu();
+    } else if (recentOpen) {
+      e.preventDefault();
+      recentOpen = false;
     }
   }
 </script>
+
+<!-- 履歴 1 件分の行。空状態の一覧とヘッダーのポップオーバーで同じ見た目を使う。 -->
+{#snippet recentRow(path: string)}
+  {@const label = folderLabel(path)}
+  {@const missing = workspace.missingRecent.has(path)}
+  {@const lastFile = workspace.rememberedFile(path)}
+  <li class="recent-item" class:missing>
+    <button
+      class="recent-pick"
+      type="button"
+      onclick={() => pickRecent(path)}
+      disabled={workspace.loading}
+      title={path}
+    >
+      <span class="recent-top">
+        <span class="recent-name">{label.name}</span>
+        {#if missing}
+          <span class="recent-badge">{t('tree.recentMissing')}</span>
+        {/if}
+        {#if label.parent !== ''}
+          <!-- 同名フォルダを見分けるための親パス。長いので右側から詰めて見せる。 -->
+          <span class="recent-parent">{label.parent}</span>
+        {/if}
+      </span>
+      {#if lastFile !== null}
+        <!-- 前回そこで開いていたファイル。開く前に何を触っていたかが分かると、同名フォルダ
+             の選び分けにも使える。覚えていること自体もここで見える。 -->
+        <span class="recent-last" title={lastFile}>
+          {t('tree.recentLastFile', { file: fileLabel(lastFile) })}
+        </span>
+      {/if}
+    </button>
+    <button
+      class="recent-forget"
+      type="button"
+      onclick={() => workspace.forgetRecent(path)}
+      title={t('tree.recentForget')}
+      aria-label={t('tree.recentForget')}
+    >
+      ✕
+    </button>
+  </li>
+{/snippet}
 
 <nav class="filetree" class:collapsed aria-label={t('tree.label')}>
   {#if collapsed}
@@ -142,18 +340,68 @@
       </button>
       <span class="title">{t('tree.explorer')}</span>
     </div>
-    {#if workspace.root !== null}
-      <button
-        class="reopen"
-        type="button"
-        onclick={() => workspace.openFolder()}
-        title={t('tree.openOtherFolder')}
-        aria-label={t('tree.openOtherFolder')}
-      >
-        {t('tree.open')}
-      </button>
-    {/if}
   </div>
+
+  {#if workspace.root !== null}
+    <!-- 開いているフォルダ。ツリーには root 直下しか出ないため、どこを開いているかは
+         ここでしか分からない。同時に履歴の入口にする（小さな ▾ だけでは、選び直せることも
+         前回の続きを覚えていることも気付かれない）。 -->
+    <div class="folderbar-wrap">
+      <button
+        class="folderbar"
+        class:on={recentOpen}
+        type="button"
+        onclick={() => (recentOpen = !recentOpen)}
+        title={workspace.root}
+        aria-haspopup="menu"
+        aria-expanded={recentOpen}
+      >
+        <svg class="folder-ico" viewBox="0 0 16 16" aria-hidden="true">
+          <path
+            d="M1.8 4.2A1.2 1.2 0 0 1 3 3h3.2l1.2 1.4H13a1.2 1.2 0 0 1 1.2 1.2v6.2A1.2 1.2 0 0 1 13 13H3a1.2 1.2 0 0 1-1.2-1.2z"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.2"
+            stroke-linejoin="round"
+          />
+        </svg>
+        <span class="folder-name">{folderLabel(workspace.root).name}</span>
+        <span class="folder-caret" class:up={recentOpen} aria-hidden="true">▾</span>
+      </button>
+
+      {#if recentOpen}
+        <!-- クリック外しで閉じる（ポップオーバーの外側全面）。 -->
+        <button
+          class="recent-backdrop"
+          type="button"
+          tabindex="-1"
+          aria-hidden="true"
+          onclick={() => (recentOpen = false)}
+        ></button>
+        <div class="recent-pop">
+          {#if recentList.length > 0}
+            <p class="recent-head">{t('tree.recent')}</p>
+            <ul class="recent-list">
+              {#each recentList as path (path)}
+                {@render recentRow(path)}
+              {/each}
+            </ul>
+          {/if}
+          <!-- 履歴に無いフォルダへも、ここから続けて行ける（開き直す入口を 1 か所に集める）。 -->
+          <button
+            class="recent-open"
+            type="button"
+            onclick={() => {
+              recentOpen = false;
+              void workspace.openFolder();
+            }}
+          >
+            {t('tree.openOtherFolder')}
+          </button>
+        </div>
+      {/if}
+    </div>
+  {/if}
 
   {#if workspace.root !== null}
     <!-- ファイル名フィルタ（エクスプローラーヘッダー直下）。入力中は絞り込みツリーを全展開表示。 -->
@@ -202,6 +450,17 @@
       >
         {workspace.loading ? t('tree.loading') : t('tree.openFolder')}
       </button>
+      {#if recentList.length > 0}
+        <!-- 起動直後に毎回ダイアログを辿らずに済むよう、過去に開いたフォルダを直接並べる。 -->
+        <div class="recent-empty">
+          <p class="recent-head">{t('tree.recent')}</p>
+          <ul class="recent-list">
+            {#each recentList as path (path)}
+              {@render recentRow(path)}
+            {/each}
+          </ul>
+        </div>
+      {/if}
     </div>
   {:else if rows.length === 0}
     <!-- フィルタで 0 件 か 空フォルダ かで文言を分ける。 -->
@@ -213,18 +472,53 @@
       {/if}
     </div>
   {:else}
-    <ul class="tree" onscroll={closeMenu}>
-      {#each rows as row (row.node.path)}
+    <!-- 十字キーはツリー全体で受け、行の button には roving tabindex を配る。 -->
+    <ul class="tree" role="tree" bind:this={treeEl} onscroll={closeMenu} onkeydown={onTreeKeydown}>
+      {#each rows as row, i (row.node.path)}
         {@const node = row.node}
         {@const gitState = node.kind === 'file' ? git.stateOf(node.path) : null}
-        <li>
+        {@const selected = node.kind === 'file' && workspace.activePath === node.path}
+        <li role="none">
+          {#if renaming !== null && renaming.path === node.path}
+            <!-- 改名中はこの行だけ入力欄に差し替える。位置と階層はそのまま見せたいので
+                 行の余白（--depth）は同じものを使う。 -->
+            <div class="row renaming" style="--depth: {row.depth}">
+              <span class="caret spacer" aria-hidden="true"></span>
+              <!-- svelte-ignore a11y_autofocus -->
+              <input
+                class="rename-input"
+                class:invalid={renameError !== null}
+                type="text"
+                bind:value={renaming.value}
+                disabled={renameBusy}
+                aria-label={t('tree.menuRename')}
+                aria-invalid={renameError !== null}
+                title={renameError ?? t('tree.renameHint')}
+                use:focusRenameInput
+                onkeydown={onRenameKeydown}
+                oninput={() => (renameError = null)}
+                onblur={cancelRename}
+              />
+            </div>
+            {#if renameError !== null}
+              <p class="rename-error" style="--depth: {row.depth}" role="alert">{renameError}</p>
+            {/if}
+          {:else}
           <button
             class="row"
-            class:active={node.kind === 'file' && workspace.activePath === node.path}
+            class:active={selected}
             type="button"
+            role="treeitem"
+            tabindex={i === tabIndex ? 0 : -1}
+            aria-level={row.depth + 1}
+            aria-selected={selected}
+            aria-expanded={node.kind === 'folder' ? workspace.expanded.has(node.path) : undefined}
             style="--depth: {row.depth}"
             data-git={gitState}
-            onclick={() => onRowClick(node.path, node.kind)}
+            onclick={() => {
+              focusIndex = i;
+              onRowClick(node.path, node.kind);
+            }}
             oncontextmenu={(e) => openMenu(e, node.path, node.kind)}
             title={node.path}
           >
@@ -265,6 +559,7 @@
               <span class="git-mark" title={gitTitle(gitState)}>{gitMarkLetter(gitState)}</span>
             {/if}
           </button>
+          {/if}
         </li>
       {/each}
     </ul>
@@ -311,6 +606,8 @@
     height: 100%;
     display: flex;
     flex-direction: column;
+    /* 履歴ポップオーバーをヘッダー直下へ重ねるための基準。 */
+    position: relative;
     background: var(--bg-subtle);
     border-right: 1px solid var(--border);
     overflow: hidden;
@@ -386,7 +683,12 @@
     color: var(--text-primary);
   }
 
+  /* 見出しは幅が足りなければ縮む側（サイドバーは細くできる）。 */
   .title {
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
     font-size: var(--text-2xs-size);
     font-weight: var(--text-2xs-weight);
     letter-spacing: 0.04em;
@@ -394,20 +696,265 @@
     color: var(--text-tertiary);
   }
 
-  .reopen {
-    height: 22px;
+  /* ── 開いているフォルダ（履歴の入口） ─────────────────────── */
+  .folderbar-wrap {
+    position: relative;
+    flex: none;
+    margin: 0 var(--space-2) var(--space-1);
+  }
+
+  .folderbar {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    width: 100%;
+    height: 28px;
     padding: 0 var(--space-2);
-    border: 1px solid var(--border);
+    border: 1px solid transparent;
     border-radius: var(--radius-sm);
-    background: transparent;
-    color: var(--text-secondary);
-    font-size: var(--text-2xs-size);
+    background: var(--bg-sunken);
+    color: var(--text-primary);
+    font-size: var(--text-sm-size);
+    text-align: left;
     cursor: pointer;
   }
 
-  .reopen:hover {
+  .folderbar:hover,
+  .folderbar.on {
+    border-color: var(--border-strong);
+  }
+
+  .folderbar:focus-visible {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-subtle);
+  }
+
+  .folder-ico {
+    width: 14px;
+    height: 14px;
+    flex: none;
+    color: var(--text-tertiary);
+  }
+
+  /* 長い日本語フォルダ名は右端で省略し、全体（フルパス）は title で見せる。 */
+  .folder-name {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    font-weight: 500;
+  }
+
+  .folder-caret {
+    flex: none;
+    font-size: 10px;
+    line-height: 1;
+    color: var(--text-tertiary);
+    transition: transform var(--dur-fast) var(--ease);
+  }
+
+  .folder-caret.up {
+    transform: rotate(180deg);
+  }
+
+  /* ── 最近開いたフォルダ ───────────────────────────────────── */
+  .recent-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 80;
+    border: none;
+    padding: 0;
+    background: transparent;
+    cursor: default;
+  }
+
+  /* フォルダ名の真下へ重ねる。ツリーを押し下げず、閉じれば元の見え方に戻る。 */
+  .recent-pop {
+    position: absolute;
+    z-index: 81;
+    top: calc(100% + 2px);
+    left: 0;
+    right: 0;
+    padding: var(--space-1);
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    box-shadow: 0 6px 20px rgb(0 0 0 / 0.28);
+  }
+
+  /* 空状態では一覧を本文として置く（重ねる相手がいないため）。 */
+  .recent-empty {
+    width: 100%;
+    text-align: left;
+  }
+
+  .recent-head {
+    margin: 0 0 var(--space-1);
+    padding: 0 var(--space-2);
+    font-size: var(--text-2xs-size);
+    font-weight: var(--text-2xs-weight);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--text-tertiary);
+  }
+
+  .recent-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    /* 上限まで貯まっても畳の外へはみ出さない。 */
+    max-height: 240px;
+    overflow-y: auto;
+  }
+
+  .recent-item {
+    display: flex;
+    align-items: center;
+    border-radius: var(--radius-sm);
+  }
+
+  .recent-item:hover {
+    background: var(--bg-hover);
+  }
+
+  .recent-pick {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 1px;
+    min-height: 28px;
+    padding: var(--space-1) var(--space-2);
+    border: none;
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: var(--text-sm-size);
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .recent-pick:hover {
+    color: var(--text-primary);
+  }
+
+  .recent-pick:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+
+  .recent-pick:focus-visible,
+  .recent-forget:focus-visible {
+    outline: none;
+    box-shadow: inset 0 0 0 2px var(--accent);
+  }
+
+  .recent-top {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-2);
+    min-width: 0;
+  }
+
+  .recent-name {
+    flex: none;
+    white-space: nowrap;
+  }
+
+  /* 補助情報なので 1 行に留める。長い日本語名は右端で省略し、全体は title で見せる。 */
+  .recent-last {
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    font-size: var(--text-2xs-size);
+    color: var(--text-tertiary);
+  }
+
+  /* 親パスは同名フォルダの見分け用の補助情報。入り切らない分は省略し、全体は title で見せる。 */
+  .recent-parent {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    text-align: right;
+    font-size: var(--text-2xs-size);
+    color: var(--text-tertiary);
+  }
+
+  .recent-badge {
+    flex: none;
+    font-size: var(--text-2xs-size);
+    color: var(--danger-fg);
+  }
+
+  /* 見つからないフォルダは畳まず残す（繋ぎ直せば使えるため）。押せるが薄く見せる。 */
+  .recent-item.missing .recent-name {
+    color: var(--text-tertiary);
+    text-decoration: line-through;
+  }
+
+  .recent-forget {
+    flex: none;
+    width: 20px;
+    height: 20px;
+    margin-right: var(--space-1);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    border-radius: var(--radius-full);
+    background: transparent;
+    color: var(--text-tertiary);
+    font-size: 10px;
+    line-height: 1;
+    cursor: pointer;
+    /* 誤って履歴を消さないよう、行に触れるまでは出さない。 */
+    opacity: 0;
+  }
+
+  .recent-item:hover .recent-forget,
+  .recent-forget:focus-visible {
+    opacity: 1;
+  }
+
+  .recent-forget:hover {
+    background: var(--bg-app);
+    color: var(--danger-fg);
+  }
+
+  /* 履歴の続きに置く「別のフォルダを開く」。履歴が空でもこの 1 行は必ず出る。 */
+  .recent-open {
+    width: 100%;
+    min-height: 28px;
+    margin-top: var(--space-1);
+    padding: var(--space-1) var(--space-2);
+    border: none;
+    border-top: 1px solid var(--border);
+    border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: var(--text-sm-size);
+    text-align: left;
+    cursor: pointer;
+  }
+
+  /* 履歴が無いときは区切り線が浮くので消す。 */
+  .recent-open:first-child {
+    margin-top: 0;
+    border-top: none;
+  }
+
+  .recent-open:hover {
     background: var(--bg-hover);
     color: var(--text-primary);
+  }
+
+  .recent-open:focus-visible {
+    outline: none;
+    box-shadow: inset 0 0 0 2px var(--accent);
   }
 
   /* ── ファイル名フィルタ ───────────────────────────────────── */
@@ -576,6 +1123,46 @@
   .row:focus-visible {
     outline: none;
     box-shadow: inset 0 0 0 2px var(--accent);
+  }
+
+  /* 改名中の行。押せる行ではないのでホバーの地色は出さない。 */
+  .row.renaming {
+    cursor: default;
+  }
+
+  .row.renaming:hover {
+    background: transparent;
+  }
+
+  .rename-input {
+    flex: 1 1 auto;
+    min-width: 0;
+    height: 20px;
+    padding: 0 var(--space-1);
+    border: 1px solid var(--accent);
+    border-radius: var(--radius-sm);
+    background: var(--bg-elevated);
+    color: var(--text-primary);
+    font-family: inherit;
+    font-size: var(--text-sm-size);
+  }
+
+  .rename-input:focus {
+    outline: none;
+  }
+
+  .rename-input.invalid {
+    border-color: var(--danger-fg, #c7502f);
+  }
+
+  /* 入力欄の直下に理由を出す。行の余白に合わせて、どの行の話かを見失わせない。 */
+  .rename-error {
+    margin: 0 0 var(--space-1);
+    padding: 0 var(--space-3) 0 calc(var(--space-3) + var(--depth) * 14px + 14px);
+    color: var(--danger-fg, #c7502f);
+    font-size: var(--text-2xs-size, 10px);
+    white-space: pre-wrap;
+    word-break: break-word;
   }
 
   .caret {

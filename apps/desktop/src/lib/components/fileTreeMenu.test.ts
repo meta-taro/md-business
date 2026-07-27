@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { toAbsolutePath, menuActionsForKind } from './fileTreeMenu';
+import {
+  toAbsolutePath,
+  menuActionsForKind,
+  baseName,
+  validateNewName,
+  renamedPath,
+} from './fileTreeMenu';
 
 describe('toAbsolutePath', () => {
   it('Windows ルートは区切りをバックスラッシュで連結する', () => {
@@ -28,11 +34,102 @@ describe('toAbsolutePath', () => {
 });
 
 describe('menuActionsForKind', () => {
-  it('ファイルは reveal / copyPath / openForge を持つ', () => {
-    expect(menuActionsForKind('file')).toEqual(['reveal', 'copyPath', 'openForge']);
+  it('ファイルは openForge まで含む全項目を持つ', () => {
+    expect(menuActionsForKind('file')).toEqual([
+      'rename',
+      'reveal',
+      'copyName',
+      'copyRelPath',
+      'copyPath',
+      'openForge',
+    ]);
   });
 
-  it('フォルダは reveal / copyPath のみ（フォージ blob はファイル向け）', () => {
-    expect(menuActionsForKind('folder')).toEqual(['reveal', 'copyPath']);
+  it('フォルダは openForge を持たない（フォージ blob はファイル向け）', () => {
+    expect(menuActionsForKind('folder')).toEqual([
+      'rename',
+      'reveal',
+      'copyName',
+      'copyRelPath',
+      'copyPath',
+    ]);
+  });
+});
+
+describe('baseName', () => {
+  it('末尾の名前だけを返す', () => {
+    expect(baseName('docs/検証/シート.tsv')).toBe('シート.tsv');
+  });
+
+  it('階層がなければそのまま返す', () => {
+    expect(baseName('a.md')).toBe('a.md');
+  });
+
+  it('バックスラッシュ区切りでも末尾を取れる', () => {
+    expect(baseName('docs\\a.md')).toBe('a.md');
+  });
+
+  it('末尾に区切りが付いていても名前を返す', () => {
+    expect(baseName('docs/検証/')).toBe('検証');
+  });
+
+  it('空文字は空文字のまま', () => {
+    expect(baseName('')).toBe('');
+  });
+});
+
+describe('validateNewName', () => {
+  it('通常の名前は通す', () => {
+    expect(validateNewName('新しい名前.md', 'file')).toBeNull();
+    expect(validateNewName('検証シート', 'folder')).toBeNull();
+  });
+
+  it('空・空白のみは empty', () => {
+    expect(validateNewName('', 'file')).toBe('empty');
+    expect(validateNewName('   ', 'folder')).toBe('empty');
+  });
+
+  it('区切り文字を含むと separator（移動には使わせない）', () => {
+    expect(validateNewName('sub/a.md', 'file')).toBe('separator');
+    expect(validateNewName('sub\\a.md', 'file')).toBe('separator');
+  });
+
+  it('. と .. は separator 扱いで拒否する', () => {
+    expect(validateNewName('.', 'folder')).toBe('separator');
+    expect(validateNewName('..', 'folder')).toBe('separator');
+  });
+
+  it('OS が受け付けない文字は invalidChar', () => {
+    expect(validateNewName('a:b.md', 'file')).toBe('invalidChar');
+    expect(validateNewName('a?b.md', 'file')).toBe('invalidChar');
+    expect(validateNewName('a*b', 'folder')).toBe('invalidChar');
+  });
+
+  it('ファイルは md / tsv 以外の拡張子を拒否する（走査対象から外れるため）', () => {
+    expect(validateNewName('a.txt', 'file')).toBe('extension');
+    expect(validateNewName('拡張子なし', 'file')).toBe('extension');
+  });
+
+  it('ファイルの拡張子は大文字でも通す', () => {
+    expect(validateNewName('A.MD', 'file')).toBeNull();
+    expect(validateNewName('A.Tsv', 'file')).toBeNull();
+  });
+
+  it('フォルダは拡張子を問わない', () => {
+    expect(validateNewName('2026.06 期', 'folder')).toBeNull();
+  });
+});
+
+describe('renamedPath', () => {
+  it('末尾の名前だけを差し替える', () => {
+    expect(renamedPath('docs/検証/旧名.tsv', '新名.tsv')).toBe('docs/検証/新名.tsv');
+  });
+
+  it('直下なら新しい名前がそのまま相対パスになる', () => {
+    expect(renamedPath('a.md', 'b.md')).toBe('b.md');
+  });
+
+  it('前後の空白は落として組み立てる', () => {
+    expect(renamedPath('docs/a.md', '  b.md  ')).toBe('docs/b.md');
   });
 });

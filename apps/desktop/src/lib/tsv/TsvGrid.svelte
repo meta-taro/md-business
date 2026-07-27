@@ -74,6 +74,7 @@
     writeGroups,
     setGroup,
   } from './gridHeaderDirectives';
+  import { readRowTints, rowTintOf } from './gridStyleDirectives';
 
   interface Props {
     /** 表示・編集対象の TSV ドキュメント（`parseTsv` の結果）。 */
@@ -94,6 +95,10 @@
   // スプレッドシート列座標（A,B,C…AA,AB）。型付きヘッダとは別レイヤーの位置参照バー。
   // フォーマットは変えず、描画専用に列数から算出する。
   const colLetters = $derived(columnLabels(doc.columns.length));
+
+  // 条件付き書式（#@ style …）。指定列の値で行全体を薄く塗り、実施状況を縦に眺めて
+  // 掴めるようにする。色は tsv 側に持つので、シートごとに凡例と塗りを揃えられる。
+  const rowTints = $derived(readRowTints(doc.directives, doc.columns.map((c) => c.name)));
 
   // 表の上の補足行（#@ note …）。型付きヘッダの上に全幅で敷く（表の上に補足を置く）。
   // フォーマット不変・#@ ディレクティブから読む。追加/編集/削除は
@@ -902,7 +907,10 @@
       <tbody>
         <!-- 実データ行 + pad 空行を通し番号で描く。pad 行のセルは cellValue が '' を返す。 -->
         {#each Array(displayRows) as _row, r (r)}
-          <tr style={`height:${rowHeights[r] ?? DEFAULT_ROW_HEIGHT}px`}>
+          {@const tint = rowTintOf(rowTints, doc.rows[r] ?? [])}
+          <tr
+            style={`height:${rowHeights[r] ?? DEFAULT_ROW_HEIGHT}px${tint ? `; --row-tint:${tint}` : ''}`}
+          >
             <!-- 行番号クリックで行全体を選択（スプレ同様）。下端のグリップは行高リサイズ。 -->
             <!-- svelte-ignore a11y_click_events_have_key_events -->
             <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
@@ -1273,6 +1281,26 @@
     padding: 0; /* 入力ウィジェット / 静的表示がセルいっぱいに敷くので td 自身は余白ゼロ */
     height: 30px;
     vertical-align: middle;
+  }
+
+  /* 条件付き書式（#@ style）の行背景。--row-tint は行ごとにインラインで入るので、
+     色の組み立てはこの行側でしか成立しない（テーマ側の変数に組んでも、そこでは
+     --row-tint が未設定のまま「色なし」に確定し、その結果が全行へ継承される）。
+     選択・編集中のセルは td 側の背景が上に乗るので、色付き行でも現在位置は見失わない。 */
+  tbody tr {
+    /* ライトは tsv の色をそのまま敷く（濃度 100%）。相対色が使えないエンジンでは
+       ダークもここに落ちる（濃度を下げるので色味は薄れるが、明度差だけは付く）。 */
+    background: color-mix(in srgb, var(--row-tint, transparent) var(--row-tint-strength), transparent);
+  }
+
+  @supports (background: oklch(from red l c h)) {
+    /* ダークは明度を暗い地に合わせて置き換え、彩度は逆に持ち上げて色の違いだけを残す
+       （数値の意図はテーマトークン側のコメント参照）。元が透明な行は透明のまま。 */
+    :global(:root[data-theme='dark']) tbody tr {
+      background: oklch(
+        from var(--row-tint, #0000) var(--row-tint-dark-l) min(c * 3, var(--row-tint-dark-c-max)) h
+      );
+    }
   }
 
   /* 行番号列＝横スクロールでも固定（sticky left）。左上隅も固定。 */

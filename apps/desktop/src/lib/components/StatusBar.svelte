@@ -8,6 +8,7 @@
   import { git } from '$lib/git/git.svelte';
   import { workspace } from '$lib/workspace/workspace.svelte';
   import { forgeLabel } from '$lib/git/gitStatus';
+  import { describeSaveState } from '$lib/workspace/saveIndicator';
   import { t } from '$lib/i18n/i18n.svelte';
 
   interface Props {
@@ -17,6 +18,16 @@
     onToggleScm?: () => void;
   }
   const { scmOpen = false, onToggleScm }: Props = $props();
+
+  // 保存状態。自動保存は静止後に黙って走るので、効いていることをここで見せる。
+  const saveState = $derived(
+    describeSaveState({
+      hasFile: workspace.activePath !== null,
+      dirty: workspace.dirty,
+      saving: workspace.saving,
+      savedAt: workspace.savedAt,
+    }),
+  );
 
   let pickerOpen = $state(false);
   let switching = $state(false);
@@ -131,6 +142,23 @@
   </div>
 
   <div class="right">
+    <!-- 前回の続きから開けたことを一度だけ知らせる。黙って戻すと、覚えていること自体に
+         気付けない（勝手に開いたように見える）。しばらくして自分で消える。 -->
+    {#if workspace.restored}
+      <span class="ind restored"><span class="restored-ico" aria-hidden="true">⟲</span>{t('tree.restored')}</span>
+    {/if}
+    <!-- 保存状態。未保存だけ色を変え、保存できていれば時刻を淡く出す。 -->
+    {#if saveState.kind !== 'none'}
+      <span class="ind save" class:pending={saveState.kind !== 'saved'} title={t('status.savedAtTitle')}>
+        {#if saveState.kind === 'saving'}
+          {t('status.saving')}
+        {:else if saveState.kind === 'dirty'}
+          {t('status.unsaved')}
+        {:else}
+          {t('status.savedAt', { time: saveState.time })}
+        {/if}
+      </span>
+    {/if}
     <span class="ind"
       ><span class="dot" class:ok={git.forge !== null} class:neutral={git.forge === null} aria-hidden="true"
       ></span>{t('status.forge', { name: forgeLabel(git.forge) })}</span
@@ -217,6 +245,33 @@
     display: inline-flex;
     align-items: center;
     gap: 6px;
+  }
+
+  /* 一度気付けば用が済む知らせ。出るときだけ淡く動かし、色はアクセントに寄せる。 */
+  .ind.restored {
+    color: var(--accent);
+    animation: restored-in var(--dur-slow) var(--ease);
+  }
+
+  .restored-ico {
+    font-size: 12px;
+    line-height: 1;
+  }
+
+  @keyframes restored-in {
+    from {
+      opacity: 0;
+      transform: translateY(2px);
+    }
+  }
+
+  /* 保存済みは「見えるが目立たない」。未保存・保存中だけ地色を上げて気付かせる。 */
+  .ind.save {
+    color: var(--text-tertiary);
+  }
+
+  .ind.save.pending {
+    color: var(--text-secondary);
   }
 
   .dot {

@@ -82,7 +82,9 @@
         <span>{workspace.saving ? t('action.saving') : t('action.save')}</span>
       </button>
       <!-- オートセーブのオン/オフ（既定オン）。オンの間は編集の静止後に自動保存する。
-           循環矢印＝自動反映の普遍アイコン。オン時は色でも状態を示す。 -->
+           循環矢印＝自動反映の普遍アイコン。押しても画面が変わらないと「何が起きたのか」が
+           分からないので、色だけでなく現在の状態を語で出す。実際に保存されたことは
+           ステータスバーの保存時刻で分かる。 -->
       <button
         class="btn ghost with-icon"
         class:is-on={autosave.enabled}
@@ -110,6 +112,7 @@
           />
         </svg>
         <span>{t('action.autosave')}</span>
+        <span class="state-pill">{autosave.enabled ? t('state.on') : t('state.off')}</span>
       </button>
       <!-- PDF 出力（§6.4・Ctrl+P / ⌘P と等価）。プレビュー描画中だけ活性。押すと
            WebView の印刷（→「PDF として保存」）でプレビュー見た目のまま A4 出力する。
@@ -225,7 +228,12 @@
   .topbar {
     height: var(--topbar-h);
     display: grid;
-    grid-template-columns: 1fr auto 1fr;
+    /* 左右を等分の 1fr にして中央列（文書名）を窓の中央へ置く。ただし素の 1fr / auto は
+       min-content を下回れないため、幅が足りなくなるとトラックが帯からはみ出し、
+       中央寄せの文書名と右寄せのアクション群が重なる。左と中央は 0 まで縮められるように、
+       右はアクション群の min-content を下限にして、詰まったときは
+       「左が縮む → 文書名が … で省略される」の順に潰れるようにする。 */
+    grid-template-columns: minmax(0, 1fr) minmax(0, auto) minmax(min-content, 1fr);
     align-items: center;
     gap: var(--space-3);
     /* 右端はウィンドウコントロールを角まで寄せるため padding を持たない */
@@ -246,6 +254,8 @@
     align-items: center;
     gap: var(--space-2);
     min-width: 0;
+    /* 縮んだときにブランド名が中央列へはみ出さないよう切り落とす。 */
+    overflow: hidden;
   }
 
   .brand-dot {
@@ -261,10 +271,15 @@
     font-weight: 600;
     color: var(--text-primary);
     letter-spacing: var(--tracking-tight);
+    white-space: nowrap;
   }
 
   .center {
-    justify-self: center;
+    /* justify-self: center は要素を内容幅のまま中央に置くため、トラックより広いと
+       そのまま溢れて右のアクション群へ重なる。トラックいっぱいに広げたうえで
+       中身を中央寄せし、狭いときは文書名が … で省略されるようにする。 */
+    justify-self: stretch;
+    justify-content: center;
     min-width: 0;
     display: flex;
     align-items: center;
@@ -297,7 +312,8 @@
     align-self: stretch;
     display: flex;
     align-items: center;
-    min-width: 0;
+    /* min-width は詰めない。ここを 0 にすると min-content が 0 と評価され、
+       .topbar のトラック下限（minmax(min-content, 1fr)）が効かなくなる。 */
   }
 
   .actions {
@@ -336,6 +352,68 @@
     flex: none;
   }
 
+  /* ── ウィンドウ幅に応じたアクション群の段階的縮退 ───────────────────
+     タイトルバーを兼ねる帯なので、ウィンドウが狭まると .actions が押し潰されて
+     ラベルが 2 行に折り返し、帯の高さと文書名の位置が崩れる。折り返しは禁じたうえで
+       全文 → 末尾を … で省略 → アイコンのみ
+     と段階的に落とし、最後までアイコンとクリック領域は残す（title / aria-label が
+     残るので、ラベルが消えても何のボタンかは辿れる）。
+     言語セレクタとヘルプは子コンポーネント側の scoped CSS を持つため、
+     ここからは :global で同じ体裁に揃える。 */
+  .actions :global(.btn),
+  .actions :global(.lang) {
+    white-space: nowrap;
+  }
+
+  @media (max-width: 1120px) {
+    .actions :global(.btn > span) {
+      display: inline-block;
+      max-width: 4.5em;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      vertical-align: middle;
+    }
+
+    /* ネイティブ select は文字を … で省略できないので、幅で頭出しだけ残す。 */
+    .actions :global(.lang-select) {
+      max-width: 5em;
+    }
+
+    .actions {
+      gap: 0;
+    }
+  }
+
+  @media (max-width: 900px) {
+    /* 帯の幅を文書名に譲る。ブランドドットは残るので出自は分かる。 */
+    .brand {
+      display: none;
+    }
+
+    .actions :global(.btn > span) {
+      display: none;
+    }
+
+    .actions :global(.btn) {
+      padding: 0 var(--space-2);
+    }
+
+    /* select は畳めないので、地球儀アイコンの上へ透明なまま重ねて当たり判定にする
+       （不可視でもネイティブのドロップダウンは通常どおり開く）。 */
+    .actions :global(.lang) {
+      position: relative;
+    }
+
+    .actions :global(.lang-select) {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      max-width: none;
+      padding: 0;
+      opacity: 0;
+    }
+  }
+
   .btn:hover:not(:disabled) {
     background: var(--bg-hover);
     color: var(--text-primary);
@@ -355,6 +433,17 @@
   /* オートセーブ ON はアクセント色で点灯し、無効/有効が一目で分かるようにする。 */
   .btn.is-on {
     color: var(--accent);
+  }
+
+  /* オン/オフの語。色を見分けられなくても状態が分かるよう、枠付きの小片で並べる。 */
+  .state-pill {
+    flex: none;
+    padding: 0 var(--space-1);
+    border: 1px solid currentColor;
+    border-radius: var(--radius-sm);
+    font-size: var(--text-2xs-size);
+    line-height: 1.5;
+    opacity: 0.85;
   }
 
   /* ── ウィンドウコントロール（Windows 慣習：右上角に密着・フル高） ── */

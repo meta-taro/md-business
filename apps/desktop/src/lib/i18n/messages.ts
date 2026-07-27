@@ -28,6 +28,8 @@ export interface Messages {
   'action.autosave': string;
   'action.autosaveOn': string;
   'action.autosaveOff': string;
+  'state.on': string;
+  'state.off': string;
   // ウィンドウコントロール
   'window.minimize': string;
   'window.maximize': string;
@@ -59,13 +61,16 @@ export interface Messages {
   'status.sourceControl': string;
   'status.forge': string;
   'status.mcp': string;
+  'status.saving': string;
+  'status.unsaved': string;
+  'status.savedAt': string;
+  'status.savedAtTitle': string;
   // 左レール（ファイルツリー / エクスプローラー）
   'tree.label': string;
   'tree.expandExplorer': string;
   'tree.collapseExplorer': string;
   'tree.explorer': string;
   'tree.openOtherFolder': string;
-  'tree.open': string;
   'tree.filterPlaceholder': string;
   'tree.filterClearTitle': string;
   'tree.filterClear': string;
@@ -76,9 +81,23 @@ export interface Messages {
   'tree.noFiles': string;
   'tree.truncated': string;
   // 左レールの右クリックメニュー（reveal / パスコピー / リモートで開く）
+  'tree.recent': string;
+  'tree.recentPick': string;
+  'tree.recentMissing': string;
+  'tree.recentForget': string;
+  'tree.recentLastFile': string;
+  'tree.restored': string;
+  'tree.menuRename': string;
   'tree.menuReveal': string;
+  'tree.menuCopyName': string;
+  'tree.menuCopyRelPath': string;
   'tree.menuCopyPath': string;
   'tree.menuOpenForge': string;
+  'tree.renameHint': string;
+  'tree.renameErrorEmpty': string;
+  'tree.renameErrorSeparator': string;
+  'tree.renameErrorInvalidChar': string;
+  'tree.renameErrorExtension': string;
   // Git 変更状態（ツリーのバッジ説明）
   'git.state.modified': string;
   'git.state.added': string;
@@ -150,6 +169,8 @@ const en: Messages = {
   'action.autosave': 'Autosave',
   'action.autosaveOn': 'Autosave: on — click to turn off',
   'action.autosaveOff': 'Autosave: off — click to turn on',
+  'state.on': 'On',
+  'state.off': 'Off',
   'window.minimize': 'Minimize',
   'window.maximize': 'Maximize',
   'window.restore': 'Restore',
@@ -177,12 +198,15 @@ const en: Messages = {
   'status.sourceControl': 'Source control',
   'status.forge': 'forge: {name}',
   'status.mcp': 'MCP: disconnected',
+  'status.saving': 'Saving…',
+  'status.unsaved': 'Unsaved changes',
+  'status.savedAt': 'Saved at {time}',
+  'status.savedAtTitle': 'Time of the last successful save of the open file',
   'tree.label': 'File tree',
   'tree.expandExplorer': 'Open explorer',
   'tree.collapseExplorer': 'Collapse explorer',
   'tree.explorer': 'Explorer',
   'tree.openOtherFolder': 'Open another folder',
-  'tree.open': 'Open',
   'tree.filterPlaceholder': 'Filter by file name',
   'tree.filterClearTitle': 'Clear filter (Esc)',
   'tree.filterClear': 'Clear filter',
@@ -192,9 +216,23 @@ const en: Messages = {
   'tree.filterNoMatch': 'No files match\n"{query}"',
   'tree.noFiles': 'No .md / .tsv\nfiles found',
   'tree.truncated': 'Showing partial results (limit reached)',
+  'tree.recent': 'Recent folders',
+  'tree.recentPick': 'Pick a recent folder',
+  'tree.recentMissing': 'Not found',
+  'tree.recentForget': 'Remove from list',
+  'tree.recentLastFile': 'Last open: {file}',
+  'tree.restored': 'Resumed where you left off',
+  'tree.menuRename': 'Rename',
   'tree.menuReveal': 'Reveal in File Explorer',
+  'tree.menuCopyName': 'Copy name',
+  'tree.menuCopyRelPath': 'Copy relative path',
   'tree.menuCopyPath': 'Copy full path',
   'tree.menuOpenForge': 'Open on remote',
+  'tree.renameHint': 'Enter to apply, Esc to cancel',
+  'tree.renameErrorEmpty': 'Enter a name',
+  'tree.renameErrorSeparator': 'A name cannot contain path separators',
+  'tree.renameErrorInvalidChar': 'That name contains characters that cannot be used',
+  'tree.renameErrorExtension': 'The extension must stay .md or .tsv',
   'git.state.modified': 'Modified (uncommitted)',
   'git.state.added': 'Staged addition',
   'git.state.untracked': 'Untracked (new)',
@@ -258,6 +296,8 @@ const ja: Messages = {
   'action.autosave': '自動保存',
   'action.autosaveOn': '自動保存: オン（クリックでオフ）',
   'action.autosaveOff': '自動保存: オフ（クリックでオン）',
+  'state.on': 'オン',
+  'state.off': 'オフ',
   'window.minimize': '最小化',
   'window.maximize': '最大化',
   'window.restore': '元のサイズに戻す',
@@ -285,12 +325,15 @@ const ja: Messages = {
   'status.sourceControl': 'ソース管理',
   'status.forge': 'forge: {name}',
   'status.mcp': 'MCP: 未接続',
+  'status.saving': '保存中…',
+  'status.unsaved': '未保存の変更',
+  'status.savedAt': '{time} に保存',
+  'status.savedAtTitle': '開いているファイルを最後に保存できた時刻',
   'tree.label': 'ファイルツリー',
   'tree.expandExplorer': 'エクスプローラーを開く',
   'tree.collapseExplorer': 'エクスプローラーを畳む',
   'tree.explorer': 'エクスプローラー',
   'tree.openOtherFolder': '別のフォルダを開く',
-  'tree.open': '開く',
   'tree.filterPlaceholder': 'ファイル名で絞り込み',
   'tree.filterClearTitle': 'フィルタをクリア（Esc）',
   'tree.filterClear': 'フィルタをクリア',
@@ -300,9 +343,23 @@ const ja: Messages = {
   'tree.filterNoMatch': '「{query}」に\n一致するファイルがありません',
   'tree.noFiles': '.md / .tsv が\n見つかりませんでした',
   'tree.truncated': '一部のみ表示（上限に達したため打ち切りました）',
+  'tree.recent': '最近開いたフォルダ',
+  'tree.recentPick': '最近開いたフォルダから選ぶ',
+  'tree.recentMissing': '見つかりません',
+  'tree.recentForget': '一覧から削除',
+  'tree.recentLastFile': '前回開いていた: {file}',
+  'tree.restored': '前回の続きから開きました',
+  'tree.menuRename': '名前の変更',
   'tree.menuReveal': 'エクスプローラーで表示',
+  'tree.menuCopyName': '名前をコピー',
+  'tree.menuCopyRelPath': '相対パスをコピー',
   'tree.menuCopyPath': 'フルパスをコピー',
   'tree.menuOpenForge': 'リモートで開く',
+  'tree.renameHint': 'Enter で確定・Esc で取り消し',
+  'tree.renameErrorEmpty': '名前を入力してください',
+  'tree.renameErrorSeparator': '名前に区切り文字は使えません',
+  'tree.renameErrorInvalidChar': '名前に使えない文字が含まれています',
+  'tree.renameErrorExtension': '拡張子は .md / .tsv のままにしてください',
   'git.state.modified': '変更あり（未コミット）',
   'git.state.added': 'ステージ済みの追加',
   'git.state.untracked': '未追跡（新規）',
@@ -366,6 +423,8 @@ const zh: Messages = {
   'action.autosave': '自动保存',
   'action.autosaveOn': '自动保存：开（点击关闭）',
   'action.autosaveOff': '自动保存：关（点击开启）',
+  'state.on': '开',
+  'state.off': '关',
   'window.minimize': '最小化',
   'window.maximize': '最大化',
   'window.restore': '还原',
@@ -393,12 +452,15 @@ const zh: Messages = {
   'status.sourceControl': '源代码管理',
   'status.forge': 'forge: {name}',
   'status.mcp': 'MCP: 未连接',
+  'status.saving': '保存中…',
+  'status.unsaved': '未保存的更改',
+  'status.savedAt': '{time} 已保存',
+  'status.savedAtTitle': '当前文件最后一次成功保存的时间',
   'tree.label': '文件树',
   'tree.expandExplorer': '打开资源管理器',
   'tree.collapseExplorer': '折叠资源管理器',
   'tree.explorer': '资源管理器',
   'tree.openOtherFolder': '打开其他文件夹',
-  'tree.open': '打开',
   'tree.filterPlaceholder': '按文件名筛选',
   'tree.filterClearTitle': '清除筛选（Esc）',
   'tree.filterClear': '清除筛选',
@@ -408,9 +470,23 @@ const zh: Messages = {
   'tree.filterNoMatch': '没有匹配\n“{query}”的文件',
   'tree.noFiles': '未找到\n.md / .tsv 文件',
   'tree.truncated': '仅显示部分（已达上限而截断）',
+  'tree.recent': '最近打开的文件夹',
+  'tree.recentPick': '从最近打开的文件夹中选择',
+  'tree.recentMissing': '未找到',
+  'tree.recentForget': '从列表中移除',
+  'tree.recentLastFile': '上次打开：{file}',
+  'tree.restored': '已恢复到上次的位置',
+  'tree.menuRename': '重命名',
   'tree.menuReveal': '在资源管理器中显示',
+  'tree.menuCopyName': '复制名称',
+  'tree.menuCopyRelPath': '复制相对路径',
   'tree.menuCopyPath': '复制完整路径',
   'tree.menuOpenForge': '在远程仓库打开',
+  'tree.renameHint': 'Enter 确认，Esc 取消',
+  'tree.renameErrorEmpty': '请输入名称',
+  'tree.renameErrorSeparator': '名称中不能包含路径分隔符',
+  'tree.renameErrorInvalidChar': '名称中包含无法使用的字符',
+  'tree.renameErrorExtension': '扩展名必须保持为 .md 或 .tsv',
   'git.state.modified': '已更改（未提交）',
   'git.state.added': '已暂存的新增',
   'git.state.untracked': '未跟踪（新增）',
@@ -474,6 +550,8 @@ const ko: Messages = {
   'action.autosave': '자동 저장',
   'action.autosaveOn': '자동 저장: 켬(클릭하여 끄기)',
   'action.autosaveOff': '자동 저장: 끔(클릭하여 켜기)',
+  'state.on': '켬',
+  'state.off': '끔',
   'window.minimize': '최소화',
   'window.maximize': '최대화',
   'window.restore': '이전 크기로 복원',
@@ -501,12 +579,15 @@ const ko: Messages = {
   'status.sourceControl': '소스 제어',
   'status.forge': 'forge: {name}',
   'status.mcp': 'MCP: 미연결',
+  'status.saving': '저장 중…',
+  'status.unsaved': '저장되지 않은 변경',
+  'status.savedAt': '{time}에 저장',
+  'status.savedAtTitle': '열려 있는 파일을 마지막으로 저장한 시각',
   'tree.label': '파일 트리',
   'tree.expandExplorer': '탐색기 열기',
   'tree.collapseExplorer': '탐색기 접기',
   'tree.explorer': '탐색기',
   'tree.openOtherFolder': '다른 폴더 열기',
-  'tree.open': '열기',
   'tree.filterPlaceholder': '파일 이름으로 필터',
   'tree.filterClearTitle': '필터 지우기 (Esc)',
   'tree.filterClear': '필터 지우기',
@@ -516,9 +597,23 @@ const ko: Messages = {
   'tree.filterNoMatch': '"{query}"과(와)\n일치하는 파일이 없습니다',
   'tree.noFiles': '.md / .tsv 파일을\n찾을 수 없습니다',
   'tree.truncated': '일부만 표시 (상한에 도달하여 중단)',
+  'tree.recent': '최근 연 폴더',
+  'tree.recentPick': '최근 연 폴더에서 선택',
+  'tree.recentMissing': '찾을 수 없음',
+  'tree.recentForget': '목록에서 삭제',
+  'tree.recentLastFile': '지난번 파일: {file}',
+  'tree.restored': '지난번 위치에서 이어서 열었습니다',
+  'tree.menuRename': '이름 바꾸기',
   'tree.menuReveal': '탐색기에서 표시',
+  'tree.menuCopyName': '이름 복사',
+  'tree.menuCopyRelPath': '상대 경로 복사',
   'tree.menuCopyPath': '전체 경로 복사',
   'tree.menuOpenForge': '원격 저장소에서 열기',
+  'tree.renameHint': 'Enter로 확정, Esc로 취소',
+  'tree.renameErrorEmpty': '이름을 입력하세요',
+  'tree.renameErrorSeparator': '이름에 경로 구분자는 사용할 수 없습니다',
+  'tree.renameErrorInvalidChar': '이름에 사용할 수 없는 문자가 있습니다',
+  'tree.renameErrorExtension': '확장자는 .md 또는 .tsv 여야 합니다',
   'git.state.modified': '변경됨 (커밋 안 됨)',
   'git.state.added': '스테이지된 추가',
   'git.state.untracked': '추적 안 됨 (신규)',

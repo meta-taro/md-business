@@ -6,8 +6,11 @@ import {
   flattenVisible,
   computeDirty,
   shouldReopenFile,
+  remapRenamedPath,
   filterTree,
   collectFolderPaths,
+  shouldClearFilter,
+  decideTreeKey,
   type VisibleRow,
 } from './workspaceLogic';
 
@@ -114,6 +117,30 @@ describe('shouldReopenFile', () => {
   });
 });
 
+describe('remapRenamedPath', () => {
+  it('開いていたファイル自身が改名されたら新しいパスを返す', () => {
+    expect(remapRenamedPath('docs/旧名.tsv', 'docs/旧名.tsv', 'docs/新名.tsv')).toBe(
+      'docs/新名.tsv',
+    );
+  });
+
+  it('親フォルダが改名されたら配下も付け替える', () => {
+    expect(remapRenamedPath('旧/検証/a.md', '旧', '新')).toBe('新/検証/a.md');
+  });
+
+  it('無関係なファイルはそのまま', () => {
+    expect(remapRenamedPath('other/a.md', 'docs', 'documents')).toBe('other/a.md');
+  });
+
+  it('名前の前方一致だけでは付け替えない（旧 と 旧フォルダ を混同しない）', () => {
+    expect(remapRenamedPath('旧フォルダ/a.md', '旧', '新')).toBe('旧フォルダ/a.md');
+  });
+
+  it('未オープンなら null のまま', () => {
+    expect(remapRenamedPath(null, 'docs', 'documents')).toBeNull();
+  });
+});
+
 describe('filterTree', () => {
   it('空クエリは元のツリーをそのまま返す', () => {
     const tree = buildTree(entries('docs/a.md', 'z.md'));
@@ -165,6 +192,118 @@ describe('filterTree', () => {
   });
 });
 
+// 業務文書のファイル名は日本語が既定と考えてよいため、絞り込みは日本語入力の
+// 実情（IME・全角・濁点の合成揺れ）に耐える必要がある。
+describe('filterTree（日本語ファイル名）', () => {
+  it('日本語のファイル名を日本語クエリで絞り込める', () => {
+    const tree = buildTree(entries('設計/基本設計書.md', '設計/API仕様書.md', '請求書.md'));
+    const filtered = filterTree(tree, '基本設計');
+    expect(rowLabels(flattenVisible(filtered, new Set(collectFolderPaths(filtered))))).toEqual([
+      '0:folder:設計',
+      '1:file:設計/基本設計書.md',
+    ]);
+  });
+
+  it('日本語のフォルダ名がマッチしたら配下を丸ごと残す', () => {
+    const tree = buildTree(entries('検証シート/受発注.tsv', '検証シート/在庫.tsv', '他/x.md'));
+    const filtered = filterTree(tree, '検証');
+    expect(rowLabels(flattenVisible(filtered, new Set(collectFolderPaths(filtered))))).toEqual([
+      '0:folder:検証シート',
+      '1:file:検証シート/在庫.tsv',
+      '1:file:検証シート/受発注.tsv',
+    ]);
+  });
+
+  it('サロゲートペアを含む名前を引ける', () => {
+    // 𠮷 は基本多言語面外（UTF-16 で 2 コード単位）。人名・屋号のファイル名で実際に現れる。
+    const tree = buildTree(entries('𠮷野家_見積.md', '山田_見積.md'));
+    const filtered = filterTree(tree, '𠮷野');
+    expect(filtered.map((n) => n.path)).toEqual(['𠮷野家_見積.md']);
+  });
+
+  it('濁点が分解された名前（NFD）を通常入力（NFC）で引ける', () => {
+    // macOS の走査結果は濁点が分解された形で返ることがある。見た目が同じでも
+    // コード列が違うため、素の includes では一致しない。
+    const tree = buildTree(entries('ダイジェスト.md'.normalize('NFD')));
+    const filtered = filterTree(tree, 'ダイジェスト'.normalize('NFC'));
+    expect(filtered.length).toBe(1);
+  });
+
+  it('全角で入力した英数クエリで半角のファイル名を引ける', () => {
+    // IME を on にしたまま英字を打つと全角になる。見た目上は同じ語なので一致させる。
+    const tree = buildTree(entries('api-spec.md', 'other.md'));
+    const filtered = filterTree(tree, 'ＡＰＩ');
+    expect(filtered.map((n) => n.path)).toEqual(['api-spec.md']);
+  });
+
+  it('半角カナのクエリで全角カナのファイル名を引ける', () => {
+    const tree = buildTree(entries('シフト表.tsv', '請求書.md'));
+    const filtered = filterTree(tree, 'ｼﾌﾄ');
+    expect(filtered.map((n) => n.path)).toEqual(['シフト表.tsv']);
+  });
+});
+
+// UI は en/ja/zh/ko を出すので、ファイル名も同じ言語圏で運用されうる。
+describe('filterTree（韓国語・中国語のファイル名）', () => {
+  it('韓国語のファイル名を韓国語クエリで絞り込める', () => {
+    const tree = buildTree(entries('설계서/기본설계서.md', '설계서/API명세서.md', '청구서.md'));
+    const filtered = filterTree(tree, '기본설계');
+    expect(rowLabels(flattenVisible(filtered, new Set(collectFolderPaths(filtered))))).toEqual([
+      '0:folder:설계서',
+      '1:file:설계서/기본설계서.md',
+    ]);
+  });
+
+  it('ハングルが字母に分解された名前（NFD）を通常入力（NFC）で引ける', () => {
+    // ハングルは合成済み音節と字母列の 2 通りの表し方がある。macOS の走査結果は
+    // 分解形で返ることがあり、日本語の濁点と同じ不一致が起きる。
+    const tree = buildTree(entries('검증시트.tsv'.normalize('NFD')));
+    const filtered = filterTree(tree, '검증'.normalize('NFC'));
+    expect(filtered.length).toBe(1);
+  });
+
+  it('中国語のファイル名を中国語クエリで絞り込める', () => {
+    const tree = buildTree(entries('设计文档/概要设计.md', '设计文档/接口说明.md', '发票.md'));
+    const filtered = filterTree(tree, '概要');
+    expect(rowLabels(flattenVisible(filtered, new Set(collectFolderPaths(filtered))))).toEqual([
+      '0:folder:设计文档',
+      '1:file:设计文档/概要设计.md',
+    ]);
+  });
+
+  it('中国語の全角括弧を含む名前を引ける', () => {
+    const tree = buildTree(entries('发票（2026年6月）.md', '其他.md'));
+    const filtered = filterTree(tree, '发票');
+    expect(filtered.map((n) => n.path)).toEqual(['发票（2026年6月）.md']);
+  });
+
+  it('簡体字と繁体字は畳まない（別の字として扱う）', () => {
+    // NFKC は互換文字だけを畳む。簡繁変換は正規化の仕事ではなく、
+    // 畳むと「発票」と「发票」が混ざって検索結果が読めなくなる。
+    const tree = buildTree(entries('发票.md', '發票.md'));
+    expect(filterTree(tree, '发票').map((n) => n.path)).toEqual(['发票.md']);
+    expect(filterTree(tree, '發票').map((n) => n.path)).toEqual(['發票.md']);
+  });
+});
+
+describe('shouldClearFilter', () => {
+  it('Escape で入力があればクリアする', () => {
+    expect(shouldClearFilter('Escape', false, '検証')).toBe(true);
+  });
+
+  it('IME 変換中の Escape はクリアしない（変換の取り消し操作のため）', () => {
+    expect(shouldClearFilter('Escape', true, 'けんしょう')).toBe(false);
+  });
+
+  it('入力が空なら何もしない', () => {
+    expect(shouldClearFilter('Escape', false, '')).toBe(false);
+  });
+
+  it('Escape 以外のキーでは何もしない', () => {
+    expect(shouldClearFilter('Enter', false, '検証')).toBe(false);
+  });
+});
+
 describe('collectFolderPaths', () => {
   it('全階層のフォルダ path を返す（ファイルは含めない）', () => {
     const tree = buildTree(entries('a/b/c.md', 'a/d.md', 'z.md'));
@@ -174,5 +313,122 @@ describe('collectFolderPaths', () => {
   it('フォルダが無ければ空配列', () => {
     const tree = buildTree(entries('x.md', 'y.md'));
     expect(collectFolderPaths(tree)).toEqual([]);
+  });
+});
+
+describe('decideTreeKey', () => {
+  // docs/                (0)
+  //   sub/               (1)
+  //     a.md             (2)
+  //   b.md               (3)
+  // empty/               (4)
+  // z.md                 (5)
+  const tree = buildTree(entries('docs/sub/a.md', 'docs/b.md', 'z.md'));
+  const withEmpty = [
+    ...tree.filter((n) => n.path === 'docs'),
+    { name: 'empty', path: 'empty', kind: 'folder' as const, children: [] },
+    ...tree.filter((n) => n.path === 'z.md'),
+  ];
+  const allOpen = new Set(['docs', 'docs/sub', 'empty']);
+  const rows = flattenVisible(withEmpty, allOpen);
+  const ctx = (index: number, expanded: ReadonlySet<string> = allOpen) => ({
+    rows,
+    index,
+    expanded,
+    toggleable: true,
+  });
+
+  it('行の並びが前提どおり', () => {
+    expect(rowLabels(rows)).toEqual([
+      '0:folder:docs',
+      '1:folder:docs/sub',
+      '2:file:docs/sub/a.md',
+      '1:file:docs/b.md',
+      '0:folder:empty',
+      '0:file:z.md',
+    ]);
+  });
+
+  it('下キーで次の行へ、末尾では止まる', () => {
+    expect(decideTreeKey('ArrowDown', ctx(0))).toEqual({ kind: 'move', index: 1 });
+    expect(decideTreeKey('ArrowDown', ctx(5))).toBeNull();
+  });
+
+  it('上キーで前の行へ、先頭では止まる', () => {
+    expect(decideTreeKey('ArrowUp', ctx(3))).toEqual({ kind: 'move', index: 2 });
+    expect(decideTreeKey('ArrowUp', ctx(0))).toBeNull();
+  });
+
+  it('Home / End で先頭・末尾へ飛ぶ', () => {
+    expect(decideTreeKey('Home', ctx(3))).toEqual({ kind: 'move', index: 0 });
+    expect(decideTreeKey('End', ctx(0))).toEqual({ kind: 'move', index: 5 });
+    expect(decideTreeKey('Home', ctx(0))).toBeNull();
+    expect(decideTreeKey('End', ctx(5))).toBeNull();
+  });
+
+  it('右キー: 閉じたフォルダは開く', () => {
+    const closed = new Set<string>();
+    const closedRows = flattenVisible(withEmpty, closed);
+    expect(
+      decideTreeKey('ArrowRight', { rows: closedRows, index: 0, expanded: closed, toggleable: true }),
+    ).toEqual({ kind: 'expand', path: 'docs' });
+  });
+
+  it('右キー: 開いたフォルダは最初の子へ入る', () => {
+    expect(decideTreeKey('ArrowRight', ctx(0))).toEqual({ kind: 'move', index: 1 });
+  });
+
+  it('右キー: 子の無いフォルダでは動かない', () => {
+    expect(decideTreeKey('ArrowRight', ctx(4))).toBeNull();
+  });
+
+  it('右キー: ファイルでは動かない', () => {
+    expect(decideTreeKey('ArrowRight', ctx(2))).toBeNull();
+  });
+
+  it('左キー: 開いたフォルダは閉じる', () => {
+    expect(decideTreeKey('ArrowLeft', ctx(1))).toEqual({ kind: 'collapse', path: 'docs/sub' });
+  });
+
+  it('左キー: ファイルは親フォルダへ戻る', () => {
+    expect(decideTreeKey('ArrowLeft', ctx(2))).toEqual({ kind: 'move', index: 1 });
+    expect(decideTreeKey('ArrowLeft', ctx(3))).toEqual({ kind: 'move', index: 0 });
+  });
+
+  it('左キー: 閉じたフォルダは親フォルダへ戻る', () => {
+    const expanded = new Set(['docs']);
+    const partial = flattenVisible(withEmpty, expanded);
+    // 0:docs / 1:docs/sub(閉) / 2:docs/b.md / 3:empty / 4:z.md
+    expect(decideTreeKey('ArrowLeft', { rows: partial, index: 1, expanded, toggleable: true })).toEqual({
+      kind: 'move',
+      index: 0,
+    });
+  });
+
+  it('左キー: 最上位では動かない', () => {
+    expect(decideTreeKey('ArrowLeft', ctx(5))).toBeNull();
+  });
+
+  it('フィルタ中（toggleable=false）は開閉せず移動だけになる', () => {
+    expect(decideTreeKey('ArrowLeft', { ...ctx(1), toggleable: false })).toEqual({
+      kind: 'move',
+      index: 0,
+    });
+    const closed = new Set<string>();
+    const closedRows = flattenVisible(withEmpty, closed);
+    expect(
+      decideTreeKey('ArrowRight', { rows: closedRows, index: 0, expanded: closed, toggleable: false }),
+    ).toBeNull();
+  });
+
+  it('対象外のキー・行が無いときは何もしない', () => {
+    expect(decideTreeKey('a', ctx(0))).toBeNull();
+    expect(decideTreeKey('Enter', ctx(0))).toBeNull();
+    expect(decideTreeKey('ArrowDown', { rows: [], index: 0, expanded: allOpen, toggleable: true })).toBeNull();
+  });
+
+  it('選択行が失われている（index が範囲外）ときは先頭へ寄せる', () => {
+    expect(decideTreeKey('ArrowDown', ctx(99))).toEqual({ kind: 'move', index: 0 });
+    expect(decideTreeKey('ArrowUp', ctx(-1))).toEqual({ kind: 'move', index: 0 });
   });
 });
