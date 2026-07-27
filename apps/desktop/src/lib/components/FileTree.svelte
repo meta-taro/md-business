@@ -20,6 +20,7 @@
   import { t } from '$lib/i18n/i18n.svelte';
   import type { MessageKey } from '$lib/i18n/messages';
   import { folderLabel } from '$lib/workspace/recentFolders';
+  import { fileLabel } from '$lib/workspace/treeState';
   import {
     toAbsolutePath,
     menuActionsForKind,
@@ -274,6 +275,7 @@
 {#snippet recentRow(path: string)}
   {@const label = folderLabel(path)}
   {@const missing = workspace.missingRecent.has(path)}
+  {@const lastFile = workspace.rememberedFile(path)}
   <li class="recent-item" class:missing>
     <button
       class="recent-pick"
@@ -282,13 +284,22 @@
       disabled={workspace.loading}
       title={path}
     >
-      <span class="recent-name">{label.name}</span>
-      {#if missing}
-        <span class="recent-badge">{t('tree.recentMissing')}</span>
-      {/if}
-      {#if label.parent !== ''}
-        <!-- 同名フォルダを見分けるための親パス。長いので右側から詰めて見せる。 -->
-        <span class="recent-parent">{label.parent}</span>
+      <span class="recent-top">
+        <span class="recent-name">{label.name}</span>
+        {#if missing}
+          <span class="recent-badge">{t('tree.recentMissing')}</span>
+        {/if}
+        {#if label.parent !== ''}
+          <!-- 同名フォルダを見分けるための親パス。長いので右側から詰めて見せる。 -->
+          <span class="recent-parent">{label.parent}</span>
+        {/if}
+      </span>
+      {#if lastFile !== null}
+        <!-- 前回そこで開いていたファイル。開く前に何を触っていたかが分かると、同名フォルダ
+             の選び分けにも使える。覚えていること自体もここで見える。 -->
+        <span class="recent-last" title={lastFile}>
+          {t('tree.recentLastFile', { file: fileLabel(lastFile) })}
+        </span>
       {/if}
     </button>
     <button
@@ -763,10 +774,11 @@
     flex: 1;
     min-width: 0;
     display: flex;
-    align-items: baseline;
-    gap: var(--space-2);
-    height: 28px;
-    padding: 0 var(--space-2);
+    flex-direction: column;
+    justify-content: center;
+    gap: 1px;
+    min-height: 28px;
+    padding: var(--space-1) var(--space-2);
     border: none;
     background: transparent;
     color: var(--text-secondary);
@@ -790,9 +802,25 @@
     box-shadow: inset 0 0 0 2px var(--accent);
   }
 
+  .recent-top {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-2);
+    min-width: 0;
+  }
+
   .recent-name {
     flex: none;
     white-space: nowrap;
+  }
+
+  /* 補助情報なので 1 行に留める。長い日本語名は右端で省略し、全体は title で見せる。 */
+  .recent-last {
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    font-size: var(--text-2xs-size);
+    color: var(--text-tertiary);
   }
 
   /* 親パスは同名フォルダの見分け用の補助情報。入り切らない分は省略し、全体は title で見せる。 */

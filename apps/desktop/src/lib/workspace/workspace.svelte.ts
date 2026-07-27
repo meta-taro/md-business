@@ -26,6 +26,7 @@ import {
 import { parseStoredFolder } from './lastFolder';
 import {
   forgetTreeState,
+  hasRestoredView,
   parseTreeStates,
   pickTreeState,
   rememberTreeState,
@@ -48,6 +49,9 @@ const RECENT_FOLDERS_KEY = 'md-business:desktop:recent-folders';
 
 /** フォルダごとのツリー表示状態（展開・開いていたファイル）の localStorage キー。 */
 const TREE_STATES_KEY = 'md-business:desktop:tree-states';
+
+/** 「前回の続きから開いた」知らせを出しておく時間。読めば用が済むので短く消す。 */
+const RESTORED_NOTICE_MS = 6000;
 
 /** Rust `scan_documents` の戻り（serde camelCase）。 */
 interface ScanResult {
@@ -105,11 +109,18 @@ class WorkspaceStore {
    */
   loadSeq = $state<number>(0);
   /**
+   * 直前に開いたフォルダを記憶から復元できたか。黙って戻すと、覚えていること自体に
+   * 気付けない（勝手に開いたように見える）ので、戻せた時だけ画面で一度知らせる。
+   */
+  restored = $state<boolean>(false);
+  /**
    * フォルダごとのツリー表示状態（展開・開いていたファイル）。画面が読むのは復元先の
    * `expanded` / `activePath` 自身なので、ここは反応状態にしない。
    * 初回参照時に localStorage から読む（+layout の呼び出し順に依存させないため）。
    */
   private treeStates: TreeViewState[] | null = null;
+  /** 復元の知らせを自動で消すタイマー。 */
+  private restoredTimer: ReturnType<typeof setTimeout> | null = null;
 
   /**
    * 起動時に「最後に開いたフォルダ」を復元する（+layout の onMount から 1 回呼ぶ）。
@@ -193,6 +204,29 @@ class WorkspaceStore {
     );
   }
 
+  /**
+   * 復元したことを一度だけ知らせる。読めば用の済む知らせなので、しばらくして自分で消える
+   * （閉じる操作を増やさない）。
+   */
+  private noticeRestored(on: boolean): void {
+    if (this.restoredTimer !== null) clearTimeout(this.restoredTimer);
+    this.restoredTimer = null;
+    this.restored = on;
+    if (!on || !browser) return;
+    this.restoredTimer = setTimeout(() => {
+      this.restored = false;
+      this.restoredTimer = null;
+    }, RESTORED_NOTICE_MS);
+  }
+
+  /**
+   * 履歴の行に添える「前回そのフォルダで開いていたファイル」（記憶が無ければ null）。
+   * 開く前に何を触っていたかが分かると、同名フォルダの選び分けにも使える。
+   */
+  rememberedFile(root: string): string | null {
+    return pickTreeState(this.viewStates(), root)?.active ?? null;
+  }
+
   /** 履歴を localStorage へ書き戻す。 */
   private persistRecent(): void {
     if (browser) localStorage.setItem(RECENT_FOLDERS_KEY, serializeRecentFolders(this.recent));
@@ -249,6 +283,8 @@ class WorkspaceStore {
   /** ルート配下を走査し、ツリー・展開状態を更新する。 */
   private async scan(root: string): Promise<void> {
     this.loading = true;
+    // 前のフォルダで出した知らせを持ち越さない（失敗して開けなかった場合も含む）。
+    this.noticeRestored(false);
     try {
       const result = await invoke<ScanResult>('scan_documents', { root });
       const tree = buildTree(result.entries);
@@ -286,6 +322,8 @@ class WorkspaceStore {
         // shouldReopenFile が true なら rememberedActive は非 null。
         await this.select(rememberedActive as string);
       }
+      // 記憶から戻せたときだけ知らせる（同じフォルダの取り直しでは何も復元していない）。
+      this.noticeRestored(hasRestoredView(remembered, [...this.expanded], this.activePath));
       this.persistView();
     } catch (e) {
       this.error = errorMessage(e);

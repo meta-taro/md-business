@@ -105,3 +105,25 @@ export function restoreExpanded(
   const exists = new Set(folderPaths);
   return remembered.filter((path) => exists.has(path));
 }
+
+/**
+ * 記憶から実際に何か戻せたかを判定する（復元したことを画面で知らせるかの判断）。
+ *
+ * 黙って戻すと、覚えていること自体に気付けない（勝手に開いたように見える）。
+ * 一方で、記憶が残っていても対象が全部消えていれば何も戻っていないので、
+ * そのときに「前回の続き」と言うと嘘になる。戻ったものがある時だけ知らせる。
+ */
+export function hasRestoredView(
+  remembered: TreeViewState | null,
+  expanded: readonly string[],
+  active: string | null,
+): boolean {
+  if (remembered === null) return false;
+  return active !== null || expanded.length > 0;
+}
+
+/** 相対パスから表示用のファイル名を取り出す（走査と同じ "/" 区切り）。 */
+export function fileLabel(relPath: string): string {
+  const cut = relPath.lastIndexOf('/');
+  return cut < 0 ? relPath : relPath.slice(cut + 1);
+}

@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest';
 
 import {
   TREE_STATES_MAX,
+  fileLabel,
   forgetTreeState,
+  hasRestoredView,
   parseTreeStates,
   pickTreeState,
   rememberTreeState,
@@ -129,5 +131,38 @@ describe('restoreExpanded', () => {
   // 全部畳んだ状態も操作の結果なので、既定へ戻さずそのまま再現する。
   it('全部畳んだ記憶は畳んだまま', () => {
     expect(restoreExpanded([], folders, ['docs'])).toEqual([]);
+  });
+});
+
+describe('hasRestoredView', () => {
+  it('記憶が無ければ知らせない', () => {
+    expect(hasRestoredView(null, ['docs'], 'docs/a.md')).toBe(false);
+  });
+
+  it('ファイルを開き直したら知らせる', () => {
+    expect(hasRestoredView(state('C:\\a'), [], 'docs/a.md')).toBe(true);
+  });
+
+  it('展開だけ戻したときも知らせる', () => {
+    expect(hasRestoredView(state('C:\\a'), ['docs'], null)).toBe(true);
+  });
+
+  // 記憶が残っていても、対象が消えて何も戻らなかったなら「再開しました」は嘘になる。
+  it('何も戻らなかったら知らせない', () => {
+    expect(hasRestoredView(state('C:\\a'), [], null)).toBe(false);
+  });
+});
+
+describe('fileLabel', () => {
+  it('末尾のファイル名だけを返す', () => {
+    expect(fileLabel('docs/specs/検証シート.md')).toBe('検証シート.md');
+  });
+
+  it('直下のファイルはそのまま', () => {
+    expect(fileLabel('README.md')).toBe('README.md');
+  });
+
+  it('空なら空', () => {
+    expect(fileLabel('')).toBe('');
   });
 });

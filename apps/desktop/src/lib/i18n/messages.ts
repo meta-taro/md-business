@@ -86,6 +86,8 @@ export interface Messages {
   'tree.recentPick': string;
   'tree.recentMissing': string;
   'tree.recentForget': string;
+  'tree.recentLastFile': string;
+  'tree.restored': string;
   'tree.menuRename': string;
   'tree.menuReveal': string;
   'tree.menuCopyName': string;
@@ -220,6 +222,8 @@ const en: Messages = {
   'tree.recentPick': 'Pick a recent folder',
   'tree.recentMissing': 'Not found',
   'tree.recentForget': 'Remove from list',
+  'tree.recentLastFile': 'Last open: {file}',
+  'tree.restored': 'Resumed where you left off',
   'tree.menuRename': 'Rename',
   'tree.menuReveal': 'Reveal in File Explorer',
   'tree.menuCopyName': 'Copy name',
@@ -346,6 +350,8 @@ const ja: Messages = {
   'tree.recentPick': '最近開いたフォルダから選ぶ',
   'tree.recentMissing': '見つかりません',
   'tree.recentForget': '一覧から削除',
+  'tree.recentLastFile': '前回開いていた: {file}',
+  'tree.restored': '前回の続きから開きました',
   'tree.menuRename': '名前の変更',
   'tree.menuReveal': 'エクスプローラーで表示',
   'tree.menuCopyName': '名前をコピー',
@@ -472,6 +478,8 @@ const zh: Messages = {
   'tree.recentPick': '从最近打开的文件夹中选择',
   'tree.recentMissing': '未找到',
   'tree.recentForget': '从列表中移除',
+  'tree.recentLastFile': '上次打开：{file}',
+  'tree.restored': '已恢复到上次的位置',
   'tree.menuRename': '重命名',
   'tree.menuReveal': '在资源管理器中显示',
   'tree.menuCopyName': '复制名称',
@@ -598,6 +606,8 @@ const ko: Messages = {
   'tree.recentPick': '최근 연 폴더에서 선택',
   'tree.recentMissing': '찾을 수 없음',
   'tree.recentForget': '목록에서 삭제',
+  'tree.recentLastFile': '지난번 파일: {file}',
+  'tree.restored': '지난번 위치에서 이어서 열었습니다',
   'tree.menuRename': '이름 바꾸기',
   'tree.menuReveal': '탐색기에서 표시',
   'tree.menuCopyName': '이름 복사',
