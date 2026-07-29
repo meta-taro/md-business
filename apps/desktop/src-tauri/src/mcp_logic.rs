@@ -310,6 +310,28 @@ mod tests {
         assert!(candidates[1].ends_with("packages/mcp-server/dist-sidecar/sidecar.cjs"));
     }
 
+    /// 同梱先の指定は設定ファイル側にあり、探索側のコードだけを見ても正しさが確かめられない。
+    /// bundler は宛先を「ディレクトリ」ではなく「ファイルパス」として解釈するため、末尾に
+    /// スラッシュを置いても親ディレクトリは作られず、拡張子のないファイルとして置かれてしまう。
+    /// この食い違いはインストール後にしか現れないので、設定値と候補パスをここで突き合わせる。
+    #[test]
+    fn 設定ファイルの同梱先が候補パスと一致する() {
+        let conf: serde_json::Value =
+            serde_json::from_str(include_str!("../tauri.conf.json")).expect("設定が読めること");
+        let resources = conf["bundle"]["resources"]
+            .as_object()
+            .expect("resources が対応表であること");
+        let dest = resources
+            .iter()
+            .find(|(src, _)| src.ends_with("sidecar.cjs"))
+            .map(|(_, dest)| dest.as_str().expect("宛先が文字列であること"))
+            .expect("サイドカーが同梱対象であること");
+
+        let resource_dir = PathBuf::from("/app/resources");
+        let candidates = sidecar_candidates(Some(&resource_dir), None);
+        assert_eq!(resource_dir.join(dest), candidates[0]);
+    }
+
     #[test]
     fn 存在する最初の候補を選ぶ() {
         let candidates = vec![PathBuf::from("/a/x.cjs"), PathBuf::from("/b/x.cjs")];
