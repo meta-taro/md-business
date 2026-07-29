@@ -1,4 +1,10 @@
-import { splitFrontmatter, validateWithCompiled, type CompiledValidator, type ValidationError } from '@md-business/core';
+import {
+  splitFrontmatter,
+  validateWithCompiled,
+  depthValidationError,
+  type CompiledValidator,
+  type ValidationError,
+} from '@md-business/core';
 import { normalizeInvoiceFrontmatter, type NormalizeWarning } from './normalize.js';
 import { autofillInvoice, type AutofillWarning } from './autofill.js';
 import type { Invoice } from './types.js';
@@ -37,6 +43,10 @@ export function parseInvoiceMarkdown(
   validate: CompiledValidator,
 ): InvoiceParseResult {
   const split = splitFrontmatter(src);
+  const tooDeep = depthValidationError(split.data);
+  if (tooDeep) {
+    return { ok: false, errors: [tooDeep], warnings: [] };
+  }
   const normalized = normalizeInvoiceFrontmatter(split.data);
   const autofilled = autofillInvoice(normalized.data);
   const warnings = [...normalized.warnings, ...autofilled.warnings];
@@ -55,6 +65,10 @@ export function parseInvoiceObject(
   raw: unknown,
   validate: CompiledValidator,
 ): { ok: true; invoice: Invoice; warnings: Array<NormalizeWarning | AutofillWarning> } | InvoiceParseFailure {
+  const tooDeep = depthValidationError(raw);
+  if (tooDeep) {
+    return { ok: false, errors: [tooDeep], warnings: [] };
+  }
   const normalized = normalizeInvoiceFrontmatter(raw);
   const autofilled = autofillInvoice(normalized.data);
   const warnings = [...normalized.warnings, ...autofilled.warnings];

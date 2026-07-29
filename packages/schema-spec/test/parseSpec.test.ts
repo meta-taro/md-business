@@ -109,3 +109,38 @@ describe('parseSpecObject — frontmatter object path', () => {
     expect(result.ok).toBe(false);
   });
 });
+
+// A caller that hands in an already-parsed object skips the YAML parser, and
+// with it the depth bound the Markdown path gets for free. Key normalisation
+// and the compiled validator both recurse, so an unbounded object used to come
+// back as a `RangeError` instead of a result.
+describe('parseSpecObject — nesting depth', () => {
+  /** Nested arrays, which normalisation walks element by element at any depth. */
+  function deepArray(levels: number): unknown {
+    let node: unknown = 'x';
+    for (let i = 0; i < levels; i += 1) node = [node];
+    return node;
+  }
+
+  it('reports an over-nested object as a validation failure', () => {
+    const raw = { authors: deepArray(50_000) };
+    let result: ReturnType<typeof parseSpecObject> | undefined;
+    expect(() => {
+      result = parseSpecObject(raw, validate);
+    }).not.toThrow();
+    expect(result?.ok).toBe(false);
+    if (result?.ok === false) {
+      const [first] = result.errors;
+      expect(first?.keyword).toBe('maxDepth');
+      expect(first?.path.startsWith('/authors')).toBe(true);
+    }
+  });
+
+  it('leaves realistically nested input alone', () => {
+    const result = parseSpecObject({ authors: deepArray(3) }, validate);
+    // Missing required fields still fail, but never with a depth error.
+    if (result.ok === false) {
+      expect(result.errors.every((e) => e.keyword !== 'maxDepth')).toBe(true);
+    }
+  });
+});

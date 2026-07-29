@@ -1,3 +1,4 @@
+import { MAX_FRONTMATTER_DEPTH } from '@md-business/core';
 import {
   NOSQL_DB_SPEC_JA_DICTIONARY,
   STATUS_TRANSLATIONS,
@@ -39,7 +40,7 @@ export function normalizeNosqlDbSpecFrontmatter(input: unknown): NormalizeResult
   if (!isPlainObject(input)) {
     return { data: {}, warnings };
   }
-  const data = translateScope(input, 'root', '', warnings);
+  const data = translateScope(input, 'root', '', warnings, 1);
   return { data: data as Record<string, unknown>, warnings };
 }
 
@@ -48,10 +49,22 @@ function translateScope(
   scope: NosqlDbSpecDictionaryScope,
   path: string,
   warnings: NormalizeWarning[],
+  depth: number,
 ): unknown {
+  // `fieldDef.of` names another field definition, so the input can chain them
+  // without end. Carry the value through untranslated once the chain gets
+  // implausibly long: the schema check that follows still rejects it, and this
+  // walk stays inside the call stack.
+  if (depth > MAX_FRONTMATTER_DEPTH) {
+    warnings.push({
+      path,
+      message: `Value is nested too deeply (limit ${MAX_FRONTMATTER_DEPTH}) and was left untranslated.`,
+    });
+    return value;
+  }
   if (Array.isArray(value)) {
     return value.map((entry, idx) =>
-      translateScope(entry, scope, `${path}[${idx}]`, warnings),
+      translateScope(entry, scope, `${path}[${idx}]`, warnings, depth + 1),
     );
   }
   if (!isPlainObject(value)) return value;
@@ -75,7 +88,11 @@ function translateScope(
       });
     }
 
-    safeSet(out, targetKey, translateLeaf(scope, targetKey, rawValue, childPath, warnings));
+    safeSet(
+      out,
+      targetKey,
+      translateLeaf(scope, targetKey, rawValue, childPath, warnings, depth),
+    );
   }
   return out;
 }
@@ -102,6 +119,7 @@ function translateLeaf(
   value: unknown,
   path: string,
   warnings: NormalizeWarning[],
+  depth: number,
 ): unknown {
   if (typeof value === 'string') {
     const translated = translateStringValue(scope, key, value.trim());
@@ -116,7 +134,7 @@ function translateLeaf(
 
   // shape maps: keys are user field names (verbatim); values are fieldDefs.
   if ((scope === 'collection' || scope === 'fieldDef') && key === 'shape') {
-    return translateShape(value, path, warnings);
+    return translateShape(value, path, warnings, depth);
   }
 
   // engineSpecific is an untranslated escape hatch (C-5).
@@ -126,7 +144,7 @@ function translateLeaf(
 
   const childScope = childScopeFor(scope, key);
   if (childScope) {
-    return translateScope(value, childScope, path, warnings);
+    return translateScope(value, childScope, path, warnings, depth + 1);
   }
   return value;
 }
@@ -158,13 +176,18 @@ function translateShape(
   value: unknown,
   path: string,
   warnings: NormalizeWarning[],
+  depth: number,
 ): unknown {
   if (!isPlainObject(value)) return value;
   const out: Record<string, unknown> = {};
   for (const [fieldName, fieldDef] of Object.entries(value)) {
     // Shape field names are author-controlled and bypass the dictionary, so a
     // field literally named `__proto__` would otherwise pollute the prototype.
-    safeSet(out, fieldName, translateScope(fieldDef, 'fieldDef', `${path}.${fieldName}`, warnings));
+    safeSet(
+      out,
+      fieldName,
+      translateScope(fieldDef, 'fieldDef', `${path}.${fieldName}`, warnings, depth + 1),
+    );
   }
   return out;
 }

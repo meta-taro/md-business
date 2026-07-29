@@ -310,3 +310,38 @@ describe('normalizeApiSpecFrontmatter — pass-through unknown keys', () => {
     expect(data).toMatchObject({ 不明: 'x', title: 't' });
   });
 });
+
+// `field.of` names another field definition, so a document can declare an
+// arbitrarily long chain of them. Translating that chain recursively would
+// exhaust the call stack before any schema error could be reported.
+describe('normalizeApiSpecFrontmatter — nesting depth', () => {
+  function deepField(levels: number): Record<string, unknown> {
+    let node: Record<string, unknown> = { name: 'leaf', type: 'string' };
+    for (let i = 0; i < levels; i += 1) {
+      node = { name: 'wrap', type: 'array', of: [node] };
+    }
+    return node;
+  }
+
+  it('translates a realistically nested field unchanged', () => {
+    const input = {
+      エンドポイント: [{ リクエスト: { ボディ: { フィールド: [deepField(3)] } } }],
+    };
+    const result = normalizeApiSpecFrontmatter(input);
+    expect(result.warnings).toEqual([]);
+    const endpoints = result.data['endpoints'] as Array<Record<string, unknown>>;
+    const body = (endpoints[0]?.['request'] as Record<string, unknown>)['body'];
+    expect((body as Record<string, unknown>)['fields']).toEqual([deepField(3)]);
+  });
+
+  it('stops descending past the depth limit instead of overflowing', () => {
+    const input = {
+      エンドポイント: [{ リクエスト: { ボディ: { フィールド: [deepField(50_000)] } } }],
+    };
+    let result: ReturnType<typeof normalizeApiSpecFrontmatter> | undefined;
+    expect(() => {
+      result = normalizeApiSpecFrontmatter(input);
+    }).not.toThrow();
+    expect(result?.warnings.some((w) => /nested too deeply/i.test(w.message))).toBe(true);
+  });
+});

@@ -1,6 +1,7 @@
 import {
   splitFrontmatter,
   validateWithCompiled,
+  depthValidationError,
   type CompiledValidator,
   type ValidationError,
 } from '@md-business/core';
@@ -42,6 +43,10 @@ export function parseSpecMarkdown(
   validate: CompiledValidator,
 ): SpecParseResult {
   const split = splitFrontmatter(src);
+  const tooDeep = depthValidationError(split.data);
+  if (tooDeep) {
+    return { ok: false, errors: [tooDeep], warnings: [] };
+  }
   const normalized = normalizeSpecFrontmatter(split.data);
   const autofilled = autofillSpec(normalized.data);
   const warnings = [...normalized.warnings, ...autofilled.warnings];
@@ -61,6 +66,10 @@ export function parseSpecObject(
 ):
   | { ok: true; spec: Spec; warnings: Array<NormalizeWarning | AutofillWarning> }
   | SpecParseFailure {
+  const tooDeep = depthValidationError(raw);
+  if (tooDeep) {
+    return { ok: false, errors: [tooDeep], warnings: [] };
+  }
   const normalized = normalizeSpecFrontmatter(raw);
   const autofilled = autofillSpec(normalized.data);
   const warnings = [...normalized.warnings, ...autofilled.warnings];

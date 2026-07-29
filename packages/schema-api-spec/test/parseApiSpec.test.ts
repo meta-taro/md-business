@@ -221,3 +221,50 @@ describe('parseApiSpecObject', () => {
     expect(result.ok).toBe(false);
   });
 });
+
+// A caller that hands in an already-parsed object skips the YAML parser, and
+// with it the depth bound the Markdown path gets for free.
+describe('parseApiSpecObject — nesting depth', () => {
+  function deepField(levels: number): Record<string, unknown> {
+    let node: Record<string, unknown> = { name: 'leaf', type: 'string' };
+    for (let i = 0; i < levels; i += 1) {
+      node = { name: 'wrap', type: 'array', of: [node] };
+    }
+    return node;
+  }
+
+  it('rejects an over-nested object as a validation failure', () => {
+    const raw = {
+      endpoints: [
+        {
+          request: { body: { contentType: 'application/json', fields: [deepField(50_000)] } },
+        },
+      ],
+    };
+    let result: ReturnType<typeof parseApiSpecObject> | undefined;
+    expect(() => {
+      result = parseApiSpecObject(raw, validate);
+    }).not.toThrow();
+    expect(result?.ok).toBe(false);
+    if (result?.ok === false) {
+      const [first] = result.errors;
+      expect(first?.keyword).toBe('maxDepth');
+      expect(first?.path.startsWith('/endpoints/0/request/body/fields/0')).toBe(true);
+    }
+  });
+
+  it('accepts a realistically nested object', () => {
+    const raw = {
+      endpoints: [
+        {
+          request: { body: { contentType: 'application/json', fields: [deepField(3)] } },
+        },
+      ],
+    };
+    const result = parseApiSpecObject(raw, validate);
+    // Missing required root fields still fail, but never with a depth error.
+    if (result.ok === false) {
+      expect(result.errors.every((e) => e.keyword !== 'maxDepth')).toBe(true);
+    }
+  });
+});
