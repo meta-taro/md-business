@@ -1,6 +1,6 @@
 <script lang="ts">
   // Git / AI / MCP パネル（DESIGN §6・既定は畳む）。開閉状態は親（+layout）が持ち、
-  // グリッド幅を制御する。ここでは折畳レール + 展開時のタブ器のみ（実配線は後続フェーズ）。
+  // グリッド幅を制御する。ここは折畳レールと展開時のタブ器だけを担う。
   import { t } from '$lib/i18n/i18n.svelte';
 
   interface SidePanelProps {

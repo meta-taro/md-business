@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { seedFromKey } from './gridEdit';
 
 /**
- * nav→edit で打鍵した文字を「置換編集の種」にするかの純ロジック（Issue 010）。
+ * nav→edit で打鍵した文字を「置換編集の種」にするかの純ロジック。
  * テキスト入力系だけが打鍵1文字で置換を始める。DOM 非依存なので node vitest で検査。
  */
 describe('seedFromKey', () => {

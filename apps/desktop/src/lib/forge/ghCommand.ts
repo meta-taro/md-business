@@ -3,10 +3,10 @@
  *   - `read`        — status / list / view. Safe for AI/MCP to run automatically.
  *   - `human-write` — PR/MR creation. Only a human action in the UI may trigger it.
  *
- * `push` and `pr merge` are deliberately absent: the forge adapter must never
- * let AI/MCP auto-push or auto-merge (§6.3 「push/MR-merge を AI 自走させない」,
- * §7.4 push は人間 UI のみ, `git_push` は MCP tool に含めない Issue 004 D-3).
- * There is no builder for them here — omission is the enforcement.
+ * `push` and `pr merge` are deliberately absent: publishing work to a shared
+ * branch is a decision a person makes, so no code path — least of all an
+ * automated one — may reach it. There is no builder for them here, and the MCP
+ * tool surface exposes none either; omission is the enforcement.
  */
 export type ForgePermission = 'read' | 'human-write';
 
@@ -20,7 +20,7 @@ export interface ForgeCommand {
    * be re-interpreted as flags or shell commands.
    */
   args: string[];
-  /** Governance class — the UI / sidecar gates execution on this (§6.3 / §7.4). */
+  /** Governance class — the UI / sidecar gates execution on this (DESIGN §6.3 / §7.4). */
   permission: ForgePermission;
 }
 
@@ -102,8 +102,8 @@ export function ghIssueList(options: ListOptions): ForgeCommand {
 
 /**
  * Build a `gh pr create`. Classified `human-write`: the caller UI must only
- * emit this from an explicit human action, never from an AI/MCP path (§6.3 read
- * vs human-write split, §7.4 governance).
+ * emit this from an explicit human action, never from an AI/MCP path (DESIGN
+ * §6.3 read vs human-write split, §7.4 governance).
  */
 export function ghPrCreate(options: PrCreateOptions): ForgeCommand {
   const args = [

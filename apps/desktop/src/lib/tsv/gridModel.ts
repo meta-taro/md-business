@@ -1,7 +1,7 @@
 import type { ParsedHeader, TsvDocument } from '@md-business/schema-test-spec-tsv';
 
 /**
- * TSV グリッドの純モデル（Issue 010・Block TSV-7）。
+ * TSV グリッドの純モデル。
  *
  * Desktop の編集グリッドが「列型 → 入力ウィジェット」を決める決定ロジックと、
  * セル編集を不変に反映する更新プリミティブを提供する。Svelte コンポーネントは

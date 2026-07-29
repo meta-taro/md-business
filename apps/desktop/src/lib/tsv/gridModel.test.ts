@@ -10,7 +10,7 @@ import {
 } from './gridModel';
 
 /**
- * TSV グリッドの純モデル（Issue 010・Block TSV-7）。
+ * TSV グリッドの純モデル。
  *
  * Desktop の編集グリッドが束ねる純ロジック:
  * - `widgetForColumn` — 列型（+ UI ヒント）を入力ウィジェット種別へ写像。

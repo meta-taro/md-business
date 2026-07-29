@@ -1,5 +1,5 @@
 /**
- * PDF 出力の共有コントローラ（DOC-SPEC-DESKTOP-2026-0001 §6.4 / DESIGN §6.4）。
+ * PDF 出力の共有コントローラ（DESIGN §6.4）。
  *
  * Top bar の [PDF] ボタン（TopBar.svelte）と、実体のプレビュー iframe（+page.svelte）は
  * 別コンポーネントで直接参照できない。themeController / workspace と同じく本シングルトンを

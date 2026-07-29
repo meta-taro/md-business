@@ -1,6 +1,6 @@
 <script lang="ts">
   /**
-   * カスタム TSV 検証シートの編集グリッド（Issue 010・スプレッドシート化 UX）。
+   * カスタム TSV 検証シートの編集グリッド（スプレッドシート化 UX）。
    *
    * Office / Workspace なしで QA が検証を完了できる本命 UI。
    * 「Excel 式モード制」を採る:
@@ -105,7 +105,7 @@
   // 下の note 編集セクション（applyNoteEdit / removeNoteAt / writeNotes の純ロジック）。
   const notes = $derived(readNotes(doc.directives));
 
-  // ── 補足行のインライン編集（Block TSV-Y）。編集対象 index を持つ（null＝非編集）。
+  // ── 補足行のインライン編集。編集対象 index を持つ（null＝非編集）。
   //    index === notes.length は「新規追加中の下書き行」を意味する。編集ロジックは
   //    gridHeaderDirectives の純ロジック、下書き state とフォーカスだけが薄いグルー。 ──
   let editingNote = $state<number | null>(null);
@@ -165,8 +165,8 @@
   const groupHeaderCells = $derived(groupCells(readGroups(doc.directives), doc.columns.length));
   const hasGroupHeader = $derived(groupHeaderCells.length > 0);
 
-  // ── グループヘッダのインライン改名・削除（Block TSV-Z）。編集対象の列 span を持つ
-  //    （null＝非編集）。追加（選択列への setGroup）は後続ブロック。改名/削除は setGroup の
+  // ── グループヘッダのインライン改名・削除。編集対象の列 span を持つ
+  //    （null＝非編集）。改名 / 削除は setGroup の
   //    純ロジックで表現し、書き戻しは writeGroups 経由＝共有パッケージ非改変・#@ round-trip。 ──
   let editingGroup = $state<{ start: number; end: number } | null>(null);
   let groupDraft = $state('');
@@ -207,7 +207,7 @@
       cancelGroupEdit();
     }
   }
-  // 選択中の列範囲に新規グループを張る（Block TSV-Z2）。既定ラベルで即 setGroup 永続化し、
+  // 選択中の列範囲に新規グループを張る。既定ラベルで即 setGroup 永続化し、
   // そのまま改名モードへ入れる（既定ラベルは選択済みなのでタイプで置換できる）。単一セル
   // 選択なら 1 列グループ。重なる既存は setGroup が置き換える。取消は × 削除で。
   const DEFAULT_GROUP_LABEL = 'グループ';
@@ -1143,7 +1143,7 @@
     min-height: 0;
   }
   /* DESIGN §5.8: 検証グリッドはスプレッドシート（Excel / Sheets）調。罫線＝セル境界、
-     アクティブセルのみ入力ウィジェット化、選択枠（リング）で今どこかを示す。§5.3 の
+     アクティブセルのみ入力ウィジェット化、選択枠（リング）で今どこかを示す。DESIGN §5.3 の
      読み取り表とは別仕様。 */
   .tsv-grid {
     flex: 1;

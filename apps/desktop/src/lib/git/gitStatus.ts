@@ -1,9 +1,9 @@
 /**
- * Git 状態の型と純ロジック（DESIGN 後続フェーズ 3「Git・フォージ」）。
+ * Git 状態の型と純ロジック（DESIGN §6.3 Git / フォージ連携）。
  *
  * Rust `git_status` コマンドの戻り（serde camelCase）をそのまま受ける型と、UI が使う
  * 導出（パス突き合わせ・変更数・マーク文字・フォージ表示名）を Tauri 非依存の純関数に置く。
- * 副作用（invoke）は git.svelte.ts のストアに閉じ、ここは vitest で単体テストする（§7.3）。
+ * 副作用（invoke）は git.svelte.ts のストアに閉じ、ここは vitest で単体テストする。
  */
 
 /** 色マークの意味カテゴリ（Rust git.rs classify_xy と対応）。 */

@@ -84,7 +84,7 @@ th { font-weight: 600; }
 img { max-width: 100%; }
 hr { height: 1px; margin: 1.5em 0; border: 0; background: var(--md-border); }
 
-/* PDF 出力（§6.4）。A4 縦・実務的な余白。WebView の印刷（→「PDF として保存」）で
+/* PDF 出力（DESIGN §6.4）。A4 縦・実務的な余白。WebView の印刷（→「PDF として保存」）で
    画面プレビューと 1:1 の A4 正本になる。 */
 @page {
   size: A4 portrait;

@@ -8,7 +8,7 @@ import {
 } from './gridLayoutDirectives';
 
 /**
- * 検証グリッドのレイアウト永続化（Issue 010・
+ * 検証グリッドのレイアウト永続化（
  * 列幅・行高・改行時の表示を変えられるようにし、それらを tsv 側に記憶する）。
  *
  * 列幅 / 行高 / 列表示モードを `#@ colwidth|rowheight|colmode` ディレクティブに載せ、

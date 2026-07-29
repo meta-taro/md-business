@@ -11,7 +11,7 @@ import {
 } from './ghCommand';
 
 describe('gh command builders', () => {
-  describe('read commands (AI-auto OK・§6.3)', () => {
+  describe('read commands (AI-auto OK・DESIGN §6.3)', () => {
     it('builds `gh pr status`', () => {
       const cmd = ghPrStatus({ repo: 'meta-taro/md-business' });
       expect(cmd).toEqual<ForgeCommand>({
@@ -85,7 +85,7 @@ describe('gh command builders', () => {
     });
   });
 
-  describe('human-triggered write (§6.3 / §7.4)', () => {
+  describe('human-triggered write (DESIGN §6.3 / §7.4)', () => {
     it('builds `gh pr create` classified as human-write', () => {
       const cmd = ghPrCreate({
         repo: 'meta-taro/md-business',
