@@ -1,6 +1,6 @@
 # Google Workspace Marketplace Listing 草案
 
-> Google Workspace Marketplace SDK の「アプリ構成」画面に PdM が **コピー&ペースト** するためのテキスト草案。AI が事前に推敲済み。
+> Google Workspace Marketplace SDK の「アプリ構成」画面へ **コピー&ペースト** するためのテキスト草案。AI が事前に推敲済み。
 >
 > 関連: [`docs/google-addon-submit-guide.md`](./google-addon-submit-guide.md) Phase D
 
@@ -145,7 +145,7 @@ Markdown, GitHub, ドキュメント変換, 請求書, 適格請求書, イン�
 | 96×96 | Marketplace 詳細 | PNG / 透過なし |
 | 128×128 | OAuth consent screen | PNG / 透過なし |
 
-> 既存ブランドカラーは `#1a73e8`（Google ブランド準拠の青）。デザイン発注 or SVG → PNG 変換は PdM 作業。本リポの `apps/chrome-extension/public/icons/` を流用可能（要リサイズ）。
+> 既存ブランドカラーは `#1a73e8`（Google ブランド準拠の青）。デザイン発注 or SVG → PNG 変換は人手で行う。本リポの `apps/chrome-extension/public/icons/` を流用可能（要リサイズ）。
 
 ---
 
@@ -160,7 +160,7 @@ Markdown, GitHub, ドキュメント変換, 請求書, 適格請求書, イン�
 |---|---|---|---|
 | 1 | **Before/After: md → Sheets セットアップ直後** | 検証シートの md (templates/test-spec/standard-ja.md) をサイドバーに貼り付けて「検証シート: セットアップ」を押した直後の画面。**列幅が自動最適化 / 複数行折り返し / 行色分け (OK 緑 / NG 赤 / 保留 グレー / 未実施 暗グレー) / 実施日列に赤マーカーなし** が一望できる構図 | スクショ範囲は Sheet 全幅 + サイドバー右側。サイドバーには成功メッセージ「N 列 / 本文 12 行 / DataValidation X 件 / ConditionalFormat Y 件 / 列幅 P 件 / 折り返し Q 件 を適用しました。」が見える状態で撮る |
 | 2 | **検証シートのリッチさ** | 1 と同じシートを少しスクロールして「手順」「期待結果」「備考」の **複数行テキストが綺麗に折り返されている** ことが分かるアップ。NG 行の「警告は出るが承認待ちにならず確定してしまう」等のリアルな備考が映る | サイドバーは閉じて Sheet を全幅表示。3〜4 行が見える縦範囲 |
-| 3 | **Gemini in Sheets 連携** | 同じシートで Gemini パネルを開いた状態。**「Gemini に表を整える」サジェスト**または「この検証結果をサマライズして」等の AI 連携の様子。OSS positioning 「AI-native business documents」の証拠 | Sheet 右側 Gemini パネルが開いた状態で撮影。今回 PdM が確認したショットを使用可 |
+| 3 | **Gemini in Sheets 連携** | 同じシートで Gemini パネルを開いた状態。**「Gemini に表を整える」サジェスト**または「この検証結果をサマライズして」等の AI 連携の様子。OSS positioning 「AI-native business documents」の証拠 | Sheet 右側 Gemini パネルが開いた状態で撮影。内容を確認済みのショットを使用可 |
 | 4 | **サイドバー UI 全景** | サイドバー側のフォーム（md 貼付エリア / セットアップボタン / PAT 保存 + 「GitHub に push」ボタン）を映す。md-business の使い方が一目で分かる | Sheet 左側を縮めてサイドバーが大きく見える構図 |
 | 5 | **md ⇔ Sheets ラウンドトリップ** | Sheet で 1 行編集 → 「md 書き出し」→ サイドバーに更新済み md が表示される様子。frontmatter が保持されている部分が見えるとベスト | サイドバーに書き出した md が表示された状態 |
 
@@ -180,7 +180,7 @@ Markdown, GitHub, ドキュメント変換, 請求書, 適格請求書, イン�
 4. 一部セルを編集して「エクスポート」
 5. Markdown が更新されてサイドバーに戻る
 
-> Phase C 完了後に PdM が撮影。Marketplace 申請の必須項目ではないが、審査速度が上がる傾向あり（Google 側の人手レビュアーが用途を即座に理解できるため）。
+> Phase C 完了後に撮影する。Marketplace 申請の必須項目ではないが、審査速度が上がる傾向あり（Google 側の人手レビュアーが用途を即座に理解できるため）。
 
 ---
 
@@ -252,7 +252,7 @@ When the user clicks the "Push to GitHub" button in the sidebar, the add-on comm
 
 ---
 
-## 提出前チェックリスト（PdM 用）
+## 提出前チェックリスト（申請者用）
 
 - [ ] 詳細説明を Marketplace Console の「詳細な説明」フィールドへ貼付（整形済みの [`google-addon-marketplace-listing-plaintext.md`](./google-addon-marketplace-listing-plaintext.md) の BEGIN/END マーカー間をそのままコピー）
 - [ ] アイコン PNG 3 サイズ用意（32 / 96 / 128。既存 `apps/chrome-extension/public/icons/icon-128.png` をリサイズ流用可）

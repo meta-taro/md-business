@@ -3,7 +3,7 @@ import { MemoryDocumentStore } from './store.js';
 
 /**
  * DocumentStore は MCP ツールとファイル I/O の境界。テストと dry-run は
- * インメモリ実装（MemoryDocumentStore）で回し、本番は fs 実装（Block MCP-6）へ
+ * インメモリ実装（MemoryDocumentStore）で回し、本番は fs 実装へ
  * 差し替える。ここでは境界の契約（read/write/exists/list）を検証する。
  */
 describe('MemoryDocumentStore', () => {

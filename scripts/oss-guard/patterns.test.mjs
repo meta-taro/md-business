@@ -33,6 +33,12 @@ test('内部役割呼称 PdM を検出する', () => {
   assert.ok(ids(scanText('PdM に確認する')).includes('pdm-term'));
 });
 
+test('業務文書サンプルの役割値 PdM は検出しない', () => {
+  assert.equal(scanText('    役割: PdM').length, 0);
+  assert.equal(scanText("  - { name: '伊藤 太郎', role: 'PdM' },").length, 0);
+  assert.equal(scanText('  role: "PdM"').length, 0);
+});
+
 test('公開組織ハンドル meta-taro は検出しない', () => {
   assert.equal(scanText('https://github.com/meta-taro/md-business').length, 0);
 });

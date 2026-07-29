@@ -3,7 +3,7 @@ import type { ParsedHeader } from './types.js';
 import type { TsvDocument } from './parse.js';
 
 /**
- * シリアライザ（Block TSV-6）: 構造化された {@link TsvDocument} を
+ * シリアライザ: 構造化された {@link TsvDocument} を
  * カスタム TSV テキストへ書き戻す純関数。{@link parseTsv} の逆変換。
  *
  * 設計制約:

@@ -2,7 +2,7 @@
   "name": "@md-business/mcp-server",
   "version": "0.0.0",
   "private": false,
-  "description": "Model Context Protocol (stdio) server for md-business — lets AI agents (Claude Desktop / Claude Code / Cursor / Cline) read, validate, create, update and search Markdown business documents (invoice / spec / test-spec / db-spec / nosql-db-spec / api-spec) as the source of truth. Issue 004 Phase 2, Node sidecar.",
+  "description": "Model Context Protocol (stdio) server for md-business — lets AI agents (Claude Desktop / Claude Code / Cursor / Cline) read, validate, create, update and search Markdown business documents (invoice / spec / test-spec / db-spec / nosql-db-spec / api-spec) as the source of truth. Runs over stdio, or as an HTTP sidecar embedded in the desktop app.",
   "license": "MIT",
   "type": "module",
   "main": "./dist/index.js",

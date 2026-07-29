@@ -10,7 +10,7 @@ export type NosqlDbSpecEngine =
   | 'turso-document';
 
 /**
- * Engine-agnostic document ID abstraction (PdM decision C-1 / C-5):
+ * Engine-agnostic document ID abstraction:
  * - `uuid`      — client-generated UUID
  * - `auto`      — engine auto-id (Firestore auto-id, Mongo ObjectId, ...)
  * - `auth-uid`  — authenticated user's uid as document id
@@ -32,7 +32,7 @@ export type NosqlFieldType =
   | 'null';
 
 /**
- * Recursive document shape node (PdM decision C-3). `type: array` requires
+ * Recursive document shape node. `type: array` requires
  * `of`, `type: map` requires `shape` — arbitrarily deep nesting is expressed
  * by recursion, not by a fixed depth limit.
  */
@@ -66,8 +66,8 @@ export interface NosqlTtl {
 
 export interface NosqlCollection {
   /**
-   * Firestore-style path with `{placeholder}` segments as canonical notation
-   * (PdM decision C-2), e.g. `users/{userId}/orders`.
+   * Firestore-style path with `{placeholder}` segments as canonical notation,
+   * e.g. `users/{userId}/orders`.
    */
   path: string;
   description?: string;
@@ -91,7 +91,7 @@ export type SecurityRuleAllow =
   | 'update'
   | 'delete';
 
-/** Firestore security rules digest embedded in the design doc (PdM decision C-4). */
+/** Firestore security rules digest embedded in the design doc. */
 export interface NosqlSecurityRule {
   match: string;
   allow: SecurityRuleAllow[];

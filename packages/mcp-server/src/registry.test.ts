@@ -8,7 +8,7 @@ import { SCHEMA_VERSION as API_V } from '@md-business/schema-api-spec';
 import { SCHEMA_REGISTRY, listSchemas, resolveSchema, detectSchemaId } from './registry.js';
 
 /**
- * MCP スキーマ・レジストリ（Issue 004 Phase 2）。6 スキーマパッケージを wrap し、
+ * MCP スキーマ・レジストリ。6 スキーマパッケージを wrap し、
  * schema id → { label, validate, schema } を解決する。既存パッケージは非改変で、
  * ここは公開 export（`/validate` compiled validator + SCHEMA_VERSION + JSON Schema）を
  * 束ねるだけ。検出は frontmatter の `schema:` 値（例 `invoice/v1`）を照合する。

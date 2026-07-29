@@ -1,5 +1,5 @@
 /**
- * MCP スキーマ・レジストリ（Issue 004 Phase 2）。
+ * MCP スキーマ・レジストリ。
  * -----------------------------------------------------------------------------
  * 6 つの schema パッケージ（invoice / spec / test-spec / db-spec / nosql-db-spec /
  * api-spec）の公開 export だけを束ね、schema id → 検証器・JSON Schema・表示名を

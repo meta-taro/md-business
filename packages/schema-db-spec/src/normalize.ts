@@ -23,8 +23,7 @@ export interface NormalizeResult {
  *
  * Unknown keys pass through verbatim — Ajv's `additionalProperties: false`
  * surfaces them as schema errors with full path context. Column `type`
- * expressions are never translated (PdM decision B-2: engine-native SQL
- * notation is canonical).
+ * expressions are never translated — engine-native SQL notation is canonical.
  */
 export function normalizeDbSpecFrontmatter(input: unknown): NormalizeResult {
   const warnings: NormalizeWarning[] = [];

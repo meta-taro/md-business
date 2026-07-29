@@ -7,7 +7,7 @@
 ステータス: 実施中
 テーマ: 青
 作成者:
-  - 名前: PdM
+  - 名前: 検証担当
     役割: QA リード
 シートID: 1AbcDEF_replaceWithYourGoogleSheetsFileId
 repository: your-name/your-repo@main:docs/specs/login-spec.md

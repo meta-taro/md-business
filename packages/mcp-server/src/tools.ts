@@ -1,9 +1,9 @@
 /**
- * MCP P0 ツール本体（Issue 004 Phase 2・B-1 P0）。
+ * MCP P0 ツール本体。
  * -----------------------------------------------------------------------------
- * read_document / validate_document（本 Block MCP-3）。create / update / search は
- * 後続ブロックで追加。fs には触れず DocumentStore 越しに動くので純ロジックとして
- * 単体テストできる。パスは必ず safeRelativePath でワークスペース境界を担保する。
+ * read_document / validate_document / create_document / update_document。fs には
+ * 触れず DocumentStore 越しに動くので純ロジックとして単体テストできる。パスは必ず
+ * safeRelativePath でワークスペース境界を担保する。
  */
 import {
   splitFrontmatter,

@@ -80,7 +80,7 @@ function authLabel(auth: string): string {
 
 /**
  * Defensive recursion bound for nested `array` / `object` member shapes. The
- * schema itself allows one level of nesting (PdM decision D-α), but the renderer
+ * schema itself allows one level of nesting, but the renderer
  * refuses to walk past this depth to avoid a stack blow-up on a pathological (or
  * malicious) document that nests `of[]` arbitrarily.
  */

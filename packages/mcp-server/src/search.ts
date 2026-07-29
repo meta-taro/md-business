@@ -1,5 +1,5 @@
 /**
- * search_documents（Issue 004 Phase 2・P0）。
+ * search_documents。
  * -----------------------------------------------------------------------------
  * DocumentStore 全走査で query（本文部分一致）／ schema id ／日付範囲を絞り込む。
  * 判定ロジックは純ヘルパへ分離して単体テストできるようにし、searchDocuments は

@@ -16,7 +16,7 @@ export type ApiSpecMethod =
   | 'OPTIONS';
 
 /**
- * Field data type. Markdown-first vocabulary (PdM decision D-α) — deliberately
+ * Field data type. Markdown-first vocabulary — deliberately
  * smaller than JSON Schema's, mapped to OpenAPI types only at export time (v0.4.x).
  */
 export type ApiSpecFieldType =
@@ -42,14 +42,14 @@ export interface ApiSpecField {
   /**
    * Cross-reference to a db-spec column, format `"<documentNumber>#<table>.<column>"`
    * (e.g. `"DB-2026-001#users.id"`). Ties an API field back to its canonical DB source
-   * (PdM decision D-α inline fields + dbRef); never translated, verbatim reference.
+   * so the API doc and the DB doc stay linked; never translated, verbatim reference.
    */
   dbRef?: string;
   /** Additional constraint hint as written (e.g. `uuid`, `email`, `int64`). Free-form, verbatim. */
   format?: string;
   /**
    * Element / member shape for `array` and `object` types. One level of nesting only
-   * (PdM decision D-α) — deeper structures are split into a referenced schema doc.
+   * — deeper structures are split into a referenced schema doc.
    */
   of?: ApiSpecField[];
 }

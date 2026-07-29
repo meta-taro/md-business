@@ -5,7 +5,7 @@ import { parseRepoRef, type RepoRef } from './githubApi.js';
 
 /**
  * シート ⇔ md ソースの紐付け（binding）まわりの純粋ロジック。
- * Why: UX 改修（Issue 006）で作業タブは textarea を持たず、セットアップ時に
+ * Why: 作業タブは textarea を持たず、セットアップ時に
  *      DocumentProperties へ保存した md ソースを正本として動く。保存キーの
  *      組み立てと、保存済みソースからの表示用サマリ抽出をテスト可能な層に閉じる。
  */

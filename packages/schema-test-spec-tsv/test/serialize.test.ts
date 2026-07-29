@@ -6,7 +6,7 @@ import type { ParsedHeader } from '../src/types.js';
 
 /**
  * シリアライザ：`TsvDocument` を カスタム TSV テキストへ書き戻す純関数
- * （Issue 010・Block TSV-6）。`parseTsv` の逆変換。
+ * （`parseTsv` の逆変換）。
  *
  * 最重要契約:
  * - **1 レコード = 1 物理行**。データセルの改行・タブは `escapeCell` で畳む（git diff クリーン維持）。

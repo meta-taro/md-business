@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { classifyLine } from '../src/classify.js';
 
 /**
- * カスタム TSV の各物理行は、先頭マーカーで種類が決まる（Issue 010）。
+ * カスタム TSV の各物理行は、先頭マーカーで種類が決まる。
  *
  * | 先頭 | 種類 | 意味 |
  * |------|------|------|

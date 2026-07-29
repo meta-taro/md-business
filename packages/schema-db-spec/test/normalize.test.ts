@@ -245,7 +245,7 @@ describe('normalizeDbSpecFrontmatter — column scope', () => {
     ]);
   });
 
-  it('keeps column type expressions verbatim — no synonym absorption (PdM decision B-2)', () => {
+  it('keeps column type expressions verbatim — no synonym absorption', () => {
     const { data } = normalizeDbSpecFrontmatter({
       テーブル: [
         {

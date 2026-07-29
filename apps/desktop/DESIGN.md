@@ -1,15 +1,14 @@
 # md-business Desktop — DESIGN.md
 
-> **本命プロダクトのデザイン正本**（baseline §11 / [[decisions.md]] 2026-07-16「デスクトップはデザイン重視で作る」）。
+> **本命プロダクトのデザイン正本**。デスクトップ版はデザインを重視して作る。
 > UI 実装（Svelte 5 + SvelteKit）に入る前にここで**デザイン言語を固定**する。手戻り防止のため、
 > 実装は本ファイルのトークン（CSS custom properties）を唯一の出典として参照する。
 >
 > - **トーン**: Linear 風・モダン SaaS（洗練・上質・余白広め・繊細なアクセント・丁寧なマイクロインタラクション）
 > - **フロント**: Svelte 5 + SvelteKit（`adapter-static` / SSR off・Tauri 静的アセット）
-> - **テーマ**: 両対応（**ライト主軸**設計・ダーク同等パリティ）を実装（昨今の主流・PdM 確定 2026-07-16）
-> - **中心インタラクション**: **左＝Markdown エディター / 右＝用途別ビューワー、編集するとプレビューが即ライブ同期**（PdM 確定 2026-07-16）。ビューワーの **PDF 出力**、裏で **git / gh / glab** を叩く Git・フォージ連携を備える
+> - **テーマ**: 両対応（**ライト主軸**設計・ダーク同等パリティ）を実装（昨今の主流）
+> - **中心インタラクション**: **左＝Markdown エディター / 右＝用途別ビューワー、編集するとプレビューが即ライブ同期**。ビューワーの **PDF 出力**、裏で **git / gh / glab** を叩く Git・フォージ連携を備える
 > - **基本機能**: Git 連携で `.md` を管理 → frontmatter の `schema:` で 6 用途別ビューワーが自動起動 → 編集ライブプレビュー → PDF 出力
-> - **関連**: `.claude/issues/004-v1.0-tauri-desktop-mcp-accounting-mvp.md` E 章 / §6（エディター↔プレビュー・Git/フォージ・PDF）
 
 ---
 
@@ -104,7 +103,7 @@ Linear は「ほぼ無彩色のニュートラル + 一点の indigo アクセ�
 
 ## 3. タイポグラフィ
 
-- **UI フォント**: `Inter`（可変）→ 日本語 `Noto Sans JP`（既に fontsource で同梱済み・[[post-build.mjs]] 参照）。フォールバック `system-ui, -apple-system, "Hiragino Sans", sans-serif`。
+- **UI フォント**: `Inter`（可変）→ 日本語 `Noto Sans JP`（`src/lib/styles/tokens.css` で fontsource から同梱）。フォールバック `system-ui, -apple-system, "Hiragino Sans", sans-serif`。
 - **等幅**: `"JetBrains Mono", ui-monospace, "SFMono-Regular", monospace`（パス・コード・エンドポイント・型・Git diff）。
 - Linear は密で小さめ。**ベース 14px**、行間はゆったり。
 
@@ -170,7 +169,7 @@ Linear は「ほぼ無彩色のニュートラル + 一点の indigo アクセ�
 
 - 高さ: `sm 28px` / `md 32px`（既定） / `lg 36px`。角丸 `--radius-md`。パディング横 `--space-3`。
 - フォーカス: `box-shadow: 0 0 0 3px var(--accent-subtle)` + `border-color: var(--accent)`。
-- **Push ボタンだけは特別扱い**（§7.4）: baseline §6「push は人間」を UI で明示。
+- **Push ボタンだけは特別扱い**（§7.4）: 「push は人間が確認して実行する」ことを UI で明示。
 
 ### 5.2 カード
 
@@ -181,7 +180,7 @@ Linear は「ほぼ無彩色のニュートラル + 一点の indigo アクセ�
 - ヘアライン行区切り（`--border`）。**縦罫線なし**（余白で列を分ける）。
 - ヘッダ: `--bg-subtle` 地・`--text-xs`・`--text-secondary`・`sticky top`。
 - 行高 32px・ホバー `--bg-hover`。ゼブラなし（Linear は罫線最小）。
-- 数値列 `tabular-nums` 右寄せ。空セルは**空のまま**（[[data-cell-conventions]]・`—`/`N/A`/`TBD` で埋めない）。
+- 数値列 `tabular-nums` 右寄せ。空セルは**空のまま**（[データセル運用規約](../../docs/data-cell-conventions.md)・`—`/`N/A`/`TBD` で埋めない）。
 - スキーマプレビュー内の表（renderer-pdf 由来 HTML）は PDF 用 CSS を尊重しつつ、アプリシェルのテーブルはこの仕様。
 
 ### 5.4 バッジ / ピル（status）
@@ -260,7 +259,7 @@ Linear は「ほぼ無彩色のニュートラル + 一点の indigo アクセ�
 - **アクティブセル**: `focus-within` で `inset 0 0 0 2px --accent` の選択リング + 微 `--accent-subtle` 地（Excel の選択枠に相当）。
 - **密度**: 既定は 1 行・行高 ~30px（現状の 2 行テキストエリアは高すぎるので単行既定へ）。複数行セルはフォーカス時のみ縦に伸ばす。
 - **固定**: ヘッダ行は `sticky top`、行番号列は `sticky left`（横スクロールで列見出し・行番号が常に見える）。
-- **数値列**: `tabular-nums` 右寄せ。空セルは**空のまま**（[[data-cell-conventions]]）。
+- **数値列**: `tabular-nums` 右寄せ。空セルは**空のまま**（[データセル運用規約](../../docs/data-cell-conventions.md)）。
 - **検証エラー**: 該当セルに `--danger` の左内側マーカー + 淡い赤地。ホバーでメッセージ（title）。
 - **行の条件付き書式**: `#@ style <列名> <値>=<色>` で指定列の値に応じて**行全体**を薄く塗る（例: 結果 OK / NG / 保留）。色は tsv 側に持つのでシートごとに凡例と塗りを揃えられる。既定テンプレートは §2.3 のセマンティック地（`--success-bg` / `--danger-bg` / `--warning-bg`）と同じパステルを使う。**塗りは地であって情報ではない**（値そのものがセルに出ているので、色覚に依存させない）。**ダークテーマでは色を作り直す**。tsv の色はライトの地を前提にしたパステル（＝明るくて淡い）なので、暗い地にそのまま敷くと白飛びして文字が読めない。逆に薄い被膜まで落とすと、元が淡いぶん色味まで消えて全行が同じ灰色になり、行色が無いのと変わらなくなる。そこで**明度は暗い地に合わせて置き換え、彩度は持ち上げて色の違いだけを残す**（相対色 `oklch(from …)`。派手な色を書かれても浮かないよう彩度には上限を掛ける）。**組み立てはグリッド側で行い、テーマトークンは材料の数値だけを持つ**（行色 `--row-tint` は行ごとにインラインで入るため、`:root` のトークンに組むと未設定のまま「色なし」に確定し、その結果が全行へ継承されてライトの色まで消える）。既定状態（未実施）は塗らない＝全行が色付きになると帯の意味が消えるため。
 - **全画面**: 検証中はエディター/プレビュー分割を畳み、グリッドを全幅表示できるトグルを持つ（§6 参照）。
@@ -269,7 +268,7 @@ Linear は「ほぼ無彩色のニュートラル + 一点の indigo アクセ�
 
 ## 6. レイアウト（エディター ↔ プレビュー ライブ同期が主役）
 
-**中心インタラクションは「左＝Markdown エディター / 右＝ビューワー、編集するとプレビューが即同期」**（PdM 確定 2026-07-16）。VS Code / Obsidian / Typora の左右分割 + Linear の静けさ。File Tree は左レール、Git / AI / MCP は必要時に開く右パネル（既定は畳む）＝**エディターとプレビューに画面を最大限割く**。
+**中心インタラクションは「左＝Markdown エディター / 右＝ビューワー、編集するとプレビューが即同期」**。VS Code / Obsidian / Typora の左右分割 + Linear の静けさ。File Tree は左レール、Git / AI / MCP は必要時に開く右パネル（既定は畳む）＝**エディターとプレビューに画面を最大限割く**。
 
 ```
 ┌────────────────────────────────────────────────────────────────────────┐
@@ -316,19 +315,19 @@ Linear は「ほぼ無彩色のニュートラル + 一点の indigo アクセ�
   - `github` アダプタ → `gh`（PR 作成 / Issue / CI 状態）
   - `gitlab` アダプタ → `glab`（MR 作成 / Issue / パイプライン状態）
   - リポジトリの remote URL（`github.com` / `gitlab.com` / self-hosted）から自動判定、Status bar に **forge 種別**を表示。
-- **Push は人間のみ**（§7.4 / baseline §6）＝ forge アダプタも push/MR-merge を AI 自走させない。gh/glab は「read 系（status/list/view）」と「人間トリガーの write（PR/MR 作成）」に分離。
+- **Push は人間のみ**（§7.4）＝ forge アダプタも push/MR-merge を AI 自走させない。gh/glab は「read 系（status/list/view）」と「人間トリガーの write（PR/MR 作成）」に分離。
 - **MVP は GitHub（gh）先行**。`glab` は未導入のため GitLab 連携フェーズで導入（forge インターフェースは最初から両対応で設計し、アダプタを後から差す）。
 
 ### 6.4 PDF 出力
 
 - Top bar の **[PDF]** で現在の文書をビューワー見た目のまま A4 PDF 出力（renderer-pdf + Paged.js 資産を流用）。保存先は OS のファイルダイアログ（Tauri `dialog`）。
-- 画面プレビュー = PDF なので「印刷して配布」まで 1 クリック（手元配布用途・CLAUDE.md の Chrome 拡張の役割をデスクトップにも内包）。
+- 画面プレビュー = PDF なので「印刷して配布」まで 1 クリック（手元配布用途・Chrome 拡張の役割をデスクトップにも内包）。
 
-### 6.5 ウィンドウクローム（フレームレス自作タイトルバー・PdM 確定 2026-07-16）
+### 6.5 ウィンドウクローム（フレームレス自作タイトルバー）
 
 **決定**: OS ネイティブのタイトルバーを廃し（`tauri.conf.json` の `decorations: false`）、Top bar 自体をタイトルバーとして機能させる（VS Code / Linear と同型）。
 
-- **理由**: ネイティブ窓枠はテーマに追従せず、ダーク時に白いタイトルバーだけが浮く不一致が出る。窓枠ごと自作 HTML にすることで**ライト/ダークが窓全体で完全統一**され、「かっこいいから使いたい」という所有欲要件（[[project-desktop-coolness-is-a-goal]]）を満たす。
+- **理由**: ネイティブ窓枠はテーマに追従せず、ダーク時に白いタイトルバーだけが浮く不一致が出る。窓枠ごと自作 HTML にすることで**ライト/ダークが窓全体で完全統一**され、「かっこいいから使いたい」という所有欲要件を満たす。
 - **ドラッグ**: ヘッダー地に `data-tauri-drag-region`。`.lead` / `.center` は `pointer-events:none` で地に貫通させ、どこを掴んでも窓移動できる。ボタン群（`.right` 配下）は貫通させずクリック可能。権限は `core:window:allow-start-dragging`。
 - **ウィンドウコントロール**: 右上角にフル高で密着（Fitts の法則）。最小化 `─` / 最大化 `▢`⇄復元 `❐`（状態で切替）/ 閉じる `✕`（ホバーで `--danger-fg` 赤）。IPC は `@tauri-apps/api/window`（`minimize` / `toggleMaximize` / `close` / `isMaximized`）。純ロジック（グリフ・ラベル）は `src/lib/window/titlebar.ts`、副作用層は `titlebar.svelte.ts`（ブラウザ実行時は no-op ガード）。
 - **Windows 挙動**: `shadow: true`（既定）維持で Win11 は DWM 経由の**リサイズ枠・角丸・影を保持**。失われるのは最大化ボタンホバー時の Win11 スナップ・フライアウトのみ（ネイティブキャプション判定が必要）＝**後続ポリッシュ**（端ドラッグ・Win+矢印のスナップは有効）。
@@ -369,10 +368,10 @@ Linear は「ほぼ無彩色のニュートラル + 一点の indigo アクセ�
 
 ### 7.4 ガバナンスの UI 表現（baseline を UI に焼き込む）
 
-- **Push ボタンは人間専用の視覚シグナル**（§6）: `⚠` アイコン + ツールチップ「push は人間が確認して実行します」。AI/MCP からは押せない導線設計（`git_push` は MCP tool に含めない・Issue 004 D-3）。
+- **Push ボタンは人間専用の視覚シグナル**（§6）: `⚠` アイコン + ツールチップ「push は人間が確認して実行します」。AI/MCP からは押せない導線設計（`git_push` は MCP tool に含めない）。
 - **Commit は AI 可**だが、diff レビュー（右ペイン Git タブ）を経てから。
 - **Secrets 入力**（OCR の API キー等・§15）は設定モーダルで人間手入力のみ。プレースホルダに「AI は投入しません」注記。
-- **公開/非公開境界**（Issue 004 D-1）: private repo データ（receipts/expenses 等）には控えめな「非公開」インジケータ、templates/examples には「公開」タグ。
+- **公開/非公開境界**: private repo データ（receipts/expenses 等）には控えめな「非公開」インジケータ、templates/examples には「公開」タグ。
 
 ---
 
@@ -387,13 +386,13 @@ Linear は「ほぼ無彩色のニュートラル + 一点の indigo アクセ�
 
 ## 9. 実装フェーズ（DESIGN.md 確定後）
 
-デザイン先行（§11）→ 小さいフェーズ（CLAUDE.md）で TDD 式に積む。各フェーズ末で lint/typecheck/test 緑 + commit（push は人間 §6）。
+デザイン先行 → 小さいフェーズで TDD 式に積む。各フェーズ末で lint/typecheck/test 緑 + commit（push は人間が確認して実行する）。
 
 1. **Phase 1a — scaffold**: `apps/desktop/` に Tauri 2.x（`src-tauri/` Rust crate）+ SvelteKit（`adapter-static`・SSR off）雛形。`@tauri-apps/cli` は pnpm devDependency。`tauri dev` でウィンドウ起動確認。
 2. **Phase 1b — アプリシェル**: `tokens.css` を本ファイルから生成、Top bar + レイアウト骨格（File Tree レール + エディター↔プレビュー分割 + 折畳パネル）+ **テーマ切替（light/dark・`data-theme`・Tauri store 永続化）**。
 3. **Phase 1c — ビューワー疎通**: renderer-pdf の HTML 出力を iframe 隔離で 1 スキーマ（api-spec）先行埋め込み。既存 registry / detect を移植。
 4. **Phase 2 — エディター + ライブ同期**: CodeMirror 6 導入、編集 → debounce → previewRender 再利用 → プレビュー即再描画（§6.1/6.2）。6 スキーマ自動判定。
 5. **Phase 3 — Git / フォージ**: Rust 側ローカル Git（status/diff/commit）+ Git パネル、forge 抽象（gh 先行・glab は後）。**Push は人間 UI**（§7.4）。
-6. **Phase 4 — PDF 出力**（§6.4）+ 以降 Issue 004 の MCP P0 5 tools へ。
+6. **Phase 4 — PDF 出力**（§6.4）+ 以降 MCP ツール群へ。
 
-> **注意**: 本ファイルは「デザインの正本」。実装中に迷ったらコードでなくここへ戻る。トークン変更・レイアウト変更は PdM 合意の上で本ファイルを更新してから実装へ反映（§10 ドキュメント同期）。
+> **注意**: 本ファイルは「デザインの正本」。実装中に迷ったらコードでなくここへ戻る。トークン変更・レイアウト変更は合意の上で本ファイルを更新してから実装へ反映する。

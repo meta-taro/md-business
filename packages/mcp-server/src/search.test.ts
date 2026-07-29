@@ -10,7 +10,7 @@ import {
 } from './search.js';
 
 /**
- * search_documents（Issue 004 Phase 2・P0）。store 全走査で query / schema / 日付範囲を
+ * search_documents。store 全走査で query / schema / 日付範囲を
  * 絞り込む。判定は純ヘルパへ分離して単体テスト、searchDocuments は薄い統合とする。
  */
 describe('matchesQuery', () => {

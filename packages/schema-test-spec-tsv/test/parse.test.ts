@@ -3,7 +3,7 @@ import { parseTsv } from '../src/parse.js';
 
 /**
  * パーサ本体：カスタム TSV テキスト全体を `{ formatId, meta, directives, columns, rows }`
- * へ組み上げる（Issue 010・Block TSV-4）。3 部品 escape / header / classify を統合する。
+ * へ組み上げる。3 部品 escape / header / classify を統合する。
  *
  * - 物理行を `classifyLine` で判別し、種類ごとに処理を振り分ける。
  * - 最初の `data` 行＝型付きヘッダ（`parseTypedHeader`）、以降＝データ行（tab 分割 + `unescapeCell`）。

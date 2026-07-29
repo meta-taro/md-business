@@ -1,5 +1,5 @@
 /**
- * FileDocumentStore — DocumentStore の本番実装（Issue 004 Phase 2・Block MCP-6）。
+ * FileDocumentStore — DocumentStore の本番実装。
  * -----------------------------------------------------------------------------
  * ワークスペース root ディレクトリ配下で node:fs を読み書きする。ツール本体は
  * safeRelativePath で境界を担保済みだが、ここでも root 逸脱を実パスで再検査する

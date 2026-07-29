@@ -72,12 +72,12 @@ export interface TestSpec {
   reviewers?: TestSpecPerson[];
   relatedDocs?: string[];
   /**
-   * Required when onEdit auto-sync is enabled (PdM decision 2026-06-18 / A-3).
+   * Required when Sheets auto-sync is enabled.
    * Identifies the bound Google Sheets document by its file ID.
    */
   googleSheetId?: string;
   /**
-   * GitHub binding for onEdit auto-sync (PdM decision 2026-06-18 / case A).
+   * GitHub binding for Sheets auto-sync.
    * Format: `owner/repo@branch:path` (e.g. `meta-taro/md-business@main:verify/login.md`).
    * `@branch` is optional and defaults to `main` during parsing.
    */
