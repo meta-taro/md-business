@@ -5,6 +5,9 @@ import {
   parseLogEvent,
   formatLogTime,
   connectionText,
+  indicatorText,
+  clientConfigJson,
+  fileChangeFromLog,
   reasonMessageKey,
   type McpLogEntry,
   type McpStatus,
@@ -161,5 +164,89 @@ describe('reasonMessageKey', () => {
     for (const locale of LOCALES) {
       for (const key of keys) expect(messages[locale][key]).toBeTruthy();
     }
+  });
+});
+
+const ready = (): McpStatus => ({
+  state: 'ready',
+  url: 'http://127.0.0.1:51234/mcp',
+  port: 51234,
+  token: 'a'.repeat(64),
+  reason: null,
+  detail: null,
+});
+
+describe('indicatorText', () => {
+  it('状態ごとに短い文言と点の色を決める', () => {
+    expect(indicatorText(ready())).toEqual({ key: 'status.mcpReady', tone: 'ok' });
+    expect(indicatorText({ ...ready(), state: 'starting' })).toEqual({
+      key: 'status.mcpStarting',
+      tone: 'neutral',
+    });
+    expect(indicatorText({ ...ready(), state: 'unavailable' })).toEqual({
+      key: 'status.mcpOff',
+      tone: 'warn',
+    });
+  });
+
+  it('文言キーは全ロケールに存在する', () => {
+    const keys = (['ready', 'starting', 'unavailable'] as const).map(
+      (state) => indicatorText({ ...ready(), state }).key,
+    );
+    for (const locale of LOCALES) {
+      for (const key of keys) expect(messages[locale][key]).toBeTruthy();
+    }
+  });
+});
+
+describe('clientConfigJson', () => {
+  it('接続先とトークンを載せた設定を組む', () => {
+    const json = clientConfigJson(ready());
+    expect(json).not.toBeNull();
+    expect(JSON.parse(json as string)).toEqual({
+      mcpServers: {
+        'md-business': {
+          type: 'http',
+          url: 'http://127.0.0.1:51234/mcp',
+          headers: { Authorization: `Bearer ${'a'.repeat(64)}` },
+        },
+      },
+    });
+  });
+
+  it('接続できない状態では設定を作らない', () => {
+    expect(clientConfigJson({ ...ready(), state: 'starting' })).toBeNull();
+    expect(clientConfigJson({ ...ready(), token: null })).toBeNull();
+    expect(clientConfigJson({ ...ready(), url: null })).toBeNull();
+  });
+});
+
+describe('fileChangeFromLog', () => {
+  const log = (over: Partial<McpLogEntry>): McpLogEntry => ({
+    tool: 'read_document',
+    ok: true,
+    ts: 1,
+    ...over,
+  });
+
+  it('作成はツリーの取り直しにする', () => {
+    expect(fileChangeFromLog(log({ tool: 'create_document', path: 'specs/a.md' }))).toEqual({
+      relPath: 'specs/a.md',
+      kind: 'rescan',
+    });
+  });
+
+  it('更新は中身の変更として扱う', () => {
+    expect(fileChangeFromLog(log({ tool: 'update_document', path: 'specs/a.md' }))).toEqual({
+      relPath: 'specs/a.md',
+      kind: 'modified',
+    });
+  });
+
+  it('読み取り系・失敗・パス無しは変化として扱わない', () => {
+    expect(fileChangeFromLog(log({ tool: 'read_document', path: 'a.md' }))).toBeNull();
+    expect(fileChangeFromLog(log({ tool: 'search_documents' }))).toBeNull();
+    expect(fileChangeFromLog(log({ tool: 'create_document', path: 'a.md', ok: false }))).toBeNull();
+    expect(fileChangeFromLog(log({ tool: 'create_document' }))).toBeNull();
   });
 });

@@ -119,3 +119,64 @@ export function connectionText(status: McpStatus): ConnectionText {
   }
   return { kind: 'key', key: 'mcp.starting' };
 }
+
+/** ステータスバーの MCP 表示（短い文言と点の色）。 */
+export interface McpIndicator {
+  key: MessageKey;
+  /** 点の見た目。`ok`=稼働中 / `neutral`=起動中 / `warn`=使えない。 */
+  tone: 'ok' | 'neutral' | 'warn';
+}
+
+/**
+ * ステータスバーに出す短い状態表示を決める。
+ *
+ * 常に見えている場所なので、詳細（URL・劣化理由）は MCP タブに任せ、ここは
+ * 「動いているか」だけを一目で分かる形にする。
+ */
+export function indicatorText(status: McpStatus): McpIndicator {
+  if (status.state === 'ready') return { key: 'status.mcpReady', tone: 'ok' };
+  if (status.state === 'unavailable') return { key: 'status.mcpOff', tone: 'warn' };
+  return { key: 'status.mcpStarting', tone: 'neutral' };
+}
+
+/**
+ * AI クライアントの設定へそのまま貼れる接続設定を組む。
+ *
+ * トークンだけを写す形だと、貼り先の書式を利用者が自分で組み立てることになる。
+ * 主要クライアントが共通で解釈できる形（HTTP + Authorization ヘッダ）で丸ごと渡す。
+ * 接続できない状態では設定を作れないので null。
+ */
+export function clientConfigJson(status: McpStatus): string | null {
+  if (status.state !== 'ready' || status.url === null || status.token === null) return null;
+  const config = {
+    mcpServers: {
+      'md-business': {
+        type: 'http',
+        url: status.url,
+        headers: { Authorization: `Bearer ${status.token}` },
+      },
+    },
+  };
+  return JSON.stringify(config, null, 2);
+}
+
+/** ツール実行がワークスペースに与えた変化（ファイル監視イベントと同じ形）。 */
+export interface McpFileChange {
+  relPath: string;
+  kind: 'modified' | 'rescan';
+}
+
+/**
+ * 書き込み系ツールの実行ログを、ワークスペースの変化として読み替える。
+ *
+ * AI が書いた結果は、利用者が何もしなくても画面へ出るべきもの。ファイル監視だけに
+ * 頼ると検知が届かない環境（監視の初期化に失敗した場合など）で取りこぼすため、
+ * サーバー自身の実行ログからも同じ更新を起こす。読み取り系・失敗した実行は変化なし。
+ */
+export function fileChangeFromLog(entry: McpLogEntry): McpFileChange | null {
+  if (!entry.ok || entry.path === undefined) return null;
+  // 作成はツリーの構造が変わる。更新は中身だけなので、開いているファイルだけが対象。
+  if (entry.tool === 'create_document') return { relPath: entry.path, kind: 'rescan' };
+  if (entry.tool === 'update_document') return { relPath: entry.path, kind: 'modified' };
+  return null;
+}

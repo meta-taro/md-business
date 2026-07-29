@@ -229,21 +229,55 @@
     AI assistant (Claude Desktop, for example) and it can read and write the business documents in the
     folder you currently have open.
   </p>
+  <h3>How to connect</h3>
   <ul>
     <li>Open the side panel on the right and select the <strong><code>MCP</code> tab</strong>.</li>
-    <li>The tab shows the connection <strong>URL</strong>
-      (<code>http://127.0.0.1:<em>port</em>/mcp</code>).</li>
-    <li>Click <strong>Copy access token</strong> to get the token.</li>
-    <li>Register the URL and token in your AI assistant as an HTTP MCP server. The header is
-      <code>Authorization: Bearer <em>token</em></code>.</li>
+    <li>Click <strong>Copy connection settings</strong>. This puts a JSON snippet on the clipboard that you
+      can paste straight into an AI client.</li>
+    <li>Paste it into the MCP settings of your AI client (Claude Code, Claude Desktop, Cursor, Cline, …).</li>
   </ul>
+  <p>The copied snippet looks like this.</p>
+  <pre><code>{
+  "mcpServers": {
+    "md-business": {
+      "type": "http",
+      "url": "http://127.0.0.1:<em>port</em>/mcp",
+      "headers": { "Authorization": "Bearer <em>token</em>" }
+    }
+  }
+}</code></pre>
   <p>
-    <strong>The port and token change every time the app starts.</strong> Take the current values from the
-    MCP tab whenever you reconnect. The server only accepts loopback connections
-    (<code>127.0.0.1</code>) and rejects requests whose token does not match, so nothing outside your
-    machine can reach it. The assistant can only touch <strong>the folder you have open in the app</strong>,
-    and it follows along when you switch folders. Every tool call is listed in the MCP tab, so you can
-    review what was read or written afterwards.
+    If you already have the settings in place and only want to swap the token, use
+    <strong>Copy access token</strong> next to it.
+  </p>
+
+  <h3>The connection stays the same across restarts</h3>
+  <p>
+    The port and token are stored in the app's configuration folder and reused the next time the app
+    starts, so <strong>settings you paste once keep working</strong>. (Only if the stored port is taken by
+    another program does the app move to a free one and store the new value — paste the settings again in
+    that case.)
+  </p>
+  <p>
+    To issue a new token, delete the file below and restart the app. A fresh token is generated, so paste
+    the settings into your AI client again.
+  </p>
+  <ul>
+    <li>Windows: <code>%APPDATA%\md-business\mcp.json</code></li>
+    <li>macOS: <code>~/Library/Application Support/md-business/mcp.json</code></li>
+  </ul>
+
+  <h3>What it can do, and how far it reaches</h3>
+  <p>
+    A connected assistant can <strong>read, validate, search, create and update</strong> business documents.
+    When it writes, the file list and preview in the app follow along on their own — you do not have to
+    refresh anything.
+  </p>
+  <p>
+    The server only accepts loopback connections (<code>127.0.0.1</code>) and rejects requests whose token
+    does not match, so nothing outside your machine can reach it. The assistant can only touch
+    <strong>the folder you have open in the app</strong>, and it follows along when you switch folders.
+    Every tool call is listed in the MCP tab, so you can review what was read or written afterwards.
   </p>
   <p>
     MCP is an optional extra. If it cannot run (for example, no Node runtime is installed), the rest of

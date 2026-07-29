@@ -3,7 +3,7 @@
   // グリッド幅を制御する。MCP タブは組み込みサーバーの接続情報と操作ログを表示する。
   import { t } from '$lib/i18n/i18n.svelte';
   import { mcp } from '$lib/mcp/mcp.svelte';
-  import { formatLogTime } from '$lib/mcp/mcpLog';
+  import { clientConfigJson, formatLogTime } from '$lib/mcp/mcpLog';
 
   interface SidePanelProps {
     open: boolean;
@@ -19,24 +19,27 @@
   const enabled: Tab = 'MCP';
   let active = $state<Tab>(enabled);
 
-  let copied = $state(false);
+  /** 直近に写した対象（ボタンの手応えを 1 つずつ出し分ける）。 */
+  let copied = $state<'token' | 'config' | null>(null);
   let copyTimer: ReturnType<typeof setTimeout> | undefined;
+
+  // AI クライアントの設定へそのまま貼れる形。接続できていないときは作れない。
+  const configJson = $derived(clientConfigJson(mcp.status));
 
   // 接続先 URL は訳す対象ではないので、翻訳が要る場合とだけ描き分ける。
   const connText = $derived(
     mcp.connection.kind === 'url' ? mcp.connection.url : t(mcp.connection.key),
   );
 
-  /** 接続トークンを写す。AI クライアント側の設定へ貼るための操作。 */
-  async function copyToken(): Promise<void> {
-    const token = mcp.status.token;
-    if (token === null) return;
+  /** 文字列を写し、どのボタンで写したかをしばらく表示する。 */
+  async function copy(text: string | null, kind: 'token' | 'config'): Promise<void> {
+    if (text === null) return;
     try {
-      await navigator.clipboard.writeText(token);
-      copied = true;
+      await navigator.clipboard.writeText(text);
+      copied = kind;
       clearTimeout(copyTimer);
       copyTimer = setTimeout(() => {
-        copied = false;
+        copied = null;
       }, 1500);
     } catch {
       // 書き込みが拒否される環境では黙って諦める（表示は変えない）。
@@ -82,10 +85,25 @@
           </div>
 
           {#if mcp.isReady && mcp.status.token !== null}
-            <button class="token" type="button" onclick={copyToken}>
-              {copied ? t('mcp.copied') : t('mcp.copyToken')}
+            <!-- 設定ごと写せる方を主にする。トークン単体は、既に設定を持っている人向け。 -->
+            <button class="token primary" type="button" onclick={() => copy(configJson, 'config')}>
+              {copied === 'config' ? t('mcp.copiedConfig') : t('mcp.copyConfig')}
+            </button>
+            <button class="token" type="button" onclick={() => copy(mcp.status.token, 'token')}>
+              {copied === 'token' ? t('mcp.copied') : t('mcp.copyToken')}
             </button>
           {/if}
+
+          <!-- 使い方が分からないと機能ごと気付かれないので、画面の中に置く。 -->
+          <details class="howto">
+            <summary>{t('mcp.howto')}</summary>
+            <ol>
+              <li>{t('mcp.howtoStep1')}</li>
+              <li>{t('mcp.howtoStep2')}</li>
+              <li>{t('mcp.howtoStep3')}</li>
+            </ol>
+            <p class="note">{t('mcp.howtoNote')}</p>
+          </details>
 
           <ul class="logs">
             <!-- 同一ミリ秒に同じツールが並びうるので、キー付き each にはしない。 -->
@@ -262,6 +280,38 @@
   .token:hover {
     background: var(--bg-hover);
     color: var(--text-primary);
+  }
+
+  /* 最初に押すべきボタンを 1 つに絞る（もう一方は既に設定を持っている人向け）。 */
+  .token.primary {
+    border-color: var(--accent);
+    color: var(--text-primary);
+  }
+
+  .howto {
+    margin: var(--space-2) var(--space-3) 0;
+    font-size: var(--text-xs-size);
+    color: var(--text-secondary);
+    flex: none;
+  }
+
+  .howto summary {
+    cursor: pointer;
+    color: var(--text-secondary);
+  }
+
+  .howto ol {
+    margin: var(--space-2) 0 0;
+    padding-left: 1.4em;
+    display: grid;
+    gap: var(--space-1);
+    line-height: 1.5;
+  }
+
+  .howto .note {
+    margin: var(--space-2) 0 0;
+    color: var(--text-tertiary);
+    line-height: 1.5;
   }
 
   .logs {

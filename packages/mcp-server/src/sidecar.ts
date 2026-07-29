@@ -10,6 +10,7 @@
  * 起動エントリ側の責務にして、ここは配線だけをテスト可能な形に保つ。
  */
 import type { Readable } from 'node:stream';
+import type { ToolLogEntry } from './toolLog.js';
 import { FileDocumentStore } from './fileStore.js';
 import { startHttpServer } from './httpServer.js';
 import { encodeSidecarEvent, parseControlLine, splitControlLines } from './control.js';
@@ -36,6 +37,8 @@ export interface StartSidecarOptions {
 
 export interface SidecarHandle {
   port: number;
+  /** 希望したポートが使えず OS 割当へ切り替えたか（保存し直す判断に使う）。 */
+  portChanged: boolean;
   /** クライアントが接続する完全な URL。 */
   url: string;
   /** 現在のワークスペース root（set-root で変わる）。 */
@@ -49,13 +52,24 @@ export async function startSidecar(options: StartSidecarOptions): Promise<Sideca
   const { io, token, now } = options;
   const store = new FileDocumentStore(options.root);
 
-  const server = await startHttpServer({
+  const base = {
     store,
     token,
-    ...(options.port !== undefined ? { port: options.port } : {}),
     ...(now !== undefined ? { now } : {}),
-    onLog: (entry) => io.write(encodeSidecarEvent(entry)),
-  });
+    onLog: (entry: ToolLogEntry) => io.write(encodeSidecarEvent(entry)),
+  };
+  // 前回と同じポートを希望しても、別のアプリに取られていることはある。そのときは
+  // 起動を諦めず OS 割当へ落とす（接続先が変わるだけで、機能は失われない）。
+  const wanted = options.port ?? 0;
+  let portChanged = false;
+  let server;
+  try {
+    server = await startHttpServer({ ...base, port: wanted });
+  } catch (error) {
+    if (wanted === 0) throw error;
+    server = await startHttpServer({ ...base, port: 0 });
+    portChanged = true;
+  }
 
   // チャンク境界は行境界と一致しないので、未完結分を持ち越しながら 1 行ずつ処理する。
   let pending = '';
@@ -90,6 +104,7 @@ export async function startSidecar(options: StartSidecarOptions): Promise<Sideca
 
   return {
     port: server.port,
+    portChanged,
     url: server.url,
     root: () => store.getRoot(),
     stop: async () => {

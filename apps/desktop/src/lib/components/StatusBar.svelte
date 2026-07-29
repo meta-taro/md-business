@@ -1,11 +1,13 @@
 <script lang="ts">
-  // Git は共有ストアの実データを描画する。MCP インジケータは内蔵サーバー実装まで静的表示。
+  // Git と MCP はどちらも共有ストアの実データを描画する。
   // 「ソース管理」ボタンで下部ドロワー（commit / push / pull）を開閉する。push は人間の明示
   // クリックからのみ走り、認証は OS の git 資格情報に委ねる（アプリは資格情報を扱わない）。
   // 実処理は SourceControlPanel 側。
   // ブランチ表示はクリックで切替ポップオーバーを開く（switch は作業ツリー内のローカル操作で
   // push/commit ではないため、アプリから実行してよい。-f なしで衝突時は失敗＝破壊しない）。
   import { git } from '$lib/git/git.svelte';
+  import { mcp } from '$lib/mcp/mcp.svelte';
+  import { indicatorText } from '$lib/mcp/mcpLog';
   import { workspace } from '$lib/workspace/workspace.svelte';
   import { forgeLabel } from '$lib/git/gitStatus';
   import { describeSaveState } from '$lib/workspace/saveIndicator';
@@ -28,6 +30,9 @@
       savedAt: workspace.savedAt,
     }),
   );
+
+  // 組み込み MCP サーバーの状態表示（稼働中 / 起動中 / 停止中）。
+  const mcpIndicator = $derived(indicatorText(mcp.status));
 
   let pickerOpen = $state(false);
   let switching = $state(false);
@@ -163,7 +168,16 @@
       ><span class="dot" class:ok={git.forge !== null} class:neutral={git.forge === null} aria-hidden="true"
       ></span>{t('status.forge', { name: forgeLabel(git.forge) })}</span
     >
-    <span class="ind"><span class="dot neutral" aria-hidden="true"></span>{t('status.mcp')}</span>
+    <!-- MCP は常時見える場所なので状態だけを出し、接続先や理由は MCP タブ側に任せる。 -->
+    <span class="ind" title={mcp.status.url ?? mcp.status.detail ?? ''}
+      ><span
+        class="dot"
+        class:ok={mcpIndicator.tone === 'ok'}
+        class:neutral={mcpIndicator.tone === 'neutral'}
+        class:warn={mcpIndicator.tone === 'warn'}
+        aria-hidden="true"
+      ></span>{t(mcpIndicator.key)}</span
+    >
   </div>
 </footer>
 
@@ -288,6 +302,11 @@
   /* 接続済み（リポジトリ配下 / forge 判定済み）を示す緑ドット。 */
   .dot.ok {
     background: var(--success-fg, #4ca66a);
+  }
+
+  /* 使えない状態。付加機能の停止なので、警告色までは張らず控えめに示す。 */
+  .dot.warn {
+    background: var(--warning-fg, #c08a3e);
   }
 
   /* ── ブランチ切替 ─────────────────────────────────────────── */

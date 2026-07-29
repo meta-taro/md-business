@@ -60,7 +60,9 @@ export interface Messages {
   'status.sourceControlTitle': string;
   'status.sourceControl': string;
   'status.forge': string;
-  'status.mcp': string;
+  'status.mcpReady': string;
+  'status.mcpStarting': string;
+  'status.mcpOff': string;
   'status.saving': string;
   'status.unsaved': string;
   'status.savedAt': string;
@@ -114,6 +116,13 @@ export interface Messages {
   'mcp.starting': string;
   'mcp.copyToken': string;
   'mcp.copied': string;
+  'mcp.copyConfig': string;
+  'mcp.copiedConfig': string;
+  'mcp.howto': string;
+  'mcp.howtoStep1': string;
+  'mcp.howtoStep2': string;
+  'mcp.howtoStep3': string;
+  'mcp.howtoNote': string;
   'mcp.logsEmpty': string;
   'mcp.logsDisabled': string;
   'mcp.reason.sidecarMissing': string;
@@ -211,7 +220,9 @@ const en: Messages = {
   'status.sourceControlTitle': 'Source control (commit / push / pull)',
   'status.sourceControl': 'Source control',
   'status.forge': 'forge: {name}',
-  'status.mcp': 'MCP: disconnected',
+  'status.mcpReady': 'MCP: running',
+  'status.mcpStarting': 'MCP: starting',
+  'status.mcpOff': 'MCP: stopped',
   'status.saving': 'Saving…',
   'status.unsaved': 'Unsaved changes',
   'status.savedAt': 'Saved at {time}',
@@ -260,6 +271,16 @@ const en: Messages = {
   'mcp.starting': 'Starting…',
   'mcp.copyToken': 'Copy access token',
   'mcp.copied': 'Token copied',
+  'mcp.copyConfig': 'Copy client settings',
+  'mcp.copiedConfig': 'Settings copied',
+  'mcp.howto': 'How to connect an AI client',
+  'mcp.howtoStep1': 'Press “Copy client settings” above.',
+  'mcp.howtoStep2':
+    'Paste them into the MCP settings of your AI client (Claude Code, Claude Desktop, Cursor, Cline and so on).',
+  'mcp.howtoStep3':
+    'The folder open in this window is what the AI reads and writes. Switch folders and the AI follows.',
+  'mcp.howtoNote':
+    'The address and access token stay the same the next time you start the app, so settings you pasted keep working.',
   'mcp.logsEmpty': 'Actions from your AI client will appear here',
   'mcp.logsDisabled': 'The server is not running, so no actions are recorded',
   'mcp.reason.sidecarMissing': 'MCP server files were not found',
@@ -351,7 +372,9 @@ const ja: Messages = {
   'status.sourceControlTitle': 'ソース管理（コミット / プッシュ / プル）',
   'status.sourceControl': 'ソース管理',
   'status.forge': 'forge: {name}',
-  'status.mcp': 'MCP: 未接続',
+  'status.mcpReady': 'MCP: 稼働中',
+  'status.mcpStarting': 'MCP: 起動中',
+  'status.mcpOff': 'MCP: 停止中',
   'status.saving': '保存中…',
   'status.unsaved': '未保存の変更',
   'status.savedAt': '{time} に保存',
@@ -400,6 +423,16 @@ const ja: Messages = {
   'mcp.starting': '起動中…',
   'mcp.copyToken': '接続トークンを写す',
   'mcp.copied': 'トークンを写しました',
+  'mcp.copyConfig': '接続設定を写す',
+  'mcp.copiedConfig': '接続設定を写しました',
+  'mcp.howto': 'AI クライアントとつなぐ手順',
+  'mcp.howtoStep1': '上の「接続設定を写す」を押す。',
+  'mcp.howtoStep2':
+    'AI クライアント（Claude Code / Claude Desktop / Cursor / Cline など）の MCP 設定へ貼る。',
+  'mcp.howtoStep3':
+    'この画面で開いているフォルダが AI の読み書き対象になる。フォルダを切り替えれば AI も追いかける。',
+  'mcp.howtoNote':
+    '接続先とトークンは次に起動しても変わらないので、貼った設定はそのまま使い続けられる。',
   'mcp.logsEmpty': 'AI からの操作がここに並びます',
   'mcp.logsDisabled': 'サーバーが動いていないため操作は記録されません',
   'mcp.reason.sidecarMissing': 'MCP サーバー本体が見つかりません',
@@ -491,7 +524,9 @@ const zh: Messages = {
   'status.sourceControlTitle': '源代码管理（提交／推送／拉取）',
   'status.sourceControl': '源代码管理',
   'status.forge': 'forge: {name}',
-  'status.mcp': 'MCP: 未连接',
+  'status.mcpReady': 'MCP: 运行中',
+  'status.mcpStarting': 'MCP: 启动中',
+  'status.mcpOff': 'MCP: 已停止',
   'status.saving': '保存中…',
   'status.unsaved': '未保存的更改',
   'status.savedAt': '{time} 已保存',
@@ -540,6 +575,14 @@ const zh: Messages = {
   'mcp.starting': '启动中…',
   'mcp.copyToken': '复制连接令牌',
   'mcp.copied': '已复制令牌',
+  'mcp.copyConfig': '复制连接设置',
+  'mcp.copiedConfig': '已复制连接设置',
+  'mcp.howto': '连接 AI 客户端的步骤',
+  'mcp.howtoStep1': '点击上方的「复制连接设置」。',
+  'mcp.howtoStep2':
+    '粘贴到 AI 客户端（Claude Code / Claude Desktop / Cursor / Cline 等）的 MCP 设置中。',
+  'mcp.howtoStep3': '此窗口打开的文件夹即 AI 读写的对象。切换文件夹后 AI 也会跟随。',
+  'mcp.howtoNote': '下次启动应用时地址和令牌不变，粘贴过的设置可以继续使用。',
   'mcp.logsEmpty': 'AI 的操作将显示在这里',
   'mcp.logsDisabled': '服务器未运行，因此不会记录操作',
   'mcp.reason.sidecarMissing': '未找到 MCP 服务器本体',
@@ -631,7 +674,9 @@ const ko: Messages = {
   'status.sourceControlTitle': '소스 제어 (커밋 / 푸시 / 풀)',
   'status.sourceControl': '소스 제어',
   'status.forge': 'forge: {name}',
-  'status.mcp': 'MCP: 미연결',
+  'status.mcpReady': 'MCP: 실행 중',
+  'status.mcpStarting': 'MCP: 시작 중',
+  'status.mcpOff': 'MCP: 중지됨',
   'status.saving': '저장 중…',
   'status.unsaved': '저장되지 않은 변경',
   'status.savedAt': '{time}에 저장',
@@ -680,6 +725,16 @@ const ko: Messages = {
   'mcp.starting': '시작 중…',
   'mcp.copyToken': '접속 토큰 복사',
   'mcp.copied': '토큰을 복사했습니다',
+  'mcp.copyConfig': '연결 설정 복사',
+  'mcp.copiedConfig': '연결 설정을 복사했습니다',
+  'mcp.howto': 'AI 클라이언트 연결 방법',
+  'mcp.howtoStep1': '위의 「연결 설정 복사」를 누릅니다.',
+  'mcp.howtoStep2':
+    'AI 클라이언트(Claude Code / Claude Desktop / Cursor / Cline 등)의 MCP 설정에 붙여 넣습니다.',
+  'mcp.howtoStep3':
+    '이 창에서 열어 둔 폴더가 AI의 읽기·쓰기 대상입니다. 폴더를 바꾸면 AI도 따라갑니다.',
+  'mcp.howtoNote':
+    '앱을 다시 시작해도 주소와 토큰이 그대로이므로 붙여 넣은 설정을 계속 사용할 수 있습니다.',
   'mcp.logsEmpty': 'AI 의 작업이 여기에 표시됩니다',
   'mcp.logsDisabled': '서버가 실행 중이 아니므로 작업이 기록되지 않습니다',
   'mcp.reason.sidecarMissing': 'MCP 서버 본체를 찾을 수 없습니다',
