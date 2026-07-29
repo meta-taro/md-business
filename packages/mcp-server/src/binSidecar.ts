@@ -8,21 +8,60 @@
  *   - stdin : set-root などのコマンドを親から
  *   - stderr: 人が読む診断のみ（親は解釈しない）
  *
- * bearer トークンは起動ごとにここで発行する。外から与えられる経路を作らないことで、
- * 「起動中プロセスの stdout を読めた親だけが接続できる」状態を保つ。
+ * bearer トークンはここで発行する。値そのものが引数や環境変数に現れる経路は作らず、
+ * 親へは stdout の ready 行でだけ渡す。
+ *
+ * 発行した接続情報（トークンとポート）は、親から保存先を渡された場合に限りそこへ書き、
+ * 次回以降は同じ値で立ち上げる。起動のたびに接続先が変わると、AI クライアント側の設定を
+ * 毎回書き直すことになり実用にならないため。
  */
 import { randomBytes } from 'node:crypto';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { dirname } from 'node:path';
 import { startSidecar } from './sidecar.js';
 import { encodeSidecarEvent } from './control.js';
 import { SERVER_NAME } from './server.js';
+import {
+  parseSidecarState,
+  resolveSidecarIdentity,
+  serializeSidecarState,
+  type SidecarState,
+} from './sidecarState.js';
+
+/** 保存済みの接続情報を読む。無い・読めない・壊れているはいずれも「保存なし」。 */
+function loadState(path: string | undefined): SidecarState | null {
+  if (path === undefined) return null;
+  try {
+    return parseSidecarState(readFileSync(path, 'utf8'));
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * 接続情報を保存する。書けなくても起動は続ける（次回また発行するだけで、今回の
+ * 接続は成立している）。合鍵なので所有者だけが読める権限で置く。
+ */
+function saveState(path: string | undefined, state: SidecarState): void {
+  if (path === undefined) return;
+  try {
+    mkdirSync(dirname(path), { recursive: true });
+    writeFileSync(path, serializeSidecarState(state), { encoding: 'utf8', mode: 0o600 });
+  } catch {
+    // 保存できない環境（読み取り専用など）でも MCP 自体は使える。
+  }
+}
 
 async function main(): Promise<void> {
   const root = process.argv[2] ?? process.env['MD_BUSINESS_WORKSPACE'] ?? process.cwd();
-  const token = randomBytes(32).toString('hex');
+  const statePath = process.argv[3] ?? process.env['MD_BUSINESS_MCP_STATE'];
+  const saved = loadState(statePath);
+  const identity = resolveSidecarIdentity(saved, () => randomBytes(32).toString('hex'));
 
   const handle = await startSidecar({
     root,
-    token,
+    token: identity.token,
+    port: identity.port,
     io: {
       input: process.stdin,
       write: (line) => {
@@ -30,6 +69,11 @@ async function main(): Promise<void> {
       },
     },
   });
+
+  // 発行し直したとき、または希望ポートが取れなかったときだけ書き戻す。
+  if (identity.minted || handle.portChanged || identity.port !== handle.port) {
+    saveState(statePath, { token: identity.token, port: handle.port });
+  }
 
   let stopping = false;
   const shutdown = (): void => {

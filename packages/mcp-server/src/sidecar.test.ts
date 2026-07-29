@@ -89,6 +89,50 @@ describe('startSidecar', () => {
     expect(handle.root()).toBe(resolve(other));
   });
 
+  it('希望ポートが使えれば同じポートで待ち受ける', async () => {
+    // 前回と同じ接続先で立ち上がることが、保存した接続設定を使い続けられる条件。
+    const first = await startSidecar({
+      root: workspace,
+      token: 'tok',
+      io: { input, write: out.write },
+    });
+    const wanted = first.port;
+    await first.stop();
+
+    handle = await startSidecar({
+      root: workspace,
+      token: 'tok',
+      port: wanted,
+      io: { input, write: out.write },
+    });
+
+    expect(handle.port).toBe(wanted);
+    expect(handle.portChanged).toBe(false);
+  });
+
+  it('希望ポートが塞がっていれば OS 割当へ落として起動する', async () => {
+    // 他のアプリに取られていても MCP が起動しないのは困る。接続先が変わるだけに留める。
+    const occupant = await startSidecar({
+      root: other,
+      token: 'tok',
+      io: { input: new PassThrough(), write: () => {} },
+    });
+
+    try {
+      handle = await startSidecar({
+        root: workspace,
+        token: 'tok',
+        port: occupant.port,
+        io: { input, write: out.write },
+      });
+
+      expect(handle.port).not.toBe(occupant.port);
+      expect(handle.portChanged).toBe(true);
+    } finally {
+      await occupant.stop();
+    }
+  });
+
   it('停止後は制御行を処理しない', async () => {
     handle = await startSidecar({ root: workspace, token: 'tok', io: { input, write: out.write } });
     const started = handle.root();
