@@ -47,9 +47,10 @@
     <li><a href="#pdf">7. Export to PDF</a></li>
     <li><a href="#git">8. Track changes with Git</a></li>
     <li><a href="#layout">9. Layout and theme</a></li>
-    <li><a href="#update">10. Update the app</a></li>
-    <li><a href="#shortcuts">11. Keyboard shortcuts</a></li>
-    <li><a href="#trouble">12. Troubleshooting</a></li>
+    <li><a href="#mcp">10. Connect an AI assistant (MCP)</a></li>
+    <li><a href="#update">11. Update the app</a></li>
+    <li><a href="#shortcuts">12. Keyboard shortcuts</a></li>
+    <li><a href="#trouble">13. Troubleshooting</a></li>
   </ul>
 </section>
 
@@ -221,8 +222,37 @@
   </ul>
 </section>
 
+<section id="mcp">
+  <h2>10. Connect an AI assistant (MCP)</h2>
+  <p>
+    The app starts a built-in <strong>MCP server</strong> that runs only on your own machine. Connect an
+    AI assistant (Claude Desktop, for example) and it can read and write the business documents in the
+    folder you currently have open.
+  </p>
+  <ul>
+    <li>Open the side panel on the right and select the <strong><code>MCP</code> tab</strong>.</li>
+    <li>The tab shows the connection <strong>URL</strong>
+      (<code>http://127.0.0.1:<em>port</em>/mcp</code>).</li>
+    <li>Click <strong>Copy access token</strong> to get the token.</li>
+    <li>Register the URL and token in your AI assistant as an HTTP MCP server. The header is
+      <code>Authorization: Bearer <em>token</em></code>.</li>
+  </ul>
+  <p>
+    <strong>The port and token change every time the app starts.</strong> Take the current values from the
+    MCP tab whenever you reconnect. The server only accepts loopback connections
+    (<code>127.0.0.1</code>) and rejects requests whose token does not match, so nothing outside your
+    machine can reach it. The assistant can only touch <strong>the folder you have open in the app</strong>,
+    and it follows along when you switch folders. Every tool call is listed in the MCP tab, so you can
+    review what was read or written afterwards.
+  </p>
+  <p>
+    MCP is an optional extra. If it cannot run (for example, no Node runtime is installed), the rest of
+    the app keeps working as usual and the MCP tab shows the reason.
+  </p>
+</section>
+
 <section id="update">
-  <h2>10. Update the app</h2>
+  <h2>11. Update the app</h2>
   <p>
     The app checks for a newer version on startup, and you can check any time from
     <strong>Help → Check for update</strong>. When an update is available it is downloaded, verified
@@ -232,7 +262,7 @@
 </section>
 
 <section id="shortcuts">
-  <h2>11. Keyboard shortcuts</h2>
+  <h2>12. Keyboard shortcuts</h2>
   <table>
     <thead><tr><th>Action</th><th>Windows / Linux</th><th>macOS</th></tr></thead>
     <tbody>
@@ -245,7 +275,7 @@
 </section>
 
 <section id="trouble">
-  <h2>12. Troubleshooting</h2>
+  <h2>13. Troubleshooting</h2>
 
   <h3>"Unknown publisher" warning on first launch</h3>
   <p>
