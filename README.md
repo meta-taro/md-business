@@ -128,19 +128,19 @@ Schemas validate required fields.
 PDF renderers generate human-facing documents.
 External accounting tools can be treated as integration targets rather than the primary editing surface.
 
-## Planned distribution channels
+## Distribution channels
 
-md-business aims to provide multiple human-facing viewers and automation channels:
+md-business provides multiple human-facing viewers and automation channels:
 
-| Channel                 | Purpose                                                           |
-| ----------------------- | ----------------------------------------------------------------- |
-| Google Workspace Add-on | Review and display documents in familiar office workflows         |
-| Chrome Extension        | Open and preview Markdown business documents in the browser       |
-| VS Code Extension       | Developer and agent-oriented editing                              |
-| PWA                     | Cross-platform human-facing viewer                                |
-| Tauri Desktop App       | Local-first repository operation and document workflow automation |
-| GitHub Action           | CI validation and automatic rendering                             |
-| LINE LIFF               | Mobile-first access for Japanese business workflows               |
+| Channel                 | Purpose                                                           | Status    |
+| ----------------------- | ----------------------------------------------------------------- | --------- |
+| Tauri Desktop App       | Local-first repository operation and document workflow automation | Available |
+| Chrome Extension        | Open and preview Markdown business documents in the browser       | Available |
+| Google Workspace Add-on | Review and display documents in familiar office workflows         | In review |
+| VS Code Extension       | Developer and agent-oriented editing                              | Planned   |
+| PWA                     | Cross-platform human-facing viewer                                | Planned   |
+| GitHub Action           | CI validation and automatic rendering                             | Planned   |
+| LINE LIFF               | Mobile-first access for Japanese business workflows               | Planned   |
 
 These channels are not the core product.
 They are adapters around the Markdown source of truth.
@@ -219,6 +219,18 @@ The desktop app (Tauri 2 + SvelteKit) opens the six business-document types in p
 - **Download** (Windows / macOS): <https://meta-taro.github.io/md-business/download/>
 - **User guide (English)**: <https://meta-taro.github.io/md-business/manual/>
 - **操作マニュアル (日本語)**: <https://meta-taro.github.io/md-business/manual/ja/>
+
+#### Built-in MCP server
+
+The desktop app is where the source-of-truth layer becomes operable by an AI agent. It starts a local MCP server on launch, so an AI client can read, validate, search, create, and update the business documents in the folder you have open.
+
+- Connect by pasting one JSON snippet: the app copies a ready-to-use `mcpServers` entry to the clipboard.
+- The connection details persist across restarts, so the settings you paste once keep working.
+- Six tools are exposed: `list_schemas`, `read_document`, `validate_document`, `create_document`, `update_document`, `search_documents`. Every call is validated against the declared schema and listed in the app.
+- Reach is limited to the folder currently open in the app, the server binds to loopback only, and requests without the matching token are rejected.
+- When the agent writes, the file list and preview follow along on their own — no reload, no manual refresh.
+
+`git push` is deliberately not exposed as a tool, and the server never receives secrets or API keys. See [packages/mcp-server/](./packages/mcp-server/README.md) for the protocol details.
 
 ### Conventions
 

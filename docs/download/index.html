@@ -35,7 +35,7 @@
 <header class="doc-header">
   <div class="crumbs"><a href="../">md-business</a> / ダウンロード</div>
   <h1>デスクトップアプリをダウンロード</h1>
-  <div class="meta">Windows・macOS 対応 — 6 種の業務文書を Markdown でライブ編集し PDF 出力</div>
+  <div class="meta">Windows・macOS 対応 — 6 種の業務文書を Markdown でライブ編集し PDF 出力。AI アシスタントを直接つないで読み書きできます</div>
 </header>
 
 <main class="doc">
@@ -79,6 +79,28 @@
     <p>
       <a href="../manual/ja/">操作マニュアル（日本語）→</a> &nbsp;
       <a href="../manual/">User guide (English) →</a>
+    </p>
+  </section>
+
+  <section>
+    <h2>AI アシスタントとつなぐ</h2>
+    <p>
+      アプリは起動と同時に、この PC の中だけで動く <strong>MCP サーバー</strong>を内蔵で立ち上げます。
+      Claude Desktop / Claude Code / Cursor / Cline などをつなぐと、いま開いているフォルダの業務文書を
+      アシスタントが<strong>読み取り・検証・検索・作成・更新</strong>できるようになります。
+      アシスタントが書き込むと、アプリの一覧とプレビューも操作なしで追いつきます。
+    </p>
+    <p>
+      つなぎ方は、サイドパネルの <code>MCP</code> タブで<strong>「接続設定を写す」</strong>を押し、
+      AI クライアントの設定へ貼るだけです。接続先は次に起動しても変わらないので、一度貼れば貼り直しは要りません。
+    </p>
+    <div class="callout">
+      アシスタントが触れる範囲は<strong>アプリで開いているフォルダの中だけ</strong>です。サーバーはこの PC
+      （<code>127.0.0.1</code>）からの接続だけを受け付け、トークンが一致しない要求は拒否するため、外部からは届きません。
+      実行された操作は MCP タブに履歴として残ります。
+    </div>
+    <p>
+      詳しい手順は<a href="../manual/ja/#mcp">操作マニュアルの「AI アシスタントとつなぐ（MCP）」</a>をご覧ください。
     </p>
   </section>
 
