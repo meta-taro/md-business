@@ -8,6 +8,7 @@
   "scripts": {
     "dev": "vite dev",
     "build": "vite build",
+    "bundle:sidecar": "pnpm --filter @md-business/mcp-server bundle",
     "preview": "vite preview",
     "tauri": "tauri",
     "typecheck": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",

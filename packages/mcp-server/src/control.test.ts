@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseControlLine, splitControlLines } from './control.js';
+import { encodeSidecarEvent, parseControlLine, splitControlLines } from './control.js';
 
 /**
  * 制御チャネルは「親プロセス → 子プロセスの stdin」に流れる改行区切り JSON。
@@ -79,5 +79,48 @@ describe('parseControlLine', () => {
       kind: 'command',
       command: { type: 'set-root', root: '/work/docs' },
     });
+  });
+});
+
+describe('encodeSidecarEvent', () => {
+  it('ready を 1 行の JSON として書き出す', () => {
+    const line = encodeSidecarEvent({
+      type: 'ready',
+      url: 'http://127.0.0.1:5123/mcp',
+      port: 5123,
+      token: 'abc',
+      root: 'C:/work',
+    });
+    expect(line.endsWith('\n')).toBe(true);
+    expect(JSON.parse(line)).toEqual({
+      type: 'ready',
+      url: 'http://127.0.0.1:5123/mcp',
+      port: 5123,
+      token: 'abc',
+      root: 'C:/work',
+    });
+  });
+
+  it('操作ログ entry をそのまま 1 行に載せる', () => {
+    const line = encodeSidecarEvent({
+      type: 'log',
+      tool: 'create_document',
+      ok: true,
+      ts: 1_700_000_000_000,
+      path: 'docs/a.md',
+    });
+    expect(JSON.parse(line)).toMatchObject({ type: 'log', tool: 'create_document', ok: true });
+  });
+
+  it('改行を含む値を埋め込んでも 1 行に収まる', () => {
+    // 行区切りが本文の改行で割れると、受け手が JSON を組み立て直せなくなる。
+    const line = encodeSidecarEvent({ type: 'error', message: '失敗\nしました' });
+    expect(line.split('\n').filter((s) => s !== '')).toHaveLength(1);
+    expect(JSON.parse(line).message).toBe('失敗\nしました');
+  });
+
+  it('root 差し替えの受理を返す', () => {
+    const line = encodeSidecarEvent({ type: 'root', root: 'D:/docs' });
+    expect(JSON.parse(line)).toEqual({ type: 'root', root: 'D:/docs' });
   });
 });

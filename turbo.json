@@ -5,6 +5,10 @@
       "dependsOn": ["^build"],
       "outputs": ["dist/**", "build/**", ".next/**", ".astro/**"]
     },
+    "bundle": {
+      "dependsOn": ["^build"],
+      "outputs": ["dist-sidecar/**"]
+    },
     "dev": {
       "cache": false,
       "persistent": true
@@ -16,10 +20,10 @@
       "dependsOn": ["^build", "build"]
     },
     "test": {
-      "dependsOn": ["^build", "build"]
+      "dependsOn": ["^build", "build", "bundle"]
     },
     "test:run": {
-      "dependsOn": ["^build", "build"],
+      "dependsOn": ["^build", "build", "bundle"],
       "outputs": ["coverage/**"]
     }
   }

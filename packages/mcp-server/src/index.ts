@@ -46,5 +46,16 @@ export { parseBearerToken, isAuthorized } from './httpAuth.js';
 export { buildToolLogEntry } from './toolLog.js';
 export type { ToolLogEntry, ToolResultLike } from './toolLog.js';
 
-export { splitControlLines, parseControlLine } from './control.js';
-export type { ControlCommand, SetRootCommand, ControlLineResult } from './control.js';
+export { splitControlLines, parseControlLine, encodeSidecarEvent } from './control.js';
+export type {
+  ControlCommand,
+  SetRootCommand,
+  ControlLineResult,
+  SidecarEvent,
+  ReadyEvent,
+  RootEvent,
+  ErrorEvent,
+} from './control.js';
+
+export { startSidecar } from './sidecar.js';
+export type { StartSidecarOptions, SidecarHandle, SidecarIo } from './sidecar.js';

@@ -1,14 +1,16 @@
 /**
- * 制御チャネル — 親プロセスから stdin 経由で受け取るコマンドの解釈。
+ * 制御チャネル — 親プロセスとの stdin/stdout でやり取りするメッセージの解釈と組み立て。
  * -----------------------------------------------------------------------------
- * HTTP モードで動かすとき、stdin は MCP の通信路ではなく「アプリ → サーバー」の
- * 制御路になる。改行区切りの JSON を 1 行 1 コマンドとして流す。
+ * HTTP モードで動かすとき、stdin/stdout は MCP の通信路ではなく「アプリ ⇔ サーバー」の
+ * 制御路になる。改行区切りの JSON を 1 行 1 メッセージとして双方向に流す。
+ *   - 受信（stdin）: parseControlLine — root 差し替えなどのコマンド
+ *   - 送信（stdout）: encodeSidecarEvent — 起動完了・操作ログ・エラーの通知
  *
- * ここは I/O を持たない純ロジック：バイト列の切り出し（splitControlLines）と
- * 1 行の解釈（parseControlLine）だけを担う。どちらも壊れた入力で例外を投げず、
- * 判定結果として返す — パイプは途中で切れるし、親子でバージョンがずれることも
- * ある。制御チャネルの不調でサーバー本体を落とさないための約束。
+ * ここは I/O を持たない純ロジックに閉じる。受信側は壊れた入力で例外を投げず判定結果
+ * として返す — パイプは途中で切れるし、親子でバージョンがずれることもある。制御
+ * チャネルの不調でサーバー本体を落とさないための約束。
  */
+import type { ToolLogEntry } from './toolLog.js';
 
 /** ワークスペース root の差し替え。アプリ側のフォルダ切り替えに追従する。 */
 export interface SetRootCommand {
@@ -69,4 +71,41 @@ export function parseControlLine(line: string): ControlLineResult {
     return { kind: 'error', message: 'set-root には空でない root が必要です。' };
   }
   return { kind: 'command', command: { type: 'set-root', root: root.trim() } };
+}
+
+/** HTTP サーバーの listen が完了し、クライアントが接続できる状態になったことの通知。 */
+export interface ReadyEvent {
+  type: 'ready';
+  /** クライアントが接続する完全な URL。 */
+  url: string;
+  port: number;
+  /** 起動ごとに発行される bearer トークン。 */
+  token: string;
+  /** 実際に解決されたワークスペース root（絶対パス）。 */
+  root: string;
+}
+
+/** set-root を受理し、実際に解決した root を返す通知。 */
+export interface RootEvent {
+  type: 'root';
+  root: string;
+}
+
+/** 制御チャネル上の異常（コマンド解釈失敗など）。サーバー本体は動き続ける。 */
+export interface ErrorEvent {
+  type: 'error';
+  message: string;
+}
+
+/** 親プロセスへ stdout 経由で送るイベント。操作ログは entry をそのまま流す。 */
+export type SidecarEvent = ReadyEvent | RootEvent | ErrorEvent | ToolLogEntry;
+
+/**
+ * イベントを stdout へ書ける 1 行へ組む。
+ *
+ * JSON.stringify は本文中の改行を `\n` へエスケープするので、値に改行が含まれても
+ * 行が割れない（受け手は行単位で組み立て直せる）。
+ */
+export function encodeSidecarEvent(event: SidecarEvent): string {
+  return `${JSON.stringify(event)}\n`;
 }

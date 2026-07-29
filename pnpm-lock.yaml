@@ -328,6 +328,9 @@ importers:
       '@vitest/coverage-v8':
         specifier: ^2.1.8
         version: 2.1.9(vitest@2.1.9(@types/node@22.19.21)(happy-dom@20.10.5)(jsdom@29.1.1))
+      esbuild:
+        specifier: ^0.21.5
+        version: 0.21.5
       typescript:
         specifier: ^5.6.3
         version: 5.9.3
