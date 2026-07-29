@@ -74,9 +74,30 @@ jobs:
         with:
           workspaces: apps/desktop/src-tauri
 
-      # frontendDist はテストプロファイルでは要求されないため、フロントエンドの
-      # ビルド成果物なしで実行できる。bundle resource を増やす場合は、その実体を
-      # 用意するステップが要る（build script が resource path を検証するため）。
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 9.12.0
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: "pnpm"
+
+      - name: Install dependencies
+        working-directory: .
+        run: pnpm install --frozen-lockfile
+
+      # tauri.conf.json が MCP サイドカーを bundle resource に指定しており、build
+      # script が resource path の実体を検査するため、cargo を回す前に生成しておく。
+      # turbo の bundle タスクは依存パッケージの build に依存しているので、この 1 本で
+      # 必要な dist も揃う（ワークスペース全体をビルドするより対象が小さい）。
+      #
+      # frontendDist の方はテストプロファイルでは要求されないため、フロントエンドの
+      # ビルド成果物は不要。
+      - name: Bundle MCP sidecar
+        working-directory: .
+        run: pnpm exec turbo run bundle --filter=@md-business/mcp-server
+
       - name: Clippy
         run: cargo clippy --all-targets --locked -- -D warnings
 
