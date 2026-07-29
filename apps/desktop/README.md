@@ -35,7 +35,7 @@ md-business の**本命プロダクト**。6 種の業務文書（invoice / spec
 }
 ```
 
-- ポートとトークンはアプリの設定領域（Windows: `%APPDATA%\md-business\mcp.json` / macOS: `~/Library/Application Support/md-business/mcp.json`）に保存され、**次に起動しても同じ接続先**になる。一度貼った設定はそのまま使い続けられる。
+- ポートとトークンはアプリの設定領域（Windows: `%APPDATA%\io.github.meta-taro.mdbusiness\mcp.json` / macOS: `~/Library/Application Support/io.github.meta-taro.mdbusiness/mcp.json`）に保存され、**次に起動しても同じ接続先**になる。一度貼った設定はそのまま使い続けられる。
   - 保存済みのポートが他プロセスに使われていた場合だけ空きポートへ移り、新しい値が保存される（設定を貼り直す）。
   - トークンを作り直したいときは上記ファイルを消してアプリを起動し直す。
 - サーバーは `127.0.0.1` にのみ bind し、トークンが一致しない要求は拒否する。同じ PC 上のクライアントからのみ到達できる。
