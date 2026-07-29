@@ -6,6 +6,8 @@
  * （mcp.svelte.ts）が invoke / listen を担う。
  */
 
+import type { MessageKey } from '../i18n/messages';
+
 /** サイドカーの接続状態。Rust の `McpState` と 1:1。 */
 export type McpState = 'starting' | 'ready' | 'unavailable';
 
@@ -17,7 +19,9 @@ export interface McpStatus {
   port: number | null;
   /** bearer トークン。AI クライアント側の設定へ貼るため画面に出す。 */
   token: string | null;
-  /** 劣化理由など、人が読む補足。 */
+  /** 劣化理由のコード（Rust の `McpReason`）。表示文言はこちらの辞書が決める。 */
+  reason: string | null;
+  /** サーバーが報告した原文（診断用）。訳せないので理由コードの補助に留める。 */
   detail: string | null;
 }
 
@@ -81,9 +85,37 @@ export function formatLogTime(ts: number): string {
   return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
 }
 
-/** 接続状態を 1 行の説明にする（接続先 URL / 起動中 / 劣化理由）。 */
-export function connectionHint(status: McpStatus): string {
-  if (status.state === 'ready' && status.url !== null) return status.url;
-  if (status.state === 'unavailable') return status.detail ?? '利用できません';
-  return '起動中…';
+/**
+ * 劣化理由コード → 文言キーの対応表。サーバー側が新しい理由を足しても画面が壊れないよう、
+ * 知らないコードは既定の文言へ倒す（表に無い＝未知）。
+ */
+const REASON_KEYS: Record<string, MessageKey> = {
+  'sidecar-missing': 'mcp.reason.sidecarMissing',
+  'node-missing': 'mcp.reason.nodeMissing',
+  'spawn-failed': 'mcp.reason.spawnFailed',
+  'no-output': 'mcp.reason.noOutput',
+  'exited-early': 'mcp.reason.exitedEarly',
+  'server-error': 'mcp.reason.serverError',
+  'status-unreadable': 'mcp.reason.statusUnreadable',
+};
+
+/** 劣化理由コードを文言キーへ写す。未知のコード・未設定は既定の文言キー。 */
+export function reasonMessageKey(reason: string | null): MessageKey {
+  if (reason === null) return 'mcp.reason.unknown';
+  return REASON_KEYS[reason] ?? 'mcp.reason.unknown';
+}
+
+/**
+ * 接続状態の表示内容。URL は訳す対象ではないので、翻訳が要る場合とは別物として返す
+ * （画面側は kind で描き分ける）。
+ */
+export type ConnectionText = { kind: 'url'; url: string } | { kind: 'key'; key: MessageKey };
+
+/** 接続状態を画面に出す 1 行にする（接続先 URL / 起動中 / 劣化理由）。 */
+export function connectionText(status: McpStatus): ConnectionText {
+  if (status.state === 'ready' && status.url !== null) return { kind: 'url', url: status.url };
+  if (status.state === 'unavailable') {
+    return { kind: 'key', key: reasonMessageKey(status.reason) };
+  }
+  return { kind: 'key', key: 'mcp.starting' };
 }

@@ -22,6 +22,11 @@
   let copied = $state(false);
   let copyTimer: ReturnType<typeof setTimeout> | undefined;
 
+  // 接続先 URL は訳す対象ではないので、翻訳が要る場合とだけ描き分ける。
+  const connText = $derived(
+    mcp.connection.kind === 'url' ? mcp.connection.url : t(mcp.connection.key),
+  );
+
   /** 接続トークンを写す。AI クライアント側の設定へ貼るための操作。 */
   async function copyToken(): Promise<void> {
     const token = mcp.status.token;
@@ -72,12 +77,13 @@
         <div class="mcp">
           <div class="conn" data-state={mcp.status.state}>
             <span class="dot" aria-hidden="true"></span>
-            <span class="conn-text" title={mcp.hint}>{mcp.hint}</span>
+            <!-- サーバーが報告した原文は訳せないので、本文でなく詳細（tooltip）に添える。 -->
+            <span class="conn-text" title={mcp.status.detail ?? connText}>{connText}</span>
           </div>
 
           {#if mcp.isReady && mcp.status.token !== null}
             <button class="token" type="button" onclick={copyToken}>
-              {copied ? 'トークンを写しました' : '接続トークンを写す'}
+              {copied ? t('mcp.copied') : t('mcp.copyToken')}
             </button>
           {/if}
 
@@ -96,9 +102,7 @@
               </li>
             {:else}
               <li class="empty">
-                {mcp.isReady
-                  ? 'AI からの操作がここに並びます'
-                  : 'サーバーが動いていないため操作は記録されません'}
+                {mcp.isReady ? t('mcp.logsEmpty') : t('mcp.logsDisabled')}
               </li>
             {/each}
           </ul>

@@ -13,14 +13,15 @@ import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import {
   appendLog,
   parseLogEvent,
-  connectionHint,
+  connectionText,
+  type ConnectionText,
   type McpLogEntry,
   type McpStatus,
 } from './mcpLog';
 
 /** 状態が届くまでの初期値。 */
 function startingStatus(): McpStatus {
-  return { state: 'starting', url: null, port: null, token: null, detail: null };
+  return { state: 'starting', url: null, port: null, token: null, reason: null, detail: null };
 }
 
 class McpStore {
@@ -37,9 +38,9 @@ class McpStore {
     return this.status.state === 'ready';
   }
 
-  /** 接続先 URL / 起動中 / 劣化理由の 1 行説明。 */
-  get hint(): string {
-    return connectionHint(this.status);
+  /** 接続先 URL / 起動中 / 劣化理由の 1 行説明（URL 以外は文言キー）。 */
+  get connection(): ConnectionText {
+    return connectionText(this.status);
   }
 
   /**
@@ -61,7 +62,11 @@ class McpStore {
       this.status = await invoke<McpStatus>('mcp_status');
     } catch {
       // 状態が取れないのは MCP が無い環境と同義。ほかの機能は動かし続ける。
-      this.status = { ...startingStatus(), state: 'unavailable' };
+      this.status = {
+        ...startingStatus(),
+        state: 'unavailable',
+        reason: 'status-unreadable',
+      };
     }
     return () => {
       this.dispose();

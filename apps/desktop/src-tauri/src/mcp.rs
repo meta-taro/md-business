@@ -15,8 +15,8 @@ use std::sync::Mutex;
 use tauri::{AppHandle, Emitter, Manager, State};
 
 use crate::mcp_logic::{
-    parse_sidecar_line, pick_existing, set_root_line, sidecar_candidates, McpState, McpStatus,
-    SidecarEvent,
+    parse_sidecar_line, pick_existing, set_root_line, sidecar_candidates, McpReason, McpState,
+    McpStatus, SidecarEvent,
 };
 
 /// 状態変化をフロントへ知らせるイベント名。
@@ -101,10 +101,7 @@ pub fn start(app: &AppHandle) {
     let sidecar = match resolve_sidecar(app) {
         Some(path) => path,
         None => {
-            set_status(
-                app,
-                McpStatus::unavailable("MCP サーバー本体が見つかりません。"),
-            );
+            set_status(app, McpStatus::unavailable(McpReason::SidecarMissing));
             return;
         }
     };
@@ -113,12 +110,13 @@ pub fn start(app: &AppHandle) {
     let mut child = match build_command(&sidecar, &root).spawn() {
         Ok(child) => child,
         Err(err) => {
-            let detail = if err.kind() == std::io::ErrorKind::NotFound {
-                "Node ランタイムが見つかりません。Node をインストールすると MCP 連携が有効になります。".to_string()
+            // Node が入っていないだけの環境と、それ以外の起動失敗は利用者の対処が違う。
+            let status = if err.kind() == std::io::ErrorKind::NotFound {
+                McpStatus::unavailable(McpReason::NodeMissing)
             } else {
-                format!("MCP サーバーを起動できません: {}", err)
+                McpStatus::unavailable_with(McpReason::SpawnFailed, err.to_string())
             };
-            set_status(app, McpStatus::unavailable(detail));
+            set_status(app, status);
             return;
         }
     };
@@ -132,10 +130,7 @@ pub fn start(app: &AppHandle) {
     }
 
     let Some(stdout) = stdout else {
-        set_status(
-            app,
-            McpStatus::unavailable("MCP サーバーの出力を取得できません。"),
-        );
+        set_status(app, McpStatus::unavailable(McpReason::NoOutput));
         return;
     };
 
@@ -173,7 +168,10 @@ fn read_events(app: &AppHandle, stdout: impl Read) {
                     // 起動前の異常は劣化として扱う。起動後は制御チャネル上の
                     // 単発エラーなのでサーバー本体は動き続ける。
                     if !ready_seen {
-                        set_status(app, McpStatus::unavailable(message));
+                        set_status(
+                            app,
+                            McpStatus::unavailable_with(McpReason::ServerError, message),
+                        );
                     }
                 }
                 // root 受理は状態に影響しない（差し替えは呼び出し側が把握している）。
@@ -183,10 +181,7 @@ fn read_events(app: &AppHandle, stdout: impl Read) {
     }
 
     if !ready_seen {
-        set_status(
-            app,
-            McpStatus::unavailable("MCP サーバーが起動前に終了しました。"),
-        );
+        set_status(app, McpStatus::unavailable(McpReason::ExitedEarly));
     }
 }
 
@@ -209,7 +204,7 @@ pub fn shutdown(app: &AppHandle) {
 pub fn mcp_status(state: State<McpRuntime>) -> McpStatus {
     match state.status.lock() {
         Ok(guard) => guard.clone(),
-        Err(_) => McpStatus::unavailable("MCP の状態を取得できません。"),
+        Err(_) => McpStatus::unavailable(McpReason::StatusUnreadable),
     }
 }
 

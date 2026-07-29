@@ -89,6 +89,27 @@ pub enum McpState {
     Unavailable,
 }
 
+/// 起動できなかった理由。画面の文言は UI 言語ごとに変わるので、ここでは訳さず
+/// 機械可読なコードだけを渡し、翻訳はフロント側の辞書に任せる。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum McpReason {
+    /// サーバー本体（同梱サイドカー）が見つからない。
+    SidecarMissing,
+    /// Node ランタイムが見つからない。
+    NodeMissing,
+    /// 子プロセスの起動自体に失敗した。
+    SpawnFailed,
+    /// 起動はしたが出力を受け取れない。
+    NoOutput,
+    /// 接続可能になる前に終了した。
+    ExitedEarly,
+    /// サーバー自身がエラーを報告した。
+    ServerError,
+    /// 状態を読み出せない。
+    StatusUnreadable,
+}
+
 /// フロントへ渡すサイドカーの状態。
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -99,7 +120,9 @@ pub struct McpStatus {
     pub port: Option<u16>,
     /// bearer トークン。利用者が AI クライアント側の設定へ貼るため画面に出す。
     pub token: Option<String>,
-    /// 劣化時の理由など、人が読む補足。
+    /// 劣化理由のコード。表示文言はフロントの辞書が決める。
+    pub reason: Option<McpReason>,
+    /// サーバーが報告した原文（診断用）。翻訳できないので理由コードの補助に留める。
     pub detail: Option<String>,
 }
 
@@ -111,6 +134,7 @@ impl McpStatus {
             url: None,
             port: None,
             token: None,
+            reason: None,
             detail: None,
         }
     }
@@ -122,18 +146,28 @@ impl McpStatus {
             url: Some(url),
             port: Some(port),
             token: Some(token),
+            reason: None,
             detail: None,
         }
     }
 
-    /// 起動できなかった状態。理由を添えて劣化表示にする。
-    pub fn unavailable(detail: impl Into<String>) -> Self {
+    /// 起動できなかった状態。理由コードを添えて劣化表示にする。
+    pub fn unavailable(reason: McpReason) -> Self {
         McpStatus {
             state: McpState::Unavailable,
             url: None,
             port: None,
             token: None,
+            reason: Some(reason),
+            detail: None,
+        }
+    }
+
+    /// 起動できなかった状態に、サーバーが報告した原文を添える。
+    pub fn unavailable_with(reason: McpReason, detail: impl Into<String>) -> Self {
+        McpStatus {
             detail: Some(detail.into()),
+            ..McpStatus::unavailable(reason)
         }
     }
 }
@@ -290,12 +324,30 @@ mod tests {
     }
 
     #[test]
-    fn 劣化状態は理由を持ち接続情報を持たない() {
-        let status = McpStatus::unavailable("Node ランタイムが見つかりません");
+    fn 劣化状態は理由コードを持ち接続情報を持たない() {
+        let status = McpStatus::unavailable(McpReason::NodeMissing);
         assert_eq!(status.state, McpState::Unavailable);
         assert!(status.url.is_none());
         assert!(status.token.is_none());
-        assert!(status.detail.is_some());
+        assert_eq!(status.reason, Some(McpReason::NodeMissing));
+        assert!(status.detail.is_none());
+    }
+
+    #[test]
+    fn 劣化理由はケバブケースのコードとしてjsonへ落ちる() {
+        let json = serde_json::to_value(McpStatus::unavailable(McpReason::SidecarMissing)).unwrap();
+        assert_eq!(
+            json.get("reason").and_then(|v| v.as_str()),
+            Some("sidecar-missing")
+        );
+        assert!(json.get("detail").map(|v| v.is_null()).unwrap_or(false));
+    }
+
+    #[test]
+    fn サーバー報告の原文は理由コードに添えて渡す() {
+        let status = McpStatus::unavailable_with(McpReason::ServerError, "port in use");
+        assert_eq!(status.reason, Some(McpReason::ServerError));
+        assert_eq!(status.detail.as_deref(), Some("port in use"));
     }
 
     #[test]
