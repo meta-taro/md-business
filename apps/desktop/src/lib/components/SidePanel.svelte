@@ -1,7 +1,9 @@
 <script lang="ts">
   // Git / AI / MCP パネル（DESIGN §6・既定は畳む）。開閉状態は親（+layout）が持ち、
-  // グリッド幅を制御する。ここは折畳レールと展開時のタブ器だけを担う。
+  // グリッド幅を制御する。MCP タブは組み込みサーバーの接続情報と操作ログを表示する。
   import { t } from '$lib/i18n/i18n.svelte';
+  import { mcp } from '$lib/mcp/mcp.svelte';
+  import { formatLogTime } from '$lib/mcp/mcpLog';
 
   interface SidePanelProps {
     open: boolean;
@@ -11,6 +13,30 @@
   let { open, ontoggle }: SidePanelProps = $props();
 
   const tabs = ['Git', 'Diff', 'AI', 'MCP'] as const;
+  type Tab = (typeof tabs)[number];
+
+  // 実装済みは MCP のみ。ほかは押せない状態にして、選択も MCP から始める。
+  const enabled: Tab = 'MCP';
+  let active = $state<Tab>(enabled);
+
+  let copied = $state(false);
+  let copyTimer: ReturnType<typeof setTimeout> | undefined;
+
+  /** 接続トークンを写す。AI クライアント側の設定へ貼るための操作。 */
+  async function copyToken(): Promise<void> {
+    const token = mcp.status.token;
+    if (token === null) return;
+    try {
+      await navigator.clipboard.writeText(token);
+      copied = true;
+      clearTimeout(copyTimer);
+      copyTimer = setTimeout(() => {
+        copied = false;
+      }, 1500);
+    } catch {
+      // 書き込みが拒否される環境では黙って諦める（表示は変えない）。
+    }
+  }
 </script>
 
 <aside class="sidepanel" class:open aria-label={t('panel.label')}>
@@ -27,15 +53,61 @@
   {#if open}
     <div class="body">
       <div class="tabs" role="tablist">
-        {#each tabs as tab, i (tab)}
-          <button class="tab" class:active={i === 0} type="button" role="tab" disabled>
+        {#each tabs as tab (tab)}
+          <button
+            class="tab"
+            class:active={tab === active}
+            type="button"
+            role="tab"
+            aria-selected={tab === active}
+            disabled={tab !== enabled}
+            onclick={() => (active = tab)}
+          >
             {tab}
           </button>
         {/each}
       </div>
-      <div class="content">
-        <p class="hint">{t('panel.hint')}</p>
-      </div>
+
+      {#if active === 'MCP'}
+        <div class="mcp">
+          <div class="conn" data-state={mcp.status.state}>
+            <span class="dot" aria-hidden="true"></span>
+            <span class="conn-text" title={mcp.hint}>{mcp.hint}</span>
+          </div>
+
+          {#if mcp.isReady && mcp.status.token !== null}
+            <button class="token" type="button" onclick={copyToken}>
+              {copied ? 'トークンを写しました' : '接続トークンを写す'}
+            </button>
+          {/if}
+
+          <ul class="logs">
+            <!-- 同一ミリ秒に同じツールが並びうるので、キー付き each にはしない。 -->
+            {#each mcp.logs as entry}
+              <li class="log" class:failed={!entry.ok}>
+                <span class="time">{formatLogTime(entry.ts)}</span>
+                <span class="tool">{entry.tool}</span>
+                {#if entry.path !== undefined}
+                  <span class="path" title={entry.path}>{entry.path}</span>
+                {/if}
+                {#if entry.detail !== undefined}
+                  <span class="detail" title={entry.detail}>{entry.detail}</span>
+                {/if}
+              </li>
+            {:else}
+              <li class="empty">
+                {mcp.isReady
+                  ? 'AI からの操作がここに並びます'
+                  : 'サーバーが動いていないため操作は記録されません'}
+              </li>
+            {/each}
+          </ul>
+        </div>
+      {:else}
+        <div class="content">
+          <p class="hint">{t('panel.hint')}</p>
+        </div>
+      {/if}
     </div>
   {/if}
 </aside>
@@ -127,6 +199,114 @@
     white-space: pre-line;
     font-size: var(--text-xs-size);
     line-height: 1.6;
+    color: var(--text-tertiary);
+  }
+
+  /* ── MCP タブ ── */
+  .mcp {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+
+  .conn {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-3);
+    border-bottom: 1px solid var(--border);
+    flex: none;
+  }
+
+  .dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--text-tertiary);
+    flex: none;
+  }
+
+  .conn[data-state='ready'] .dot {
+    background: var(--accent);
+  }
+
+  .conn[data-state='unavailable'] .dot {
+    background: var(--danger-fg);
+  }
+
+  .conn-text {
+    font-size: var(--text-xs-size);
+    color: var(--text-secondary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .token {
+    margin: var(--space-2) var(--space-3) 0;
+    padding: var(--space-1) var(--space-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: var(--text-xs-size);
+    cursor: pointer;
+    flex: none;
+  }
+
+  .token:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+  }
+
+  .logs {
+    flex: 1;
+    margin: 0;
+    padding: var(--space-2) 0;
+    list-style: none;
+    overflow-y: auto;
+    min-height: 0;
+  }
+
+  .log {
+    display: grid;
+    grid-template-columns: auto auto 1fr;
+    align-items: baseline;
+    gap: var(--space-2);
+    padding: var(--space-1) var(--space-3);
+    font-size: var(--text-xs-size);
+  }
+
+  .time {
+    color: var(--text-tertiary);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .tool {
+    color: var(--text-primary);
+  }
+
+  .log.failed .tool {
+    color: var(--danger-fg);
+  }
+
+  .path,
+  .detail {
+    color: var(--text-tertiary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .detail {
+    grid-column: 1 / -1;
+  }
+
+  .empty {
+    padding: var(--space-4) var(--space-3);
+    text-align: center;
+    font-size: var(--text-xs-size);
     color: var(--text-tertiary);
   }
 </style>
