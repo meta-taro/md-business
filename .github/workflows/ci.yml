@@ -48,3 +48,37 @@ jobs:
 
       - name: Build
         run: pnpm build
+
+  rust:
+    # デスクトップアプリの Rust 側は pnpm のタスクに含まれないため、別ジョブで検査する。
+    #
+    # Windows ランナーを使う理由: Tauri のビルドに必要な WebView2 が同梱されており、
+    # system パッケージの導入が要らない。Linux は libwebkit2gtk 系の apt 依存が必要で、
+    # パッケージ名がディストロ更新で変わるとビルドが壊れる。配布ビルド（release.yml）も
+    # Windows / macOS のみで Linux 面を持たないため、テストのためだけに検証対象の OS を
+    # 増やすと、壊れても気づけない経路ができてしまう。
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: apps/desktop/src-tauri
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install Rust (stable)
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: apps/desktop/src-tauri
+
+      # frontendDist はテストプロファイルでは要求されないため、フロントエンドの
+      # ビルド成果物なしで実行できる。bundle resource を増やす場合は、その実体を
+      # 用意するステップが要る（build script が resource path を検証するため）。
+      - name: Clippy
+        run: cargo clippy --all-targets --locked -- -D warnings
+
+      - name: Test
+        run: cargo test --locked
