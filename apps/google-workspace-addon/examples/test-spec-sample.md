@@ -84,4 +84,4 @@ repository: your-name/your-repo@main:docs/specs/login-spec.md
 - Sheet を編集後、サイドバーの **「GitHub に push」ボタン** を押下 → GitHub Contents API 経由で md ファイルに commit（`git push` と同じメンタルモデル）
 - 自動同期は v0.7.1 で廃止（編集中の中間状態で git 履歴が汚れるのを避けるため）
 
-詳細は [`.claude/decisions.md`](../../../.claude/decisions.md) 2026-06-18 行および 2026-06-23 行参照。
+セットアップ手順の詳細は [アドオンの README](../README.md) を参照。

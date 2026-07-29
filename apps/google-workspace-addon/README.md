@@ -2,7 +2,7 @@
 
 Google Workspace アドオン雛形（Docs / Sheets / Slides サイドバーから Markdown を扱う）。
 
-> **公開ステータス**: 開発初期段階。Marketplace 申請は `schema-test-spec` (v0.7.0) 完成と同時に submit 予定（[`.claude/decisions.md`](../../.claude/decisions.md) 2026-06-18 行）。
+> **公開ステータス**: 開発初期段階。Marketplace 申請は `schema-test-spec` (v0.7.0) 完成と同時に submit 予定。申請手順は [`docs/google-addon-submit-guide.md`](../../docs/google-addon-submit-guide.md) を参照。
 
 ## 役割分担（Chrome 拡張 / Workspace アドオン）
 

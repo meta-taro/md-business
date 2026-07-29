@@ -152,7 +152,7 @@ Markdown, GitHub, ドキュメント変換, 請求書, 適格請求書, イン�
 ## スクリーンショット仕様
 
 **サイズ**: 1280×800 PNG / 24-bit / アルファ無し / 最大 5〜6 枚
-**作業フォルダ**: `.tmp/sshots/in/` (撮影元) → `.tmp/resize-screenshots.ps1` → `.tmp/sshots/out/` (1280×800 PNG)
+**作業フォルダ**: 撮影元 → リサイズ → 提出用 の 3 段で扱う。スクショには実データが写り込むため、リポジトリの追跡対象外で処理する。
 
 ### 撮影シーン案（v0.7.1 / 5 枚構成）
 
@@ -164,7 +164,7 @@ Markdown, GitHub, ドキュメント変換, 請求書, 適格請求書, イン�
 | 4 | **サイドバー UI 全景** | サイドバー側のフォーム（md 貼付エリア / セットアップボタン / PAT 保存 + 「GitHub に push」ボタン）を映す。md-business の使い方が一目で分かる | Sheet 左側を縮めてサイドバーが大きく見える構図 |
 | 5 | **md ⇔ Sheets ラウンドトリップ** | Sheet で 1 行編集 → 「md 書き出し」→ サイドバーに更新済み md が表示される様子。frontmatter が保持されている部分が見えるとベスト | サイドバーに書き出した md が表示された状態 |
 
-> Chrome Web Store 用スクショと同様の **白余白で 1280×800 にパディング** する方式が使えます（[`reference_chrome_web_store_screenshot_spec.md`](../../Users/syste/.claude/projects/C--claude-md-business/memory/reference_chrome_web_store_screenshot_spec.md) 参照）。`.tmp/resize-screenshots.ps1` をそのまま流用可能。
+> アスペクト比が合わないショットは、Chrome Web Store 用スクショと同様に **白余白で規定サイズへパディング**（Pillarbox 方式）すると、トリミングで内容を欠かずに揃えられます。
 >
 > 順序のおすすめ: 1 → 2 → 3 → 4 → 5（最初の 1 で「これは使える！」が伝わる構成）。Marketplace は先頭スクショが listing thumbnail になるため、**1 番が最も重要**。
 

@@ -3,9 +3,9 @@
  * Scan the whole tracked tree for internal references. Runs daily in CI and on
  * push/PR as a standing report of the backlog.
  *
- * Report-only by default (exit 0) so the existing backlog does not turn CI red
- * while it is being worked down. Pass `--strict` to exit non-zero on any
- * finding — flip the CI job to strict once the backlog reaches zero.
+ * Report-only by default (exit 0), which is the useful mode when surveying a
+ * backlog locally. Pass `--strict` to exit non-zero on any finding; CI runs it
+ * that way, since the tracked tree is expected to stay clean.
  *
  * Exit codes: 0 = clean, or findings in report mode. 1 = findings in --strict.
  */
