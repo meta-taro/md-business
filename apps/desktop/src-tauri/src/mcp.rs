@@ -15,8 +15,8 @@ use std::sync::Mutex;
 use tauri::{AppHandle, Emitter, Manager, State};
 
 use crate::mcp_logic::{
-    parse_sidecar_line, pick_existing, set_root_line, sidecar_candidates, McpReason, McpState,
-    McpStatus, SidecarEvent,
+    parse_sidecar_line, pick_existing, set_root_line, sidecar_args, sidecar_candidates, McpReason,
+    McpState, McpStatus, SidecarEvent,
 };
 
 /// 状態変化をフロントへ知らせるイベント名。
@@ -78,12 +78,22 @@ fn initial_root(app: &AppHandle) -> PathBuf {
     }
 }
 
+/// 接続情報（トークン / ポート）の保存先。
+///
+/// 起動のたびに接続先が変わると、AI クライアント側の設定を毎回書き直すことになる。
+/// 確定した値をアプリの設定領域へ残し、次回も同じ接続先で立ち上げられるようにする。
+/// 取得できない環境では None（サイドカーが毎回発行する従来どおりの動きになる）。
+fn state_path(app: &AppHandle) -> Option<PathBuf> {
+    let dir = app.path().app_config_dir().ok()?;
+    let _ = std::fs::create_dir_all(&dir);
+    Some(dir.join("mcp.json"))
+}
+
 /// Node の子プロセスを組み立てる。
-fn build_command(sidecar: &Path, root: &Path) -> Command {
+fn build_command(sidecar: &Path, root: &Path, state: Option<&Path>) -> Command {
     let mut command = Command::new("node");
     command
-        .arg(sidecar)
-        .arg(root)
+        .args(sidecar_args(sidecar, root, state))
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::null());
@@ -107,7 +117,8 @@ pub fn start(app: &AppHandle) {
     };
 
     let root = initial_root(app);
-    let mut child = match build_command(&sidecar, &root).spawn() {
+    let state = state_path(app);
+    let mut child = match build_command(&sidecar, &root, state.as_deref()).spawn() {
         Ok(child) => child,
         Err(err) => {
             // Node が入っていないだけの環境と、それ以外の起動失敗は利用者の対処が違う。

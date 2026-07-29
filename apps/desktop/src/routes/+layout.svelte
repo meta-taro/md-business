@@ -23,6 +23,7 @@
   import UpdateDialog from '$lib/update/UpdateDialog.svelte';
   import { updater } from '$lib/update/updater.svelte';
   import { mcp } from '$lib/mcp/mcp.svelte';
+  import { fileChangeFromLog, parseLogEvent } from '$lib/mcp/mcpLog';
   import {
     DEFAULT_FILETREE_W,
     MIN_FILETREE_W,
@@ -171,17 +172,32 @@
     void workspace.restoreLastFolder();
     // 外部（AI/CLI/他エディタ）編集を Rust の watcher から受け、画面状態に応じて反応する。
     // 判断は純ロジック（decideFileChangeAction）に委譲し、ここは副作用の割り当てだけ持つ。
-    let unlisten: (() => void) | undefined;
-    void listen<FileChangeEvent>('workspace-file-changed', (event) => {
-      const action = decideFileChangeAction(event.payload, {
+    const applyFileChange = (change: FileChangeEvent): void => {
+      const action = decideFileChangeAction(change, {
         activePath: workspace.activePath,
         dirty: workspace.dirty,
       });
-      if (action === 'reload') void workspace.select(event.payload.relPath);
+      if (action === 'reload') void workspace.select(change.relPath);
       else if (action === 'rescan') void workspace.rescanPreservingActive();
-      else if (action === 'conflict') workspace.flagConflict(event.payload.relPath);
+      else if (action === 'conflict') workspace.flagConflict(change.relPath);
+    };
+    let unlisten: (() => void) | undefined;
+    void listen<FileChangeEvent>('workspace-file-changed', (event) => {
+      applyFileChange(event.payload);
     }).then((fn) => {
       unlisten = fn;
+    });
+    // MCP が書いた結果も同じ経路で画面へ反映する。ファイル監視と二重に届くことはあるが、
+    // 再走査・読み直しは何度行っても同じ結果になる。監視が張れなかった環境でも、AI の
+    // 操作がそのまま見えることを優先する。
+    let unlistenMcpSync: (() => void) | undefined;
+    void listen<unknown>('mcp-log', (event) => {
+      const entry = parseLogEvent(event.payload);
+      if (entry === null) return;
+      const change = fileChangeFromLog(entry);
+      if (change !== null) applyFileChange(change);
+    }).then((fn) => {
+      unlistenMcpSync = fn;
     });
     // 組み込み MCP サーバーの状態と操作ログの受信を開始する（未起動でも状態が届くだけ）。
     let unlistenMcp: (() => void) | undefined;
@@ -194,6 +210,7 @@
     return () => {
       clearTimeout(t);
       unlisten?.();
+      unlistenMcpSync?.();
       unlistenMcp?.();
     };
   });

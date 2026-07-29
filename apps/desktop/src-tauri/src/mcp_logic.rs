@@ -197,6 +197,19 @@ pub fn pick_existing(candidates: &[PathBuf], exists: impl Fn(&Path) -> bool) -> 
     candidates.iter().find(|p| exists(p)).cloned()
 }
 
+/// サイドカーへ渡す引数を順に並べる。
+///
+/// 第 1 引数が作業対象フォルダ、第 2 引数が接続情報（トークン / ポート）の保存先。
+/// 保存先が取れない環境では省き、その場合サイドカーは毎回新しい接続情報を発行する。
+/// トークンそのものは引数に載せない（引数はプロセス一覧から見えるため）。
+pub fn sidecar_args(sidecar: &Path, root: &Path, state: Option<&Path>) -> Vec<PathBuf> {
+    let mut args = vec![sidecar.to_path_buf(), root.to_path_buf()];
+    if let Some(path) = state {
+        args.push(path.to_path_buf());
+    }
+    args
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -308,6 +321,32 @@ mod tests {
         assert_eq!(candidates.len(), 2);
         assert!(candidates[0].ends_with("sidecar/sidecar.cjs"));
         assert!(candidates[1].ends_with("packages/mcp-server/dist-sidecar/sidecar.cjs"));
+    }
+
+    #[test]
+    fn 引数は作業対象フォルダの次に接続情報の保存先を並べる() {
+        let args = sidecar_args(
+            Path::new("/app/sidecar.cjs"),
+            Path::new("/work"),
+            Some(Path::new("/config/mcp.json")),
+        );
+        assert_eq!(
+            args,
+            vec![
+                PathBuf::from("/app/sidecar.cjs"),
+                PathBuf::from("/work"),
+                PathBuf::from("/config/mcp.json"),
+            ]
+        );
+    }
+
+    #[test]
+    fn 保存先が取れなければ引数から省く() {
+        let args = sidecar_args(Path::new("/app/sidecar.cjs"), Path::new("/work"), None);
+        assert_eq!(
+            args,
+            vec![PathBuf::from("/app/sidecar.cjs"), PathBuf::from("/work")]
+        );
     }
 
     /// 同梱先の指定は設定ファイル側にあり、探索側のコードだけを見ても正しさが確かめられない。
