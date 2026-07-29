@@ -1,0 +1,312 @@
+//! 組み込み MCP サーバー（サイドカー）まわりの純ロジック。
+//!
+//! 子プロセスの起動・スレッド・イベント発行といったランタイム依存は [`crate::mcp`] に置き、
+//! ここには「受け取った文字列をどう解釈するか」「どのパスを候補にするか」だけを残す。
+//! 子プロセスを立てずに検査できる範囲を広く取るための分割。
+
+use std::path::{Path, PathBuf};
+
+use serde::Serialize;
+
+/// サイドカーが stdout へ流す 1 行を解釈した結果。
+#[derive(Debug, Clone, PartialEq)]
+pub enum SidecarEvent {
+    /// listen 完了。接続先と、起動ごとに発行された bearer トークン。
+    Ready {
+        url: String,
+        port: u16,
+        token: String,
+        root: String,
+    },
+    /// ツール実行 1 件の操作ログ。中身は加工せずフロントへ素通しする。
+    Log(serde_json::Value),
+    /// root 差し替えの受理。
+    Root { root: String },
+    /// サイドカー側の異常。サーバー本体は動き続ける前提。
+    Error { message: String },
+}
+
+/// 受信済みバッファから完結した行を取り出す。
+///
+/// パイプのチャンク境界は行境界と一致しないので、末尾の未完結分は呼び出し側へ返して
+/// 次のチャンクの先頭へ繋いでもらう。
+pub fn split_lines(buffer: &str) -> (Vec<String>, String) {
+    let mut parts: Vec<&str> = buffer.split('\n').collect();
+    let rest = parts.pop().unwrap_or("").to_string();
+    let lines = parts
+        .into_iter()
+        .map(|line| line.trim_end_matches('\r').to_string())
+        .collect();
+    (lines, rest)
+}
+
+/// stdout の 1 行をイベントとして解釈する。解釈できない行は `None`（読み飛ばす）。
+///
+/// 子は信頼できる相手だが、バージョンがずれれば知らない種別も来る。読めない行で
+/// アプリを止めないため、判定は常に「読めたか / 読めなかったか」に閉じる。
+pub fn parse_sidecar_line(line: &str) -> Option<SidecarEvent> {
+    let trimmed = line.trim();
+    if trimmed.is_empty() {
+        return None;
+    }
+    let value: serde_json::Value = serde_json::from_str(trimmed).ok()?;
+    match value.get("type")?.as_str()? {
+        "ready" => Some(SidecarEvent::Ready {
+            url: value.get("url")?.as_str()?.to_string(),
+            port: u16::try_from(value.get("port")?.as_u64()?).ok()?,
+            token: value.get("token")?.as_str()?.to_string(),
+            root: value.get("root")?.as_str()?.to_string(),
+        }),
+        "log" => Some(SidecarEvent::Log(value)),
+        "root" => Some(SidecarEvent::Root {
+            root: value.get("root")?.as_str()?.to_string(),
+        }),
+        "error" => Some(SidecarEvent::Error {
+            message: value.get("message")?.as_str()?.to_string(),
+        }),
+        _ => None,
+    }
+}
+
+/// root 差し替えコマンドを 1 行へ組む（末尾改行込み）。
+///
+/// パス区切りやクォートは JSON のエスケープに任せる（Windows の `\` をそのまま
+/// 書くと壊れるため、文字列連結で組まない）。
+pub fn set_root_line(root: &str) -> String {
+    let value = serde_json::json!({ "type": "set-root", "root": root });
+    format!("{}\n", value)
+}
+
+/// 実行時のサイドカー状態。フロントの MCP タブはこれで表示を切り替える。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum McpState {
+    /// 起動処理中（ready 待ち）。
+    Starting,
+    /// 接続可能。
+    Ready,
+    /// 起動できなかった。既存機能は無影響で、MCP タブだけ劣化表示になる。
+    Unavailable,
+}
+
+/// フロントへ渡すサイドカーの状態。
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct McpStatus {
+    pub state: McpState,
+    /// 接続先 URL（ready のときのみ）。
+    pub url: Option<String>,
+    pub port: Option<u16>,
+    /// bearer トークン。利用者が AI クライアント側の設定へ貼るため画面に出す。
+    pub token: Option<String>,
+    /// 劣化時の理由など、人が読む補足。
+    pub detail: Option<String>,
+}
+
+impl McpStatus {
+    /// 起動処理中の初期状態。
+    pub fn starting() -> Self {
+        McpStatus {
+            state: McpState::Starting,
+            url: None,
+            port: None,
+            token: None,
+            detail: None,
+        }
+    }
+
+    /// 接続可能になった状態。
+    pub fn ready(url: String, port: u16, token: String) -> Self {
+        McpStatus {
+            state: McpState::Ready,
+            url: Some(url),
+            port: Some(port),
+            token: Some(token),
+            detail: None,
+        }
+    }
+
+    /// 起動できなかった状態。理由を添えて劣化表示にする。
+    pub fn unavailable(detail: impl Into<String>) -> Self {
+        McpStatus {
+            state: McpState::Unavailable,
+            url: None,
+            port: None,
+            token: None,
+            detail: Some(detail.into()),
+        }
+    }
+}
+
+/// サイドカー本体（単一ファイル）を探す候補を、優先順に並べる。
+///
+/// 配布ビルドではリソースとして同梱されるが、開発中はリソースが作られないので
+/// リポジトリ内のバンドル出力へ落ちる。両方を候補に持たせて、存在するものを使う。
+pub fn sidecar_candidates(resource_dir: Option<&Path>, dev_base: Option<&Path>) -> Vec<PathBuf> {
+    let mut candidates = Vec::new();
+    if let Some(dir) = resource_dir {
+        candidates.push(dir.join("sidecar").join("sidecar.cjs"));
+    }
+    if let Some(base) = dev_base {
+        candidates.push(
+            base.join("packages")
+                .join("mcp-server")
+                .join("dist-sidecar")
+                .join("sidecar.cjs"),
+        );
+    }
+    candidates
+}
+
+/// 候補のうち最初に存在するものを選ぶ。存在判定は呼び出し側から渡す（検査のため）。
+pub fn pick_existing(candidates: &[PathBuf], exists: impl Fn(&Path) -> bool) -> Option<PathBuf> {
+    candidates.iter().find(|p| exists(p)).cloned()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn 完結した行だけを取り出し残りは持ち越す() {
+        let (lines, rest) = split_lines("{\"a\":1}\n{\"b\":2}\n{\"c\":");
+        assert_eq!(lines, vec!["{\"a\":1}", "{\"b\":2}"]);
+        assert_eq!(rest, "{\"c\":");
+    }
+
+    #[test]
+    fn 改行が来るまでは行を返さない() {
+        let (lines, rest) = split_lines("{\"a\":1}");
+        assert!(lines.is_empty());
+        assert_eq!(rest, "{\"a\":1}");
+    }
+
+    #[test]
+    fn crlfを行末として扱う() {
+        let (lines, rest) = split_lines("a\r\nb\r\n");
+        assert_eq!(lines, vec!["a", "b"]);
+        assert_eq!(rest, "");
+    }
+
+    #[test]
+    fn readyを解釈する() {
+        let event = parse_sidecar_line(
+            r#"{"type":"ready","url":"http://127.0.0.1:5123/mcp","port":5123,"token":"abc","root":"C:/work"}"#,
+        );
+        assert_eq!(
+            event,
+            Some(SidecarEvent::Ready {
+                url: "http://127.0.0.1:5123/mcp".to_string(),
+                port: 5123,
+                token: "abc".to_string(),
+                root: "C:/work".to_string(),
+            })
+        );
+    }
+
+    #[test]
+    fn 操作ログは加工せず素通しする() {
+        let line = r#"{"type":"log","tool":"create_document","ok":true,"ts":1,"path":"a.md"}"#;
+        match parse_sidecar_line(line) {
+            Some(SidecarEvent::Log(value)) => {
+                assert_eq!(
+                    value.get("tool").and_then(|v| v.as_str()),
+                    Some("create_document")
+                );
+                assert_eq!(value.get("ok").and_then(|v| v.as_bool()), Some(true));
+            }
+            other => panic!("log として解釈されなかった: {:?}", other),
+        }
+    }
+
+    #[test]
+    fn rootとerrorを解釈する() {
+        assert_eq!(
+            parse_sidecar_line(r#"{"type":"root","root":"D:/docs"}"#),
+            Some(SidecarEvent::Root {
+                root: "D:/docs".to_string()
+            })
+        );
+        assert_eq!(
+            parse_sidecar_line(r#"{"type":"error","message":"だめ"}"#),
+            Some(SidecarEvent::Error {
+                message: "だめ".to_string()
+            })
+        );
+    }
+
+    #[test]
+    fn 読めない行は読み飛ばす() {
+        // 空行 / 壊れた JSON / JSON だが型不明 / 必須項目欠落 のいずれもアプリを止めない。
+        assert_eq!(parse_sidecar_line(""), None);
+        assert_eq!(parse_sidecar_line("   "), None);
+        assert_eq!(parse_sidecar_line("{\"type\":"), None);
+        assert_eq!(parse_sidecar_line(r#"{"type":"unknown"}"#), None);
+        assert_eq!(parse_sidecar_line(r#"{"type":"ready","port":1}"#), None);
+        assert_eq!(parse_sidecar_line("[1,2,3]"), None);
+    }
+
+    #[test]
+    fn ポート範囲外のreadyは受け付けない() {
+        assert_eq!(
+            parse_sidecar_line(r#"{"type":"ready","url":"u","port":70000,"token":"t","root":"r"}"#),
+            None
+        );
+    }
+
+    #[test]
+    fn set_root行はjsonとしてエスケープされる() {
+        let line = set_root_line(r"C:\work\docs");
+        assert!(line.ends_with('\n'));
+        let value: serde_json::Value = serde_json::from_str(line.trim_end()).unwrap();
+        assert_eq!(value.get("type").and_then(|v| v.as_str()), Some("set-root"));
+        assert_eq!(
+            value.get("root").and_then(|v| v.as_str()),
+            Some(r"C:\work\docs")
+        );
+    }
+
+    #[test]
+    fn 候補はリソース優先で開発用に落ちる() {
+        let resource = PathBuf::from("/app/resources");
+        let dev = PathBuf::from("/repo");
+        let candidates = sidecar_candidates(Some(&resource), Some(&dev));
+        assert_eq!(candidates.len(), 2);
+        assert!(candidates[0].ends_with("sidecar/sidecar.cjs"));
+        assert!(candidates[1].ends_with("packages/mcp-server/dist-sidecar/sidecar.cjs"));
+    }
+
+    #[test]
+    fn 存在する最初の候補を選ぶ() {
+        let candidates = vec![PathBuf::from("/a/x.cjs"), PathBuf::from("/b/x.cjs")];
+        let picked = pick_existing(&candidates, |p| p.starts_with("/b"));
+        assert_eq!(picked, Some(PathBuf::from("/b/x.cjs")));
+    }
+
+    #[test]
+    fn どの候補も無ければnoneを返す() {
+        let candidates = vec![PathBuf::from("/a/x.cjs")];
+        assert_eq!(pick_existing(&candidates, |_| false), None);
+    }
+
+    #[test]
+    fn 劣化状態は理由を持ち接続情報を持たない() {
+        let status = McpStatus::unavailable("Node ランタイムが見つかりません");
+        assert_eq!(status.state, McpState::Unavailable);
+        assert!(status.url.is_none());
+        assert!(status.token.is_none());
+        assert!(status.detail.is_some());
+    }
+
+    #[test]
+    fn 状態はキャメルケースのjsonへ落ちる() {
+        let json = serde_json::to_value(McpStatus::ready(
+            "http://127.0.0.1:1/mcp".to_string(),
+            1,
+            "t".to_string(),
+        ))
+        .unwrap();
+        assert_eq!(json.get("state").and_then(|v| v.as_str()), Some("ready"));
+        assert_eq!(json.get("port").and_then(|v| v.as_u64()), Some(1));
+    }
+}
