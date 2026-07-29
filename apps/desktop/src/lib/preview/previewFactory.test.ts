@@ -5,7 +5,7 @@ import { createSchemaPreview, type SchemaPreviewConfig } from './previewFactory'
  * prose スキーマ（spec / test-spec）は本文 markdown を HTML 化して body に描く。
  * そのため factory は frontmatter だけでなく「本文」も renderBody まで通す必要が
  * ある（データ駆動 4 スキーマは本文を無視するだけ）。ここでは本文が renderBody の
- * 第 2 引数へ確かに届くことを、echo する stub config で固定する（Phase 2c-A）。
+ * 第 2 引数へ確かに届くことを、echo する stub config で固定する。
  */
 function makeEchoConfig(): SchemaPreviewConfig<Record<string, unknown>> {
   return {
@@ -24,7 +24,7 @@ function makeEchoConfig(): SchemaPreviewConfig<Record<string, unknown>> {
   };
 }
 
-describe('createSchemaPreview（本文配線・Phase 2c-A）', () => {
+describe('createSchemaPreview（本文配線）', () => {
   it('render の第 2 引数 body を renderBody まで通し srcdoc に反映する', () => {
     const provider = makeEchoConfig();
     const preview = createSchemaPreview(provider);

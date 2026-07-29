@@ -3,7 +3,7 @@ import type { ColumnType } from '@md-business/schema-test-spec';
 /**
  * 列型語彙は姉妹パッケージ `@md-business/schema-test-spec` の {@link ColumnType} を
  * そのまま再利用する（`text | multiline_text | enum | date | number | checkbox | url`）。
- * ここで再定義せず import type で借りることで、語彙のドリフトを構造的に防ぐ（baseline §16）。
+ * ここで再定義せず import type で借りることで、語彙のドリフトを構造的に防ぐ。
  */
 export type { ColumnType };
 

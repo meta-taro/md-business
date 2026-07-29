@@ -51,8 +51,22 @@ export const PATTERNS = [
     hint: '内部担当者への言及',
   },
   {
+    // Pointers into paths this repository gitignores. They resolve on the
+    // author's machine but are dead links for anyone who clones the repo, so
+    // published docs must explain the reason inline instead of linking out.
+    // `.tmp/` needs a following path character, so a bare `.tmp/` appearing as
+    // test sample data is not flagged.
+    id: 'private-path-ref',
+    re: /\.claude\/|\bCLAUDE\.md\b|\.tmp\/[\w.-]/g,
+    hint: 'gitignore 済みパスへの参照',
+  },
+  {
+    // Internal role reference in prose. NOT flagged when `PdM` is the VALUE of
+    // an authors/reviewers role key (`role: 'PdM'` / `役割: PdM`) — that is
+    // business-document sample data, i.e. a real-world job title, which this
+    // module treats as out of scope.
     id: 'pdm-term',
-    re: /\bPdM\b/g,
+    re: /(?<!(?:役割|role)\s*[:=]\s*['"「]?)\bPdM\b/g,
     hint: '内部役割呼称',
   },
 ];

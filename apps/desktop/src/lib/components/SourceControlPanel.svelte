@@ -2,10 +2,9 @@
   // 下部「ソース管理」パネル（GitHub Desktop 風レイアウトを DevTools 風の下部ドロワーに）。
   // アプリから commit / push / pull できる仕組み。
   //
-  // §6（push=人間）との整合: これはアプリ「エンドユーザー（＝人間）が自分の文書リポに対して
-  // ボタンで push する」機能であり、開発フローの「AI が push しない」規約とは別レイヤ。人間が
-  // 明示クリックして初めて push が走る＝§6 の "push=人間・人間確認" を満たす。認証は OS の git
-  // 資格情報／SSH に委ね、アプリは資格情報を一切保持・入力しない（§15）。
+  // push は必ず人間の明示クリックから走る。自動 push・自動 merge の経路は用意しない
+  // （共有ブランチへ出すかどうかは人が決めることなので、UI 以外から到達させない）。
+  // 認証は OS の git 資格情報／SSH に委ね、アプリは資格情報を一切保持・入力しない。
   import { git } from '$lib/git/git.svelte';
   import { workspace } from '$lib/workspace/workspace.svelte';
   import { diffView } from '$lib/git/diffView.svelte';

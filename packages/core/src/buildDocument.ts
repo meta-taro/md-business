@@ -4,7 +4,7 @@ import type { ValidationResult } from './types.js';
 
 /**
  * Inputs for {@link buildDocument} — the pure core shared by the MCP
- * `create_document` / `update_document` tools (Issue 004 E章 P0) and the
+ * `create_document` / `update_document` tools and the
  * desktop editor's "save frontmatter" flow.
  *
  * Deliberately descriptor-free: it does NOT detect a schema from the
@@ -13,7 +13,7 @@ import type { ValidationResult } from './types.js';
  * schema differs per document kind / language — `schemaVersion` vs `スキーマ`)
  * and belong to the calling execution layer. Keeping this brick registry-free
  * is what lets it ship without touching the chrome-extension / desktop
- * schema-detection registries (baseline §16). The caller passes an
+ * schema-detection registries. The caller passes an
  * already-assembled `frontmatter` and the already-resolved `validate`.
  */
 export interface BuildDocumentInput {

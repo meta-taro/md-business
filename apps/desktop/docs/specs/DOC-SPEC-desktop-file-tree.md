@@ -7,14 +7,14 @@
 ステータス: ドラフト
 テーマ: 青
 作成者:
-  - 名前: ソウ（司令塔セッション）
+  - 名前: md-business
     役割: 実装
 レビュアー:
   - 名前: 伊藤 太郎
     役割: PdM
 関連文書:
-  - ../../CLAUDE.md
-  - ../../.claude/rules/product-baseline.md
+  - ../../README.md
+  - ../../DESIGN.md
 章ファイル: []
 目次: 自動
 ファイル名: "基本設計書_{文書番号}_v{版}_{YMD}"
@@ -255,8 +255,8 @@ Tauri capability には本機能で必要な権限（`dialog:allow-open`・自�
 | C | workspace rune ストア新設・+page の source をストア化・FileTree UI 接続（開閉・選択・読込） | 実機でフォルダを開く→ツリー→クリック読込を確認・commit |
 | D（任意） | スキーマ別アイコン色（F-006）・選択ハイライト仕上げ（F-007） | 実機目視・commit |
 
-各 Phase は前 Phase の緑（テスト・lint・commit）を確認してから次へ進む（チェーン順序・§20）。
+各 Phase は前 Phase の緑（テスト・lint・commit）を確認してから次へ進む。
 
 ---
 
-> 本設計書は md-business `schema: spec/v1` に従う（baseline §22）。実装は Phase A から TDD で着手する。
+> 本設計書は md-business `schema: spec/v1` に従う。実装は Phase A から TDD で着手する。

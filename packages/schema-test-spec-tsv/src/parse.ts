@@ -4,7 +4,7 @@ import { unescapeCell } from './escape.js';
 import type { ParsedHeader } from './types.js';
 
 /**
- * カスタム TSV テキスト全体を構造化した結果（Block TSV-4）。
+ * カスタム TSV テキスト全体を構造化した結果。
  */
 export interface TsvDocument {
   /** `#!` マジック行のフォーマット識別子（例 `md-business:test-spec-tsv/v1`）。無ければ空文字。 */
@@ -23,7 +23,7 @@ export interface TsvDocument {
  * 物理行を分割する。`\r\n` / `\n` の両方に対応（各行末の `\r` を除去）。
  *
  * セル内改行は `\n` エスケープで表現される前提なので、生の改行での分割が
- * 「1 レコード = 1 物理行」を壊さない（Issue 010 設計制約）。
+ * 「1 レコード = 1 物理行」という設計制約を壊さない。
  */
 function splitPhysicalLines(text: string): string[] {
   if (text.length === 0) {

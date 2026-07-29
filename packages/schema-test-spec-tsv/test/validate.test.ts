@@ -5,7 +5,7 @@ import type { ParsedHeader } from '../src/types.js';
 
 /**
  * バリデーション：`TsvDocument`（`parseTsv` の出力）の各データセルを、
- * 対応する列型で検査する純関数（Issue 010・Block TSV-5）。
+ * 対応する列型で検査する純関数。
  *
  * - 空セルは未入力＝正本（`data-cell-conventions`）。`required` 列のときだけ `required` を出す。
  * - 単一行の列（`multiline_text` 以外）に改行/タブが含まれたら不正。

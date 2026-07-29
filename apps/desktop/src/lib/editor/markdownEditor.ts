@@ -2,7 +2,7 @@
  * CodeMirror 6 の Markdown（YAML frontmatter 付き）エディターを構築する
  * 命令的ラッパー（DESIGN §6.1）。
  *
- * テーマは §2 デザイントークン（CSS 変数）で組むため、CodeMirror の DOM が
+ * テーマは DESIGN §2 のデザイントークン（CSS 変数）で組むため、CodeMirror の DOM が
  * アプリ文書ツリー内に置かれる＝`:root[data-theme]` のライト/ダークが自動で
  * 継承される（右ペインの iframe と違い刻印不要）。よって light/dark 2 種は
  * CSS 変数の解決結果として無コストで両対応する。
@@ -46,7 +46,7 @@ export interface MarkdownEditorOptions {
 export interface MarkdownEditorHandle {
   /** 内部の EditorView（高度な操作用）。 */
   view: EditorView;
-  /** プログラム的にドキュメントを差し替える（onChange は発火しない）。Phase 3 のファイルオープン用。 */
+  /** プログラム的にドキュメントを差し替える（onChange は発火しない）。別ファイルを開く際に使う。 */
   setDoc(value: string): void;
   /** 現在のドキュメント全文。 */
   getDoc(): string;
@@ -108,7 +108,7 @@ const tokenTheme = EditorView.theme({
 });
 
 // 構文ハイライトも CSS 変数で。Markdown（見出し/強調/リンク/コード/引用/罫線）と
-// YAML frontmatter（キー/文字列/数値/真偽）を §2 トークンに寄せる。
+// YAML frontmatter（キー/文字列/数値/真偽）を DESIGN §2 のトークンに寄せる。
 const tokenHighlight = HighlightStyle.define([
   { tag: t.heading, color: 'var(--accent)', fontWeight: '700' },
   { tag: t.strong, color: 'var(--text-primary)', fontWeight: '700' },

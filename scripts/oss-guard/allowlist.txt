@@ -8,3 +8,12 @@
 #
 # Keep this file short and justify each entry with a comment — it is the escape
 # hatch, not a dumping ground.
+
+# Marketplace listing の想定ユーザー欄。「PdM / PjM」は読み手の職種であり、
+# 内部の運用ロール参照ではない。
+- **PdM / PjM**: 検証シートを Sheets で関係者と共有しつつ、md として Git にも残したい
+・PdM / PjM: 検証シートを Sheets で関係者と共有しつつ、md として Git にも残したい
+
+# renderer-pdf のテンプレテスト。サンプル文書の作成者ロールが「（PdM）」として
+# HTML に出力されることの確認であり、サンプルデータの検証。
+expect(html).toContain('（PdM）');

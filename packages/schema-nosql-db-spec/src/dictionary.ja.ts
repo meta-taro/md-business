@@ -8,10 +8,9 @@
  * Notes:
  * - `shape` field NAMES are user data and are never translated — only the
  *   fieldDef keys inside each field definition are.
- * - `path` values keep Firestore `{placeholder}` notation verbatim (PdM
- *   decision C-2).
+ * - `path` values keep Firestore `{placeholder}` notation verbatim.
  * - `engineSpecific` is an escape hatch and passes through completely
- *   untranslated (PdM decision C-5).
+ *   untranslated.
  */
 
 export type NosqlDbSpecDictionaryScope =
@@ -192,7 +191,7 @@ export const STATUS_TRANSLATIONS: Record<string, string> = {
 /**
  * Engine value translations. Absorbs product-name casing / spacing so the
  * canonical lower-case enum values survive Ajv. Unknown engines pass through
- * verbatim (enum 固定、不足時はバージョン bump — PdM decision B-1 と同運用).
+ * verbatim（既知エンジンは enum 固定、不足時はバージョン bump で追加する）。
  */
 export const ENGINE_TRANSLATIONS: Record<string, string> = {
   Firestore: 'firestore',
@@ -215,7 +214,7 @@ export const ENGINE_TRANSLATIONS: Record<string, string> = {
 };
 
 /**
- * docIdStrategy value translations (PdM decision C-1 abstraction).
+ * docIdStrategy value translations（エンジン非依存の抽象値へ寄せる）。
  */
 export const DOC_ID_STRATEGY_TRANSLATIONS: Record<string, string> = {
   UUID: 'uuid',

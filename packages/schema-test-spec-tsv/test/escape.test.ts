@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { escapeCell, unescapeCell } from '../src/escape.js';
 
 /**
- * カスタム TSV の核心制約は「1 レコード = 1 物理行」（Issue 010 §設計上の最重要制約）。
+ * カスタム TSV の核心制約は「1 レコード = 1 物理行」（設計上の最重要制約）。
  * セル内のタブ・改行・復帰・バックスラッシュをバックスラッシュ表記へ畳み込むことで、
  * どんなセル値でも 1 物理行に収まり、git diff が行単位でクリーンに保たれる。
  */

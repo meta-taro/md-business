@@ -1,5 +1,5 @@
 /**
- * API 設計書プレビュー provider（Phase 1c の apiSpecPreview.ts を工場 config へ移設）。
+ * API 設計書プレビュー provider（{@link ../previewFactory} へ渡す config）。
  */
 import {
   normalizeApiSpecFrontmatter,

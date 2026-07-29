@@ -1,11 +1,11 @@
 /**
- * 文書ワークスペースの共有 rune ストア（DOC-SPEC-DESKTOP-2026-0001 §2.1 / §4.1）。
+ * 文書ワークスペースの共有 rune ストア（設計は docs/specs/DOC-SPEC-desktop-file-tree.md）。
  *
  * +layout の FileTree（左レール）と +page のエディター／プレビューは別コンポーネントで
  * ローカル状態を共有できない。両者の外側に本シングルトンを置き、ルート・ツリー・選択・
  * 読込済み source を一元管理する。Rust コマンド（scan_documents / read_document）と
  * dialog プラグインへのグルーはここに閉じ、遷移ロジックは workspaceLogic の純関数へ委譲する
- * （純関数側は vitest 単体テスト済み・§7.3）。
+ * （純関数側は vitest 単体テスト済み）。
  */
 
 import { invoke } from '@tauri-apps/api/core';
@@ -427,7 +427,7 @@ class WorkspaceStore {
     this.externalConflict = null;
   }
 
-  /** ファイルを読み込み source に反映する。失敗時はエラー表示のみ・前回内容を保持（§3.4）。 */
+  /** ファイルを読み込み source に反映する。失敗時はエラー表示のみで前回内容を保持する。 */
   async select(relPath: string): Promise<void> {
     if (this.root === null) return;
     try {

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * md-business MCP サーバーの実行エントリポイント（Issue 004 Phase 2・Block MCP-6）。
+ * md-business MCP サーバーの実行エントリポイント。
  * -----------------------------------------------------------------------------
  * stdio 経由で MCP クライアント（Claude Desktop 等）と接続する。ワークスペース root は
  * 第1引数 → 環境変数 MD_BUSINESS_WORKSPACE → カレントディレクトリ の順で解決する。

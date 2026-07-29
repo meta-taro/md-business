@@ -5,7 +5,7 @@ import type { ColumnType, ColumnUiHint, ParsedHeader } from './types.js';
  * ヘッダ記法のキーワード → 基底 {@link ColumnType} と UI ヒントの対応表。
  *
  * `radio` / `datetime` は既存語彙に無いカスタム TSV 独自のキーワードで、それぞれ
- * `enum` / `date` へ写像しつつ UI ヒントを付与する（Issue 010）。
+ * `enum` / `date` へ写像しつつ UI ヒントを付与する。
  */
 const TYPE_KEYWORDS: Record<
   string,

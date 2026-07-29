@@ -2,7 +2,7 @@
 
 Google Workspace アドオン雛形（Docs / Sheets / Slides サイドバーから Markdown を扱う）。
 
-> **公開ステータス**: 開発初期段階。Marketplace 申請は `schema-test-spec` (v0.7.0) 完成と同時に submit 予定（[`.claude/decisions.md`](../../.claude/decisions.md) 2026-06-18 行）。
+> **公開ステータス**: 開発初期段階。Marketplace 申請は `schema-test-spec` (v0.7.0) 完成と同時に submit 予定。申請手順は [`docs/google-addon-submit-guide.md`](../../docs/google-addon-submit-guide.md) を参照。
 
 ## 役割分担（Chrome 拡張 / Workspace アドオン）
 
@@ -23,10 +23,10 @@ pnpm --filter @md-business/google-workspace-addon build   # → dist/{Code.js, a
 
 ### Apps Script に push
 
-`clasp` は **`pnpm dlx` 経由**で実行する（baseline §1: npm 禁止 / workspace 依存に含めると minimumReleaseAge 隔離の影響を受けるため、global install ではなく `pnpm dlx` で都度実行）。
+`clasp` は **`pnpm dlx` 経由**で実行する（本リポは npm を使わない方針で、workspace 依存に含めると minimumReleaseAge 隔離の影響を受けるため、global install ではなく `pnpm dlx` で都度実行する）。
 
 ```bash
-pnpm dlx @google/clasp login              # PdM の Google アカウントでログイン
+pnpm dlx @google/clasp login              # 公開元の Google アカウントでログイン
 # ↓ ブラウザで Apps Script API を ON にする（ユーザー設定）:
 #   https://script.google.com/home/usersettings
 pnpm dlx @google/clasp create-script --type standalone --title "md-business" --rootDir dist
@@ -59,7 +59,7 @@ esbuild.config.mjs     (IIFE バンドル + Apps Script global function 露出 f
 
 ## ロードマップ（このパッケージ）
 
-- [x] **v0.1.0 (2026-06-18)** — 雛形 + Markdown table ⇔ Sheets 双方向 import/export（PdM 手元で実機確証済）+ 申請手順書 [`docs/google-addon-submit-guide.md`](../../docs/google-addon-submit-guide.md)（実走知見を Phase A〜C のトラブルシュートに反映済）
+- [x] **v0.1.0 (2026-06-18)** — 雛形 + Markdown table ⇔ Sheets 双方向 import/export（実機確証済）+ 申請手順書 [`docs/google-addon-submit-guide.md`](../../docs/google-addon-submit-guide.md)（実走知見を Phase A〜C のトラブルシュートに反映済）
 - [x] v0.2.0 — `schema-test-spec` 完成連動: 検証シート md ⇔ Sheets の **frontmatter スキーマ駆動 double-binding**（列スキーマ宣言 → DataValidation プルダウン / ConditionalFormat 行背景色 / DateValidation 日付ピッカー / setFrozenRows ヘッダー固定 を import で自動適用、export で逆変換して frontmatter ごと書き出し）+ サイドバーの「GitHub に push」ボタンで GitHub Contents API へ commit（`git push` と同じメンタルモデル）
 - [ ] v0.3.0 — Docs 向け md ⇔ ドキュメント変換（章立て / 表 / リスト）
 - [ ] v0.4.0 — Slides 向け md ⇔ プレゼン変換

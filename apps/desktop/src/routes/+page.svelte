@@ -42,13 +42,13 @@
   // 中央 = 左右 2 分割（DESIGN §6）。左＝Markdown エディター（CodeMirror 6）、
   // 右＝ビューワー（renderer-pdf の HTML を iframe 隔離）。
   //
-  // source は共有 workspace ストアが唯一の真実（§2.1）。左レールで開いたファイルも、
+  // source は共有 workspace ストアが唯一の真実。左レールで開いたファイルも、
   // ここでの編集も同じ source を指す。ファイル未オープン時は seed テンプレ。
   const source = $derived(workspace.source);
   // debounce 後の値。プレビューはこちらから描画し、タイプ中の再描画連打を抑える。
   let debouncedSource = $state(workspace.source);
 
-  // §6.2 既定 200ms。最後の入力から 200ms 静止で 1 回だけプレビューへ反映。
+  // DESIGN §6.2 既定 200ms。最後の入力から 200ms 静止で 1 回だけプレビューへ反映。
   const pushToPreview = debounce((value: string) => {
     debouncedSource = value;
   }, 200);
@@ -211,14 +211,14 @@
   }
 
   // frontmatter を registry で振り分け、該当スキーマのビューワーで描画する（6 スキーマ
-  // 自動判定・Phase 2b）。テーマ変更に追従して iframe 内 <html data-theme> も一致させる
+  // 自動判定）。テーマ変更に追従して iframe 内 <html data-theme> も一致させる
   // （別ドキュメントなのでアプリの data-theme は継承されない）。debouncedSource / theme の
   // 変化で即再描画。
   const preview = $derived(
     renderPreview(debouncedSource, { theme: themeController.value }),
   );
 
-  // PDF 出力（§6.4）。プレビュー iframe を print-to-PDF する関数を共有コントローラへ
+  // PDF 出力（DESIGN §6.4）。プレビュー iframe を print-to-PDF する関数を共有コントローラへ
   // 登録し、Top bar の [PDF] から起動する。iframe の srcdoc は renderer-pdf の @page
   // CSS を内包するので、印刷（→「PDF として保存」）で画面と 1:1 の A4 正本になる。
   let viewerFrame = $state<HTMLIFrameElement | undefined>(undefined);
@@ -245,7 +245,7 @@
     pdfExport.setReady(preview.ok && !isTsv && !diffView.active);
   });
 
-  // カスタム TSV 検証シートは読み取りプレビューでなく編集グリッド（本命 UI・Issue 010）で開く。
+  // カスタム TSV 検証シートは読み取りプレビューでなく編集グリッドで開く。
   // 先頭マジック行で判定し、TSV なら parseTsv した doc をグリッドへ渡す。
   const isTsv = $derived(isTsvSource(debouncedSource));
   const tsvDoc = $derived(isTsv ? parseTsv(debouncedSource) : null);
@@ -391,7 +391,7 @@
 <div class="page-root">
 {#if workspace.externalConflict}
   <!-- 開いているファイルが外部（AI/CLI/他エディタ）で変更されたが、未保存編集があるため
-       自動再読込しない。ユーザーがどちらを採るか選ぶ（DESIGN §3.4）。 -->
+       自動再読込しない。どちらを採るかはユーザーが選ぶ。 -->
   <div class="conflict-bar" role="alert">
     <span class="conflict-msg">
       {t('page.conflictChanged')}（<code>{workspace.externalConflict.relPath}</code>）
@@ -517,7 +517,7 @@
     min-height: 0;
   }
 
-  /* 外部変更 × 未保存編集の競合バナー（DESIGN §3.4）。目立つが破壊的操作は右側に隔離。 */
+  /* 外部変更 × 未保存編集の競合バナー。目立つが破壊的操作は右側に隔離。 */
   .conflict-bar {
     flex: none;
     display: flex;
@@ -750,7 +750,7 @@
     color: var(--accent);
   }
 
-  /* < 768px: 左右分割をやめ縦積み（DESIGN §7.1・簡易対応。タブ切替は後続）。
+  /* < 768px: 左右分割をやめ縦積み（DESIGN §7.1・簡易対応）。
      縦積みでは横幅ドラッグが無意味なのでディバイダを隠し、比率も無効化する。 */
   @media (max-width: 767px) {
     .split {

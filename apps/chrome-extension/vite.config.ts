@@ -76,8 +76,8 @@ export default defineConfig({
     sourcemap: true,
     rollupOptions: {
       onwarn(warning, defaultHandler) {
-        // baseline 項目5 と合わせ、依存パッケージ由来の eval を build 段階で
-        // エラー扱いにする（MV3 CSP は unsafe-eval を拒否するため）。
+        // 依存パッケージ由来の eval を build 段階でエラー扱いにする
+        // （MV3 CSP は unsafe-eval を拒否するため）。
         if (warning.code === 'EVAL') {
           throw new Error(
             `Bundle contains eval: ${warning.id ?? ''}\n${warning.message}\n` +

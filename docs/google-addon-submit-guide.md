@@ -2,24 +2,23 @@
 
 `apps/google-workspace-addon` を Google Workspace Marketplace に公開するための手順書。
 
-> **対象**: PdM（メタタロ）が手作業で進めるステップを時系列で記す。コード雛形は AI が生成済み（[`apps/google-workspace-addon/`](../apps/google-workspace-addon/)）。
+> **対象**: 申請者が手作業で進めるステップを時系列で記す。コード雛形は [`apps/google-workspace-addon/`](../apps/google-workspace-addon/) に用意済み。
 >
-> **正本**: [`.claude/decisions.md`](../.claude/decisions.md) 2026-06-18 行
 > Workspace アドオン submit = `schema-test-spec` (v0.7.0) 完成と同時。本ガイドは **準備工程**を先行して進めるためのもの。
 
 ## 全体タイムライン（目安）
 
 | Phase | 内容 | 担当 | 所要 | 本日（2026-06-18） |
 |---|---|---|---|---|
-| **A-1〜A-3** | GCP プロジェクト作成 + API 有効化 + Apps Script プロジェクト作成 + clasp 連携 | PdM | 1〜2 時間 | 達成済 |
-| **B** | OAuth consent screen 設定（アプリ名 / ロゴ / scope 宣言 / プライバシーポリシー URL / 必要ならテストユーザー or 「内部に公開」） | PdM | 1〜2 時間 | 達成済 |
-| **A-4** | Apps Script ↔ GCP プロジェクト紐付け（B-1〜B-3 完了後でないと紐付けが受理されない） | PdM | 5 分 | 達成済 |
-| **C** | アドオン本体の動作確認（テストデプロイ → Sheets サイドバー → import/export 双方向動作） | PdM + AI | 半日 | **達成済（2026-06-18）** |
-| **D** | Marketplace listing 準備（スクショ / 説明文 / 動画 / 用途タグ） | AI 草案 → PdM 入力 | 1 日 | 草案は AI 提示可 |
-| **E** | OAuth 検証申請（Sensitive scope なら Google 審査 2〜6 週） | PdM | 数週間 | schema-test-spec 完成後 |
-| **F** | Marketplace 公開申請 | PdM | 即日〜1 週 | E 完了後 |
+| **A-1〜A-3** | GCP プロジェクト作成 + API 有効化 + Apps Script プロジェクト作成 + clasp 連携 | 申請者 | 1〜2 時間 | 達成済 |
+| **B** | OAuth consent screen 設定（アプリ名 / ロゴ / scope 宣言 / プライバシーポリシー URL / 必要ならテストユーザー or 「内部に公開」） | 申請者 | 1〜2 時間 | 達成済 |
+| **A-4** | Apps Script ↔ GCP プロジェクト紐付け（B-1〜B-3 完了後でないと紐付けが受理されない） | 申請者 | 5 分 | 達成済 |
+| **C** | アドオン本体の動作確認（テストデプロイ → Sheets サイドバー → import/export 双方向動作） | 申請者 | 半日 | **達成済（2026-06-18）** |
+| **D** | Marketplace listing 準備（スクショ / 説明文 / 動画 / 用途タグ） | 申請者 | 1 日 | 草案は AI 提示可 |
+| **E** | OAuth 検証申請（Sensitive scope なら Google 審査 2〜6 週） | 申請者 | 数週間 | schema-test-spec 完成後 |
+| **F** | Marketplace 公開申請 | 申請者 | 即日〜1 週 | E 完了後 |
 
-### 実施順序の注意（2026-06-18 PdM 実走時の知見）
+### 実施順序の注意（実走時の知見）
 
 **正しい順序**: `A-1 → A-2 → A-3 → B-1 → B-2 → B-3 → A-4 → B-4（or 内部公開）→ C`
 
@@ -31,9 +30,9 @@
 
 ## Phase A — GCP & Apps Script 立ち上げ
 
-### A-1. GCP プロジェクト作成（PdM 手作業 / baseline 15 で AI 自走禁止）
+### A-1. GCP プロジェクト作成（手作業）
 
-1. https://console.cloud.google.com/ にログイン（PdM = `you@example.com`）
+1. https://console.cloud.google.com/ にログイン（例: `you@example.com`）
 2. 上部「プロジェクトを選択」→「**新しいプロジェクト**」
 3. プロジェクト名: `md-business-addon`
 4. 組織: Example Inc.（必要に応じて）
@@ -60,10 +59,10 @@ GCP コンソールで以下の API を有効化（「API とサービス」→�
 
 > **clasp v3.x 系（2026 年現在の最新）** はコマンド体系が v2 系から変わっています。`clasp create` / `clasp open` が `clasp create-script` / `clasp open-script` に renamed されているため、ネット記事の古い手順をコピペすると `Unknown command` で失敗します。本書は v3 系準拠。
 
-`clasp` は **`pnpm dlx` 経由**で実行（baseline §1: npm 禁止 / workspace 依存に含めると minimumReleaseAge 隔離の影響を受けるため、global install ではなく `pnpm dlx` で都度実行）:
+`clasp` は **`pnpm dlx` 経由**で実行する（本リポは npm を使わない方針で、workspace 依存に含めると minimumReleaseAge 隔離の影響を受けるため、global install ではなく `pnpm dlx` で都度実行する）:
 
 ```bash
-# PdM 端末で 1 回だけ実行
+# 申請者の端末で 1 回だけ実行
 pnpm dlx @google/clasp login   # ブラウザで Google ログイン
 ```
 
@@ -143,7 +142,7 @@ GCP コンソール → 「API とサービス」→「**OAuth 同意画面**」
 
 #### B-2 補足: `addOns.common.logoUrl` は HTTPS 200 必須
 
-`appsscript.json` の `addOns.common.logoUrl` は OAuth consent のロゴとは **別** の、Workspace アドオン Side Panel（Sheets / Docs / Slides 右側の縦アイコンバー）に表示されるアイコン URL。**404 や private リポの raw URL を指定すると Side Panel アイコン自体が非表示になり、「テストデプロイしたのに md-business が出ない」事象になる**（2026-06-18 PdM 実走で遭遇、原因特定に 1 時間）。確認手順:
+`appsscript.json` の `addOns.common.logoUrl` は OAuth consent のロゴとは **別** の、Workspace アドオン Side Panel（Sheets / Docs / Slides 右側の縦アイコンバー）に表示されるアイコン URL。**404 や private リポの raw URL を指定すると Side Panel アイコン自体が非表示になり、「テストデプロイしたのに md-business が出ない」事象になる**（実走で遭遇、原因特定に 1 時間）。確認手順:
 
 1. `appsscript.json` の `addOns.common.logoUrl` をブラウザに直接貼って HTTPS 200 を返すか確認
 2. 自前アイコンが未確定なら placeholder として `https://www.gstatic.com/images/branding/product/2x/apps_script_48dp.png`（Apps Script 公式ロゴ、Google CDN）を当てておく
@@ -194,7 +193,7 @@ GCP プロジェクトが Workspace 組織（例: `example.com`）配下にあ�
 
 ### B-4 補足: External 状態で個人 Gmail からアクセスすると「アクセス権限をリクエスト」が走る
 
-Workspace ドメインポリシーが External + Testing 状態の OAuth に preempt をかけているため、テストユーザー登録が無効化される条件がある。その状態で個人 Gmail（例: `taro@gmail.com`）で OAuth 画面を開くと、「アクセス権限をリクエスト」UI（https://support.google.com/docs/answer/16722399 に redirect）が出る。**ここで「リクエストを送信」を押すと、個人 Gmail から業務 Apps Script への共有依頼メールが管理者宛に飛ぶ**（baseline §17 違反の温床）。
+Workspace ドメインポリシーが External + Testing 状態の OAuth に preempt をかけているため、テストユーザー登録が無効化される条件がある。その状態で個人 Gmail（例: `taro@gmail.com`）で OAuth 画面を開くと、「アクセス権限をリクエスト」UI（https://support.google.com/docs/answer/16722399 に redirect）が出る。**ここで「リクエストを送信」を押すと、個人 Gmail から業務 Apps Script への共有依頼メールが管理者宛に飛ぶ**。
 
 **対処**:
 
@@ -231,7 +230,7 @@ Workspace ドメインポリシーが External + Testing 状態の OAuth に pre
 
 ---
 
-## Phase D — Marketplace listing 準備（AI 草案 → PdM 入力）
+## Phase D — Marketplace listing 準備
 
 GCP コンソール → 「API とサービス」→「**Google Workspace Marketplace SDK**」→「アプリ構成」
 
@@ -243,7 +242,7 @@ GCP コンソール → 「API とサービス」→「**Google Workspace Market
 | 説明文（詳細） | 4000 文字以内 | AI 草案可（Chrome Web Store 説明文を流用ベース） |
 | カテゴリ | 「ビジネスツール」「生産性向上」 | |
 | スクリーンショット | 1280×800 推奨、最大 6 枚 | AI 撮影スクリプト可 |
-| YouTube デモ動画 | **必須**（センシティブ scope 申請時） | PdM 撮影 — [台本](./oauth-verification-demo-video-script.md) |
+| YouTube デモ動画 | **必須**（センシティブ scope 申請時） | 申請者が撮影 — [台本](./oauth-verification-demo-video-script.md) |
 | 利用規約 / プライバシー URL | Phase B と同一 | |
 | サポート URL | `https://github.com/meta-taro/md-business/issues` | |
 | 配信地域 | 日本 + 全世界 | |
@@ -257,7 +256,7 @@ GCP コンソール → 「API とサービス」→「**Google Workspace Market
 
 1. OAuth consent screen → 「アプリを公開」→ 「**確認のために送信**」
 2. 用途説明文を貼付（[`marketplace-listing.md`](./google-addon-marketplace-listing.md) §OAuth 検証申請 — スコープ用途説明 に英文 1 件を用意済み）
-3. デモ動画 URL（YouTube unlisted で OK・PdM 撮影 — [撮影台本](./oauth-verification-demo-video-script.md)）
+3. デモ動画 URL（YouTube unlisted で OK・申請者が撮影 — [撮影台本](./oauth-verification-demo-video-script.md)）
    - **判明（2026-06-30）**: Auth Platform の「データアクセス」タブで、センシティブ／制限付き scope（本アドオンでは `script.external_request` と `script.container.ui`）の編集画面に「デモ動画」フィールドが存在し、未入力だと "リクエストされたスコープに次のフィールドがありません: デモ動画" エラーで申請ブロックされる。「推奨」ではなく**実質必須**。
 4. 審査期間: 通常 2〜5 週、追加質問があれば長引く
 
@@ -273,22 +272,22 @@ GCP コンソール → 「API とサービス」→「**Google Workspace Market
 
 ---
 
-## AI が補佐できる範囲 / PdM のみが実行する範囲
+## 自動化できる範囲 / 人間のみが実行する範囲
 
-### AI が実行可能（自動化可）
+### 自動化可
 
 - アドオンのコード雛形・ロジック・テスト追加
 - `appsscript.json` マニフェスト編集
 - Marketplace listing の **草案テキスト**（説明文 / 用途文 / カテゴリ案）作成
-- スクリーンショット撮影スクリプト作成（[`.tmp/resize-screenshots.ps1`](../.tmp) と同様の Pillarbox 方式）
+- スクリーンショット撮影スクリプト作成（Pillarbox 方式で規定サイズへ整形）
 - このガイドの更新
 
-### PdM 手作業（baseline 15 — credential / 認証 / アカウント操作は AI 自走禁止）
+### 人間の手作業（credential / 認証 / アカウント操作は自動化しない）
 
 - GCP プロジェクト作成 / API 有効化
 - OAuth consent screen 入力
 - `clasp login` / `clasp create` の Google アカウントログイン
-- Marketplace listing の Console 入力（草案を AI が用意するが、貼り付けは PdM）
+- Marketplace listing の Console 入力
 - アプリのアイコン / ロゴデザイン発注
 - YouTube デモ動画撮影・公開
 - 検証申請 / 公開申請の submit ボタン
@@ -320,5 +319,4 @@ GCP コンソール → 「API とサービス」→「**Google Workspace Market
 ## 関連
 
 - [`apps/google-workspace-addon/README.md`](../apps/google-workspace-addon/README.md) — 開発者向けセットアップ
-- [`.claude/decisions.md`](../.claude/decisions.md) — Phase 2 双方向同期 + Sheets-as-truth 決定
-- [`.claude/roadmap.md`](../.claude/roadmap.md) — 全体タイムライン
+- [`docs/google-addon-marketplace-listing.md`](./google-addon-marketplace-listing.md) — listing 用テキスト草案

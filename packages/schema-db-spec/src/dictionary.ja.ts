@@ -5,7 +5,7 @@
  * maps keys to the canonical English shape that {@link dbSpecSchema} validates.
  *
  * Note: column `type` VALUES are never translated — engine-native SQL type
- * expressions are canonical (PdM decision B-2). Only structural keys and the
+ * expressions are canonical. Only structural keys and the
  * status / engine / theme value vocabularies are absorbed here.
  */
 
@@ -210,7 +210,7 @@ export const STATUS_TRANSLATIONS: Record<string, string> = {
 /**
  * Engine value translations. Absorbs product-name casing / spacing so the
  * canonical lower-case enum values survive Ajv. Unknown engines pass through
- * verbatim (PdM decision B-1: enum 8 種固定、不足時はバージョン bump).
+ * verbatim（既知エンジンは enum 固定、不足時はバージョン bump で追加する）。
  */
 export const ENGINE_TRANSLATIONS: Record<string, string> = {
   PostgreSQL: 'postgres',

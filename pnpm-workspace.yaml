@@ -2,7 +2,7 @@ packages:
   - "packages/*"
   - "apps/*"
 
-# Supply-chain defense (baseline 項目1)
+# Supply-chain defense
 # `pnpm config get` は global config (npm 互換) を見るだけで workspace settings を読まない仕様。
 # 設定が効いているかどうかは、`pnpm install` を node_modules なしの状態で実行し、
 # "Ignored build scripts: core-js, es5-ext" のような出力が出ることで確認する。

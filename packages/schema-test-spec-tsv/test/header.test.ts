@@ -4,7 +4,7 @@ import { parseTypedHeader } from '../src/header.js';
 /**
  * カスタム TSV の 1 行目は「型付きヘッダ行」。各セルは `列名[:型(パラメータ)][!]` 記法で、
  * 既存 `@md-business/schema-test-spec` の ColumnType へ写像しつつ、Desktop 入力ウィジェットの
- * UI ヒント（radio / datetime）と必須マーカー（末尾 `!`）を運ぶ（Issue 010）。
+ * UI ヒント（radio / datetime）と必須マーカー（末尾 `!`）を運ぶ。
  */
 describe('parseTypedHeader', () => {
   it('defaults to text when no type annotation is present', () => {

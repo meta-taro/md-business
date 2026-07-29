@@ -1,19 +1,19 @@
 /**
  * スキーマ横断のプレビュー・パイプライン工場。
  *
- * apiSpecPreview.ts（Phase 1c）の permissive パイプラインを一般化したもの:
+ * スキーマ 1 種ぶんの permissive パイプラインを一般化したもの:
  *   normalize → autofill → warnings 集約 → validate → errors 翻訳 →
  *   withPreviewDefaults → documentTitle → renderBody（try/catch）→
  *   buildPreviewDocument（iframe srcdoc）
  *
- * 「編集途中でも半分空で描画する」方針は Phase 1c と同じ。検証エラーは描画を
+ * 「編集途中でも半分空で描画する」方針を採る。検証エラーは描画を
  * 止めず側チャネル（errors）で返す。renderBody が throw した場合のみ本文空 +
  * fatal メッセージにフォールバックする。
  *
  * 各スキーマは本工場に「薄い config 1 個」を渡すだけ（providers/ 配下）。データ駆動
  * 4 スキーマ（invoice / db-spec / nosql-db-spec / api-spec）は DOM 非依存のため
  * ここまで Node で単体テストできる。prose 2 スキーマ（spec / test-spec）は
- * sanitizer 移植を伴うため Phase 2c で追加する。
+ * sanitizer の移植を伴うため別扱いとする。
  */
 import {
   validateWithCompiled,

@@ -1,9 +1,9 @@
 /**
- * 文書ツリー描画の純ロジック（DOC-SPEC-DESKTOP-2026-0001 §3.3 / §6.2）。
+ * 文書ツリー描画の純ロジック（設計は docs/specs/DOC-SPEC-desktop-file-tree.md）。
  *
  * 展開状態（フォルダ path の集合）と `buildTree` の結果から、描画用の可視行列を導く。
  * rune ストア（`workspace.svelte.ts`）はこれらを呼ぶだけの薄い層にし、遷移ロジックは
- * ここで単体テストする（vitest は素の node 環境で `.svelte.ts` を評価できないため・§7.3）。
+ * ここで単体テストする（vitest は素の node 環境で `.svelte.ts` を評価できないため）。
  */
 
 import type { TreeNode } from './fileTree';
@@ -14,7 +14,7 @@ export interface VisibleRow {
   depth: number;
 }
 
-/** 第 1 階層のフォルダ path 集合（初回描画で展開する・設計書 §6.2）。 */
+/** 第 1 階層のフォルダ path 集合（初回描画ではここまでを展開する）。 */
 export function initialExpandedPaths(tree: readonly TreeNode[]): string[] {
   return tree.filter((n) => n.kind === 'folder').map((n) => n.path);
 }

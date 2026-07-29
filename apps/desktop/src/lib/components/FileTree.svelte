@@ -1,8 +1,7 @@
 <script lang="ts">
   // 左レール。共有 workspace ストアのツリーを描画し、フォルダ開閉・ファイル選択を配線する
-  // （DOC-SPEC-DESKTOP-2026-0001 §3.3 / §6.1）。走査・読込は Rust コマンド、可視行の
-  // 平坦化は workspaceLogic の純関数（単体テスト済み）に委譲する。スキーマ別アイコン色・
-  // 選択ハイライトの仕上げは Phase D。
+  // （設計は docs/specs/DOC-SPEC-desktop-file-tree.md）。走査・読込は Rust コマンド、
+  // 可視行の平坦化は workspaceLogic の純関数（単体テスト済み）に委譲する。
   import { tick } from 'svelte';
   import { invoke } from '@tauri-apps/api/core';
   import { openUrl, revealItemInDir } from '@tauri-apps/plugin-opener';

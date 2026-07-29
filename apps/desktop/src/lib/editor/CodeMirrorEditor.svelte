@@ -6,7 +6,7 @@
   import type { EditorFocusInfo } from '$lib/layout/scrollSync';
 
   // 親から初期値を受け取り、編集は onChange で親へ返す（一方向）。source の
-  // 外部差し替え（Phase 3 ファイルオープン）は $effect で setDoc に反映する。
+  // 外部差し替え（別ファイルを開いた等）は $effect で setDoc に反映する。
   interface Props {
     value: string;
     onChange: (value: string) => void;

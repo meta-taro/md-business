@@ -114,7 +114,7 @@
         <span>{t('action.autosave')}</span>
         <span class="state-pill">{autosave.enabled ? t('state.on') : t('state.off')}</span>
       </button>
-      <!-- PDF 出力（§6.4・Ctrl+P / ⌘P と等価）。プレビュー描画中だけ活性。押すと
+      <!-- PDF 出力（DESIGN §6.4・Ctrl+P / ⌘P と等価）。プレビュー描画中だけ活性。押すと
            WebView の印刷（→「PDF として保存」）でプレビュー見た目のまま A4 出力する。
            プリンタ＝印刷の普遍アイコン。 -->
       <button

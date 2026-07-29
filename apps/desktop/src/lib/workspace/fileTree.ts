@@ -1,5 +1,5 @@
 /**
- * 文書ツリーの純ロジック（DOC-SPEC-DESKTOP-2026-0001 §3.3 / §4.1）。
+ * 文書ツリーの純ロジック（設計は docs/specs/DOC-SPEC-desktop-file-tree.md）。
  *
  * Rust の scan_documents が返すフラットな相対パス配列（DocEntry[]）を、描画用の
  * 入れ子 TreeNode 群へ組み立てる。DOM・Tauri に触れないため単体テストできる。

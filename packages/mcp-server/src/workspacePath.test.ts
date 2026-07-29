@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { safeRelativePath } from './workspacePath.js';
 
 /**
- * ワークスペース・パス安全ガード（Issue 004 Phase 2・MCP P0 の土台）。
+ * ワークスペース・パス安全ガード（MCP P0 の土台）。
  *
  * MCP サーバーは AI エージェントから渡された相対パスでローカルファイルを
  * read / create / update する。エージェント（または介在するプロンプト）が

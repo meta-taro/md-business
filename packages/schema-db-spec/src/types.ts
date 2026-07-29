@@ -31,7 +31,7 @@ export interface DbSpecColumn {
   name: string;
   /**
    * Engine-native type expression, verbatim (e.g. `varchar(255)`, `timestamptz`,
-   * `numeric(12,2)`). Strict SQL-like notation is canonical (PdM decision B-2);
+   * `numeric(12,2)`). Strict SQL-like notation is canonical;
    * type values are never translated — the normalize layer only maps keys.
    */
   type: string;
@@ -67,8 +67,8 @@ export interface DbSpecTable {
 
 /**
  * Reference entry to an existing migration file. The real SQL lives in the
- * repository's migrations directory (PdM decision B-5 — reference list only,
- * embedding SQL here would bloat the Markdown).
+ * repository's migrations directory — this is a reference list only, because
+ * embedding SQL here would bloat the Markdown.
  */
 export interface DbSpecMigration {
   id: string;

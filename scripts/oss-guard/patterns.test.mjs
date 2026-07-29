@@ -33,6 +33,24 @@ test('内部役割呼称 PdM を検出する', () => {
   assert.ok(ids(scanText('PdM に確認する')).includes('pdm-term'));
 });
 
+test('業務文書サンプルの役割値 PdM は検出しない', () => {
+  assert.equal(scanText('    役割: PdM').length, 0);
+  assert.equal(scanText("  - { name: '伊藤 太郎', role: 'PdM' },").length, 0);
+  assert.equal(scanText('  role: "PdM"').length, 0);
+});
+
+test('gitignore 済みパスへの参照を検出する', () => {
+  assert.ok(ids(scanText('詳細は [decisions](../../.claude/decisions.md) 参照')).includes('private-path-ref'));
+  assert.ok(ids(scanText('CLAUDE.md の方針に従う')).includes('private-path-ref'));
+  assert.ok(ids(scanText('`.tmp/resize-screenshots.ps1` を流用')).includes('private-path-ref'));
+});
+
+test('サンプルデータ中の裸の .tmp/ は検出しない', () => {
+  // git status --porcelain のパーサテストが使う未追跡ディレクトリ名であって、
+  // 作業フォルダへの参照ではない。
+  assert.equal(scanText('let out = nul("# branch.head main\\n? .tmp/\\n");').length, 0);
+});
+
 test('公開組織ハンドル meta-taro は検出しない', () => {
   assert.equal(scanText('https://github.com/meta-taro/md-business').length, 0);
 });

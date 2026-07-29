@@ -74,7 +74,7 @@ describe('buildPreviewDocument', () => {
 
   // iframe にフォーカスがある状態の Ctrl+P は親 window へ伝播しないため、iframe 自身にも
   // ショートカット処理を仕込む。Ctrl/Cmd+P はプレビュー自身を印刷（アプリ全体でなく）、
-  // Ctrl/Cmd+S は親へ postMessage して保存させる（DOC-SPEC §6.4 の穴を塞ぐ）。
+  // Ctrl/Cmd+S は親へ postMessage して保存させる（iframe 内で保存できない穴を塞ぐ）。
   it('iframe 内ショートカット処理スクリプトを埋め込む（keydown を横取り）', () => {
     const html = buildPreviewDocument(base);
     expect(html).toContain('<script>');

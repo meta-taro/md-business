@@ -4,7 +4,7 @@ import { MemoryDocumentStore } from './store.js';
 import { readDocument, validateDocument, createDocument, updateDocument } from './tools.js';
 
 /**
- * MCP P0 ツール本体（Issue 004 Phase 2）。DocumentStore 越しで fs 非依存に単体テスト。
+ * MCP P0 ツール本体。DocumentStore 越しで fs 非依存に単体テスト。
  * valid:true パスは ajv 検証済みの invoice テンプレ frontmatter をインラインで使う
  * （templates/invoice/standard.md 由来・妥当を確認済み）。
  */

@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { isTsvSource, TSV_FORMAT_ID } from './detect';
 
 /**
- * カスタム TSV 検証シートの判定（Issue 010・Block TSV-9）。
+ * カスタム TSV 検証シートの判定。
  *
  * エディター source を右ペインで「グリッド編集」か「読み取りプレビュー」の
  * どちらで開くかを、`#!` マジック行の formatId で振り分ける純関数。

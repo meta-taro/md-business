@@ -125,7 +125,7 @@ export function importMarkdownTableToActiveSheet(markdown: string): {
  * - 1 行目固定（FrozenRows）
  * で初期化する（schemaToSheet）。
  *
- * Why: PdM 決定 2026-06-18 D-1。検証シートは spec 駆動でセル制約を自動投入する。
+ * Why: 検証シートは spec 駆動でセル制約を自動投入する。
  *      Apps Script API 呼び出し部分は純粋関数 `planSheetWriteOps` の結果を流すだけにし、
  *      バリデーション・優先度判定は副作用ゼロでテスト可能な層に閉じる。
  */
@@ -404,7 +404,7 @@ function escapeFormulaString(s: string): string {
 }
 
 // ---------------------------------------------------------------------------
-// Sheet ⇔ md binding（Issue 006 UX 改修）
+// Sheet ⇔ md binding
 // ---------------------------------------------------------------------------
 // Why: 実施者（QA・業務担当）は md / frontmatter を直接触らない。セットアップ時に
 //      md ソースを DocumentProperties（シート ID キー）へ保存し、以降の
@@ -630,7 +630,7 @@ export function saveBoundSheetToGithub(): SaveBoundSheetResult {
 
 /**
  * GitHub PAT を UserProperties に保存する（サイドバー経由）。
- * Why: baseline §15 により credential 投入は人間のみ。サイドバーで PdM 自身が
+ * Why: credential の投入は人間の手作業に限る。サイドバーから自分で
  *      貼り付けて保存する経路を提供する（PropertiesService の Editor 直編集よりも安全）。
  */
 export function setGithubPat(pat: string): { ok: true } | { ok: false; error: string } {
@@ -653,7 +653,7 @@ export function hasGithubPat(): boolean {
 
 /**
  * サイドバー初期化時に「PAT は登録済みです」を可視化するためのマスク値を返す。
- * Why: 投入後に画面に何も出ないと、PdM は「保存できたのか？」を毎回不安になる。
+ * Why: 投入後に画面に何も出ないと「保存できたのか？」が毎回わからない。
  *      完全表示は秘密を画面に晒すため不可、頭4 + 末尾4 のみ可視化する。
  *      未登録時は null（サイドバー側で未設定 UI を出す）。
  */
