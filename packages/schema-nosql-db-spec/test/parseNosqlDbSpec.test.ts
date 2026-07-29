@@ -189,3 +189,40 @@ describe('parseNosqlDbSpecObject', () => {
     expect(result.ok).toBe(false);
   });
 });
+
+// A caller that hands in an already-parsed object skips the YAML parser, and
+// with it the depth bound the Markdown path gets for free.
+describe('parseNosqlDbSpecObject — nesting depth', () => {
+  function deepShape(levels: number): Record<string, unknown> {
+    let node: Record<string, unknown> = { type: 'string' };
+    for (let i = 0; i < levels; i += 1) {
+      node = { type: 'array', of: node };
+    }
+    return node;
+  }
+
+  it('rejects an over-nested object as a validation failure', () => {
+    const raw = { collections: [{ name: 'users', shape: { tags: deepShape(50_000) } }] };
+    let result: ReturnType<typeof parseNosqlDbSpecObject> | undefined;
+    expect(() => {
+      result = parseNosqlDbSpecObject(raw, validate);
+    }).not.toThrow();
+    expect(result?.ok).toBe(false);
+    if (result?.ok === false) {
+      const [first] = result.errors;
+      expect(first?.keyword).toBe('maxDepth');
+      // The reported path points at the node that broke the limit, which sits
+      // far below the field that introduced the nesting.
+      expect(first?.path.startsWith('/collections/0/shape/tags/')).toBe(true);
+    }
+  });
+
+  it('accepts a realistically nested object', () => {
+    const raw = { collections: [{ name: 'users', shape: { tags: deepShape(3) } }] };
+    const result = parseNosqlDbSpecObject(raw, validate);
+    // Missing required root fields still fail, but never with a depth error.
+    if (result.ok === false) {
+      expect(result.errors.every((e) => e.keyword !== 'maxDepth')).toBe(true);
+    }
+  });
+});

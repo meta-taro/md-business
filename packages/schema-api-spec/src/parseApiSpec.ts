@@ -1,6 +1,7 @@
 import {
   splitFrontmatter,
   validateWithCompiled,
+  depthValidationError,
   type CompiledValidator,
   type ValidationError,
 } from '@md-business/core';
@@ -42,6 +43,10 @@ export function parseApiSpecMarkdown(
   validate: CompiledValidator,
 ): ApiSpecParseResult {
   const split = splitFrontmatter(src);
+  const tooDeep = depthValidationError(split.data);
+  if (tooDeep) {
+    return { ok: false, errors: [tooDeep], warnings: [] };
+  }
   const normalized = normalizeApiSpecFrontmatter(split.data);
   const autofilled = autofillApiSpec(normalized.data);
   const warnings = [...normalized.warnings, ...autofilled.warnings];
@@ -61,6 +66,10 @@ export function parseApiSpecObject(
 ):
   | { ok: true; apiSpec: ApiSpec; warnings: Array<NormalizeWarning | AutofillWarning> }
   | ApiSpecParseFailure {
+  const tooDeep = depthValidationError(raw);
+  if (tooDeep) {
+    return { ok: false, errors: [tooDeep], warnings: [] };
+  }
   const normalized = normalizeApiSpecFrontmatter(raw);
   const autofilled = autofillApiSpec(normalized.data);
   const warnings = [...normalized.warnings, ...autofilled.warnings];

@@ -1,6 +1,7 @@
 import {
   splitFrontmatter,
   validateWithCompiled,
+  depthValidationError,
   type CompiledValidator,
   type ValidationError,
 } from '@md-business/core';
@@ -47,6 +48,10 @@ export function parseNosqlDbSpecMarkdown(
   validate: CompiledValidator,
 ): NosqlDbSpecParseResult {
   const split = splitFrontmatter(src);
+  const tooDeep = depthValidationError(split.data);
+  if (tooDeep) {
+    return { ok: false, errors: [tooDeep], warnings: [] };
+  }
   const normalized = normalizeNosqlDbSpecFrontmatter(split.data);
   const autofilled = autofillNosqlDbSpec(normalized.data);
   const warnings = [...normalized.warnings, ...autofilled.warnings];
@@ -70,6 +75,10 @@ export function parseNosqlDbSpecObject(
       warnings: Array<NormalizeWarning | AutofillWarning>;
     }
   | NosqlDbSpecParseFailure {
+  const tooDeep = depthValidationError(raw);
+  if (tooDeep) {
+    return { ok: false, errors: [tooDeep], warnings: [] };
+  }
   const normalized = normalizeNosqlDbSpecFrontmatter(raw);
   const autofilled = autofillNosqlDbSpec(normalized.data);
   const warnings = [...normalized.warnings, ...autofilled.warnings];

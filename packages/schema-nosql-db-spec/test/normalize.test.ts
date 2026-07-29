@@ -377,3 +377,33 @@ describe('normalizeNosqlDbSpecFrontmatter — collisions and pass-through', () =
     expect(data['謎キー']).toBe(1);
   });
 });
+
+// `fieldDef.of` names another field definition, so a document can declare an
+// arbitrarily long chain of them. Translating that chain recursively would
+// exhaust the call stack before any schema error could be reported.
+describe('normalizeNosqlDbSpecFrontmatter — nesting depth', () => {
+  function deepFieldDef(levels: number): Record<string, unknown> {
+    let node: Record<string, unknown> = { type: 'string' };
+    for (let i = 0; i < levels; i += 1) {
+      node = { type: 'array', of: node };
+    }
+    return node;
+  }
+
+  it('translates a realistically nested field definition unchanged', () => {
+    const input = { コレクション: [{ 形状: { tags: deepFieldDef(3) } }] };
+    const result = normalizeNosqlDbSpecFrontmatter(input);
+    expect(result.warnings).toEqual([]);
+    const collections = result.data['collections'] as Array<Record<string, unknown>>;
+    expect(collections[0]?.['shape']).toEqual({ tags: deepFieldDef(3) });
+  });
+
+  it('stops descending past the depth limit instead of overflowing', () => {
+    const input = { コレクション: [{ 形状: { tags: deepFieldDef(50_000) } }] };
+    let result: ReturnType<typeof normalizeNosqlDbSpecFrontmatter> | undefined;
+    expect(() => {
+      result = normalizeNosqlDbSpecFrontmatter(input);
+    }).not.toThrow();
+    expect(result?.warnings.some((w) => /nested too deeply/i.test(w.message))).toBe(true);
+  });
+});

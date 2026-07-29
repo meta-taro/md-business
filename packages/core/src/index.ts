@@ -1,5 +1,14 @@
 export { parseMarkdown } from './parse.js';
-export { splitFrontmatter } from './frontmatter.js';
+export {
+  splitFrontmatter,
+  MAX_FRONTMATTER_CHARS,
+  MAX_YAML_ANCHORS,
+} from './frontmatter.js';
+export {
+  findDepthOverflow,
+  depthValidationError,
+  MAX_FRONTMATTER_DEPTH,
+} from './depth.js';
 export { serializeMarkdown } from './serialize.js';
 export { buildDocument } from './buildDocument.js';
 export type { BuildDocumentInput, BuildDocumentResult } from './buildDocument.js';
