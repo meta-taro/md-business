@@ -26,7 +26,16 @@ md-business の **MCP（Model Context Protocol）サーバー**。Claude Desktop
 pnpm --filter @md-business/mcp-server build
 ```
 
-`dist/bin.js` が生成される。
+`dist/bin.js`（stdio モードの実行エントリ）が生成される。
+
+デスクトップアプリへ同梱する単一ファイルは別コマンドで作る。
+
+```bash
+pnpm --filter @md-business/mcp-server bundle
+```
+
+`dist-sidecar/sidecar.cjs` が生成される（依存を内包した 1 ファイル。配布物に
+node_modules を含めずに済ませるため）。
 
 ## Claude Desktop への接続
 
@@ -56,6 +65,30 @@ Claude Desktop を再起動すると、md-business の 6 ツールが利用可�
 
 指定 root の外へのアクセスは拒否される（多重防御）。
 
+## HTTP モード（アプリ組み込み）
+
+デスクトップアプリは `dist-sidecar/sidecar.cjs` を子プロセスとして起動し、AI
+クライアントは `http://127.0.0.1:<port>/mcp` へ bearer トークン付きで接続する。
+
+```bash
+node dist-sidecar/sidecar.cjs <workspace>
+```
+
+このモードでは MCP 本体が HTTP に乗るため、stdin / stdout は親プロセスとの制御
+チャネルとして使う（改行区切りの JSON、1 行 1 メッセージ）。
+
+| 向き | 種別 | 内容 |
+|---|---|---|
+| 子 → 親 | `ready` | `url` / `port` / `token` / `root`。listen 完了後に 1 度だけ |
+| 子 → 親 | `log` | ツール実行 1 件の記録（ツール名・相対パス・成否・時刻） |
+| 子 → 親 | `root` | `set-root` を受理し、解決した root を返す |
+| 子 → 親 | `error` | 制御行の解釈失敗など。サーバー本体は動き続ける |
+| 親 → 子 | `set-root` | ワークスペース root の差し替え |
+
+トークンは起動ごとにサイドカー自身が発行する。外から与える経路を持たないため、
+子プロセスの stdout を読める親だけが接続先を知れる。stdin が閉じるとサイドカーは
+自分で終了するので、親が落ちても孤児プロセスは残らない。
+
 ## 動作確認（手動スモーク）
 
 ビルド後、stdio で initialize + tools/list ハンドシェイクを流す:
@@ -76,7 +109,7 @@ printf '%s\n' \
 pnpm --filter @md-business/mcp-server test:run
 ```
 
-決定ロジック（diff / search / registry / tools / workspacePath）は純関数として単体テスト、SDK 配線は `InMemoryTransport` + `Client` で end-to-end 検証する。
+決定ロジック（diff / search / registry / tools / workspacePath / control）は純関数として単体テスト、SDK 配線は `InMemoryTransport` + `Client` で end-to-end 検証する。バンドル済みサイドカーは実際に子プロセスとして起動するスモークテストで確認する（依存の取りこぼしや CJS/ESM の食い違いは単体テストでは出ないため）。
 
 ## 設計メモ
 

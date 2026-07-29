@@ -110,6 +110,20 @@ export interface Messages {
   'panel.collapse': string;
   'panel.expand': string;
   'panel.hint': string;
+  // MCP タブ（組み込みサーバーの接続状態・操作ログ）
+  'mcp.starting': string;
+  'mcp.copyToken': string;
+  'mcp.copied': string;
+  'mcp.logsEmpty': string;
+  'mcp.logsDisabled': string;
+  'mcp.reason.sidecarMissing': string;
+  'mcp.reason.nodeMissing': string;
+  'mcp.reason.spawnFailed': string;
+  'mcp.reason.noOutput': string;
+  'mcp.reason.exitedEarly': string;
+  'mcp.reason.serverError': string;
+  'mcp.reason.statusUnreadable': string;
+  'mcp.reason.unknown': string;
   // ヘルプポップオーバー
   'help.title': string;
   'help.desktopEdition': string;
@@ -243,6 +257,19 @@ const en: Messages = {
   'panel.collapse': 'Collapse panel',
   'panel.expand': 'Open panel',
   'panel.hint': 'Git diff, AI, and MCP logs\nwill appear in a later phase',
+  'mcp.starting': 'Starting…',
+  'mcp.copyToken': 'Copy access token',
+  'mcp.copied': 'Token copied',
+  'mcp.logsEmpty': 'Actions from your AI client will appear here',
+  'mcp.logsDisabled': 'The server is not running, so no actions are recorded',
+  'mcp.reason.sidecarMissing': 'MCP server files were not found',
+  'mcp.reason.nodeMissing': 'Node was not found. Install Node to enable MCP',
+  'mcp.reason.spawnFailed': 'The MCP server could not be started',
+  'mcp.reason.noOutput': 'No output could be read from the MCP server',
+  'mcp.reason.exitedEarly': 'The MCP server stopped before it was ready',
+  'mcp.reason.serverError': 'The MCP server reported an error',
+  'mcp.reason.statusUnreadable': 'The MCP status could not be read',
+  'mcp.reason.unknown': 'Unavailable',
   'help.title': 'Help & version info',
   'help.desktopEdition': 'Desktop edition',
   'help.checkUpdate': 'Check for updates',
@@ -370,6 +397,19 @@ const ja: Messages = {
   'panel.collapse': 'パネルを畳む',
   'panel.expand': 'パネルを開く',
   'panel.hint': 'Git 差分・AI・MCP ログは\n後続フェーズで表示されます',
+  'mcp.starting': '起動中…',
+  'mcp.copyToken': '接続トークンを写す',
+  'mcp.copied': 'トークンを写しました',
+  'mcp.logsEmpty': 'AI からの操作がここに並びます',
+  'mcp.logsDisabled': 'サーバーが動いていないため操作は記録されません',
+  'mcp.reason.sidecarMissing': 'MCP サーバー本体が見つかりません',
+  'mcp.reason.nodeMissing': 'Node が見つかりません。Node を入れると MCP 連携が使えます',
+  'mcp.reason.spawnFailed': 'MCP サーバーを起動できませんでした',
+  'mcp.reason.noOutput': 'MCP サーバーの出力を受け取れません',
+  'mcp.reason.exitedEarly': 'MCP サーバーが接続可能になる前に終了しました',
+  'mcp.reason.serverError': 'MCP サーバーがエラーを報告しました',
+  'mcp.reason.statusUnreadable': 'MCP の状態を取得できません',
+  'mcp.reason.unknown': '利用できません',
   'help.title': 'ヘルプ・バージョン情報',
   'help.desktopEdition': 'デスクトップ版',
   'help.checkUpdate': '更新を確認',
@@ -497,6 +537,19 @@ const zh: Messages = {
   'panel.collapse': '折叠面板',
   'panel.expand': '打开面板',
   'panel.hint': 'Git 差异、AI、MCP 日志\n将在后续阶段显示',
+  'mcp.starting': '启动中…',
+  'mcp.copyToken': '复制连接令牌',
+  'mcp.copied': '已复制令牌',
+  'mcp.logsEmpty': 'AI 的操作将显示在这里',
+  'mcp.logsDisabled': '服务器未运行，因此不会记录操作',
+  'mcp.reason.sidecarMissing': '未找到 MCP 服务器本体',
+  'mcp.reason.nodeMissing': '未找到 Node。安装 Node 后即可使用 MCP',
+  'mcp.reason.spawnFailed': '无法启动 MCP 服务器',
+  'mcp.reason.noOutput': '无法读取 MCP 服务器的输出',
+  'mcp.reason.exitedEarly': 'MCP 服务器在就绪前已退出',
+  'mcp.reason.serverError': 'MCP 服务器报告了错误',
+  'mcp.reason.statusUnreadable': '无法获取 MCP 的状态',
+  'mcp.reason.unknown': '不可用',
   'help.title': '帮助・版本信息',
   'help.desktopEdition': '桌面版',
   'help.checkUpdate': '检查更新',
@@ -624,6 +677,19 @@ const ko: Messages = {
   'panel.collapse': '패널 접기',
   'panel.expand': '패널 열기',
   'panel.hint': 'Git 차이・AI・MCP 로그는\n다음 단계에서 표시됩니다',
+  'mcp.starting': '시작 중…',
+  'mcp.copyToken': '접속 토큰 복사',
+  'mcp.copied': '토큰을 복사했습니다',
+  'mcp.logsEmpty': 'AI 의 작업이 여기에 표시됩니다',
+  'mcp.logsDisabled': '서버가 실행 중이 아니므로 작업이 기록되지 않습니다',
+  'mcp.reason.sidecarMissing': 'MCP 서버 본체를 찾을 수 없습니다',
+  'mcp.reason.nodeMissing': 'Node 를 찾을 수 없습니다. Node 를 설치하면 MCP 를 사용할 수 있습니다',
+  'mcp.reason.spawnFailed': 'MCP 서버를 시작할 수 없었습니다',
+  'mcp.reason.noOutput': 'MCP 서버의 출력을 읽을 수 없습니다',
+  'mcp.reason.exitedEarly': 'MCP 서버가 준비되기 전에 종료되었습니다',
+  'mcp.reason.serverError': 'MCP 서버가 오류를 보고했습니다',
+  'mcp.reason.statusUnreadable': 'MCP 상태를 가져올 수 없습니다',
+  'mcp.reason.unknown': '사용할 수 없습니다',
   'help.title': '도움말・버전 정보',
   'help.desktopEdition': '데스크톱 버전',
   'help.checkUpdate': '업데이트 확인',

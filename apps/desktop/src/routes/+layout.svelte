@@ -22,6 +22,7 @@
   import SidePanel from '$lib/components/SidePanel.svelte';
   import UpdateDialog from '$lib/update/UpdateDialog.svelte';
   import { updater } from '$lib/update/updater.svelte';
+  import { mcp } from '$lib/mcp/mcp.svelte';
   import {
     DEFAULT_FILETREE_W,
     MIN_FILETREE_W,
@@ -182,12 +183,18 @@
     }).then((fn) => {
       unlisten = fn;
     });
+    // 組み込み MCP サーバーの状態と操作ログの受信を開始する（未起動でも状態が届くだけ）。
+    let unlistenMcp: (() => void) | undefined;
+    void mcp.init().then((fn) => {
+      unlistenMcp = fn;
+    });
     // 起動時の自動アップデート確認。起動直後の復元処理と競合させないよう少し遅らせ、
     // 更新があるときだけダイアログを出す（最新 / 失敗時は沈黙）。
     const t = setTimeout(() => void updater.autoCheck(), 3000);
     return () => {
       clearTimeout(t);
       unlisten?.();
+      unlistenMcp?.();
     };
   });
 </script>

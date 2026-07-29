@@ -38,3 +38,24 @@ export {
 export type { SearchQuery, SearchMatch, SearchDocumentsOk } from './search.js';
 
 export { createServer, SERVER_NAME, SERVER_VERSION } from './server.js';
+
+export { startHttpServer } from './httpServer.js';
+export type { StartHttpServerOptions, HttpServerHandle } from './httpServer.js';
+export { parseBearerToken, isAuthorized } from './httpAuth.js';
+
+export { buildToolLogEntry } from './toolLog.js';
+export type { ToolLogEntry, ToolResultLike } from './toolLog.js';
+
+export { splitControlLines, parseControlLine, encodeSidecarEvent } from './control.js';
+export type {
+  ControlCommand,
+  SetRootCommand,
+  ControlLineResult,
+  SidecarEvent,
+  ReadyEvent,
+  RootEvent,
+  ErrorEvent,
+} from './control.js';
+
+export { startSidecar } from './sidecar.js';
+export type { StartSidecarOptions, SidecarHandle, SidecarIo } from './sidecar.js';

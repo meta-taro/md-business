@@ -47,9 +47,10 @@
     <li><a href="#pdf">7. PDF を出力する</a></li>
     <li><a href="#git">8. Git で変更を管理する</a></li>
     <li><a href="#layout">9. レイアウトとテーマ</a></li>
-    <li><a href="#update">10. アプリを更新する</a></li>
-    <li><a href="#shortcuts">11. キーボードショートカット</a></li>
-    <li><a href="#trouble">12. 困ったときは</a></li>
+    <li><a href="#mcp">10. AI アシスタントとつなぐ（MCP）</a></li>
+    <li><a href="#update">11. アプリを更新する</a></li>
+    <li><a href="#shortcuts">12. キーボードショートカット</a></li>
+    <li><a href="#trouble">13. 困ったときは</a></li>
   </ul>
 </section>
 
@@ -214,8 +215,35 @@
   </ul>
 </section>
 
+<section id="mcp">
+  <h2>10. AI アシスタントとつなぐ（MCP）</h2>
+  <p>
+    アプリは起動と同時に、この PC の中だけで動く <strong>MCP サーバー</strong>を内蔵で立ち上げます。AI
+    アシスタント（Claude Desktop など）をつなぐと、いま開いているフォルダの業務文書をアシスタントが
+    読み書きできるようになります。
+  </p>
+  <ul>
+    <li>右のサイドパネルを開き、<strong><code>MCP</code> タブ</strong>を選びます。</li>
+    <li>接続先の <strong>URL</strong>（<code>http://127.0.0.1:<em>ポート</em>/mcp</code>）が表示されます。</li>
+    <li><strong>「接続トークンを写す」</strong>を押してトークンを取得します。</li>
+    <li>AI アシスタント側に、HTTP 型の MCP サーバーとして URL とトークンを登録します。ヘッダーは
+      <code>Authorization: Bearer <em>トークン</em></code> です。</li>
+  </ul>
+  <p>
+    <strong>ポートとトークンはアプリを起動するたびに変わります。</strong>つなぎ直すときは MCP タブの値を
+    取り直してください。サーバーはこの PC のループバック（<code>127.0.0.1</code>）だけを受け付け、トークンが
+    一致しない要求は拒否するため、外部から届くことはありません。アシスタントが触れる範囲も
+    <strong>アプリで開いているフォルダの中だけ</strong>で、フォルダを切り替えると追従します。実行された操作は
+    MCP タブに履歴として残るので、何が読み書きされたかを後から確認できます。
+  </p>
+  <p>
+    MCP は付加機能です。動かせない環境（Node ランタイムが見つからない場合など）でもアプリの他の機能は
+    通常どおり使えます。その場合は MCP タブに理由が表示されます。
+  </p>
+</section>
+
 <section id="update">
-  <h2>10. アプリを更新する</h2>
+  <h2>11. アプリを更新する</h2>
   <p>
     起動時に新しいバージョンを自動確認するほか、<strong>ヘルプ →「更新を確認」</strong>からいつでも確認できます。
     更新がある場合はダウンロード後に署名を検証してからその場で適用されるため、ダウンロードページから入れ直す
@@ -224,7 +252,7 @@
 </section>
 
 <section id="shortcuts">
-  <h2>11. キーボードショートカット</h2>
+  <h2>12. キーボードショートカット</h2>
   <table>
     <thead><tr><th>操作</th><th>Windows / Linux</th><th>macOS</th></tr></thead>
     <tbody>
@@ -256,7 +284,7 @@
 </section>
 
 <section id="trouble">
-  <h2>12. 困ったときは</h2>
+  <h2>13. 困ったときは</h2>
 
   <h3>初回起動で「発行元不明」の警告が出る</h3>
   <p>

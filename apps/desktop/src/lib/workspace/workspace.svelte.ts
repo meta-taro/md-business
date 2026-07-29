@@ -312,6 +312,8 @@ class WorkspaceStore {
       // 外部（AI/CLI/他エディタ）編集の即時検知を開始する。旧 watcher は Rust 側で張り替える
       // ので再走査でも安全。監視の失敗は起動をブロックしない（検知が来なくなるだけの劣化）。
       this.startWatch(root);
+      // 組み込み MCP サーバーの作業対象も同じフォルダへ揃える（未起動なら何も起きない）。
+      this.syncMcpRoot(root);
       // 開いたフォルダの git 状態とブランチ一覧を取得（非リポジトリでも無害・fire-and-forget）。
       void git.refresh(root);
       void git.loadBranches(root);
@@ -374,6 +376,14 @@ class WorkspaceStore {
    */
   private startWatch(root: string): void {
     void invoke('watch_workspace', { root }).catch(() => undefined);
+  }
+
+  /**
+   * 組み込み MCP サーバーの作業対象フォルダを追従させる（fire-and-forget）。
+   * サーバーが起動していない環境では何も起きず、フォルダを開く操作自体は成功する。
+   */
+  private syncMcpRoot(root: string): void {
+    void invoke('mcp_set_root', { root }).catch(() => undefined);
   }
 
   /**

@@ -20,10 +20,19 @@ import {
 import type { UpdateDocumentInput } from './tools.js';
 import { searchDocuments } from './search.js';
 import type { SearchQuery } from './search.js';
+import { buildToolLogEntry, type ToolLogEntry, type ToolResultLike } from './toolLog.js';
 
 /** MCP クライアントへ提示するサーバー名 / バージョン（プロトコル上の識別子）。 */
 export const SERVER_NAME = 'md-business';
 export const SERVER_VERSION = '0.1.0';
+
+/** createServer の任意設定。ツール実行のたびに操作ログを受け取れるようにする。 */
+export interface CreateServerOptions {
+  /** ツール実行 1 件ごとに呼ばれる（HTTP モードでは stdout へ、UI では emit へ流す）。 */
+  onLog?: (entry: ToolLogEntry) => void;
+  /** ログの時刻源。テストで固定できるよう注入可能にする（既定は実時刻）。 */
+  now?: () => number;
+}
 
 /** 任意ペイロードを MCP のテキスト結果へ包む。ToolError 相当は isError で明示する。 */
 function jsonResult(payload: unknown, isError = false) {
@@ -40,8 +49,16 @@ const frontmatterShape = z.record(z.string(), z.unknown());
  * ツール一式を登録した McpServer を組み立てて返す。connect は呼び出し側の責務
  *（テストは InMemoryTransport、本番は StdioServerTransport）。
  */
-export function createServer(store: DocumentStore): McpServer {
+export function createServer(store: DocumentStore, options: CreateServerOptions = {}): McpServer {
   const server = new McpServer({ name: SERVER_NAME, version: SERVER_VERSION });
+  const { onLog, now = () => Date.now() } = options;
+
+  // ツール実行の直後に 1 件ログを流す。onLog 未指定なら完全に no-op（既存の挙動不変）。
+  // argPath は失敗時にパスを拾うためのフォールバック（成功結果は自前の path を持つ）。
+  const emit = (tool: string, argPath: string | undefined, result: ToolResultLike): void => {
+    if (onLog === undefined) return;
+    onLog(buildToolLogEntry(tool, result, argPath, now()));
+  };
 
   server.registerTool(
     'list_schemas',
@@ -50,7 +67,10 @@ export function createServer(store: DocumentStore): McpServer {
         '扱える業務文書スキーマの一覧（id + 日本語ラベル）を返す。create_document の schema 指定前に確認する。',
       inputSchema: {},
     },
-    async () => jsonResult({ schemas: listSchemas() }),
+    async () => {
+      emit('list_schemas', undefined, { ok: true });
+      return jsonResult({ schemas: listSchemas() });
+    },
   );
 
   server.registerTool(
@@ -62,6 +82,7 @@ export function createServer(store: DocumentStore): McpServer {
     },
     async ({ path }) => {
       const r = await readDocument(store, path);
+      emit('read_document', path, r);
       return jsonResult(r, !r.ok);
     },
   );
@@ -75,6 +96,7 @@ export function createServer(store: DocumentStore): McpServer {
     },
     async ({ path }) => {
       const r = await validateDocument(store, path);
+      emit('validate_document', path, r);
       return jsonResult(r, !r.ok);
     },
   );
@@ -93,6 +115,7 @@ export function createServer(store: DocumentStore): McpServer {
     },
     async ({ schema, frontmatter, body, path }) => {
       const r = await createDocument(store, { schema, frontmatter, body, path });
+      emit('create_document', path, r);
       return jsonResult(r, !r.ok);
     },
   );
@@ -114,6 +137,7 @@ export function createServer(store: DocumentStore): McpServer {
       if (frontmatter !== undefined) input.frontmatter = frontmatter;
       if (body !== undefined) input.body = body;
       const r = await updateDocument(store, input);
+      emit('update_document', path, r);
       return jsonResult(r, !r.ok);
     },
   );
@@ -138,6 +162,7 @@ export function createServer(store: DocumentStore): McpServer {
       if (dateFrom !== undefined) sq.dateFrom = dateFrom;
       if (dateTo !== undefined) sq.dateTo = dateTo;
       const r = await searchDocuments(store, sq);
+      emit('search_documents', undefined, { ok: true });
       return jsonResult(r);
     },
   );

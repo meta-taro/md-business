@@ -6,7 +6,7 @@ export default defineConfig({
       provider: 'v8',
       reporter: ['text', 'html'],
       include: ['src/**/*.ts'],
-      exclude: ['src/**/*.d.ts', 'src/index.ts', 'src/types.ts', 'src/bin.ts'],
+      exclude: ['src/**/*.d.ts', 'src/index.ts', 'src/types.ts', 'src/bin.ts', 'src/binSidecar.ts'],
       thresholds: {
         lines: 80,
         functions: 80,

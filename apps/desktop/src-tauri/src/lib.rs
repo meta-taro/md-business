@@ -1,4 +1,6 @@
 mod git;
+mod mcp;
+mod mcp_logic;
 mod watch;
 mod watch_logic;
 mod workspace;
@@ -16,11 +18,15 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         // ファイル監視の実行時状態（watcher ハンドル / 自己書き込み記録 / 監視ルート）。
         .manage(watch::WatchState::default())
+        // 組み込み MCP サーバー（サイドカー）の実行時状態。
+        .manage(mcp::McpRuntime::default())
         .setup(|app| {
             // 自動アップデータはデスクトップのみ対応。AppHandle 確定後に登録する。
             #[cfg(desktop)]
             app.handle()
                 .plugin(tauri_plugin_updater::Builder::new().build())?;
+            // MCP は付加機能。起動に失敗しても劣化表示に留め、setup は成功させる。
+            mcp::start(app.handle());
             Ok(())
         })
         // 文書ツリーの走査 / 読込 / 書込コマンド（設計書 §5）。
@@ -40,8 +46,16 @@ pub fn run() {
             git::git_push,
             git::git_pull,
             git::git_diff,
-            git::forge_file_url
+            git::forge_file_url,
+            mcp::mcp_status,
+            mcp::mcp_set_root
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while running tauri application")
+        .run(|app, event| {
+            // 終了時にサイドカーを畳む。放置すると子プロセスが孤児として残りうる。
+            if let tauri::RunEvent::Exit = event {
+                mcp::shutdown(app);
+            }
+        });
 }
