@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { mkdtemp, rm, mkdir, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 import { FileDocumentStore } from './fileStore.js';
 
 /**
@@ -52,5 +52,55 @@ describe('FileDocumentStore', () => {
     const store = new FileDocumentStore(root);
     await expect(store.read('../escape.md')).rejects.toThrow();
     await expect(store.write('../escape.md', 'x')).rejects.toThrow();
+  });
+});
+
+/**
+ * アプリのフォルダ切り替えに追従するため、root は生成後に差し替えられる。
+ * HTTP サーバーは store インスタンスを掴んだままなので、差し替えは同一インスタンス
+ * 上で起きる必要がある（新しい store に作り替えると参照が古いままになる）。
+ */
+describe('FileDocumentStore — root の差し替え', () => {
+  let first: string;
+  let second: string;
+
+  beforeEach(async () => {
+    first = await mkdtemp(join(tmpdir(), 'mdbiz-root-a-'));
+    second = await mkdtemp(join(tmpdir(), 'mdbiz-root-b-'));
+  });
+
+  afterEach(async () => {
+    await rm(first, { recursive: true, force: true });
+    await rm(second, { recursive: true, force: true });
+  });
+
+  it('差し替え後は新しい root を読み書きする', async () => {
+    const store = new FileDocumentStore(first);
+    await store.write('a.md', '旧');
+    store.setRoot(second);
+
+    expect(await store.exists('a.md')).toBe(false);
+    await store.write('a.md', '新');
+    expect(await store.read('a.md')).toBe('新');
+    expect(await store.list()).toEqual(['a.md']);
+  });
+
+  it('同じインスタンスのまま root だけが変わる', async () => {
+    const store = new FileDocumentStore(first);
+    const held = store;
+    store.setRoot(second);
+    expect(held.getRoot()).toBe(resolve(second));
+  });
+
+  it('相対パス指定の root を絶対パスへ解決する', () => {
+    const store = new FileDocumentStore(first);
+    store.setRoot('.');
+    expect(store.getRoot()).toBe(resolve('.'));
+  });
+
+  it('差し替え後も root 逸脱を拒否する', async () => {
+    const store = new FileDocumentStore(first);
+    store.setRoot(second);
+    await expect(store.read('../outside.md')).rejects.toThrow(/ワークスペース外/);
   });
 });

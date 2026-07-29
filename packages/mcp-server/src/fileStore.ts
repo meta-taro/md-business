@@ -10,10 +10,24 @@ import { join, resolve, dirname, relative, sep } from 'node:path';
 import type { DocumentStore } from './store.js';
 
 export class FileDocumentStore implements DocumentStore {
-  private readonly root: string;
+  private root: string;
 
   constructor(rootDir: string) {
     this.root = resolve(rootDir);
+  }
+
+  /**
+   * ワークスペース root を差し替える。
+   *
+   * サーバーは起動時に掴んだ store インスタンスを持ち続けるので、フォルダ切り替えは
+   * 新しい store を作るのではなく、この場で root を書き換えて追従させる。
+   */
+  setRoot(rootDir: string): void {
+    this.root = resolve(rootDir);
+  }
+
+  getRoot(): string {
+    return this.root;
   }
 
   /** 相対パスを root 配下の絶対パスへ解決し、root 逸脱なら例外を投げる。 */
