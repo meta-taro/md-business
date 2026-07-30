@@ -88,11 +88,12 @@ function parse(result: CallToolResult): { text: unknown; isError: boolean } {
 }
 
 describe('createServer / MCP 配線', () => {
-  it('list_tools で 6 つの P0 ツールを公開する', async () => {
+  it('list_tools で P0 ツール一式を公開する', async () => {
     const client = await connect(new MemoryDocumentStore());
     const { tools } = await client.listTools();
     expect(tools.map((t) => t.name).sort()).toEqual([
       'create_document',
+      'get_schema',
       'list_schemas',
       'read_document',
       'search_documents',
@@ -107,6 +108,39 @@ describe('createServer / MCP 配線', () => {
     const { text, isError } = parse(res as CallToolResult);
     expect(isError).toBe(false);
     expect((text as { schemas: unknown[] }).schemas).toHaveLength(6);
+  });
+
+  // list_schemas は id と表示名しか返さないので、エージェントは「どの項目が必須か」を
+  // 知らないまま create_document を撃つしかなかった。get_schema はその手前に置く。
+  it('get_schema は JSON Schema 本体を返す', async () => {
+    const client = await connect(new MemoryDocumentStore());
+    const res = await client.callTool({
+      name: 'get_schema',
+      arguments: { schema: 'invoice/v1' },
+    });
+    const { text, isError } = parse(res as CallToolResult);
+    expect(isError).toBe(false);
+    const payload = text as { ok: boolean; id: string; label: string; schema: object };
+    expect(payload.ok).toBe(true);
+    expect(payload.id).toBe('invoice/v1');
+    expect(payload.label.length).toBeGreaterThan(0);
+    expect(payload.schema).toHaveProperty('properties');
+    // 実際に必須項目が読める＝create_document の前段として機能する
+    expect((payload.schema as { required?: string[] }).required).toContain('invoiceNumber');
+  });
+
+  it('get_schema は未知 id を isError で返す', async () => {
+    const client = await connect(new MemoryDocumentStore());
+    const res = await client.callTool({
+      name: 'get_schema',
+      arguments: { schema: 'unknown/v9' },
+    });
+    const { text, isError } = parse(res as CallToolResult);
+    expect(isError).toBe(true);
+    const payload = text as { ok: boolean; error: string };
+    expect(payload.ok).toBe(false);
+    // 次の一手（list_schemas）へ誘導する
+    expect(payload.error).toContain('list_schemas');
   });
 
   it('create_document → read_document → validate_document が往復する', async () => {
@@ -227,6 +261,16 @@ describe('createServer / onLog フック', () => {
     const { client, logs } = await connectWithLog(new MemoryDocumentStore());
     await client.callTool({ name: 'list_schemas', arguments: {} });
     expect(logs).toEqual([{ type: 'log', tool: 'list_schemas', ok: true, ts: 12345 }]);
+  });
+
+  it('get_schema は未知 id で ok=false・detail 付きのログを発火する', async () => {
+    const { client, logs } = await connectWithLog(new MemoryDocumentStore());
+    await client.callTool({ name: 'get_schema', arguments: { schema: 'unknown/v9' } });
+    expect(logs).toHaveLength(1);
+    expect(logs[0]?.tool).toBe('get_schema');
+    expect(logs[0]?.ok).toBe(false);
+    expect(logs[0]?.path).toBeUndefined();
+    expect(typeof logs[0]?.detail).toBe('string');
   });
 
   it('onLog 未指定でもツールは通常どおり動く（発火は完全に no-op）', async () => {

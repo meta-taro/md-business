@@ -9,6 +9,7 @@ md-business の **MCP（Model Context Protocol）サーバー**。Claude Desktop
 | ツール | 役割 |
 |---|---|
 | `list_schemas` | 扱える業務文書スキーマの一覧（id + 日本語ラベル）を返す |
+| `get_schema` | スキーマ id を指定して JSON Schema 本体（必須項目・型・選択肢）を返す |
 | `read_document` | 相対パスの文書を読み、frontmatter / body / 検出スキーマを返す |
 | `validate_document` | 既存文書を宣言スキーマで JSON Schema 検証（schema 未宣言は invalid 扱い） |
 | `create_document` | 構造化 frontmatter + 本文から新規作成。schema 宣言キーを種別ごとに自動注入。既存パスは上書きしない |

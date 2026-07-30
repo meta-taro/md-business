@@ -47,7 +47,8 @@ describe('startHttpServer / HTTP モード', () => {
     handle = await startHttpServer({ store: new MemoryDocumentStore(), token: TOKEN });
     const client = await connect(handle.url, TOKEN);
     const { tools } = await client.listTools();
-    expect(tools).toHaveLength(6);
+    // 何本あるかは server.test.ts が見る。ここは HTTP 越しに同じサーバーが繋がることだけ。
+    expect(tools.map((t) => t.name)).toContain('list_schemas');
   });
 
   it('ツール実行が onLog へ流れる', async () => {

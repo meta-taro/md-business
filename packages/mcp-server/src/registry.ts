@@ -183,6 +183,28 @@ export function resolveSchema(id: string): SchemaEntry | null {
   return BY_ID.get(id) ?? null;
 }
 
+/** get_schema が返す 1 スキーマの定義（そのまま JSON 化できる形に絞る）。 */
+export interface SchemaDefinition {
+  id: string;
+  label: string;
+  /** JSON Schema 本体。必須項目・型・enum をエージェントがそのまま読める。 */
+  schema: object;
+}
+
+/**
+ * schema id から JSON Schema 定義を返す。未知は null。
+ *
+ * {@link listSchemas} は id と表示名しか返さないので、それだけでは「どの項目が必須か」
+ * が分からないまま文書を組み立てることになる。ここで JSON Schema 本体を渡すことで、
+ * 作成 → 検証エラー → 直す、の往復を 1 回減らせる。
+ * validate 関数は JSON 化できないので、載せるのは id / label / schema だけ。
+ */
+export function getSchemaDefinition(id: string): SchemaDefinition | null {
+  const entry = resolveSchema(id.trim());
+  if (entry === null) return null;
+  return { id: entry.id, label: entry.label, schema: entry.schema };
+}
+
 /**
  * schema 宣言に使われうる frontmatter キー（先頭優先）。
  * canonical は種別で割れる（invoice/spec は `schemaVersion`、test-spec/db/nosql/api は

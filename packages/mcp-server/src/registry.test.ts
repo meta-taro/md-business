@@ -5,7 +5,13 @@ import { SCHEMA_VERSION as TEST_SPEC_V } from '@md-business/schema-test-spec';
 import { SCHEMA_VERSION as DB_SPEC_V } from '@md-business/schema-db-spec';
 import { SCHEMA_VERSION as NOSQL_V } from '@md-business/schema-nosql-db-spec';
 import { SCHEMA_VERSION as API_V } from '@md-business/schema-api-spec';
-import { SCHEMA_REGISTRY, listSchemas, resolveSchema, detectSchemaId } from './registry.js';
+import {
+  SCHEMA_REGISTRY,
+  listSchemas,
+  resolveSchema,
+  getSchemaDefinition,
+  detectSchemaId,
+} from './registry.js';
 
 /**
  * MCP スキーマ・レジストリ。6 スキーマパッケージを wrap し、
@@ -62,6 +68,31 @@ describe('resolveSchema', () => {
   it('未知 id は null', () => {
     expect(resolveSchema('unknown/v9')).toBeNull();
     expect(resolveSchema('')).toBeNull();
+  });
+});
+
+describe('getSchemaDefinition', () => {
+  it('既知 id の JSON Schema 本体をラベル付きで返す', () => {
+    const def = getSchemaDefinition(INVOICE_V);
+    expect(def?.id).toBe(INVOICE_V);
+    expect(def?.label.length).toBeGreaterThan(0);
+    // JSON Schema そのもの（properties を持つ）が返る＝エージェントが項目を読める
+    expect(def?.schema).toHaveProperty('properties');
+  });
+
+  it('validator 本体は載せない（JSON 化できる形だけを返す）', () => {
+    const def = getSchemaDefinition(SPEC_V);
+    expect(def).not.toHaveProperty('validate');
+    expect(() => JSON.stringify(def)).not.toThrow();
+  });
+
+  it('前後空白を除いて照合する', () => {
+    expect(getSchemaDefinition(`  ${TEST_SPEC_V}  `)?.id).toBe(TEST_SPEC_V);
+  });
+
+  it('未知 id は null', () => {
+    expect(getSchemaDefinition('unknown/v9')).toBeNull();
+    expect(getSchemaDefinition('')).toBeNull();
   });
 });
 

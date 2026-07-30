@@ -10,7 +10,7 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import type { DocumentStore } from './store.js';
-import { listSchemas } from './registry.js';
+import { listSchemas, getSchemaDefinition } from './registry.js';
 import {
   readDocument,
   validateDocument,
@@ -70,6 +70,30 @@ export function createServer(store: DocumentStore, options: CreateServerOptions 
     async () => {
       emit('list_schemas', undefined, { ok: true });
       return jsonResult({ schemas: listSchemas() });
+    },
+  );
+
+  server.registerTool(
+    'get_schema',
+    {
+      description:
+        'スキーマ id を指定して JSON Schema 本体を取得する。必須項目・型・選択肢を確認してから create_document / update_document を組み立てるために使う。',
+      inputSchema: {
+        schema: z.string().describe('スキーマ id（list_schemas 参照・例 invoice/v1）'),
+      },
+    },
+    async ({ schema }) => {
+      const def = getSchemaDefinition(schema);
+      if (def === null) {
+        const r = {
+          ok: false as const,
+          error: `未知のスキーマ id です: ${schema}（list_schemas で一覧を確認してください）`,
+        };
+        emit('get_schema', undefined, r);
+        return jsonResult(r, true);
+      }
+      emit('get_schema', undefined, { ok: true });
+      return jsonResult({ ok: true, ...def });
     },
   );
 
