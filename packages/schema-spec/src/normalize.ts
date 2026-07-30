@@ -1,3 +1,4 @@
+import { MAX_FRONTMATTER_DEPTH } from '@md-business/core';
 import {
   SPEC_JA_DICTIONARY,
   STATUS_TRANSLATIONS,
@@ -29,7 +30,7 @@ export function normalizeSpecFrontmatter(input: unknown): NormalizeResult {
   if (!isPlainObject(input)) {
     return { data: {}, warnings };
   }
-  const data = translateScope(input, 'root', '', warnings);
+  const data = translateScope(input, 'root', '', warnings, 1);
   return { data: data as Record<string, unknown>, warnings };
 }
 
@@ -38,10 +39,23 @@ function translateScope(
   scope: DictionaryScope,
   path: string,
   warnings: NormalizeWarning[],
+  depth: number,
 ): unknown {
+  // This function is exported through `normalizeSpecFrontmatter`, so callers
+  // can reach it without the parse entry point's structural check. Carry the
+  // value through untranslated once the nesting gets implausibly deep: the
+  // schema check that follows still rejects it, and this walk stays inside the
+  // call stack.
+  if (depth > MAX_FRONTMATTER_DEPTH) {
+    warnings.push({
+      path,
+      message: `Value is nested too deeply (limit ${MAX_FRONTMATTER_DEPTH}) and was left untranslated.`,
+    });
+    return value;
+  }
   if (Array.isArray(value)) {
     return value.map((entry, idx) =>
-      translateScope(entry, scope, `${path}[${idx}]`, warnings),
+      translateScope(entry, scope, `${path}[${idx}]`, warnings, depth + 1),
     );
   }
   if (!isPlainObject(value)) return value;
@@ -61,7 +75,7 @@ function translateScope(
     }
 
     const childScope = childScopeFor(scope, targetKey);
-    out[targetKey] = translateLeaf(targetKey, rawValue, childScope, childPath, warnings);
+    out[targetKey] = translateLeaf(targetKey, rawValue, childScope, childPath, warnings, depth);
   }
   return out;
 }
@@ -72,6 +86,7 @@ function translateLeaf(
   childScope: DictionaryScope | null,
   path: string,
   warnings: NormalizeWarning[],
+  depth: number,
 ): unknown {
   if (key === 'status' && typeof value === 'string') {
     return STATUS_TRANSLATIONS[value.trim()] ?? value.trim();
@@ -83,7 +98,7 @@ function translateLeaf(
     return THEME_VALUE_TRANSLATIONS[value.trim()] ?? value.trim();
   }
   if (childScope) {
-    return translateScope(value, childScope, path, warnings);
+    return translateScope(value, childScope, path, warnings, depth + 1);
   }
   return value;
 }

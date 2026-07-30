@@ -326,3 +326,22 @@ describe('normalizeDbSpecFrontmatter — pass-through unknown keys', () => {
     expect(data).toMatchObject({ 不明: 'x', title: 't' });
   });
 });
+
+// `normalizeDbSpecFrontmatter` is exported on its own, so it is reachable
+// without the parse entry point's depth check — the MCP tools call it directly
+// with caller-supplied JSON. The walk has to bound itself.
+describe('normalizeDbSpecFrontmatter — nesting depth', () => {
+  function nestArrays(levels: number): unknown {
+    let node: unknown = 'leaf';
+    for (let i = 0; i < levels; i += 1) node = [node];
+    return node;
+  }
+
+  it('stops descending past the depth limit instead of overflowing', () => {
+    let result: ReturnType<typeof normalizeDbSpecFrontmatter> | undefined;
+    expect(() => {
+      result = normalizeDbSpecFrontmatter({ テーブル: nestArrays(50_000) });
+    }).not.toThrow();
+    expect(result?.warnings.some((w) => /nested too deeply/i.test(w.message))).toBe(true);
+  });
+});

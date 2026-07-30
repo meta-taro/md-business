@@ -132,3 +132,22 @@ describe('normalizeInvoiceFrontmatter', () => {
     expect(data).toEqual(input);
   });
 });
+
+// `normalizeInvoiceFrontmatter` is exported on its own, so it is reachable
+// without the parse entry point's depth check — the MCP tools call it directly
+// with caller-supplied JSON. The walk has to bound itself.
+describe('normalizeInvoiceFrontmatter — nesting depth', () => {
+  function nestArrays(levels: number): unknown {
+    let node: unknown = 'leaf';
+    for (let i = 0; i < levels; i += 1) node = [node];
+    return node;
+  }
+
+  it('stops descending past the depth limit instead of overflowing', () => {
+    let result: ReturnType<typeof normalizeInvoiceFrontmatter> | undefined;
+    expect(() => {
+      result = normalizeInvoiceFrontmatter({ 明細: nestArrays(50_000) });
+    }).not.toThrow();
+    expect(result?.warnings.some((w) => /nested too deeply/i.test(w.message))).toBe(true);
+  });
+});
