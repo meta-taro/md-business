@@ -274,6 +274,13 @@
     refresh anything.
   </p>
   <p>
+    <strong>Test sheets are edited row by row.</strong> Ask for something like "mark row 3 as OK and fill in
+    today's date" and only that row changes — rows it did not touch stay exactly as they were, so your
+    history shows the edit and nothing else. Columns are addressed by name, so reordering them does not
+    change how you phrase the request. Values outside the allowed choices are still written, but you get
+    back which cells do not match the format, so you can leave a sheet half-filled and fix it later.
+  </p>
+  <p>
     The server only accepts loopback connections (<code>127.0.0.1</code>) and rejects requests whose token
     does not match, so nothing outside your machine can reach it. The assistant can only touch
     <strong>the folder you have open in the app</strong>, and it follows along when you switch folders.
