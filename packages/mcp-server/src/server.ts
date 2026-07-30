@@ -18,6 +18,7 @@ import {
   updateDocument,
 } from './tools.js';
 import type { UpdateDocumentInput } from './tools.js';
+import { readTsv, appendTsvRow, updateTsvRow } from './tsvTools.js';
 import { searchDocuments } from './search.js';
 import type { SearchQuery } from './search.js';
 import { buildToolLogEntry, type ToolLogEntry, type ToolResultLike } from './toolLog.js';
@@ -162,6 +163,59 @@ export function createServer(store: DocumentStore, options: CreateServerOptions 
       if (body !== undefined) input.body = body;
       const r = await updateDocument(store, input);
       emit('update_document', path, r);
+      return jsonResult(r, !r.ok);
+    },
+  );
+
+  // 検証シートは Markdown ではなくカスタム TSV（1 レコード = 1 物理行）なので、
+  // read_document / update_document では扱えない。行単位の 3 本を別に用意する。
+  server.registerTool(
+    'read_tsv',
+    {
+      description:
+        '検証シート（カスタム TSV）を読み、メタ情報・列定義（型 / 必須 / 選択肢）・データ行・列型の検証結果を返す。行を書き込む前に列名を確認するために使う。',
+      inputSchema: { path: z.string().describe('ワークスペース相対パス（例 sheets/受注.tsv）') },
+    },
+    async ({ path }) => {
+      const r = await readTsv(store, path);
+      emit('read_tsv', path, r);
+      return jsonResult(r, !r.ok);
+    },
+  );
+
+  server.registerTool(
+    'append_tsv_row',
+    {
+      description:
+        '検証シートの末尾に 1 行追加する。値は列名をキーに指定し、指定しなかった列は空セル（未入力）のまま残す。列型に反する値も書き込んだうえで issues として返す。',
+      inputSchema: {
+        path: z.string().describe('ワークスペース相対パス'),
+        values: z
+          .record(z.string(), z.string())
+          .describe('列名 → セル値（read_tsv の columns 参照・未指定列は空セル）'),
+      },
+    },
+    async ({ path, values }) => {
+      const r = await appendTsvRow(store, { path, values });
+      emit('append_tsv_row', path, r);
+      return jsonResult(r, !r.ok);
+    },
+  );
+
+  server.registerTool(
+    'update_tsv_row',
+    {
+      description:
+        '検証シートの既存 1 行のうち、指定した列だけを差し替える（他の列は据え置き）。空文字を渡すとそのセルを未入力へ戻す。',
+      inputSchema: {
+        path: z.string().describe('ワークスペース相対パス'),
+        row: z.number().int().describe('データ行の index（0 始まり・read_tsv の rows 基準）'),
+        values: z.record(z.string(), z.string()).describe('列名 → 差し替えるセル値'),
+      },
+    },
+    async ({ path, row, values }) => {
+      const r = await updateTsvRow(store, { path, row, values });
+      emit('update_tsv_row', path, r);
       return jsonResult(r, !r.ok);
     },
   );

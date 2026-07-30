@@ -59,6 +59,9 @@ totals:
 
 本文。`;
 
+/** 検証シートの最小 TSV（型付きヘッダ + データ 1 行）。 */
+const SHEET_TSV = 'No.:number\t項目!\t結果:enum(OK|NG)\n1\t新規登録\tOK\n';
+
 /** InMemoryTransport でサーバーへ繋いだ Client を返す。 */
 async function connect(store: MemoryDocumentStore): Promise<Client> {
   const server = createServer(store);
@@ -92,12 +95,15 @@ describe('createServer / MCP 配線', () => {
     const client = await connect(new MemoryDocumentStore());
     const { tools } = await client.listTools();
     expect(tools.map((t) => t.name).sort()).toEqual([
+      'append_tsv_row',
       'create_document',
       'get_schema',
       'list_schemas',
       'read_document',
+      'read_tsv',
       'search_documents',
       'update_document',
+      'update_tsv_row',
       'validate_document',
     ]);
   });
@@ -224,6 +230,86 @@ describe('createServer / MCP 配線', () => {
     expect(matches[0]?.path).toBe('invoices/ok.md');
   });
 
+  // 検証シートは Markdown ではなくカスタム TSV なので、read_document 系では触れない。
+  // 行単位ツールを通すことで「AI が検証シートに結果を書き込む」経路が繋がる。
+  it('read_tsv は列定義と行を返す', async () => {
+    const store = new MemoryDocumentStore();
+    await store.write('sheets/t.tsv', SHEET_TSV);
+    const client = await connect(store);
+    const res = (await client.callTool({
+      name: 'read_tsv',
+      arguments: { path: 'sheets/t.tsv' },
+    })) as CallToolResult;
+    const { text, isError } = parse(res);
+    expect(isError).toBe(false);
+    const payload = text as { ok: boolean; columns: Array<{ name: string }>; rows: string[][] };
+    expect(payload.ok).toBe(true);
+    expect(payload.columns.map((c) => c.name)).toEqual(['No.', '項目', '結果']);
+    expect(payload.rows).toHaveLength(1);
+  });
+
+  it('read_tsv は存在しないパスを isError で返す', async () => {
+    const client = await connect(new MemoryDocumentStore());
+    const res = (await client.callTool({
+      name: 'read_tsv',
+      arguments: { path: 'sheets/none.tsv' },
+    })) as CallToolResult;
+    expect(parse(res).isError).toBe(true);
+  });
+
+  it('append_tsv_row は列名指定で 1 行追加する', async () => {
+    const store = new MemoryDocumentStore();
+    await store.write('sheets/t.tsv', SHEET_TSV);
+    const client = await connect(store);
+    const res = (await client.callTool({
+      name: 'append_tsv_row',
+      arguments: { path: 'sheets/t.tsv', values: { 'No.': '2', 項目: '追加項目', 結果: 'OK' } },
+    })) as CallToolResult;
+    const { text, isError } = parse(res);
+    expect(isError).toBe(false);
+    const payload = text as { row: number; values: string[] };
+    expect(payload.row).toBe(1);
+    expect(payload.values).toEqual(['2', '追加項目', 'OK']);
+    expect(await store.read('sheets/t.tsv')).toContain('追加項目');
+  });
+
+  it('append_tsv_row は未知の列名を isError で返す', async () => {
+    const store = new MemoryDocumentStore();
+    await store.write('sheets/t.tsv', SHEET_TSV);
+    const client = await connect(store);
+    const res = (await client.callTool({
+      name: 'append_tsv_row',
+      arguments: { path: 'sheets/t.tsv', values: { 無い列: 'x' } },
+    })) as CallToolResult;
+    expect(parse(res).isError).toBe(true);
+    expect(await store.read('sheets/t.tsv')).toBe(SHEET_TSV);
+  });
+
+  it('update_tsv_row は指定列だけを差し替える', async () => {
+    const store = new MemoryDocumentStore();
+    await store.write('sheets/t.tsv', SHEET_TSV);
+    const client = await connect(store);
+    const res = (await client.callTool({
+      name: 'update_tsv_row',
+      arguments: { path: 'sheets/t.tsv', row: 0, values: { 結果: 'NG' } },
+    })) as CallToolResult;
+    const { text, isError } = parse(res);
+    expect(isError).toBe(false);
+    expect((text as { values: string[] }).values).toEqual(['1', '新規登録', 'NG']);
+  });
+
+  it('update_tsv_row は範囲外の行を isError で返す', async () => {
+    const store = new MemoryDocumentStore();
+    await store.write('sheets/t.tsv', SHEET_TSV);
+    const client = await connect(store);
+    const res = (await client.callTool({
+      name: 'update_tsv_row',
+      arguments: { path: 'sheets/t.tsv', row: 9, values: { 結果: 'NG' } },
+    })) as CallToolResult;
+    expect(parse(res).isError).toBe(true);
+    expect(await store.read('sheets/t.tsv')).toBe(SHEET_TSV);
+  });
+
   it('サーバー情報に名前が載る', async () => {
     const client = await connect(new MemoryDocumentStore());
     expect(client.getServerVersion()?.name).toBe(SERVER_NAME);
@@ -271,6 +357,23 @@ describe('createServer / onLog フック', () => {
     expect(logs[0]?.ok).toBe(false);
     expect(logs[0]?.path).toBeUndefined();
     expect(typeof logs[0]?.detail).toBe('string');
+  });
+
+  it('TSV 系ツールも path 付きでログを発火する', async () => {
+    const store = new MemoryDocumentStore();
+    await store.write('sheets/t.tsv', SHEET_TSV);
+    const logs: ToolLogEntry[] = [];
+    const server = createServer(store, { onLog: (e) => logs.push(e), now: () => 12345 });
+    const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+    const client = new Client({ name: 'test-client', version: '0.0.0' });
+    await Promise.all([client.connect(clientTransport), server.connect(serverTransport)]);
+    await client.callTool({
+      name: 'append_tsv_row',
+      arguments: { path: 'sheets/t.tsv', values: { 'No.': '2' } },
+    });
+    expect(logs).toEqual([
+      { type: 'log', tool: 'append_tsv_row', ok: true, ts: 12345, path: 'sheets/t.tsv' },
+    ]);
   });
 
   it('onLog 未指定でもツールは通常どおり動く（発火は完全に no-op）', async () => {

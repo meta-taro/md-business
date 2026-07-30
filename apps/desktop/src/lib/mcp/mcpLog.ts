@@ -178,5 +178,9 @@ export function fileChangeFromLog(entry: McpLogEntry): McpFileChange | null {
   // 作成はツリーの構造が変わる。更新は中身だけなので、開いているファイルだけが対象。
   if (entry.tool === 'create_document') return { relPath: entry.path, kind: 'rescan' };
   if (entry.tool === 'update_document') return { relPath: entry.path, kind: 'modified' };
+  // 検証シートの行追加・行更新も既存ファイルへの書き込み（新規作成はしない）。
+  if (entry.tool === 'append_tsv_row' || entry.tool === 'update_tsv_row') {
+    return { relPath: entry.path, kind: 'modified' };
+  }
   return null;
 }

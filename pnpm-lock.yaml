@@ -309,6 +309,9 @@ importers:
       '@md-business/schema-test-spec':
         specifier: workspace:*
         version: link:../schema-test-spec
+      '@md-business/schema-test-spec-tsv':
+        specifier: workspace:*
+        version: link:../schema-test-spec-tsv
       '@modelcontextprotocol/sdk':
         specifier: ^1.29.0
         version: 1.29.0(zod@4.4.3)

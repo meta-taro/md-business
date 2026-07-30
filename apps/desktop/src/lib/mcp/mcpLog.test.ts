@@ -243,8 +243,21 @@ describe('fileChangeFromLog', () => {
     });
   });
 
+  it('検証シートへの行追加・行更新も中身の変更として扱う', () => {
+    // TSV も書き込み系。ここを拾わないと、AI が書いた検証結果が開いたままの画面に出ない。
+    expect(fileChangeFromLog(log({ tool: 'append_tsv_row', path: 'sheets/t.tsv' }))).toEqual({
+      relPath: 'sheets/t.tsv',
+      kind: 'modified',
+    });
+    expect(fileChangeFromLog(log({ tool: 'update_tsv_row', path: 'sheets/t.tsv' }))).toEqual({
+      relPath: 'sheets/t.tsv',
+      kind: 'modified',
+    });
+  });
+
   it('読み取り系・失敗・パス無しは変化として扱わない', () => {
     expect(fileChangeFromLog(log({ tool: 'read_document', path: 'a.md' }))).toBeNull();
+    expect(fileChangeFromLog(log({ tool: 'read_tsv', path: 'sheets/t.tsv' }))).toBeNull();
     expect(fileChangeFromLog(log({ tool: 'search_documents' }))).toBeNull();
     expect(fileChangeFromLog(log({ tool: 'create_document', path: 'a.md', ok: false }))).toBeNull();
     expect(fileChangeFromLog(log({ tool: 'create_document' }))).toBeNull();

@@ -15,8 +15,15 @@ md-business の **MCP（Model Context Protocol）サーバー**。Claude Desktop
 | `create_document` | 構造化 frontmatter + 本文から新規作成。schema 宣言キーを種別ごとに自動注入。既存パスは上書きしない |
 | `update_document` | frontmatter（浅くマージ）／本文を更新。更新後スキーマで再検証し、更新前後の行 diff を返す |
 | `search_documents` | 全文クエリ・スキーマ・日付範囲で検索し、path / schema / title / date / 抜粋を返す |
+| `read_tsv` | 検証シート（カスタム TSV）のメタ情報・列定義（型 / 必須 / 選択肢）・データ行・列型の検証結果を返す |
+| `append_tsv_row` | 検証シートの末尾に 1 行追加。値は列名キーで指定し、未指定の列は空セルのまま |
+| `update_tsv_row` | 検証シートの既存 1 行のうち、指定した列だけを差し替える |
 
 対応スキーマ: `invoice/v1` / `spec/v1` / `test-spec/v1` / `db-spec/v1` / `nosql-db-spec/v1` / `api-spec/v1`。
+
+検証シートは Markdown ではなくカスタム TSV（1 レコード = 1 物理行）なので、`read_document` 系ではなく
+TSV 系ツールで扱う。行単位で書き込むため、触っていない行は差分に出ない。
+列型に反する値は書き込んだうえで `issues` として返す（記入途中の状態を許容するため）。
 
 > **`git_push` は MCP ツールとして提供しない**（push は人間が最終確認する運用のため）。
 > **secrets / API キーは MCP サーバーが受け取らない**（人間が直接投入する）。

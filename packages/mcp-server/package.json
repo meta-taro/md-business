@@ -30,6 +30,7 @@
     "@md-business/schema-nosql-db-spec": "workspace:*",
     "@md-business/schema-spec": "workspace:*",
     "@md-business/schema-test-spec": "workspace:*",
+    "@md-business/schema-test-spec-tsv": "workspace:*",
     "@modelcontextprotocol/sdk": "^1.29.0",
     "ajv": "^8.17.1",
     "ajv-formats": "^3.0.1",
