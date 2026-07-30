@@ -3,12 +3,16 @@ export {
   splitFrontmatter,
   MAX_FRONTMATTER_CHARS,
   MAX_YAML_ANCHORS,
+  MAX_YAML_ALIASES,
 } from './frontmatter.js';
 export {
   findDepthOverflow,
+  findStructureOverflow,
   depthValidationError,
   MAX_FRONTMATTER_DEPTH,
+  MAX_FRONTMATTER_NODES,
 } from './depth.js';
+export type { StructureOverflow, StructureLimits } from './depth.js';
 export { serializeMarkdown } from './serialize.js';
 export { buildDocument } from './buildDocument.js';
 export type { BuildDocumentInput, BuildDocumentResult } from './buildDocument.js';

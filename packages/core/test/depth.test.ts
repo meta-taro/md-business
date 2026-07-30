@@ -1,8 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import {
   findDepthOverflow,
+  findStructureOverflow,
   depthValidationError,
   MAX_FRONTMATTER_DEPTH,
+  MAX_FRONTMATTER_NODES,
 } from '../src/depth.js';
 
 /** Build `{ of: { of: { ... } } }` nested `levels` deep. */
@@ -59,6 +61,65 @@ describe('findDepthOverflow', () => {
   });
 });
 
+/**
+ * Build the structure a chained-alias YAML block expands to: every level is an
+ * array holding `fanout` references to the level below. Aliases share one
+ * object, so this costs almost nothing to build while describing `fanout ** levels`
+ * distinct paths.
+ */
+function fanoutChain(levels: number, fanout: number): unknown {
+  let node: unknown = ['x'];
+  for (let i = 0; i < levels; i += 1) {
+    node = Array.from({ length: fanout }, () => node);
+  }
+  return node;
+}
+
+describe('findStructureOverflow', () => {
+  it('returns null for a structure within both limits', () => {
+    expect(findStructureOverflow({ a: { b: [{ c: 1 }] } })).toBeNull();
+  });
+
+  it('reports depth overflow with the offending path', () => {
+    expect(findStructureOverflow({ a: { b: { c: {} } } }, { maxDepth: 2 })).toEqual({
+      kind: 'depth',
+      path: 'a.b',
+    });
+  });
+
+  // The walk is the expensive part of parsing, so it has to be the thing that
+  // gives up. A structure whose distinct paths outnumber the budget is hostile
+  // regardless of how shallow it is.
+  it('reports node overflow for a wide structure that stays shallow', () => {
+    const overflow = findStructureOverflow(fanoutChain(8, 12));
+    expect(overflow?.kind).toBe('nodes');
+  });
+
+  it('stops within the node budget instead of walking the whole expansion', () => {
+    // 12 ** 8 is ~430 million paths; without a budget this walk takes seconds.
+    const started = performance.now();
+    expect(findStructureOverflow(fanoutChain(8, 12))).not.toBeNull();
+    expect(performance.now() - started).toBeLessThan(500);
+  });
+
+  it('accepts a structure just under the node budget', () => {
+    const wide = { rows: Array.from({ length: 1_000 }, (_, i) => ({ id: i })) };
+    expect(findStructureOverflow(wide)).toBeNull();
+    expect(MAX_FRONTMATTER_NODES).toBeGreaterThan(1_000);
+  });
+});
+
+describe('findDepthOverflow node budget', () => {
+  // `findDepthOverflow` is exported on its own, so callers that reach for it
+  // directly must get the same protection as the ones going through
+  // `depthValidationError`.
+  it('reports an overflow for a structure past the node budget', () => {
+    const started = performance.now();
+    expect(findDepthOverflow(fanoutChain(8, 12))).not.toBeNull();
+    expect(performance.now() - started).toBeLessThan(500);
+  });
+});
+
 describe('depthValidationError', () => {
   it('returns null for structures within the limit', () => {
     expect(depthValidationError({ a: { b: 1 } })).toBeNull();
@@ -77,5 +138,15 @@ describe('depthValidationError', () => {
   it('mentions the default limit when none is given', () => {
     const error = depthValidationError(nest(MAX_FRONTMATTER_DEPTH + 5));
     expect(error?.message).toContain(String(MAX_FRONTMATTER_DEPTH));
+  });
+
+  // A node-count overflow is not a depth problem, and saying "nested too deep"
+  // about a two-level structure would send the author looking in the wrong
+  // place.
+  it('distinguishes a node-count overflow from a depth overflow', () => {
+    const error = depthValidationError(fanoutChain(8, 12));
+    expect(error?.keyword).toBe('maxNodes');
+    expect(error?.message).toContain(String(MAX_FRONTMATTER_NODES));
+    expect(error?.message).not.toMatch(/deeper/i);
   });
 });

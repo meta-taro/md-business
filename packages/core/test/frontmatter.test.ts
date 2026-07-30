@@ -140,6 +140,35 @@ body`;
     expect(() => splitFrontmatter(block)).toThrow(/maxDepth/i);
   });
 
+  // Counting anchor definitions is not enough: what multiplies the expanded
+  // size is how many times each anchor is referenced, and a chain can stay
+  // inside the anchor cap while every step widens by an arbitrary factor.
+  it('rejects heavy alias reuse even when the anchor count is within the cap', () => {
+    const fanout = 12;
+    const lines = [`a0: &a0 [${Array(fanout).fill('x').join(', ')}]`];
+    for (let i = 1; i < MAX_YAML_ANCHORS; i += 1) {
+      lines.push(`a${i}: &a${i} [${Array(fanout).fill(`*a${i - 1}`).join(', ')}]`);
+    }
+    lines.push(`boom: *a${MAX_YAML_ANCHORS - 1}`);
+    const src = ['---', ...lines, '---', 'body'].join('\n');
+
+    // Well under every size limit, and the anchor count is exactly at the cap.
+    expect(src.length).toBeLessThan(1_000);
+    expect(() => splitFrontmatter(src)).toThrow(/alias/i);
+  });
+
+  it('allows the alias reuse a real document does', () => {
+    const src = `---
+defaults: &d
+  currency: JPY
+a: *d
+b: *d
+c: *d
+---
+body`;
+    expect(splitFrontmatter(src).data['c']).toEqual({ currency: 'JPY' });
+  });
+
   it('does not count an ampersand inside prose as an anchor', () => {
     const src = `---
 title: Research & Development

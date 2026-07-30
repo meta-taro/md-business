@@ -144,3 +144,49 @@ describe('parseSpecObject — nesting depth', () => {
     }
   });
 });
+
+// Chained YAML aliases expand to a structure whose distinct paths grow as
+// `fanout ** levels`, while the source text stays a few hundred bytes and the
+// anchor count stays inside its cap. Every downstream walk — the depth guard,
+// key normalisation, the validator — pays that expanded cost, so a document
+// this small has to be turned away rather than parsed.
+describe('parseSpecMarkdown — alias expansion', () => {
+  function aliasBomb(anchors: number, fanout: number): string {
+    const lines = ['schemaVersion: spec/v1', 'title: t'];
+    lines.push(`a0: &a0 [${Array(fanout).fill('x').join(', ')}]`);
+    for (let i = 1; i < anchors; i += 1) {
+      lines.push(`a${i}: &a${i} [${Array(fanout).fill(`*a${i - 1}`).join(', ')}]`);
+    }
+    lines.push(`authors: *a${anchors - 1}`);
+    return ['---', ...lines, '---', '# body'].join('\n');
+  }
+
+  it('rejects a small document that expands without bound, and does so quickly', () => {
+    const src = aliasBomb(8, 12);
+    expect(src.length).toBeLessThan(1_000);
+
+    const started = performance.now();
+    // Input limits throw rather than returning a result, the same way an
+    // oversized block or an excess of anchors does — the document never
+    // becomes a value the caller could report errors against.
+    expect(() => parseSpecMarkdown(src, validate)).toThrow(/alias/i);
+    expect(performance.now() - started).toBeLessThan(500);
+  });
+
+  // The node budget is the backstop for the same attack arriving as an object,
+  // where there is no YAML text to count aliases in.
+  it('reports an over-expanded object as a validation failure', () => {
+    let shared: unknown = ['x'];
+    for (let i = 0; i < 8; i += 1) shared = Array.from({ length: 12 }, () => shared);
+
+    const started = performance.now();
+    const result = parseSpecObject({ authors: shared }, validate);
+    const elapsed = performance.now() - started;
+
+    expect(result.ok).toBe(false);
+    if (result.ok === false) {
+      expect(result.errors[0]?.keyword).toBe('maxNodes');
+    }
+    expect(elapsed).toBeLessThan(500);
+  });
+});
