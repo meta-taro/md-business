@@ -20,8 +20,27 @@ import {
   type ValidationIssue,
 } from '@md-business/schema-test-spec-tsv';
 import { safeRelativePath } from './workspacePath.js';
+import { withPathLock } from './pathLock.js';
 import type { DocumentStore } from './store.js';
 import type { ToolError } from './tools.js';
+
+/**
+ * 1 セルに書き込める最大文字数。
+ *
+ * 行の追加 / 更新はファイル全文の読み直し → エスケープ → 書き戻しなので、1 セルの長さが
+ * そのまま毎回の処理量とディスク使用量になる。検証シートの備考が数万字になることは無く、
+ * 上限を置いてもふつうの記入は届かない。Markdown 側の frontmatter に上限があるのと同じ理由で、
+ * スキーマ検証まで到達する前に打ち切る。
+ */
+export const MAX_TSV_CELL_CHARS = 64_000;
+
+/**
+ * 解析を受け付ける TSV 全文の最大文字数。
+ *
+ * セル上限だけでは行数の伸びを縛れないので、文書全体にも上限を置く。1 万行を超える
+ * 検証シートは 1 枚のシートとして扱う想定を外れており、分割したほうが人にも読める。
+ */
+export const MAX_TSV_SOURCE_CHARS = 4_000_000;
 
 /** 列名 → セル値。指定しなかった列は追加時なら空、更新時なら据え置き。 */
 export type TsvRowValues = Record<string, string>;
@@ -76,25 +95,49 @@ interface LoadedTsv {
   source: string;
 }
 
-/** パス検査 → 存在確認 → パースまでの共通前段。ヘッダが無いファイルはここで弾く。 */
-async function load(
+/**
+ * パス検査 → 錠前の取得 → 読み込み・パースまでの共通前段。
+ *
+ * 読み込みから書き戻しまでを 1 つの錠前の中で行うことで、同じシートへの並行呼び出しが
+ * 互いの結果を踏み潰さないようにする（`pathLock` 参照）。読み取りだけの `read_tsv` も
+ * 同じ列に並べて、書き込み途中の中間状態を返さないようにする。
+ */
+async function withLoaded<T>(
   store: DocumentStore,
   requestedPath: string,
-): Promise<LoadedTsv | ToolError> {
+  run: (loaded: LoadedTsv) => Promise<T>,
+): Promise<T | ToolError> {
   const safe = safeRelativePath(requestedPath);
   if (!safe.ok) return { ok: false, error: safe.reason };
-  if (!(await store.exists(safe.relative))) {
-    return { ok: false, error: `ファイルが見つかりません: ${safe.relative}` };
+  return withPathLock(safe.relative, async () => {
+    const loaded = await load(store, safe.relative);
+    if ('ok' in loaded) return loaded;
+    return run(loaded);
+  });
+}
+
+/** 存在確認 → 大きさ検査 → パース。ヘッダが無いファイルはここで弾く。 */
+async function load(store: DocumentStore, relative: string): Promise<LoadedTsv | ToolError> {
+  if (!(await store.exists(relative))) {
+    return { ok: false, error: `ファイルが見つかりません: ${relative}` };
   }
-  const source = await store.read(safe.relative);
+  const source = await store.read(relative);
+  if (source.length > MAX_TSV_SOURCE_CHARS) {
+    return {
+      ok: false,
+      error:
+        `TSV が大きすぎます: ${relative}` +
+        `（${source.length} 文字・上限 ${MAX_TSV_SOURCE_CHARS} 文字。シートを分割してください）`,
+    };
+  }
   const doc = parseTsv(source);
   if (doc.columns.length === 0) {
     return {
       ok: false,
-      error: `TSV のヘッダ行が見つかりません: ${safe.relative}（1 行目に型付きヘッダが必要です）`,
+      error: `TSV のヘッダ行が見つかりません: ${relative}（1 行目に型付きヘッダが必要です）`,
     };
   }
-  return { relative: safe.relative, doc, source };
+  return { relative, doc, source };
 }
 
 /**
@@ -124,6 +167,15 @@ function applyValues(
   const next = columns.map((_, index) => base[index] ?? '');
 
   for (const [name, value] of Object.entries(values)) {
+    if (value.length > MAX_TSV_CELL_CHARS) {
+      // 長さだけを返す。値そのものを載せるとエラー応答が同じ大きさで返ってしまう。
+      return {
+        ok: false,
+        error:
+          `セルが長すぎます: ${name}` +
+          `（${value.length} 文字・上限 ${MAX_TSV_CELL_CHARS} 文字）`,
+      };
+    }
     const index = byName.get(name);
     if (index === undefined) {
       const known = columns.map((c) => c.name).join(' / ');
@@ -176,19 +228,16 @@ export async function readTsv(
   store: DocumentStore,
   requestedPath: string,
 ): Promise<ReadTsvOk | ToolError> {
-  const loaded = await load(store, requestedPath);
-  if ('ok' in loaded) return loaded;
-  const { doc } = loaded;
-  return {
-    ok: true,
-    path: loaded.relative,
+  return withLoaded(store, requestedPath, async ({ relative, doc }) => ({
+    ok: true as const,
+    path: relative,
     formatId: doc.formatId,
     meta: doc.meta,
     directives: doc.directives,
     columns: doc.columns,
     rows: doc.rows,
     issues: validateTsv(doc),
-  };
+  }));
 }
 
 /**
@@ -201,14 +250,13 @@ export async function appendTsvRow(
   store: DocumentStore,
   input: AppendTsvRowInput,
 ): Promise<TsvRowOk | ToolError> {
-  const loaded = await load(store, input.path);
-  if ('ok' in loaded) return loaded;
+  return withLoaded(store, input.path, async (loaded) => {
+    const row = applyValues(loaded.doc.columns, [], input.values);
+    if (!Array.isArray(row)) return row;
 
-  const row = applyValues(loaded.doc.columns, [], input.values);
-  if (!Array.isArray(row)) return row;
-
-  const doc: TsvDocument = { ...loaded.doc, rows: [...loaded.doc.rows, row] };
-  return persist(store, loaded, doc, doc.rows.length - 1);
+    const doc: TsvDocument = { ...loaded.doc, rows: [...loaded.doc.rows, row] };
+    return persist(store, loaded, doc, doc.rows.length - 1);
+  });
 }
 
 /**
@@ -219,21 +267,20 @@ export async function updateTsvRow(
   store: DocumentStore,
   input: UpdateTsvRowInput,
 ): Promise<TsvRowOk | ToolError> {
-  const loaded = await load(store, input.path);
-  if ('ok' in loaded) return loaded;
+  return withLoaded(store, input.path, async (loaded) => {
+    const { rows } = loaded.doc;
+    if (!Number.isInteger(input.row) || input.row < 0 || input.row >= rows.length) {
+      return {
+        ok: false as const,
+        error: `行 index が範囲外です: ${input.row}（データ行は 0〜${rows.length - 1}）`,
+      };
+    }
 
-  const { rows } = loaded.doc;
-  if (!Number.isInteger(input.row) || input.row < 0 || input.row >= rows.length) {
-    return {
-      ok: false,
-      error: `行 index が範囲外です: ${input.row}（データ行は 0〜${rows.length - 1}）`,
-    };
-  }
+    const row = applyValues(loaded.doc.columns, rows[input.row] as string[], input.values);
+    if (!Array.isArray(row)) return row;
 
-  const row = applyValues(loaded.doc.columns, rows[input.row] as string[], input.values);
-  if (!Array.isArray(row)) return row;
-
-  const nextRows = [...rows];
-  nextRows[input.row] = row;
-  return persist(store, loaded, { ...loaded.doc, rows: nextRows }, input.row);
+    const nextRows = [...rows];
+    nextRows[input.row] = row;
+    return persist(store, loaded, { ...loaded.doc, rows: nextRows }, input.row);
+  });
 }

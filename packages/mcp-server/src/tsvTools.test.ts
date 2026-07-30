@@ -1,6 +1,12 @@
 import { describe, it, expect } from 'vitest';
 import { MemoryDocumentStore } from './store.js';
-import { readTsv, appendTsvRow, updateTsvRow } from './tsvTools.js';
+import {
+  readTsv,
+  appendTsvRow,
+  updateTsvRow,
+  MAX_TSV_CELL_CHARS,
+  MAX_TSV_SOURCE_CHARS,
+} from './tsvTools.js';
 
 /**
  * 検証シートのカスタム TSV を MCP から触るツール群。Markdown 側の read/create/update と
@@ -199,5 +205,91 @@ describe('updateTsvRow', () => {
     expect(r.ok).toBe(true);
     if (!r.ok) return;
     expect(r.values).toEqual(['1', '', 'z']);
+  });
+});
+
+describe('同じシートへの並行操作', () => {
+  it('同時に追記しても行が消えない', async () => {
+    const s = store();
+    // AI クライアントは独立したツール呼び出しを並行で投げる。読み → 書き戻しが
+    // 重なると、待ち合わせが無ければ後勝ちで行が黙って消える。
+    await Promise.all(
+      ['3', '4', '5'].map((no) =>
+        appendTsvRow(s, { path: 'sheets/受注.tsv', values: { 'No.': no, 項目: `項目${no}` } }),
+      ),
+    );
+
+    const after = await readTsv(s, 'sheets/受注.tsv');
+    expect(after.ok).toBe(true);
+    if (!after.ok) return;
+    expect(after.rows).toHaveLength(5);
+    expect(after.rows.map((row) => row[0])).toEqual(['1', '2', '3', '4', '5']);
+  });
+
+  it('同時に別々の行を更新しても片方の変更が失われない', async () => {
+    const s = store();
+    await Promise.all([
+      updateTsvRow(s, { path: 'sheets/受注.tsv', row: 0, values: { 備考: '一つ目' } }),
+      updateTsvRow(s, { path: 'sheets/受注.tsv', row: 1, values: { 備考: '二つ目' } }),
+    ]);
+
+    const after = await readTsv(s, 'sheets/受注.tsv');
+    expect(after.ok).toBe(true);
+    if (!after.ok) return;
+    expect(after.rows[0]?.[4]).toBe('一つ目');
+    expect(after.rows[1]?.[4]).toBe('二つ目');
+  });
+});
+
+describe('入力サイズの上限', () => {
+  it('上限ちょうどのセルは受け付ける', async () => {
+    const s = store();
+    const r = await appendTsvRow(s, {
+      path: 'sheets/受注.tsv',
+      values: { 'No.': '3', 項目: 'a', 備考: 'あ'.repeat(MAX_TSV_CELL_CHARS) },
+    });
+    expect(r.ok).toBe(true);
+  });
+
+  it('上限を超えるセルは書き込まずに失敗する', async () => {
+    const s = store();
+    const r = await appendTsvRow(s, {
+      path: 'sheets/受注.tsv',
+      values: { 'No.': '3', 項目: 'a', 備考: 'あ'.repeat(MAX_TSV_CELL_CHARS + 1) },
+    });
+    expect(r.ok).toBe(false);
+    if (r.ok) return;
+    // どの列が長すぎるのかを示す（値そのものはエラーへ載せない）
+    expect(r.error).toContain('備考');
+    expect(r.error).toContain(String(MAX_TSV_CELL_CHARS));
+    expect(await s.read('sheets/受注.tsv')).toBe(SHEET);
+  });
+
+  it('行更新でも上限を超えるセルは書き込まずに失敗する', async () => {
+    const s = store();
+    const r = await updateTsvRow(s, {
+      path: 'sheets/受注.tsv',
+      row: 0,
+      values: { 備考: 'あ'.repeat(MAX_TSV_CELL_CHARS + 1) },
+    });
+    expect(r.ok).toBe(false);
+    expect(await s.read('sheets/受注.tsv')).toBe(SHEET);
+  });
+
+  it('上限を超える大きさの TSV は解析せずに失敗する', async () => {
+    const big = 'a\tb\n' + '1\t2\n'.repeat(Math.ceil(MAX_TSV_SOURCE_CHARS / 4) + 1);
+    const s = new MemoryDocumentStore({ 'big.tsv': big });
+    const r = await readTsv(s, 'big.tsv');
+    expect(r.ok).toBe(false);
+    if (r.ok) return;
+    expect(r.error).toContain('big.tsv');
+  });
+
+  it('上限を超える大きさの TSV へは追記もできない', async () => {
+    const big = 'a\tb\n' + '1\t2\n'.repeat(Math.ceil(MAX_TSV_SOURCE_CHARS / 4) + 1);
+    const s = new MemoryDocumentStore({ 'big.tsv': big });
+    const r = await appendTsvRow(s, { path: 'big.tsv', values: { a: 'x' } });
+    expect(r.ok).toBe(false);
+    expect(await s.read('big.tsv')).toBe(big);
   });
 });
