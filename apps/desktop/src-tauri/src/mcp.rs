@@ -15,14 +15,16 @@ use std::sync::Mutex;
 use tauri::{AppHandle, Emitter, Manager, State};
 
 use crate::mcp_logic::{
-    parse_sidecar_line, pick_existing, set_root_line, sidecar_args, sidecar_candidates, McpReason,
-    McpState, McpStatus, SidecarEvent,
+    parse_sidecar_line, pick_existing, response_line, set_root_line, sidecar_args,
+    sidecar_candidates, McpReason, McpState, McpStatus, SidecarEvent,
 };
 
 /// 状態変化をフロントへ知らせるイベント名。
 const STATUS_EVENT: &str = "mcp-status";
 /// ツール実行 1 件の操作ログを送るイベント名。
 const LOG_EVENT: &str = "mcp-log";
+/// 画面でしかできない操作の依頼を送るイベント名。
+const REQUEST_EVENT: &str = "mcp-request";
 
 /// サイドカーの実行時状態。アプリ全体で 1 つを `manage` する。
 ///
@@ -175,6 +177,13 @@ fn read_events(app: &AppHandle, stdout: impl Read) {
                 Some(SidecarEvent::Log(value)) => {
                     let _ = app.emit(LOG_EVENT, &value);
                 }
+                Some(SidecarEvent::Request { id, action, path }) => {
+                    // 実際に処理できるのは画面側だけ。応答は mcp_respond で返ってくる。
+                    let _ = app.emit(
+                        REQUEST_EVENT,
+                        serde_json::json!({ "id": id, "action": action, "path": path }),
+                    );
+                }
                 Some(SidecarEvent::Error { message }) => {
                     // 起動前の異常は劣化として扱う。起動後は制御チャネル上の
                     // 単発エラーなのでサーバー本体は動き続ける。
@@ -219,12 +228,11 @@ pub fn mcp_status(state: State<McpRuntime>) -> McpStatus {
     }
 }
 
-/// ワークスペース root をサイドカーへ反映する。フォルダ切り替えのたびに呼ぶ。
+/// 制御チャネルへ 1 行送る。
 ///
-/// 未起動・劣化中は「何もしないで成功」とする。MCP が無い環境でもフォルダ切り替え
-/// そのものは成功させたいため。
-#[tauri::command]
-pub fn mcp_set_root(state: State<McpRuntime>, root: String) -> Result<(), String> {
+/// 未起動・劣化中は「何もしないで成功」とする。MCP が無い環境でも、呼び出し元の
+/// 操作（フォルダ切り替えなど）そのものは成功させたいため。
+fn write_control_line(state: &State<McpRuntime>, line: String, what: &str) -> Result<(), String> {
     let ready = matches!(
         state.status.lock().map(|s| s.state),
         Ok(McpState::Ready) | Ok(McpState::Starting)
@@ -240,9 +248,28 @@ pub fn mcp_set_root(state: State<McpRuntime>, root: String) -> Result<(), String
         return Ok(());
     };
     stdin
-        .write_all(set_root_line(&root).as_bytes())
-        .map_err(|e| format!("MCP へ root を送れません: {}", e))?;
+        .write_all(line.as_bytes())
+        .map_err(|e| format!("MCP へ{}を送れません: {}", what, e))?;
     stdin
         .flush()
-        .map_err(|e| format!("MCP へ root を送れません: {}", e))
+        .map_err(|e| format!("MCP へ{}を送れません: {}", what, e))
+}
+
+/// ワークスペース root をサイドカーへ反映する。フォルダ切り替えのたびに呼ぶ。
+#[tauri::command]
+pub fn mcp_set_root(state: State<McpRuntime>, root: String) -> Result<(), String> {
+    write_control_line(&state, set_root_line(&root), "root")
+}
+
+/// 画面で処理した依頼の結果をサイドカーへ返す。
+///
+/// 応答が返らないとツール側が時間切れになるので、失敗したときも必ず理由を添えて返す。
+#[tauri::command]
+pub fn mcp_respond(
+    state: State<McpRuntime>,
+    id: String,
+    ok: bool,
+    error: Option<String>,
+) -> Result<(), String> {
+    write_control_line(&state, response_line(&id, ok, error.as_deref()), "応答")
 }

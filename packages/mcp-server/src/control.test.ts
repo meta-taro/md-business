@@ -80,6 +80,34 @@ describe('parseControlLine', () => {
       command: { type: 'set-root', root: '/work/docs' },
     });
   });
+
+  it('アプリからの応答を受け取る', () => {
+    const result = parseControlLine('{"type":"response","id":"r1","ok":true}');
+    expect(result).toEqual({
+      kind: 'command',
+      command: { type: 'response', id: 'r1', ok: true },
+    });
+  });
+
+  it('失敗の応答は理由を伴う', () => {
+    const result = parseControlLine(
+      '{"type":"response","id":"r1","ok":false,"error":"プレビューが未表示です"}',
+    );
+    expect(result).toEqual({
+      kind: 'command',
+      command: { type: 'response', id: 'r1', ok: false, error: 'プレビューが未表示です' },
+    });
+  });
+
+  it('id の無い応答は拒否する', () => {
+    // 宛先が分からない応答は、どの依頼を解決してよいか決められない。
+    expect(parseControlLine('{"type":"response","ok":true}').kind).toBe('error');
+    expect(parseControlLine('{"type":"response","id":"","ok":true}').kind).toBe('error');
+  });
+
+  it('ok が真偽値でない応答は拒否する', () => {
+    expect(parseControlLine('{"type":"response","id":"r1","ok":"yes"}').kind).toBe('error');
+  });
 });
 
 describe('encodeSidecarEvent', () => {
@@ -122,5 +150,20 @@ describe('encodeSidecarEvent', () => {
   it('root 差し替えの受理を返す', () => {
     const line = encodeSidecarEvent({ type: 'root', root: 'D:/docs' });
     expect(JSON.parse(line)).toEqual({ type: 'root', root: 'D:/docs' });
+  });
+
+  it('アプリへの依頼を id つきで送る', () => {
+    const line = encodeSidecarEvent({
+      type: 'request',
+      id: 'r1',
+      action: 'export-pdf',
+      path: 'invoices/INV-1.md',
+    });
+    expect(JSON.parse(line)).toEqual({
+      type: 'request',
+      id: 'r1',
+      action: 'export-pdf',
+      path: 'invoices/INV-1.md',
+    });
   });
 });

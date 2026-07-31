@@ -55,6 +55,14 @@ export type {
 export { createGitRunner, buildGitArgs } from './gitRunner.js';
 export type { GitExec } from './gitRunner.js';
 
+export { createAppBridge } from './appBridge.js';
+export type {
+  AppBridge,
+  AppRequest,
+  AppRequestResult,
+  CreateAppBridgeOptions,
+} from './appBridge.js';
+
 export { startHttpServer } from './httpServer.js';
 export type { StartHttpServerOptions, HttpServerHandle } from './httpServer.js';
 export { parseBearerToken, isAuthorized } from './httpAuth.js';
@@ -66,11 +74,13 @@ export { splitControlLines, parseControlLine, encodeSidecarEvent } from './contr
 export type {
   ControlCommand,
   SetRootCommand,
+  ResponseCommand,
   ControlLineResult,
   SidecarEvent,
   ReadyEvent,
   RootEvent,
   ErrorEvent,
+  RequestEvent,
 } from './control.js';
 
 export { startSidecar } from './sidecar.js';

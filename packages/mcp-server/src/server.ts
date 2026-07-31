@@ -23,6 +23,8 @@ import { searchDocuments } from './search.js';
 import type { SearchQuery } from './search.js';
 import { gitStatus, gitDiff, gitCommit } from './gitTools.js';
 import type { GitCommitInput, GitRunner } from './gitTools.js';
+import type { AppBridge } from './appBridge.js';
+import { safeRelativePath } from './workspacePath.js';
 import { buildToolLogEntry, type ToolLogEntry, type ToolResultLike } from './toolLog.js';
 
 /** MCP クライアントへ提示するサーバー名 / バージョン（プロトコル上の識別子）。 */
@@ -40,6 +42,11 @@ export interface CreateServerOptions {
    * ワークスペースが git 管理でない使い方もあるため、既定では公開しない。
    */
   git?: GitRunner;
+  /**
+   * アプリ画面への依頼口。渡したときだけ画面操作のツールを公開する。
+   * 単体（stdio）起動では押すべき画面が無いので既定では公開しない。
+   */
+  app?: AppBridge;
 }
 
 /** 任意ペイロードを MCP のテキスト結果へ包む。ToolError 相当は isError で明示する。 */
@@ -59,7 +66,7 @@ const frontmatterShape = z.record(z.string(), z.unknown());
  */
 export function createServer(store: DocumentStore, options: CreateServerOptions = {}): McpServer {
   const server = new McpServer({ name: SERVER_NAME, version: SERVER_VERSION });
-  const { onLog, now = () => Date.now(), git } = options;
+  const { onLog, now = () => Date.now(), git, app } = options;
 
   // ツール実行の直後に 1 件ログを流す。onLog 未指定なら完全に no-op（既存の挙動不変）。
   // argPath は失敗時にパスを拾うためのフォールバック（成功結果は自前の path を持つ）。
@@ -304,6 +311,33 @@ export function createServer(store: DocumentStore, options: CreateServerOptions 
         if (paths !== undefined) input.paths = paths;
         const r = await gitCommit(git, input);
         emit('git_commit', undefined, r);
+        return jsonResult(r, !r.ok);
+      },
+    );
+  }
+
+  // PDF 出力はアプリの画面（プレビュー）を印刷する機能なので、サーバー単体では行えない。
+  // アプリに「対象を開いて PDF ボタンを押す」ところまでを頼み、その可否を返す。
+  if (app !== undefined) {
+    server.registerTool(
+      'export_pdf',
+      {
+        description:
+          'デスクトップアプリで対象文書を開き、PDF 出力（印刷）ダイアログを表示する。保存先の指定と保存操作は利用者が行う。',
+        inputSchema: {
+          path: z.string().describe('PDF にするワークスペース相対パス'),
+        },
+      },
+      async ({ path }) => {
+        const safe = safeRelativePath(path);
+        if (!safe.ok) {
+          const r = { ok: false as const, error: safe.reason };
+          emit('export_pdf', path, r);
+          return jsonResult(r, true);
+        }
+        const result = await app.request({ action: 'export-pdf', path: safe.relative });
+        const r = result.ok ? { ok: true as const, path: safe.relative } : result;
+        emit('export_pdf', safe.relative, r);
         return jsonResult(r, !r.ok);
       },
     );

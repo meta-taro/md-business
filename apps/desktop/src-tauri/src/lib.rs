@@ -48,7 +48,8 @@ pub fn run() {
             git::git_diff,
             git::forge_file_url,
             mcp::mcp_status,
-            mcp::mcp_set_root
+            mcp::mcp_set_root,
+            mcp::mcp_respond
         ])
         .build(tauri::generate_context!())
         .expect("error while running tauri application")

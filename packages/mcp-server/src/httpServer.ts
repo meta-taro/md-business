@@ -14,6 +14,7 @@ import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/
 import type { DocumentStore } from './store.js';
 import { createServer, type CreateServerOptions } from './server.js';
 import type { GitRunner } from './gitTools.js';
+import type { AppBridge } from './appBridge.js';
 import type { ToolLogEntry } from './toolLog.js';
 import { isAuthorized } from './httpAuth.js';
 
@@ -38,6 +39,8 @@ export interface StartHttpServerOptions {
   now?: () => number;
   /** `git` 実行器。渡したときだけ git ツールを公開する。 */
   git?: GitRunner;
+  /** アプリ画面への依頼口。渡したときだけ画面操作のツールを公開する。 */
+  app?: AppBridge;
 }
 
 /** 起動済み HTTP サーバーのハンドル。 */
@@ -63,7 +66,7 @@ function respondError(res: ServerResponse, status: number, message: string): voi
  * spawn 側（Rust / bin）はこの port と token を AI クライアントへ渡す。
  */
 export async function startHttpServer(options: StartHttpServerOptions): Promise<HttpServerHandle> {
-  const { store, token, onLog, now, git } = options;
+  const { store, token, onLog, now, git, app } = options;
   const host = options.host ?? LOOPBACK;
 
   const httpServer = createHttpServer((req: IncomingMessage, res: ServerResponse) => {
@@ -109,6 +112,7 @@ export async function startHttpServer(options: StartHttpServerOptions): Promise<
     if (onLog !== undefined) opt.onLog = onLog;
     if (now !== undefined) opt.now = now;
     if (git !== undefined) opt.git = git;
+    if (app !== undefined) opt.app = app;
     return opt;
   }
 

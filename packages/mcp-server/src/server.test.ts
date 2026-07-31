@@ -409,6 +409,72 @@ describe('createServer / git ツール', () => {
   });
 });
 
+describe('createServer / export_pdf ツール', () => {
+  /** 依頼を控え、決まった結果を返すアプリ側の代役。 */
+  function fakeApp(result: { ok: true } | { ok: false; error: string }) {
+    const requests: { action: string; path: string }[] = [];
+    return {
+      requests,
+      request: async (req: { action: 'export-pdf'; path: string }) => {
+        requests.push(req);
+        return result;
+      },
+      settle: () => {},
+    };
+  }
+
+  async function connectWithApp(app: ReturnType<typeof fakeApp>): Promise<Client> {
+    const server = createServer(new MemoryDocumentStore(), { app });
+    const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+    const client = new Client({ name: 'test-client', version: '0.0.0' });
+    await Promise.all([client.connect(clientTransport), server.connect(serverTransport)]);
+    return client;
+  }
+
+  it('アプリとの連絡手段が無ければ公開しない', async () => {
+    // stdio で単体起動しているときは、押すべき画面が存在しない。
+    const client = await connect(new MemoryDocumentStore());
+    const { tools } = await client.listTools();
+    expect(tools.map((t) => t.name)).not.toContain('export_pdf');
+  });
+
+  it('アプリへ対象パスの PDF 出力を依頼する', async () => {
+    const app = fakeApp({ ok: true });
+    const client = await connectWithApp(app);
+    const res = (await client.callTool({
+      name: 'export_pdf',
+      arguments: { path: 'invoices/INV-1.md' },
+    })) as CallToolResult;
+    const { text, isError } = parse(res);
+    expect(isError).toBe(false);
+    expect(text).toMatchObject({ ok: true, path: 'invoices/INV-1.md' });
+    expect(app.requests).toEqual([{ action: 'export-pdf', path: 'invoices/INV-1.md' }]);
+  });
+
+  it('アプリ側の失敗は理由つきで返す', async () => {
+    const app = fakeApp({ ok: false, error: 'プレビューが未表示です' });
+    const client = await connectWithApp(app);
+    const res = (await client.callTool({
+      name: 'export_pdf',
+      arguments: { path: 'invoices/INV-1.md' },
+    })) as CallToolResult;
+    const { text, isError } = parse(res);
+    expect(isError).toBe(true);
+    expect(text).toMatchObject({ ok: false, error: 'プレビューが未表示です' });
+  });
+
+  it('ワークスペース外のパスはアプリへ渡さない', async () => {
+    const app = fakeApp({ ok: true });
+    const client = await connectWithApp(app);
+    const res = (await client.callTool({
+      name: 'export_pdf',
+      arguments: { path: '../secret.md' },
+    })) as CallToolResult;
+    expect(parse(res).isError).toBe(true);
+    expect(app.requests).toEqual([]);
+  });
+});
+
 describe('createServer / onLog フック', () => {
   it('成功ツールは ok=true・path 付きのログを 1 件発火する', async () => {
     const { client, logs } = await connectWithLog(new MemoryDocumentStore());

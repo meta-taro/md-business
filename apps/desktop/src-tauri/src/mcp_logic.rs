@@ -22,6 +22,12 @@ pub enum SidecarEvent {
     Log(serde_json::Value),
     /// root 差し替えの受理。
     Root { root: String },
+    /// 画面でしかできない操作の依頼。処理結果は `response_line` で返す。
+    Request {
+        id: String,
+        action: String,
+        path: String,
+    },
     /// サイドカー側の異常。サーバー本体は動き続ける前提。
     Error { message: String },
 }
@@ -61,6 +67,11 @@ pub fn parse_sidecar_line(line: &str) -> Option<SidecarEvent> {
         "root" => Some(SidecarEvent::Root {
             root: value.get("root")?.as_str()?.to_string(),
         }),
+        "request" => Some(SidecarEvent::Request {
+            id: value.get("id")?.as_str()?.to_string(),
+            action: value.get("action")?.as_str()?.to_string(),
+            path: value.get("path")?.as_str()?.to_string(),
+        }),
         "error" => Some(SidecarEvent::Error {
             message: value.get("message")?.as_str()?.to_string(),
         }),
@@ -74,6 +85,18 @@ pub fn parse_sidecar_line(line: &str) -> Option<SidecarEvent> {
 /// 書くと壊れるため、文字列連結で組まない）。
 pub fn set_root_line(root: &str) -> String {
     let value = serde_json::json!({ "type": "set-root", "root": root });
+    format!("{}\n", value)
+}
+
+/// 依頼への応答を 1 行へ組む（末尾改行込み）。
+///
+/// 依頼を出したサーバー側は応答を待っているので、成功も失敗も必ず返す。
+/// 理由が無いときは項目自体を省く（空文字は「理由あり」と読めてしまう）。
+pub fn response_line(id: &str, ok: bool, error: Option<&str>) -> String {
+    let mut value = serde_json::json!({ "type": "response", "id": id, "ok": ok });
+    if let (Some(message), Some(map)) = (error, value.as_object_mut()) {
+        map.insert("error".to_string(), serde_json::json!(message));
+    }
     format!("{}\n", value)
 }
 
@@ -283,12 +306,50 @@ mod tests {
     }
 
     #[test]
+    fn 画面操作の依頼を解釈する() {
+        assert_eq!(
+            parse_sidecar_line(
+                r#"{"type":"request","id":"req-1","action":"export-pdf","path":"invoices/INV-1.md"}"#
+            ),
+            Some(SidecarEvent::Request {
+                id: "req-1".to_string(),
+                action: "export-pdf".to_string(),
+                path: "invoices/INV-1.md".to_string(),
+            })
+        );
+    }
+
+    #[test]
+    fn 応答行はidと可否を載せてjsonへ落ちる() {
+        let line = response_line("req-1", true, None);
+        assert!(line.ends_with('\n'));
+        let value: serde_json::Value = serde_json::from_str(line.trim_end()).unwrap();
+        assert_eq!(value.get("type").and_then(|v| v.as_str()), Some("response"));
+        assert_eq!(value.get("id").and_then(|v| v.as_str()), Some("req-1"));
+        assert_eq!(value.get("ok").and_then(|v| v.as_bool()), Some(true));
+        // 理由が無いときに空文字を送ると、サーバー側で「理由あり」と誤解される。
+        assert!(value.get("error").is_none());
+    }
+
+    #[test]
+    fn 失敗の応答は理由を添える() {
+        let line = response_line("req-2", false, Some("プレビューが未表示です"));
+        let value: serde_json::Value = serde_json::from_str(line.trim_end()).unwrap();
+        assert_eq!(value.get("ok").and_then(|v| v.as_bool()), Some(false));
+        assert_eq!(
+            value.get("error").and_then(|v| v.as_str()),
+            Some("プレビューが未表示です")
+        );
+    }
+
+    #[test]
     fn 読めない行は読み飛ばす() {
         // 空行 / 壊れた JSON / JSON だが型不明 / 必須項目欠落 のいずれもアプリを止めない。
         assert_eq!(parse_sidecar_line(""), None);
         assert_eq!(parse_sidecar_line("   "), None);
         assert_eq!(parse_sidecar_line("{\"type\":"), None);
         assert_eq!(parse_sidecar_line(r#"{"type":"unknown"}"#), None);
+        assert_eq!(parse_sidecar_line(r#"{"type":"request","id":"a"}"#), None);
         assert_eq!(parse_sidecar_line(r#"{"type":"ready","port":1}"#), None);
         assert_eq!(parse_sidecar_line("[1,2,3]"), None);
     }

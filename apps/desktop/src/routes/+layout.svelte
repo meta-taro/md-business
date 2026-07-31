@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { listen } from '@tauri-apps/api/event';
+  import { invoke } from '@tauri-apps/api/core';
   import '../app.css';
   import { browser } from '$app/environment';
   import { themeController } from '$lib/theme.svelte';
@@ -24,6 +25,7 @@
   import { updater } from '$lib/update/updater.svelte';
   import { mcp } from '$lib/mcp/mcp.svelte';
   import { fileChangeFromLog, parseLogEvent } from '$lib/mcp/mcpLog';
+  import { parseRequestEvent, planExportPdf, waitUntil } from '$lib/mcp/appRequest';
   import {
     DEFAULT_FILETREE_W,
     MIN_FILETREE_W,
@@ -158,6 +160,42 @@
     runAction(action);
   }
 
+  /** プレビューが印刷できる状態になるまで待つ上限（依頼元の時間切れより短くする）。 */
+  const PDF_READY_TIMEOUT_MS = 8000;
+
+  /**
+   * MCP からの PDF 出力依頼を処理する。
+   *
+   * 依頼元は応答を待っているので、断る場合も必ず理由を返す。印刷ダイアログは閉じるまで
+   * 戻らないため、応答は開く前に済ませる（保存操作そのものは利用者が行う）。
+   */
+  async function handleMcpRequest(payload: unknown): Promise<void> {
+    const request = parseRequestEvent(payload);
+    if (request === null) return;
+    const respond = (ok: boolean, error: string | null = null): Promise<void> =>
+      invoke<void>('mcp_respond', { id: request.id, ok, error }).catch(() => undefined);
+
+    const plan = planExportPdf(request.path, {
+      hasWorkspace: workspace.root !== null,
+      knownPaths: workspace.allFilePaths(),
+    });
+    if (!plan.ok) {
+      await respond(false, plan.error);
+      return;
+    }
+    if (workspace.activePath !== plan.path) await workspace.select(plan.path);
+    const ready = await waitUntil(() => pdfExport.canExport, {
+      timeoutMs: PDF_READY_TIMEOUT_MS,
+      stepMs: 50,
+    });
+    if (!ready) {
+      await respond(false, 'プレビューを印刷できる状態になりませんでした');
+      return;
+    }
+    await respond(true);
+    pdfExport.run();
+  }
+
   onMount(() => {
     // app.html が paint 前に data-theme を確定済み。ここで反応状態を種づけして
     // トグルボタンの表示を実テーマに一致させる（DESIGN §8）。
@@ -199,6 +237,14 @@
     }).then((fn) => {
       unlistenMcpSync = fn;
     });
+    // PDF 出力は画面（プレビュー）を印刷する機能なので、MCP からの依頼はここで処理する。
+    // 印刷ダイアログは閉じるまで戻らないため、依頼元へは開く前に応答を返す。
+    let unlistenMcpRequest: (() => void) | undefined;
+    void listen<unknown>('mcp-request', (event) => {
+      void handleMcpRequest(event.payload);
+    }).then((fn) => {
+      unlistenMcpRequest = fn;
+    });
     // 組み込み MCP サーバーの状態と操作ログの受信を開始する（未起動でも状態が届くだけ）。
     let unlistenMcp: (() => void) | undefined;
     void mcp.init().then((fn) => {
@@ -211,6 +257,7 @@
       clearTimeout(t);
       unlisten?.();
       unlistenMcpSync?.();
+      unlistenMcpRequest?.();
       unlistenMcp?.();
     };
   });

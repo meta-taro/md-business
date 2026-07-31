@@ -340,8 +340,8 @@ class WorkspaceStore {
     this.persistView();
   }
 
-  /** ツリー全体のファイル relPath を平坦に集める（切替後の再オープン判定用）。 */
-  private allFilePaths(): string[] {
+  /** ツリー全体のファイル relPath を平坦に集める（切替後の再オープン判定・外部からの指定検証用）。 */
+  allFilePaths(): string[] {
     const paths: string[] = [];
     const walk = (nodes: readonly TreeNode[]): void => {
       for (const node of nodes) {

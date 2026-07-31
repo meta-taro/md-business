@@ -14,6 +14,7 @@ import type { ToolLogEntry } from './toolLog.js';
 import { FileDocumentStore } from './fileStore.js';
 import { startHttpServer } from './httpServer.js';
 import { createGitRunner, type GitExec } from './gitRunner.js';
+import { createAppBridge } from './appBridge.js';
 import { encodeSidecarEvent, parseControlLine, splitControlLines } from './control.js';
 
 /** サイドカーが使う入出力。実行時は process.stdin / process.stdout を渡す。 */
@@ -54,6 +55,8 @@ export interface SidecarHandle {
 export async function startSidecar(options: StartSidecarOptions): Promise<SidecarHandle> {
   const { io, token, now, gitExec } = options;
   const store = new FileDocumentStore(options.root);
+  // 画面操作の依頼は制御チャネルへ流し、親からの応答で解決する。
+  const app = createAppBridge({ send: (event) => io.write(encodeSidecarEvent(event)) });
 
   const base = {
     store,
@@ -64,6 +67,7 @@ export async function startSidecar(options: StartSidecarOptions): Promise<Sideca
       gitExec === undefined
         ? createGitRunner(() => store.getRoot())
         : createGitRunner(() => store.getRoot(), gitExec),
+    app,
     onLog: (entry: ToolLogEntry) => io.write(encodeSidecarEvent(entry)),
   };
   // 前回と同じポートを希望しても、別のアプリに取られていることはある。そのときは
@@ -92,6 +96,10 @@ export async function startSidecar(options: StartSidecarOptions): Promise<Sideca
     if (result.kind === 'ignored') return;
     if (result.kind === 'error') {
       io.write(encodeSidecarEvent({ type: 'error', message: result.message }));
+      return;
+    }
+    if (result.command.type === 'response') {
+      app.settle(result.command);
       return;
     }
     store.setRoot(result.command.root);

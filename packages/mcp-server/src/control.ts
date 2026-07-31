@@ -19,7 +19,22 @@ export interface SetRootCommand {
   root: string;
 }
 
-export type ControlCommand = SetRootCommand;
+/**
+ * アプリ側で処理した依頼（request）の結果。
+ *
+ * サーバーは依頼を投げたまま待つので、応答が来ないとツールが返せない。
+ * 失敗も必ず応答として返してもらう（沈黙はタイムアウトでのみ扱う）。
+ */
+export interface ResponseCommand {
+  type: 'response';
+  /** 対応する依頼の id。 */
+  id: string;
+  ok: boolean;
+  /** 失敗理由（ok:false のときのみ）。 */
+  error?: string;
+}
+
+export type ControlCommand = SetRootCommand | ResponseCommand;
 
 export type ControlLineResult =
   | { kind: 'command'; command: ControlCommand }
@@ -45,6 +60,22 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
+/** 応答行を解釈する。id と ok が揃っていない応答は、依頼と結び付けられないので拒否する。 */
+function parseResponse(parsed: Record<string, unknown>): ControlLineResult {
+  const id = parsed['id'];
+  if (typeof id !== 'string' || id.trim() === '') {
+    return { kind: 'error', message: '応答には空でない id が必要です。' };
+  }
+  const ok = parsed['ok'];
+  if (typeof ok !== 'boolean') {
+    return { kind: 'error', message: '応答の ok は真偽値である必要があります。' };
+  }
+  const command: ResponseCommand = { type: 'response', id: id.trim(), ok };
+  const error = parsed['error'];
+  if (typeof error === 'string' && error !== '') command.error = error;
+  return { kind: 'command', command };
+}
+
 /** 1 行を制御コマンドとして解釈する。 */
 export function parseControlLine(line: string): ControlLineResult {
   const trimmed = line.trim();
@@ -61,6 +92,7 @@ export function parseControlLine(line: string): ControlLineResult {
   }
 
   const type = parsed['type'];
+  if (type === 'response') return parseResponse(parsed);
   if (type !== 'set-root') {
     return { kind: 'error', message: `未知の制御コマンドです: ${String(type)}` };
   }
@@ -91,6 +123,21 @@ export interface RootEvent {
   root: string;
 }
 
+/**
+ * アプリ画面でしかできない操作の依頼。
+ *
+ * PDF 出力は表示中のプレビューを印刷する機能で、サーバー側には画面が無い。
+ * 対象文書を開いて印刷ダイアログを出すところまでをアプリに任せる。
+ */
+export interface RequestEvent {
+  type: 'request';
+  /** 応答を突き合わせるための id。 */
+  id: string;
+  action: 'export-pdf';
+  /** 対象のワークスペース相対パス。 */
+  path: string;
+}
+
 /** 制御チャネル上の異常（コマンド解釈失敗など）。サーバー本体は動き続ける。 */
 export interface ErrorEvent {
   type: 'error';
@@ -98,7 +145,7 @@ export interface ErrorEvent {
 }
 
 /** 親プロセスへ stdout 経由で送るイベント。操作ログは entry をそのまま流す。 */
-export type SidecarEvent = ReadyEvent | RootEvent | ErrorEvent | ToolLogEntry;
+export type SidecarEvent = ReadyEvent | RootEvent | ErrorEvent | RequestEvent | ToolLogEntry;
 
 /**
  * イベントを stdout へ書ける 1 行へ組む。
