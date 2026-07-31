@@ -5,8 +5,9 @@
  * safeRelativePath で境界を担保済みだが、ここでも root 逸脱を実パスで再検査する
  * （多重防御）。テスト・dry-run はインメモリ実装（MemoryDocumentStore）を使う。
  */
-import { readFile, writeFile, mkdir, access, readdir } from 'node:fs/promises';
-import { join, resolve, dirname, relative, sep } from 'node:path';
+import { readFile, writeFile, mkdir, access, readdir, rename, rm } from 'node:fs/promises';
+import { randomBytes } from 'node:crypto';
+import { join, resolve, dirname, basename, relative, sep } from 'node:path';
 import type { DocumentStore } from './store.js';
 
 export class FileDocumentStore implements DocumentStore {
@@ -44,10 +45,26 @@ export class FileDocumentStore implements DocumentStore {
     return readFile(this.absolute(relativePath), 'utf8');
   }
 
+  /**
+   * 一時ファイルへ書いてから rename で差し替える。
+   *
+   * 行単位の書き込み（検証シート）は全文を読んで全文を書き戻すので、直接上書きすると
+   * 途中で落ちた 1 回でシート全体を失いうる。rename は同一ボリューム内では原子的で、
+   * Windows でも既存ファイルを置換できる。一時ファイルの拡張子は `.md` / `.tsv` を
+   * 避けてあり、デスクトップのファイル監視には現れない。
+   */
   async write(relativePath: string, content: string): Promise<void> {
     const abs = this.absolute(relativePath);
-    await mkdir(dirname(abs), { recursive: true });
-    await writeFile(abs, content, 'utf8');
+    const dir = dirname(abs);
+    await mkdir(dir, { recursive: true });
+    const temp = join(dir, `.${basename(abs)}.${randomBytes(6).toString('hex')}.partial`);
+    try {
+      await writeFile(temp, content, 'utf8');
+      await rename(temp, abs);
+    } catch (error) {
+      await rm(temp, { force: true }).catch(() => undefined);
+      throw error;
+    }
   }
 
   async exists(relativePath: string): Promise<boolean> {

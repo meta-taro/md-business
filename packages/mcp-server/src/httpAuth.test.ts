@@ -33,4 +33,12 @@ describe('isAuthorized', () => {
     expect(isAuthorized(undefined, 'secret-xyz')).toBe(false);
     expect(isAuthorized('Bearer secret-xyz', '')).toBe(false);
   });
+
+  // 定数時間比較は長さの違う入力を渡すと例外を投げる実装があるため、
+  // 短い / 長い / マルチバイトのいずれでも「拒否を返す」ことを確かめる。
+  it('長さの違うトークンは例外にせず拒否する', () => {
+    expect(isAuthorized('Bearer s', 'secret-xyz')).toBe(false);
+    expect(isAuthorized('Bearer secret-xyz-and-more', 'secret-xyz')).toBe(false);
+    expect(isAuthorized('Bearer トークン', 'secret-xyz')).toBe(false);
+  });
 });

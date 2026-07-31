@@ -1,8 +1,33 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { mkdtemp, rm, mkdir, writeFile } from 'node:fs/promises';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { mkdtemp, rm, mkdir, writeFile, readdir } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join, resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { FileDocumentStore } from './fileStore.js';
+
+/**
+ * 書き込み中断を再現するための差し込み口。`partial` の間は要求された内容の前半だけを
+ * 書いて例外を投げる（ディスク満杯・プロセス強制終了で起きる「中途半端なファイル」）。
+ * vi.mock のファクトリはホイストされるため vi.hoisted で先に用意する。
+ */
+const writeControl = vi.hoisted(() => ({
+  mode: 'normal' as 'normal' | 'partial',
+  /** writeFile が実際に受け取ったパス（一時ファイル名の規則を検査するため）。 */
+  targets: [] as string[],
+}));
+
+vi.mock('node:fs/promises', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('node:fs/promises')>();
+  return {
+    ...actual,
+    writeFile: async (path: never, data: never, options: never) => {
+      writeControl.targets.push(String(path));
+      if (writeControl.mode !== 'partial') return actual.writeFile(path, data, options);
+      const text = String(data);
+      await actual.writeFile(path, text.slice(0, Math.ceil(text.length / 2)), options);
+      throw new Error('書き込みを中断しました（テスト）');
+    },
+  };
+});
 
 /**
  * FileDocumentStore は DocumentStore の本番実装（node:fs）。ここだけ実ファイル I/O を
@@ -52,6 +77,69 @@ describe('FileDocumentStore', () => {
     const store = new FileDocumentStore(root);
     await expect(store.read('../escape.md')).rejects.toThrow();
     await expect(store.write('../escape.md', 'x')).rejects.toThrow();
+  });
+});
+
+/**
+ * 行単位の書き込み（検証シート）は「全文を読んで全文を書き戻す」形なので、上書きの
+ * 途中で落ちると 1 回でシート全体を失いうる。一時ファイルへ書いてから rename で
+ * 差し替えることで、元ファイルは差し替わるまで最後まで元の内容のまま残す。
+ */
+describe('FileDocumentStore — 上書きの原子性', () => {
+  let root: string;
+
+  beforeEach(async () => {
+    root = await mkdtemp(join(tmpdir(), 'mdbiz-atomic-'));
+    writeControl.targets = [];
+  });
+
+  afterEach(async () => {
+    writeControl.mode = 'normal';
+    await rm(root, { recursive: true, force: true });
+  });
+
+  it('書き込みが途中で失敗しても元の内容が残る', async () => {
+    const store = new FileDocumentStore(root);
+    await store.write('sheet.tsv', '元の内容');
+
+    writeControl.mode = 'partial';
+    await expect(store.write('sheet.tsv', '新しい内容をここへ書き込む')).rejects.toThrow();
+
+    writeControl.mode = 'normal';
+    expect(await store.read('sheet.tsv')).toBe('元の内容');
+  });
+
+  it('失敗しても一時ファイルを残さない', async () => {
+    const store = new FileDocumentStore(root);
+    await store.write('sheet.tsv', '元の内容');
+
+    writeControl.mode = 'partial';
+    await expect(store.write('sheet.tsv', '新しい内容をここへ書き込む')).rejects.toThrow();
+
+    writeControl.mode = 'normal';
+    expect(await readdir(root)).toEqual(['sheet.tsv']);
+  });
+
+  it('成功時も一時ファイルを残さない', async () => {
+    const store = new FileDocumentStore(root);
+    await store.write('doc.md', '一度目');
+    await store.write('doc.md', '二度目');
+
+    expect(await readdir(root)).toEqual(['doc.md']);
+    expect(await store.read('doc.md')).toBe('二度目');
+  });
+
+  it('一時ファイルは同じディレクトリに置き、監視対象の拡張子にしない', async () => {
+    const store = new FileDocumentStore(root);
+    await store.write('sub/doc.md', '本文');
+
+    // 実際に書いた先は目的のファイルではなく、同ディレクトリの一時ファイル。
+    // デスクトップのファイル監視は .md / .tsv しか拾わないので、途中経過が
+    // ファイル一覧に一瞬現れないよう拡張子を外す。
+    const written = writeControl.targets.at(-1) ?? '';
+    expect(dirname(written)).toBe(join(root, 'sub'));
+    expect(written.endsWith('.md')).toBe(false);
+    expect(written.endsWith('.tsv')).toBe(false);
   });
 });
 

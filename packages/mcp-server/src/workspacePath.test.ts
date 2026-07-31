@@ -66,3 +66,39 @@ describe('safeRelativePath', () => {
     if (!r.ok) expect(typeof r.reason).toBe('string');
   });
 });
+
+/**
+ * Windows 実機（Windows 11 / Node 22）で確認した挙動に基づく拒否条件。
+ *
+ * - `a.md:x` は書き込みも読み出しも成功するが、ファイル一覧には `a.md` しか現れない
+ *   （NTFS の代替データストリームへ入るため）。書いた内容がアプリから見えない文書に
+ *   なるので受け付けない。
+ * - `CON.md` / `NUL.md` などは実ファイルとして作られ内容も読めるが、エクスプローラや
+ *   多くのエディタから開けず削除もしづらい。利用者が扱えない文書を作らせない。
+ *
+ * どちらもワークスペース外へ抜ける経路ではない。判定は OS を見ずに常に同じにする
+ * （macOS で作った文書が Windows で開けない、を防ぐため）。
+ */
+describe('safeRelativePath — 扱えない名前', () => {
+  it('代替データストリーム指定（コロン）を拒否する', () => {
+    expect(safeRelativePath('a.md:x').ok).toBe(false);
+    expect(safeRelativePath('docs/a.md::$DATA').ok).toBe(false);
+    expect(safeRelativePath('docs:hidden/a.md').ok).toBe(false);
+  });
+
+  it('予約デバイス名を拒否する（拡張子の有無・大文字小文字を問わない）', () => {
+    expect(safeRelativePath('CON').ok).toBe(false);
+    expect(safeRelativePath('con.md').ok).toBe(false);
+    expect(safeRelativePath('docs/NUL.md').ok).toBe(false);
+    expect(safeRelativePath('COM1.md').ok).toBe(false);
+    expect(safeRelativePath('lpt9.tsv').ok).toBe(false);
+    expect(safeRelativePath('PRN/a.md').ok).toBe(false);
+  });
+
+  it('予約語を含むだけの普通の名前は通す', () => {
+    expect(safeRelativePath('console.md').ok).toBe(true);
+    expect(safeRelativePath('docs/contract.md').ok).toBe(true);
+    expect(safeRelativePath('COM10.md').ok).toBe(true);
+    expect(safeRelativePath('nullable.md').ok).toBe(true);
+  });
+});
