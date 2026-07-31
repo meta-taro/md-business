@@ -73,6 +73,20 @@ jobs:
       - name: Build workspace packages
         run: pnpm build
 
+      # Release 本文は CHANGELOG の該当バージョンの節をそのまま使う。
+      # 節が無い場合は空のまま進める（本文が空になるだけで、ビルドは止めない）。
+      - name: Extract release notes
+        id: notes
+        shell: bash
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          {
+            echo 'body<<RELEASE_NOTES_EOF'
+            node scripts/release-notes.mjs apps/desktop/CHANGELOG.md "$TAG"
+            echo 'RELEASE_NOTES_EOF'
+          } >> "$GITHUB_OUTPUT"
+
       - name: Build and publish Tauri installers
         uses: tauri-apps/tauri-action@v0
         env:
@@ -88,5 +102,6 @@ jobs:
           # push されたタグ名でリリースを作る（例: v0.1.0）。
           tagName: ${{ github.ref_name }}
           releaseName: "md-business ${{ github.ref_name }}"
+          releaseBody: ${{ steps.notes.outputs.body }}
           releaseDraft: true
           prerelease: false

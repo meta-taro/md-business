@@ -46,6 +46,11 @@ jobs:
       - name: Test
         run: pnpm test:run
 
+      # scripts/ 配下の補助スクリプトは turbo のワークスペースに含まれないため、
+      # 別途 node:test で実行する（ここで走らせないと誰も走らせない）。
+      - name: Test scripts
+        run: pnpm test:scripts
+
       - name: Build
         run: pnpm build
 
