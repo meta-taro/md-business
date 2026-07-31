@@ -78,6 +78,16 @@ export class FileDocumentStore implements DocumentStore {
 
   /** root 配下の `.md` を再帰収集し、`/` 区切りの相対パスでソートして返す。 */
   async list(): Promise<string[]> {
+    return this.collect('.md');
+  }
+
+  /** root 配下の `.tsv`（検証シート）を同じ形で集める。 */
+  async listSheets(): Promise<string[]> {
+    return this.collect('.tsv');
+  }
+
+  /** 指定拡張子のファイルを再帰収集する。 */
+  private async collect(extension: string): Promise<string[]> {
     const found: string[] = [];
     const walk = async (dir: string): Promise<void> => {
       const entries = await readdir(dir, { withFileTypes: true });
@@ -85,7 +95,7 @@ export class FileDocumentStore implements DocumentStore {
         const abs = join(dir, entry.name);
         if (entry.isDirectory()) {
           await walk(abs);
-        } else if (entry.isFile() && entry.name.endsWith('.md')) {
+        } else if (entry.isFile() && entry.name.endsWith(extension)) {
           found.push(relative(this.root, abs).split(sep).join('/'));
         }
       }

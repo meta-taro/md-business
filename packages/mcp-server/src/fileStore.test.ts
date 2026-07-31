@@ -73,6 +73,17 @@ describe('FileDocumentStore', () => {
     expect(await store.list()).toEqual(['a/b/deep.md', 'a/m.md', 'z.md']);
   });
 
+  it('listSheets は .tsv を再帰収集し、文書とは混ぜない', async () => {
+    // シートの一覧が取れないと、エージェントはパスを教わるまで検証シートに触れられない。
+    await mkdir(join(root, 'sheets'), { recursive: true });
+    await writeFile(join(root, 'z.tsv'), '');
+    await writeFile(join(root, 'sheets', 'a.tsv'), '');
+    await writeFile(join(root, 'sheets', 'note.md'), '');
+    const store = new FileDocumentStore(root);
+    expect(await store.listSheets()).toEqual(['sheets/a.tsv', 'z.tsv']);
+    expect(await store.list()).toEqual(['sheets/note.md']);
+  });
+
   it('root 外へ逃げる相対パスは拒否する（多重防御）', async () => {
     const store = new FileDocumentStore(root);
     await expect(store.read('../escape.md')).rejects.toThrow();

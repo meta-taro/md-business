@@ -14,7 +14,7 @@ md-business の **MCP（Model Context Protocol）サーバー**。Claude Desktop
 | `validate_document` | 既存文書を宣言スキーマで JSON Schema 検証（schema 未宣言は invalid 扱い） |
 | `create_document` | 構造化 frontmatter + 本文から新規作成。schema 宣言キーを種別ごとに自動注入。既存パスは上書きしない |
 | `update_document` | frontmatter（浅くマージ）／本文を更新。更新後スキーマで再検証し、更新前後の行 diff を返す |
-| `search_documents` | 全文クエリ・スキーマ・日付範囲で検索し、path / schema / title / date / 抜粋を返す |
+| `search_documents` | 全文クエリ・スキーマ・日付範囲で検索し、path / kind / schema / title / date / 抜粋を返す。文書と検証シートの両方を一覧できる |
 | `read_tsv` | 検証シート（カスタム TSV）のメタ情報・列定義（型 / 必須 / 選択肢）・データ行・列型の検証結果を返す |
 | `append_tsv_row` | 検証シートの末尾に 1 行追加。値は列名キーで指定し、未指定の列は空セルのまま |
 | `update_tsv_row` | 検証シートの既存 1 行のうち、指定した列だけを差し替える |
@@ -26,7 +26,8 @@ md-business の **MCP（Model Context Protocol）サーバー**。Claude Desktop
 対応スキーマ: `invoice/v1` / `spec/v1` / `test-spec/v1` / `db-spec/v1` / `nosql-db-spec/v1` / `api-spec/v1`。
 
 検証シートは Markdown ではなくカスタム TSV（1 レコード = 1 物理行）なので、`read_document` 系ではなく
-TSV 系ツールで扱う。行単位で書き込むため、触っていない行は差分に出ない。
+TSV 系ツールで扱う。どのシートがあるかは `search_documents` の `kind: "sheet"` で分かる
+（見出しは `# タイトル:` のメタ行から拾う）。行単位で書き込むため、触っていない行は差分に出ない。
 列型に反する値は書き込んだうえで `issues` として返す（記入途中の状態を許容するため）。
 1 セルは 64,000 文字、1 ファイルは 4,000,000 文字までを扱う（超える入力はファイルを書き換えずに失敗させる）。
 同じシートへの並行呼び出しはサーバー内で順番に処理するので、まとめて依頼しても行は消えない。

@@ -34,8 +34,14 @@ export {
   extractDate,
   inDateRange,
   makeExcerpt,
+  summarizeSheet,
 } from './search.js';
-export type { SearchQuery, SearchMatch, SearchDocumentsOk } from './search.js';
+export type {
+  SearchQuery,
+  SearchMatch,
+  SearchDocumentsOk,
+  SheetSummary,
+} from './search.js';
 
 export { createServer, SERVER_NAME, SERVER_VERSION } from './server.js';
 export type { CreateServerOptions } from './server.js';

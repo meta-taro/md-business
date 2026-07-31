@@ -238,7 +238,7 @@ export function createServer(store: DocumentStore, options: CreateServerOptions 
     'search_documents',
     {
       description:
-        'ワークスペースの業務文書を全文クエリ・スキーマ・日付範囲で検索し、path / schema / title / date / 抜粋の一覧を返す。',
+        'ワークスペースの業務文書と検証シートを全文クエリ・スキーマ・日付範囲で検索し、path / kind / schema / title / date / 抜粋の一覧を返す。kind=sheet は検証シート（TSV）なので read_tsv 系で扱う。スキーマ・日付で絞ったときは検証シートを含めない。',
       inputSchema: {
         query: z.string().optional().describe('本文・frontmatter への部分一致（未指定で全件）'),
         schema: z.string().optional().describe('スキーマ id で絞る'),

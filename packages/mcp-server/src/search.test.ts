@@ -6,6 +6,7 @@ import {
   extractDate,
   inDateRange,
   makeExcerpt,
+  summarizeSheet,
   searchDocuments,
 } from './search.js';
 
@@ -113,24 +114,73 @@ title: ただのメモ
 
 雑記。`;
 
+const SHEET = `#! md-business:test-spec-tsv/v1
+#  文書番号: TEST-0001
+#  タイトル: 受注画面の検証
+#@ style 結果 OK=#e6f4ea
+No.:number\t結果:enum(OK|NG)
+1\tOK
+`;
+
 function seed() {
   return new MemoryDocumentStore({
     'invoices/INV-2026-0001.md': INVOICE,
     'specs/basic.md': SPEC,
     'test-specs/draft.md': TEST_SPEC,
     'notes/memo.md': MEMO,
+    'sheets/受注.tsv': SHEET,
   });
 }
 
+describe('summarizeSheet', () => {
+  it('タイトルのメタ行を見出しに使い、抜粋は先頭のメタ行にする', () => {
+    expect(summarizeSheet(SHEET)).toEqual({
+      title: '受注画面の検証',
+      excerpt: '文書番号: TEST-0001',
+    });
+  });
+
+  it('英語キー title も見出しとして拾う', () => {
+    expect(summarizeSheet('#! x\n#  title: Order sheet\nNo.:number\n').title).toBe('Order sheet');
+  });
+
+  it('メタ行が無ければ見出しも抜粋も空にする', () => {
+    // 書きかけのシートでも一覧に出したいので、失敗させず null / 空文字で返す。
+    expect(summarizeSheet('No.:number\n1\n')).toEqual({ title: null, excerpt: '' });
+  });
+});
+
 describe('searchDocuments', () => {
-  it('クエリ無し・フィルタ無しは全件（path ソート）', async () => {
+  it('クエリ無し・フィルタ無しは文書と検証シートを全件（path ソート）', async () => {
     const r = await searchDocuments(seed(), {});
     expect(r.matches.map((m) => m.path)).toEqual([
       'invoices/INV-2026-0001.md',
       'notes/memo.md',
+      'sheets/受注.tsv',
       'specs/basic.md',
       'test-specs/draft.md',
     ]);
+  });
+
+  it('検証シートは kind=sheet として、見出し付きで返す', async () => {
+    // シートを一覧できないと、エージェントはパスを教わるまで read_tsv を呼べない。
+    const r = await searchDocuments(seed(), {});
+    const sheet = r.matches.find((m) => m.path === 'sheets/受注.tsv');
+    expect(sheet).toMatchObject({ kind: 'sheet', schema: null, title: '受注画面の検証', date: null });
+    expect(r.matches.find((m) => m.path === 'notes/memo.md')?.kind).toBe('document');
+  });
+
+  it('検証シートも本文クエリで絞り込める', async () => {
+    const r = await searchDocuments(seed(), { query: 'TEST-0001' });
+    expect(r.matches.map((m) => m.path)).toEqual(['sheets/受注.tsv']);
+  });
+
+  it('schema フィルタ・日付範囲を指定したときは検証シートを除く', async () => {
+    // シートは schema 宣言も日付も持たないので、絞り込みの意図に合わない。
+    const bySchema = await searchDocuments(seed(), { schema: 'invoice/v1' });
+    expect(bySchema.matches.map((m) => m.path)).toEqual(['invoices/INV-2026-0001.md']);
+    const byDate = await searchDocuments(seed(), { dateFrom: '2020-01-01' });
+    expect(byDate.matches.some((m) => m.kind === 'sheet')).toBe(false);
   });
 
   it('本文クエリで絞り込む', async () => {

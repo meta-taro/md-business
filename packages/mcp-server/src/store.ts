@@ -14,9 +14,15 @@ export interface DocumentStore {
   write(relativePath: string, content: string): Promise<void>;
   /** 相対パスが存在するか。 */
   exists(relativePath: string): Promise<boolean>;
-  /** 保持する全相対パス（ソート済み）。search / 一覧の走査元。 */
+  /** 文書（`.md`）の全相対パス（ソート済み）。search / 一覧の走査元。 */
   list(): Promise<string[]>;
+  /** 検証シート（`.tsv`）の全相対パス（ソート済み）。 */
+  listSheets(): Promise<string[]>;
 }
+
+/** 走査対象として扱う拡張子（文書 / 検証シート）。 */
+const DOCUMENT_EXT = '.md';
+const SHEET_EXT = '.tsv';
 
 /** テスト・dry-run 用のインメモリ DocumentStore。 */
 export class MemoryDocumentStore implements DocumentStore {
@@ -41,6 +47,10 @@ export class MemoryDocumentStore implements DocumentStore {
   }
 
   async list(): Promise<string[]> {
-    return [...this.files.keys()].sort();
+    return [...this.files.keys()].filter((p) => p.endsWith(DOCUMENT_EXT)).sort();
+  }
+
+  async listSheets(): Promise<string[]> {
+    return [...this.files.keys()].filter((p) => p.endsWith(SHEET_EXT)).sort();
   }
 }

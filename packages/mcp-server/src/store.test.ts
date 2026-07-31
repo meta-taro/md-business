@@ -31,9 +31,15 @@ describe('MemoryDocumentStore', () => {
     expect(await store.exists('y.md')).toBe(false);
   });
 
-  it('list は全パスをソートして返す', async () => {
-    const store = new MemoryDocumentStore({ 'b.md': '', 'a.md': '' });
+  it('list は文書（.md）だけをソートして返す', async () => {
+    // 検証シートは frontmatter を持たないので、文書の走査に混ぜると解析が空振りする。
+    const store = new MemoryDocumentStore({ 'b.md': '', 'a.md': '', 'sheets/s.tsv': '' });
     await store.write('c.md', '');
     expect(await store.list()).toEqual(['a.md', 'b.md', 'c.md']);
+  });
+
+  it('listSheets は検証シート（.tsv）だけをソートして返す', async () => {
+    const store = new MemoryDocumentStore({ 'z.tsv': '', 'a.md': '', 'sheets/s.tsv': '' });
+    expect(await store.listSheets()).toEqual(['sheets/s.tsv', 'z.tsv']);
   });
 });

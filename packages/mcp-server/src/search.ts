@@ -2,6 +2,8 @@
  * search_documents。
  * -----------------------------------------------------------------------------
  * DocumentStore 全走査で query（本文部分一致）／ schema id ／日付範囲を絞り込む。
+ * 文書（Markdown）に加えて検証シート（TSV）も返す。シートの一覧が取れないと、
+ * エージェントはパスを教わるまで検証シート用のツールを呼べないため。
  * 判定ロジックは純ヘルパへ分離して単体テストできるようにし、searchDocuments は
  * 「読む → 判定 → まとめる」の薄い統合に留める。fs には触れない。
  */
@@ -68,6 +70,44 @@ export function makeExcerpt(body: string): string {
   return '';
 }
 
+/** 検証シートの見出しとして扱うメタ行のキー（大文字小文字は無視）。 */
+const SHEET_TITLE_KEYS = ['タイトル', 'title'];
+
+export interface SheetSummary {
+  /** メタ行から拾った見出し。無ければ null。 */
+  title: string | null;
+  /** 一覧に添える 1 行（先頭のメタ行）。無ければ空文字。 */
+  excerpt: string;
+}
+
+/**
+ * 検証シート（TSV）の冒頭メタ行から、一覧に出す見出しと抜粋を取り出す。
+ *
+ * メタ行のキーは利用者が決めるので、見出しに使えるのは慣習的な「タイトル」だけ。
+ * 全体を解析すると 1 件ずつが重くなるため、冒頭の `#` 行だけを見る。
+ */
+export function summarizeSheet(source: string): SheetSummary {
+  let title: string | null = null;
+  let excerpt = '';
+  for (const raw of source.split('\n')) {
+    const line = raw.trim();
+    // `#!` はフォーマット識別、`#@` は表示指定。どちらも文書の内容ではない。
+    if (line.startsWith('#!') || line.startsWith('#@')) continue;
+    if (!line.startsWith('#')) break; // メタ行はファイル先頭に固まっている。
+    const content = line.slice(1).trim();
+    if (content === '') continue;
+    if (excerpt === '') excerpt = content.slice(0, 120);
+    const separator = content.indexOf(':');
+    if (separator === -1) continue;
+    const key = content.slice(0, separator).trim().toLowerCase();
+    if (title === null && SHEET_TITLE_KEYS.includes(key)) {
+      const value = content.slice(separator + 1).trim();
+      if (value !== '') title = value;
+    }
+  }
+  return { title, excerpt };
+}
+
 export interface SearchQuery {
   /** 本文・frontmatter 全文に対する部分一致（未指定は全件）。 */
   query?: string;
@@ -81,6 +121,8 @@ export interface SearchQuery {
 
 export interface SearchMatch {
   path: string;
+  /** 文書（Markdown）か検証シート（TSV）か。読み書きに使うツールが変わる。 */
+  kind: 'document' | 'sheet';
   schema: string | null;
   title: string | null;
   date: string | null;
@@ -109,9 +151,35 @@ export async function searchDocuments(
     const date = extractDate(data);
     if (!inDateRange(date, q.dateFrom, q.dateTo)) continue;
 
-    matches.push({ path, schema, title: extractTitle(data, body), date, excerpt: makeExcerpt(body) });
+    matches.push({
+      path,
+      kind: 'document',
+      schema,
+      title: extractTitle(data, body),
+      date,
+      excerpt: makeExcerpt(body),
+    });
   }
-  // store.list は既にソート済みだが、契約を searchDocuments 側でも明示しておく。
+
+  // 検証シートは schema 宣言も日付も持たない。絞り込みが指定されたときは意図に合わないので外す。
+  const wantsSheets =
+    q.schema === undefined && q.dateFrom === undefined && q.dateTo === undefined;
+  if (wantsSheets) {
+    for (const path of await store.listSheets()) {
+      const src = await store.read(path);
+      if (!matchesQuery(src, q.query)) continue;
+      const summary = summarizeSheet(src);
+      matches.push({
+        path,
+        kind: 'sheet',
+        schema: null,
+        title: summary.title,
+        date: null,
+        excerpt: summary.excerpt,
+      });
+    }
+  }
+  // 文書とシートを別々に集めるので、返す前に 1 本の並びへ揃える。
   matches.sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0));
   return { ok: true, matches };
 }
