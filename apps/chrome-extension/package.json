@@ -31,7 +31,7 @@
     "@md-business/schema-test-spec": "workspace:*",
     "buffer": "^6.0.3",
     "codemirror": "^6.0.2",
-    "dompurify": "^3.2.0",
+    "dompurify": "^3.4.12",
     "mermaid": "^11.15.0"
   },
   "devDependencies": {

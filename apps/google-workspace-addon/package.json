@@ -16,7 +16,7 @@
   "dependencies": {
     "@md-business/core": "workspace:*",
     "@md-business/schema-test-spec": "workspace:*",
-    "js-yaml": "^4.1.0"
+    "js-yaml": "^4.3.0"
   },
   "devDependencies": {
     "@types/google-apps-script": "^1.0.83",
