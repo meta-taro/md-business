@@ -45,6 +45,7 @@
     colModeMenuItems,
   } from './gridColumnMode';
   import { spillsRight } from './gridSpill';
+  import { keepsNativeContextMenu } from './gridContextMenu';
   import {
     readLayout,
     writeLayoutDirectives,
@@ -413,6 +414,22 @@
     colMenu = null;
   }
 
+  /**
+   * 独自メニューを持たない場所（行番号列・座標バーの隅・補足行・余白）の右クリック。
+   * WebView 既定のメニューはブラウザの操作を並べるだけなので、文字入力中を除いて抑止する。
+   */
+  function onGridContextMenu(event: MouseEvent): void {
+    const target = event.target;
+    const keep =
+      target instanceof HTMLElement
+        ? keepsNativeContextMenu({
+            tagName: target.tagName,
+            isContentEditable: target.isContentEditable,
+          })
+        : false;
+    if (!keep) event.preventDefault();
+  }
+
   // 型検査。セル位置ごとの最初の違反メッセージを引けるようにする。
   const issueByCell = $derived.by(() => {
     const map = new Map<string, string>();
@@ -738,6 +755,7 @@
     bind:this={gridEl}
     onpaste={onGridPaste}
     onpointerdown={() => (engaged = true)}
+    oncontextmenu={onGridContextMenu}
   >
     {#if doc.columns.length === 0}
       <p class="empty">列定義がありません（ヘッダ行のある TSV を開いてください）</p>
@@ -751,11 +769,16 @@
       </colgroup>
       <thead>
         <!-- スプレッドシート列座標バー（A,B,C…）。型付きヘッダの上に重ねる位置参照レイヤー。
-             フォーマット不変・描画専用。 -->
+             フォーマット不変・描画専用。列を右クリックする場所として自然なので、型付き
+             ヘッダと同じ表示モードメニューをここでも開く。 -->
         <tr class="coord-row">
           <th class="rownum coord-corner" scope="col" aria-hidden="true"></th>
           {#each colLetters as letter, ci (ci)}
-            <th class="coord-cell" scope="col">{letter}</th>
+            <th
+              class="coord-cell"
+              scope="col"
+              oncontextmenu={(e) => openColMenu(ci, e)}
+            >{letter}</th>
           {/each}
         </tr>
         <!-- 表の上の補足行（#@ note …）。座標バーの下・型付きヘッダの上に全幅で敷く。
@@ -774,34 +797,38 @@
               scope="colgroup"
               style={`top:${COORD_ROW_H + ni * NOTE_ROW_H}px; height:${NOTE_ROW_H}px`}
             >
-              {#if editable && editingNote === ni}
-                <!-- 編集中: input 化。Enter 確定・Esc 取消・blur で確定（グリッド nav へ非伝播）。 -->
-                <input
-                  class="note-input"
-                  value={noteDraft}
-                  use:noteAutofocus
-                  oninput={(e) => (noteDraft = e.currentTarget.value)}
-                  onblur={commitNoteEdit}
-                  onkeydown={onNoteKeydown}
-                />
-              {:else if editable}
-                <!-- クリックで編集（セル同様の 1 クリック→編集は補足では過剰なので即編集）。× で削除。 -->
-                <button
-                  type="button"
-                  class="note-text"
-                  title="クリックで補足を編集"
-                  onclick={() => startNoteEdit(ni)}
-                >{note}</button>
-                <button
-                  type="button"
-                  class="note-del"
-                  title="この補足を削除"
-                  aria-label="この補足を削除"
-                  onclick={() => deleteNote(ni)}
-                >×</button>
-              {:else}
-                <span class="note-text-ro" title={note}>{note}</span>
-              {/if}
+              <!-- 横並びは内側で組む。th 自身を flex にすると表セルでなくなり colspan が
+                   無効化される（全幅のはずの補足が 1 列目の幅に潰れる）。 -->
+              <div class="note-body">
+                {#if editable && editingNote === ni}
+                  <!-- 編集中: input 化。Enter 確定・Esc 取消・blur で確定（グリッド nav へ非伝播）。 -->
+                  <input
+                    class="note-input"
+                    value={noteDraft}
+                    use:noteAutofocus
+                    oninput={(e) => (noteDraft = e.currentTarget.value)}
+                    onblur={commitNoteEdit}
+                    onkeydown={onNoteKeydown}
+                  />
+                {:else if editable}
+                  <!-- クリックで編集（セル同様の 1 クリック→編集は補足では過剰なので即編集）。× で削除。 -->
+                  <button
+                    type="button"
+                    class="note-text"
+                    title="クリックで補足を編集"
+                    onclick={() => startNoteEdit(ni)}
+                  >{note}</button>
+                  <button
+                    type="button"
+                    class="note-del"
+                    title="この補足を削除"
+                    aria-label="この補足を削除"
+                    onclick={() => deleteNote(ni)}
+                  >×</button>
+                {:else}
+                  <span class="note-text-ro" title={note}>{note}</span>
+                {/if}
+              </div>
             </th>
           </tr>
         {/each}
@@ -820,15 +847,17 @@
               scope="colgroup"
               style={`top:${COORD_ROW_H + notes.length * NOTE_ROW_H}px; height:${NOTE_ROW_H}px`}
             >
-              <input
-                class="note-input"
-                value={noteDraft}
-                use:noteAutofocus
-                placeholder="補足を入力…（Enter で確定・Esc で取消）"
-                oninput={(e) => (noteDraft = e.currentTarget.value)}
-                onblur={commitNoteEdit}
-                onkeydown={onNoteKeydown}
-              />
+              <div class="note-body">
+                <input
+                  class="note-input"
+                  value={noteDraft}
+                  use:noteAutofocus
+                  placeholder="補足を入力…（Enter で確定・Esc で取消）"
+                  oninput={(e) => (noteDraft = e.currentTarget.value)}
+                  onblur={commitNoteEdit}
+                  onkeydown={onNoteKeydown}
+                />
+              </div>
             </th>
           </tr>
         {/if}
@@ -846,32 +875,36 @@
                 title={cell.label}
                 style={`top:${notesBottom}px; height:${GROUP_ROW_H}px`}
               >
-                {#if editable && cell.label !== '' && editingGroup?.start === cell.start}
-                  <!-- 改名中: input 化。Enter 確定・Esc 取消・blur 確定（グリッド nav へ非伝播）。 -->
-                  <input
-                    class="group-input"
-                    value={groupDraft}
-                    use:noteAutofocus
-                    oninput={(e) => (groupDraft = e.currentTarget.value)}
-                    onblur={commitGroupEdit}
-                    onkeydown={onGroupKeydown}
-                  />
-                {:else if editable && cell.label !== ''}
-                  <!-- クリックで大分類を改名。× で削除（下の型付きヘッダ/列は保持）。 -->
-                  <button
-                    type="button"
-                    class="group-text"
-                    title="クリックで大分類を改名"
-                    onclick={() => startGroupRename(cell)}
-                  >{cell.label}</button>
-                  <button
-                    type="button"
-                    class="group-del"
-                    title="この大分類を削除"
-                    aria-label="この大分類を削除"
-                    onclick={() => deleteGroup(cell)}
-                  >×</button>
-                {:else}{cell.label}{/if}
+                <!-- 中央寄せの横並びは内側で組む（th を flex にすると colspan が効かず、
+                     列をまたぐはずの大分類が 1 列目へ潰れる）。 -->
+                <div class="group-body">
+                  {#if editable && cell.label !== '' && editingGroup?.start === cell.start}
+                    <!-- 改名中: input 化。Enter 確定・Esc 取消・blur 確定（グリッド nav へ非伝播）。 -->
+                    <input
+                      class="group-input"
+                      value={groupDraft}
+                      use:noteAutofocus
+                      oninput={(e) => (groupDraft = e.currentTarget.value)}
+                      onblur={commitGroupEdit}
+                      onkeydown={onGroupKeydown}
+                    />
+                  {:else if editable && cell.label !== ''}
+                    <!-- クリックで大分類を改名。× で削除（下の型付きヘッダ/列は保持）。 -->
+                    <button
+                      type="button"
+                      class="group-text"
+                      title="クリックで大分類を改名"
+                      onclick={() => startGroupRename(cell)}
+                    >{cell.label}</button>
+                    <button
+                      type="button"
+                      class="group-del"
+                      title="この大分類を削除"
+                      aria-label="この大分類を削除"
+                      onclick={() => deleteGroup(cell)}
+                    >×</button>
+                  {:else}<span class="group-text-ro">{cell.label}</span>{/if}
+                </div>
               </th>
             {/each}
           </tr>
@@ -1357,12 +1390,19 @@
     text-overflow: ellipsis;
   }
 
-  /* 補足セルは「本文（伸長）＋削除ボタン」/ 編集 input を横並びに収める。 */
+  /* 補足セルは全列にまたがる 1 セル（colspan）。表セルのまま置くことが幅の条件なので、
+     display は触らない。 */
   .note-cell {
+    font-size: var(--text-2xs-size, var(--text-sm-size));
+  }
+
+  /* 「本文（伸長）＋削除ボタン」/ 編集 input の横並びはセルの内側で組む。 */
+  .note-body {
     display: flex;
     align-items: center;
     gap: var(--space-2);
-    font-size: var(--text-2xs-size, var(--text-sm-size));
+    height: 100%;
+    min-width: 0;
   }
 
   /* 補足本文はボタンだが地に溶かして「クリックで編集できるテキスト」に見せる。 */
@@ -1446,14 +1486,21 @@
     border-bottom: 1px solid var(--border-strong);
   }
 
+  /* ラベルを持つセルの地と仕切り。列をまたぐ幅は colspan で決まるので display は触らない。 */
   .group-filled {
+    color: var(--text-primary);
+    background: var(--bg-muted, var(--bg-subtle));
+    border-right: 1px solid var(--border-strong);
+  }
+
+  /* ラベル＋削除ボタン / 改名 input の中央寄せ横並びはセルの内側で組む。 */
+  .group-body {
     display: flex;
     align-items: center;
     justify-content: center;
     gap: var(--space-1);
-    color: var(--text-primary);
-    background: var(--bg-muted, var(--bg-subtle));
-    border-right: 1px solid var(--border-strong);
+    height: 100%;
+    min-width: 0;
   }
 
   /* 大分類ラベルはボタンだが地に溶かして「クリックで改名できる見出し」に見せる。 */
@@ -1469,6 +1516,14 @@
     overflow: hidden;
     text-overflow: ellipsis;
     cursor: text;
+  }
+
+  /* 読み取り専用の大分類。ellipsis は flex コンテナでは効かないので、テキスト側に持たせる。 */
+  .group-text-ro {
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .group-del {

@@ -84,6 +84,11 @@
             <span class="conn-text" title={mcp.status.detail ?? connText}>{connText}</span>
           </div>
 
+          {#if mcp.status.detail !== null}
+            <!-- 理由の一文だけでは対処が決まらないので、サーバーが残した原文も出す。 -->
+            <pre class="conn-detail">{mcp.status.detail}</pre>
+          {/if}
+
           {#if mcp.isReady && mcp.status.token !== null}
             <!-- 設定ごと写せる方を主にする。トークン単体は、既に設定を持っている人向け。 -->
             <button class="token primary" type="button" onclick={() => copy(configJson, 'config')}>
@@ -263,6 +268,17 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+
+  .conn-detail {
+    margin: var(--space-1) var(--space-3) 0;
+    max-height: 8em;
+    overflow: auto;
+    font-family: var(--font-mono);
+    font-size: var(--text-xs-size);
+    color: var(--text-secondary);
+    white-space: pre-wrap;
+    word-break: break-all;
   }
 
   .token {
