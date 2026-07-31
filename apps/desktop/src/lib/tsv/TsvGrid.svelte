@@ -45,6 +45,7 @@
     colModeMenuItems,
   } from './gridColumnMode';
   import { spillsRight } from './gridSpill';
+  import { keepsNativeContextMenu } from './gridContextMenu';
   import {
     readLayout,
     writeLayoutDirectives,
@@ -413,6 +414,22 @@
     colMenu = null;
   }
 
+  /**
+   * 独自メニューを持たない場所（行番号列・座標バーの隅・補足行・余白）の右クリック。
+   * WebView 既定のメニューはブラウザの操作を並べるだけなので、文字入力中を除いて抑止する。
+   */
+  function onGridContextMenu(event: MouseEvent): void {
+    const target = event.target;
+    const keep =
+      target instanceof HTMLElement
+        ? keepsNativeContextMenu({
+            tagName: target.tagName,
+            isContentEditable: target.isContentEditable,
+          })
+        : false;
+    if (!keep) event.preventDefault();
+  }
+
   // 型検査。セル位置ごとの最初の違反メッセージを引けるようにする。
   const issueByCell = $derived.by(() => {
     const map = new Map<string, string>();
@@ -738,6 +755,7 @@
     bind:this={gridEl}
     onpaste={onGridPaste}
     onpointerdown={() => (engaged = true)}
+    oncontextmenu={onGridContextMenu}
   >
     {#if doc.columns.length === 0}
       <p class="empty">列定義がありません（ヘッダ行のある TSV を開いてください）</p>
@@ -751,11 +769,16 @@
       </colgroup>
       <thead>
         <!-- スプレッドシート列座標バー（A,B,C…）。型付きヘッダの上に重ねる位置参照レイヤー。
-             フォーマット不変・描画専用。 -->
+             フォーマット不変・描画専用。列を右クリックする場所として自然なので、型付き
+             ヘッダと同じ表示モードメニューをここでも開く。 -->
         <tr class="coord-row">
           <th class="rownum coord-corner" scope="col" aria-hidden="true"></th>
           {#each colLetters as letter, ci (ci)}
-            <th class="coord-cell" scope="col">{letter}</th>
+            <th
+              class="coord-cell"
+              scope="col"
+              oncontextmenu={(e) => openColMenu(ci, e)}
+            >{letter}</th>
           {/each}
         </tr>
         <!-- 表の上の補足行（#@ note …）。座標バーの下・型付きヘッダの上に全幅で敷く。
