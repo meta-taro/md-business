@@ -271,11 +271,35 @@ pub fn pick_existing(candidates: &[PathBuf], exists: impl Fn(&Path) -> bool) -> 
 /// 保存先が取れない環境では省き、その場合サイドカーは毎回新しい接続情報を発行する。
 /// トークンそのものは引数に載せない（引数はプロセス一覧から見えるため）。
 pub fn sidecar_args(sidecar: &Path, root: &Path, state: Option<&Path>) -> Vec<PathBuf> {
-    let mut args = vec![sidecar.to_path_buf(), root.to_path_buf()];
+    let mut args = vec![plain_path(sidecar), plain_path(root)];
     if let Some(path) = state {
-        args.push(path.to_path_buf());
+        args.push(plain_path(path));
     }
     args
+}
+
+/// Windows の verbatim 表記（`\\?\` 前置き）を、ふつうのパス表記へ戻す。
+///
+/// OS からもらう位置はこの表記で返ることがある。Windows API はどちらでも通るが、
+/// Node は `\\?\C:\...` をサーバー名 `?` / 共有名 `C:` の UNC パスと読むため、
+/// ドライブ名そのものを見に行って起動に失敗する。子へ渡す値は必ずここを通す。
+pub fn plain_path(path: &Path) -> PathBuf {
+    let text = path.to_string_lossy();
+    if let Some(rest) = text.strip_prefix(r"\\?\UNC\") {
+        return PathBuf::from(format!(r"\\{}", rest));
+    }
+    match text.strip_prefix(r"\\?\") {
+        // 戻せると分かるのはドライブ表記だけ。デバイス名などは触らずそのまま渡す。
+        Some(rest) if is_drive_path(rest) => PathBuf::from(rest.to_string()),
+        _ => path.to_path_buf(),
+    }
+}
+
+/// `C:\...` のようにドライブ文字で始まるか。
+fn is_drive_path(text: &str) -> bool {
+    let mut chars = text.chars();
+    let drive = chars.next().is_some_and(|c| c.is_ascii_alphabetic());
+    drive && chars.next() == Some(':')
 }
 
 #[cfg(test)]
@@ -452,6 +476,56 @@ mod tests {
         assert_eq!(
             args,
             vec![PathBuf::from("/app/sidecar.cjs"), PathBuf::from("/work")]
+        );
+    }
+
+    #[test]
+    fn 引数はすべてふつうのパス表記で渡す() {
+        let args = sidecar_args(
+            Path::new(r"\\?\C:\app\sidecar.cjs"),
+            Path::new(r"\\?\C:\work"),
+            Some(Path::new(r"\\?\C:\config\mcp.json")),
+        );
+        assert_eq!(
+            args,
+            vec![
+                PathBuf::from(r"C:\app\sidecar.cjs"),
+                PathBuf::from(r"C:\work"),
+                PathBuf::from(r"C:\config\mcp.json"),
+            ]
+        );
+    }
+
+    #[test]
+    fn verbatim表記のドライブパスはふつうの表記へ戻す() {
+        assert_eq!(
+            plain_path(Path::new(r"\\?\C:\claude\sidecar.cjs")),
+            PathBuf::from(r"C:\claude\sidecar.cjs")
+        );
+    }
+
+    #[test]
+    fn verbatimなunc共有は二重円記号の表記へ戻す() {
+        assert_eq!(
+            plain_path(Path::new(r"\\?\UNC\server\share\app")),
+            PathBuf::from(r"\\server\share\app")
+        );
+    }
+
+    #[test]
+    fn 戻し方の分からない表記とふつうのパスはそのまま渡す() {
+        // デバイス名は戻す先が一意に決まらないので触らない。
+        assert_eq!(
+            plain_path(Path::new(r"\\?\Volume{0}\app")),
+            PathBuf::from(r"\\?\Volume{0}\app")
+        );
+        assert_eq!(
+            plain_path(Path::new(r"C:\claude\sidecar.cjs")),
+            PathBuf::from(r"C:\claude\sidecar.cjs")
+        );
+        assert_eq!(
+            plain_path(Path::new("/app/sidecar.cjs")),
+            PathBuf::from("/app/sidecar.cjs")
         );
     }
 
