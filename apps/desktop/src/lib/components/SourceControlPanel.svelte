@@ -9,6 +9,7 @@
   import { workspace } from '$lib/workspace/workspace.svelte';
   import { diffView } from '$lib/git/diffView.svelte';
   import { gitMarkLetter, toTreeRelPath, type GitFileStatus } from '$lib/git/gitStatus';
+  import { t } from '$lib/i18n/i18n.svelte';
 
   interface Props {
     open: boolean;
@@ -44,7 +45,7 @@
       const count = git.changeCount;
       await git.commit(root, message);
       message = '';
-      notice = `${count} 件の変更をコミットしました`;
+      notice = t('scm.committed', { count });
       // ツリーの色マークは git ストア更新で自動反映。ワークスペースの再走査は不要。
     } catch (e) {
       error = toErr(e);
@@ -60,7 +61,7 @@
     notice = null;
     try {
       await git.push(root);
-      notice = 'push しました';
+      notice = t('scm.pushed');
     } catch (e) {
       error = toErr(e);
     } finally {
@@ -75,7 +76,7 @@
     notice = null;
     try {
       await git.pull(root);
-      notice = 'pull しました';
+      notice = t('scm.pulled');
     } catch (e) {
       error = toErr(e);
     } finally {
@@ -105,33 +106,33 @@
 </script>
 
 {#if open}
-  <section class="scm" aria-label="ソース管理">
+  <section class="scm" aria-label={t('status.sourceControl')}>
     <header class="scm-head">
       <div class="head-left">
-        <span class="title">ソース管理</span>
+        <span class="title">{t('status.sourceControl')}</span>
         {#if git.isRepo}
           <span class="branch"><span class="dot ok" aria-hidden="true"></span>{git.branch ?? 'detached'}</span>
           {#if git.ahead > 0 || git.behind > 0}
-            <span class="muted" title="リモートとの先行 / 遅延コミット数">↑{git.ahead} ↓{git.behind}</span>
+            <span class="muted" title={t('status.aheadBehindTitle')}>↑{git.ahead} ↓{git.behind}</span>
           {/if}
         {:else}
-          <span class="muted">リポジトリ未接続</span>
+          <span class="muted">{t('status.noRepo')}</span>
         {/if}
       </div>
       <div class="head-right">
-        <button class="chip" type="button" onclick={doPull} disabled={!canPull} title="git pull --ff-only（fast-forward のみ）">
+        <button class="chip" type="button" onclick={doPull} disabled={!canPull} title={t('scm.pullTitle')}>
           Pull{#if git.behind > 0}<span class="count">{git.behind}</span>{/if}
         </button>
-        <button class="chip" type="button" onclick={doPush} disabled={!canPush} title="git push（--force なし・認証は OS の git 資格情報）">
+        <button class="chip" type="button" onclick={doPush} disabled={!canPush} title={t('scm.pushTitle')}>
           Push{#if git.ahead > 0}<span class="count">{git.ahead}</span>{/if}
         </button>
-        <button class="icon-btn" type="button" onclick={onclose} title="閉じる" aria-label="ソース管理を閉じる">▾</button>
+        <button class="icon-btn" type="button" onclick={onclose} title={t('common.close')} aria-label={t('scm.closePanel')}>▾</button>
       </div>
     </header>
 
     {#if error}
       <div class="banner err" role="alert">
-        <strong>失敗しました</strong>
+        <strong>{t('scm.failed')}</strong>
         <pre>{error}</pre>
       </div>
     {:else if notice}
@@ -140,9 +141,9 @@
 
     <div class="scm-body">
       <div class="changes">
-        <div class="col-title">変更 <span class="muted">({git.changeCount})</span></div>
+        <div class="col-title">{t('scm.changes')} <span class="muted">({git.changeCount})</span></div>
         {#if git.changeCount === 0}
-          <p class="empty">変更はありません</p>
+          <p class="empty">{t('scm.noChanges')}</p>
         {:else}
           <ul class="file-list">
             {#each git.status.files as f (f.relPath)}
@@ -153,7 +154,7 @@
                   data-git={f.state}
                   class:selected={diffView.active && diffView.relPath === f.relPath}
                   onclick={() => onFileClick(f)}
-                  title={`${f.relPath}（クリックで差分表示）`}
+                  title={t('scm.fileRowTitle', { path: f.relPath })}
                 >
                   <span class="mark">{gitMarkLetter(f.state)}</span>
                   <span class="path">{f.relPath}</span>
@@ -165,19 +166,25 @@
       </div>
 
       <div class="commit">
-        <div class="col-title">コミット</div>
+        <div class="col-title">{t('scm.commitHead')}</div>
         <textarea
           class="msg"
           bind:value={message}
-          placeholder="変更の概要を入力（Ctrl/⌘+Enter でコミット）"
+          placeholder={t('scm.messagePlaceholder')}
           rows="3"
           disabled={busy || !git.isRepo}
           onkeydown={onMessageKeydown}
         ></textarea>
         <button class="commit-btn" type="button" onclick={doCommit} disabled={!canCommit}>
-          {busy ? '処理中…' : `${git.changeCount > 0 ? git.changeCount + ' 件を' : ''}コミット`}
+          {#if busy}
+            {t('scm.working')}
+          {:else if git.changeCount > 0}
+            {t('scm.commitCount', { count: git.changeCount })}
+          {:else}
+            {t('scm.commit')}
+          {/if}
         </button>
-        <p class="hint">全変更をステージ（git add -A）してコミットします。</p>
+        <p class="hint">{t('scm.stageHint')}</p>
       </div>
     </div>
   </section>

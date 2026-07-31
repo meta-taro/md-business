@@ -5,13 +5,14 @@
   import { diffView } from '$lib/git/diffView.svelte';
   import { parseUnifiedDiff } from '$lib/git/diffParse';
   import { gitMarkLetter } from '$lib/git/gitStatus';
+  import { t } from '$lib/i18n/i18n.svelte';
 
   // raw が変わるたびに行配列を導出。差分なし（空文字列）は空配列＝「差分なし」表示に分岐。
   const lines = $derived(parseUnifiedDiff(diffView.raw));
   const hasDiff = $derived(lines.length > 0);
 </script>
 
-<div class="diff" aria-label="差分ビュー">
+<div class="diff" aria-label={t('diff.label')}>
   <div class="diff-head">
     <div class="head-left">
       {#if diffView.state}
@@ -25,22 +26,22 @@
       class="close-btn"
       type="button"
       onclick={() => diffView.close()}
-      title="差分を閉じてプレビューに戻る"
+      title={t('diff.backToPreviewTitle')}
     >
-      プレビューに戻る
+      {t('diff.backToPreview')}
     </button>
   </div>
 
   {#if diffView.loading}
-    <div class="state">差分を取得中…</div>
+    <div class="state">{t('diff.loading')}</div>
   {:else if diffView.error}
     <div class="state err" role="alert">
-      <strong>差分を取得できませんでした</strong>
+      <strong>{t('diff.failed')}</strong>
       <pre>{diffView.error}</pre>
     </div>
   {:else if !hasDiff}
     <div class="state">
-      このファイルにディスク上の差分はありません（保存済み・ステージ内容と一致）。
+      {t('diff.none')}
     </div>
   {:else}
     <div class="diff-body">

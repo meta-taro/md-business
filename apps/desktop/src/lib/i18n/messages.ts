@@ -67,6 +67,29 @@ export interface Messages {
   'status.unsaved': string;
   'status.savedAt': string;
   'status.savedAtTitle': string;
+  // 下部ソース管理ドロワー（コミット / プッシュ / プル）
+  'scm.closePanel': string;
+  'scm.pullTitle': string;
+  'scm.pushTitle': string;
+  'scm.failed': string;
+  'scm.pushed': string;
+  'scm.pulled': string;
+  'scm.committed': string;
+  'scm.changes': string;
+  'scm.noChanges': string;
+  'scm.fileRowTitle': string;
+  'scm.commitHead': string;
+  'scm.messagePlaceholder': string;
+  'scm.working': string;
+  'scm.commit': string;
+  'scm.commitCount': string;
+  'scm.stageHint': string;
+  'diff.label': string;
+  'diff.backToPreviewTitle': string;
+  'diff.backToPreview': string;
+  'diff.loading': string;
+  'diff.failed': string;
+  'diff.none': string;
   // 左レール（ファイルツリー / エクスプローラー）
   'tree.label': string;
   'tree.expandExplorer': string;
@@ -238,6 +261,28 @@ const en: Messages = {
   'status.unsaved': 'Unsaved changes',
   'status.savedAt': 'Saved at {time}',
   'status.savedAtTitle': 'Time of the last successful save of the open file',
+  'scm.closePanel': 'Close source control',
+  'scm.pullTitle': 'git pull --ff-only (fast-forward only)',
+  'scm.pushTitle': 'git push (never --force; uses your system git credentials)',
+  'scm.failed': 'Failed',
+  'scm.pushed': 'Pushed',
+  'scm.pulled': 'Pulled',
+  'scm.committed': 'Committed {count} change(s)',
+  'scm.changes': 'Changes',
+  'scm.noChanges': 'No changes',
+  'scm.fileRowTitle': '{path} (click to show the diff)',
+  'scm.commitHead': 'Commit',
+  'scm.messagePlaceholder': 'Describe the change (Ctrl/⌘+Enter to commit)',
+  'scm.working': 'Working…',
+  'scm.commit': 'Commit',
+  'scm.commitCount': 'Commit {count}',
+  'scm.stageHint': 'Stages every change (git add -A) and commits.',
+  'diff.label': 'Diff view',
+  'diff.backToPreviewTitle': 'Close the diff and go back to the preview',
+  'diff.backToPreview': 'Back to preview',
+  'diff.loading': 'Loading the diff…',
+  'diff.failed': 'Could not load the diff',
+  'diff.none': 'This file has no changes on disk (it matches what is saved and staged).',
   'tree.label': 'File tree',
   'tree.expandExplorer': 'Open explorer',
   'tree.collapseExplorer': 'Collapse explorer',
@@ -401,6 +446,28 @@ const ja: Messages = {
   'status.unsaved': '未保存の変更',
   'status.savedAt': '{time} に保存',
   'status.savedAtTitle': '開いているファイルを最後に保存できた時刻',
+  'scm.closePanel': 'ソース管理を閉じる',
+  'scm.pullTitle': 'git pull --ff-only（fast-forward のみ）',
+  'scm.pushTitle': 'git push（--force なし・認証は OS の git 資格情報）',
+  'scm.failed': '失敗しました',
+  'scm.pushed': 'push しました',
+  'scm.pulled': 'pull しました',
+  'scm.committed': '{count} 件の変更をコミットしました',
+  'scm.changes': '変更',
+  'scm.noChanges': '変更はありません',
+  'scm.fileRowTitle': '{path}（クリックで差分表示）',
+  'scm.commitHead': 'コミット',
+  'scm.messagePlaceholder': '変更の概要を入力（Ctrl/⌘+Enter でコミット）',
+  'scm.working': '処理中…',
+  'scm.commit': 'コミット',
+  'scm.commitCount': '{count} 件をコミット',
+  'scm.stageHint': '全変更をステージ（git add -A）してコミットします。',
+  'diff.label': '差分ビュー',
+  'diff.backToPreviewTitle': '差分を閉じてプレビューに戻る',
+  'diff.backToPreview': 'プレビューに戻る',
+  'diff.loading': '差分を取得中…',
+  'diff.failed': '差分を取得できませんでした',
+  'diff.none': 'このファイルにディスク上の差分はありません（保存済み・ステージ内容と一致）。',
   'tree.label': 'ファイルツリー',
   'tree.expandExplorer': 'エクスプローラーを開く',
   'tree.collapseExplorer': 'エクスプローラーを畳む',
@@ -564,6 +631,28 @@ const zh: Messages = {
   'status.unsaved': '未保存的更改',
   'status.savedAt': '{time} 已保存',
   'status.savedAtTitle': '当前文件最后一次成功保存的时间',
+  'scm.closePanel': '关闭源代码管理',
+  'scm.pullTitle': 'git pull --ff-only（仅快进）',
+  'scm.pushTitle': 'git push（不使用 --force，认证由系统 git 凭据处理）',
+  'scm.failed': '操作失败',
+  'scm.pushed': '已推送',
+  'scm.pulled': '已拉取',
+  'scm.committed': '已提交 {count} 项更改',
+  'scm.changes': '更改',
+  'scm.noChanges': '没有更改',
+  'scm.fileRowTitle': '{path}（点击查看差异）',
+  'scm.commitHead': '提交',
+  'scm.messagePlaceholder': '输入更改摘要（Ctrl/⌘+Enter 提交）',
+  'scm.working': '处理中…',
+  'scm.commit': '提交',
+  'scm.commitCount': '提交 {count} 项',
+  'scm.stageHint': '暂存全部更改（git add -A）后提交。',
+  'diff.label': '差异视图',
+  'diff.backToPreviewTitle': '关闭差异并返回预览',
+  'diff.backToPreview': '返回预览',
+  'diff.loading': '正在获取差异…',
+  'diff.failed': '无法获取差异',
+  'diff.none': '该文件在磁盘上没有差异（与已保存、已暂存的内容一致）。',
   'tree.label': '文件树',
   'tree.expandExplorer': '打开资源管理器',
   'tree.collapseExplorer': '折叠资源管理器',
@@ -725,6 +814,28 @@ const ko: Messages = {
   'status.unsaved': '저장되지 않은 변경',
   'status.savedAt': '{time}에 저장',
   'status.savedAtTitle': '열려 있는 파일을 마지막으로 저장한 시각',
+  'scm.closePanel': '소스 제어 닫기',
+  'scm.pullTitle': 'git pull --ff-only(fast-forward만)',
+  'scm.pushTitle': 'git push(--force 없음, 인증은 시스템 git 자격 증명 사용)',
+  'scm.failed': '실패했습니다',
+  'scm.pushed': 'push 했습니다',
+  'scm.pulled': 'pull 했습니다',
+  'scm.committed': '{count}건의 변경을 커밋했습니다',
+  'scm.changes': '변경',
+  'scm.noChanges': '변경 사항이 없습니다',
+  'scm.fileRowTitle': '{path}(클릭하면 차이를 표시)',
+  'scm.commitHead': '커밋',
+  'scm.messagePlaceholder': '변경 내용을 입력(Ctrl/⌘+Enter 로 커밋)',
+  'scm.working': '처리 중…',
+  'scm.commit': '커밋',
+  'scm.commitCount': '{count}건 커밋',
+  'scm.stageHint': '모든 변경을 스테이지(git add -A)한 뒤 커밋합니다.',
+  'diff.label': '차이 보기',
+  'diff.backToPreviewTitle': '차이를 닫고 미리보기로 돌아가기',
+  'diff.backToPreview': '미리보기로 돌아가기',
+  'diff.loading': '차이를 가져오는 중…',
+  'diff.failed': '차이를 가져오지 못했습니다',
+  'diff.none': '이 파일에는 디스크상의 차이가 없습니다(저장·스테이지된 내용과 동일).',
   'tree.label': '파일 트리',
   'tree.expandExplorer': '탐색기 열기',
   'tree.collapseExplorer': '탐색기 접기',
