@@ -10,13 +10,13 @@
 use std::io::{BufReader, Read, Write};
 use std::path::{Path, PathBuf};
 use std::process::{Child, ChildStdin, Command, Stdio};
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 
 use tauri::{AppHandle, Emitter, Manager, State};
 
 use crate::mcp_logic::{
-    parse_sidecar_line, pick_existing, response_line, set_root_line, sidecar_args,
-    sidecar_candidates, McpReason, McpState, McpStatus, SidecarEvent,
+    append_detail, parse_sidecar_line, pick_existing, response_line, set_root_line, sidecar_args,
+    sidecar_candidates, startup_detail, McpReason, McpState, McpStatus, SidecarEvent,
 };
 
 /// 状態変化をフロントへ知らせるイベント名。
@@ -98,7 +98,8 @@ fn build_command(sidecar: &Path, root: &Path, state: Option<&Path>) -> Command {
         .args(sidecar_args(sidecar, root, state))
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
-        .stderr(Stdio::null());
+        // 起動しきれなかったときに理由が残るのはここだけなので、捨てずに受け取る。
+        .stderr(Stdio::piped());
     #[cfg(windows)]
     {
         use std::os::windows::process::CommandExt;
@@ -135,6 +136,13 @@ pub fn start(app: &AppHandle) {
     };
 
     let stdout = child.stdout.take();
+    // 標準エラー出力は別スレッドで読み続ける。読まずに放置するとパイプが詰まって
+    // 子が書き込みで止まるため、使わない場合でも吸い出す必要がある。
+    let stderr_tail = Arc::new(Mutex::new(String::new()));
+    let stderr_thread = child.stderr.take().map(|stderr| {
+        let sink = Arc::clone(&stderr_tail);
+        std::thread::spawn(move || drain_stderr(stderr, &sink))
+    });
     if let Ok(mut guard) = app.state::<McpRuntime>().stdin.lock() {
         *guard = child.stdin.take();
     }
@@ -148,11 +156,40 @@ pub fn start(app: &AppHandle) {
     };
 
     let app_for_thread = app.clone();
-    std::thread::spawn(move || read_events(&app_for_thread, stdout));
+    std::thread::spawn(move || read_events(&app_for_thread, stdout, stderr_tail, stderr_thread));
+}
+
+/// 標準エラー出力を最後まで読み、末尾だけを診断用に残す。
+fn drain_stderr(stderr: impl Read, sink: &Mutex<String>) {
+    let mut reader = BufReader::new(stderr);
+    let mut buffer = [0u8; 4096];
+    loop {
+        let read = match reader.read(&mut buffer) {
+            Ok(0) | Err(_) => break,
+            Ok(n) => n,
+        };
+        if let Ok(mut guard) = sink.lock() {
+            append_detail(&mut guard, &String::from_utf8_lossy(&buffer[..read]));
+        }
+    }
+}
+
+/// 起動しきれなかった子プロセスの終了コードを取る。
+///
+/// stdout が閉じた時点で子はほぼ終わっているので、ここで待っても止まらない。
+fn exit_code(app: &AppHandle) -> Option<i32> {
+    let runtime = app.state::<McpRuntime>();
+    let mut guard = runtime.child.lock().ok()?;
+    guard.as_mut()?.wait().ok()?.code()
 }
 
 /// stdout を行単位で読み、イベントとしてフロントへ流す。EOF で終了する。
-fn read_events(app: &AppHandle, stdout: impl Read) {
+fn read_events(
+    app: &AppHandle,
+    stdout: impl Read,
+    stderr_tail: Arc<Mutex<String>>,
+    stderr_thread: Option<std::thread::JoinHandle<()>>,
+) {
     let mut reader = BufReader::new(stdout);
     let mut pending = String::new();
     let mut buffer = [0u8; 4096];
@@ -201,7 +238,20 @@ fn read_events(app: &AppHandle, stdout: impl Read) {
     }
 
     if !ready_seen {
-        set_status(app, McpStatus::unavailable(McpReason::ExitedEarly));
+        // 理由コードだけでは利用者も開発者も次の一手を選べない。子が最後に残した
+        // 出力と終了コードを添えて、原因を追える形にする。
+        if let Some(handle) = stderr_thread {
+            let _ = handle.join();
+        }
+        let stderr = stderr_tail
+            .lock()
+            .map(|guard| guard.clone())
+            .unwrap_or_default();
+        let status = match startup_detail(&stderr, exit_code(app)) {
+            Some(detail) => McpStatus::unavailable_with(McpReason::ExitedEarly, detail),
+            None => McpStatus::unavailable(McpReason::ExitedEarly),
+        };
+        set_status(app, status);
     }
 }
 

@@ -195,6 +195,51 @@ impl McpStatus {
     }
 }
 
+/// 劣化理由に添える診断文の上限（文字数）。
+///
+/// 画面に出す前提なので長い出力は末尾だけ残す。異常時に意味を持つのはたいてい最後の
+/// 数行で、先頭は起動時の定型出力に埋もれるため。
+const DETAIL_MAX_CHARS: usize = 400;
+
+/// 文字列の末尾から `max` 文字までを返す。マルチバイトを壊さないよう文字単位で切る。
+fn tail_chars(text: &str, max: usize) -> String {
+    let count = text.chars().count();
+    if count <= max {
+        return text.to_string();
+    }
+    text.chars().skip(count - max).collect()
+}
+
+/// 子プロセスの標準エラー出力を、末尾だけ残しながら積む。
+///
+/// 子が出力し続けても記憶量が増えないよう、受け取るたびに上限で切り詰める。
+pub fn append_detail(buffer: &mut String, chunk: &str) {
+    buffer.push_str(chunk);
+    if buffer.chars().count() > DETAIL_MAX_CHARS {
+        *buffer = tail_chars(buffer, DETAIL_MAX_CHARS);
+    }
+}
+
+/// 起動しきれなかった子プロセスの手掛かりを、画面へ出せる 1 つの文字列にまとめる。
+///
+/// 標準エラー出力と終了コードはどちらか一方しか取れないこともあるので、拾えた分だけを
+/// 積む。何も残っていなければ `None` を返し、理由コードだけの表示に戻す。
+pub fn startup_detail(stderr: &str, exit_code: Option<i32>) -> Option<String> {
+    let mut parts: Vec<String> = Vec::new();
+    if let Some(code) = exit_code {
+        parts.push(format!("exit code {}", code));
+    }
+    let trimmed = stderr.trim();
+    if !trimmed.is_empty() {
+        parts.push(tail_chars(trimmed, DETAIL_MAX_CHARS));
+    }
+    if parts.is_empty() {
+        None
+    } else {
+        Some(parts.join("\n"))
+    }
+}
+
 /// サイドカー本体（単一ファイル）を探す候補を、優先順に並べる。
 ///
 /// 配布ビルドではリソースとして同梱されるが、開発中はリソースが作られないので
@@ -470,6 +515,45 @@ mod tests {
         let status = McpStatus::unavailable_with(McpReason::ServerError, "port in use");
         assert_eq!(status.reason, Some(McpReason::ServerError));
         assert_eq!(status.detail.as_deref(), Some("port in use"));
+    }
+
+    #[test]
+    fn 診断文は終了コードと標準エラーの両方を載せる() {
+        let detail = startup_detail("Error: Cannot find module 'node:sqlite'\n", Some(1));
+        assert_eq!(
+            detail.as_deref(),
+            Some("exit code 1\nError: Cannot find module 'node:sqlite'")
+        );
+    }
+
+    #[test]
+    fn 診断文は取れた手掛かりだけで作る() {
+        assert_eq!(startup_detail("  \n ", Some(3)).as_deref(), Some("exit code 3"));
+        assert_eq!(startup_detail("boom", None).as_deref(), Some("boom"));
+    }
+
+    #[test]
+    fn 手掛かりが無ければ診断文を作らない() {
+        assert_eq!(startup_detail("   \n\n", None), None);
+    }
+
+    #[test]
+    fn 長い標準エラーは末尾だけ残す() {
+        let noisy = "あ".repeat(500) + "最後の一行";
+        let detail = startup_detail(&noisy, None).unwrap();
+        assert_eq!(detail.chars().count(), 400);
+        assert!(detail.ends_with("最後の一行"));
+    }
+
+    #[test]
+    fn 標準エラーの蓄積は上限を超えない() {
+        let mut buffer = String::new();
+        for _ in 0..10 {
+            append_detail(&mut buffer, &"x".repeat(100));
+        }
+        append_detail(&mut buffer, "tail");
+        assert_eq!(buffer.chars().count(), 400);
+        assert!(buffer.ends_with("tail"));
     }
 
     #[test]
