@@ -3,6 +3,7 @@ import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import { createServer, SERVER_NAME } from './server.js';
+import type { GitRunner, GitRunResult } from './gitTools.js';
 import type { ToolLogEntry } from './toolLog.js';
 import { MemoryDocumentStore } from './store.js';
 
@@ -313,6 +314,98 @@ describe('createServer / MCP 配線', () => {
   it('サーバー情報に名前が載る', async () => {
     const client = await connect(new MemoryDocumentStore());
     expect(client.getServerVersion()?.name).toBe(SERVER_NAME);
+  });
+});
+
+describe('createServer / git ツール', () => {
+  /** 呼ばれた引数を記録し、決まった結果を順に返すフェイク git。 */
+  function fakeGit(results: GitRunResult[]): GitRunner & { calls: string[][] } {
+    const calls: string[][] = [];
+    return {
+      calls,
+      run: async (args: string[]) => {
+        calls.push(args);
+        return results.shift() ?? { ok: true, stdout: '', stderr: '' };
+      },
+    };
+  }
+
+  async function connectWithGit(git: GitRunner): Promise<Client> {
+    const server = createServer(new MemoryDocumentStore(), { git });
+    const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+    const client = new Client({ name: 'test-client', version: '0.0.0' });
+    await Promise.all([client.connect(clientTransport), server.connect(serverTransport)]);
+    return client;
+  }
+
+  it('git 実行器が無ければ git ツールは公開しない', async () => {
+    const client = await connect(new MemoryDocumentStore());
+    const { tools } = await client.listTools();
+    expect(tools.map((t) => t.name).filter((n) => n.startsWith('git_'))).toEqual([]);
+  });
+
+  it('git 実行器があれば status / diff / commit の 3 本を公開する', async () => {
+    const client = await connectWithGit(fakeGit([]));
+    const { tools } = await client.listTools();
+    expect(tools.map((t) => t.name).filter((n) => n.startsWith('git_')).sort()).toEqual([
+      'git_commit',
+      'git_diff',
+      'git_status',
+    ]);
+  });
+
+  // push は人が内容を確認してから実行する運用。エージェントから叩ける口は作らない。
+  it('git_push は公開しない', async () => {
+    const client = await connectWithGit(fakeGit([]));
+    const { tools } = await client.listTools();
+    expect(tools.map((t) => t.name)).not.toContain('git_push');
+  });
+
+  it('git_status は変更一覧を返す', async () => {
+    const git = fakeGit([{ ok: true, stdout: '# branch.head main\0? memo.md\0', stderr: '' }]);
+    const client = await connectWithGit(git);
+    const res = (await client.callTool({ name: 'git_status', arguments: {} })) as CallToolResult;
+    const { text, isError } = parse(res);
+    expect(isError).toBe(false);
+    expect(text).toMatchObject({ ok: true, branch: 'main' });
+  });
+
+  it('git_commit はメッセージを git へそのまま渡す', async () => {
+    const git = fakeGit([
+      { ok: true, stdout: '', stderr: '' },
+      { ok: true, stdout: '', stderr: '' },
+      { ok: true, stdout: 'abc123\n', stderr: '' },
+      { ok: true, stdout: '# branch.head main\0', stderr: '' },
+    ]);
+    const client = await connectWithGit(git);
+    const res = (await client.callTool({
+      name: 'git_commit',
+      arguments: { message: '請求書を追加' },
+    })) as CallToolResult;
+    expect(parse(res).isError).toBe(false);
+    expect(git.calls[1]).toEqual(['commit', '-m', '請求書を追加']);
+  });
+
+  it('git の失敗は isError で返す', async () => {
+    const git = fakeGit([{ ok: false, stdout: '', stderr: 'fatal: not a git repository' }]);
+    const client = await connectWithGit(git);
+    const res = (await client.callTool({ name: 'git_status', arguments: {} })) as CallToolResult;
+    expect(parse(res).isError).toBe(true);
+  });
+
+  it('git ツールの実行も操作ログに流れる', async () => {
+    const logs: ToolLogEntry[] = [];
+    const server = createServer(new MemoryDocumentStore(), {
+      git: fakeGit([{ ok: true, stdout: '# branch.head main\0', stderr: '' }]),
+      onLog: (e) => logs.push(e),
+      now: () => 12345,
+    });
+    const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+    const client = new Client({ name: 'test-client', version: '0.0.0' });
+    await Promise.all([client.connect(clientTransport), server.connect(serverTransport)]);
+    await client.callTool({ name: 'git_status', arguments: {} });
+    expect(logs).toHaveLength(1);
+    expect(logs[0]?.tool).toBe('git_status');
   });
 });
 

@@ -56,6 +56,12 @@ describe('buildToolLogEntry', () => {
     expect('path' in entry).toBe(false);
   });
 
+  // git_diff はパス省略時に path:null（＝ワークスペース全体）を返す。
+  it('result.path が null の結果は path フィールドを持たない', () => {
+    const entry = buildToolLogEntry('git_diff', { ok: true, path: null }, undefined, 5000);
+    expect('path' in entry).toBe(false);
+  });
+
   it('ts はそのまま透過する（時刻は呼び出し側が確定）', () => {
     expect(buildToolLogEntry('search_documents', { ok: true }, undefined, 42).ts).toBe(42);
   });

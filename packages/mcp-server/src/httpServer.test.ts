@@ -72,6 +72,17 @@ describe('startHttpServer / HTTP モード', () => {
     expect(logs.some((e) => e.tool === 'create_document' && e.ok)).toBe(true);
   });
 
+  it('git 実行器を渡すと HTTP 越しでも git ツールが公開される', async () => {
+    handle = await startHttpServer({
+      store: new MemoryDocumentStore(),
+      token: TOKEN,
+      git: { run: async () => ({ ok: true, stdout: '', stderr: '' }) },
+    });
+    const client = await connect(handle.url, TOKEN);
+    const { tools } = await client.listTools();
+    expect(tools.map((t) => t.name)).toContain('git_status');
+  });
+
   it('トークン無しのクライアントは 401 で拒否される', async () => {
     handle = await startHttpServer({ store: new MemoryDocumentStore(), token: TOKEN });
     await expect(connect(handle.url, null)).rejects.toThrow();

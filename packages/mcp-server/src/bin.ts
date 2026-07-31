@@ -12,13 +12,15 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { resolve } from 'node:path';
 import { createServer, SERVER_NAME, SERVER_VERSION } from './server.js';
 import { FileDocumentStore } from './fileStore.js';
+import { createGitRunner } from './gitRunner.js';
 
 async function main(): Promise<void> {
   const rootArg = process.argv[2] ?? process.env['MD_BUSINESS_WORKSPACE'] ?? process.cwd();
   const root = resolve(rootArg);
 
   const store = new FileDocumentStore(root);
-  const server = createServer(store);
+  // ワークスペースが git 管理でなければ、各 git ツールが理由付きで失敗するだけ。
+  const server = createServer(store, { git: createGitRunner(() => store.getRoot()) });
   const transport = new StdioServerTransport();
 
   await server.connect(transport);

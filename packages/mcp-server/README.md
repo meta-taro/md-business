@@ -18,6 +18,9 @@ md-business の **MCP（Model Context Protocol）サーバー**。Claude Desktop
 | `read_tsv` | 検証シート（カスタム TSV）のメタ情報・列定義（型 / 必須 / 選択肢）・データ行・列型の検証結果を返す |
 | `append_tsv_row` | 検証シートの末尾に 1 行追加。値は列名キーで指定し、未指定の列は空セルのまま |
 | `update_tsv_row` | 検証シートの既存 1 行のうち、指定した列だけを差し替える |
+| `git_status` | ワークスペースの変更状況（ブランチ・upstream との差・変更ファイル一覧）を返す |
+| `git_diff` | HEAD と作業ツリーの差分を unified diff で返す。パス指定で 1 ファイルに絞れる |
+| `git_commit` | 変更をステージしてコミットする（push はしない）。コミットハッシュと最新の変更状況を返す |
 
 対応スキーマ: `invoice/v1` / `spec/v1` / `test-spec/v1` / `db-spec/v1` / `nosql-db-spec/v1` / `api-spec/v1`。
 
@@ -26,6 +29,9 @@ TSV 系ツールで扱う。行単位で書き込むため、触っていない�
 列型に反する値は書き込んだうえで `issues` として返す（記入途中の状態を許容するため）。
 1 セルは 64,000 文字、1 ファイルは 4,000,000 文字までを扱う（超える入力はファイルを書き換えずに失敗させる）。
 同じシートへの並行呼び出しはサーバー内で順番に処理するので、まとめて依頼しても行は消えない。
+
+git 系ツールはワークスペースが git 管理されているときだけ意味を持つ（管理外なら理由付きで失敗する）。
+未追跡ファイルは HEAD との差分が出ないため、`git_diff` は `untracked: true` を返す（中身は `read_document` で読む）。
 
 > **`git_push` は MCP ツールとして提供しない**（push は人間が最終確認する運用のため）。
 > **secrets / API キーは MCP サーバーが受け取らない**（人間が直接投入する）。
@@ -65,7 +71,7 @@ node_modules を含めずに済ませるため）。
 }
 ```
 
-Claude Desktop を再起動すると、md-business の 6 ツールが利用可能になる。
+Claude Desktop を再起動すると、md-business のツールが利用可能になる。
 
 ### ワークスペース root の解決順
 
@@ -149,7 +155,7 @@ printf '%s\n' \
   | node dist/bin.js "$(pwd)"
 ```
 
-`serverInfo` と 6 ツールの一覧が stdout に JSON-RPC で返れば正常。ログは stderr にのみ出る（stdout は MCP プロトコル専用チャネル）。
+`serverInfo` とツール一覧が stdout に JSON-RPC で返れば正常。ログは stderr にのみ出る（stdout は MCP プロトコル専用チャネル）。
 
 ## テスト
 

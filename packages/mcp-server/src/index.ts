@@ -38,6 +38,22 @@ export {
 export type { SearchQuery, SearchMatch, SearchDocumentsOk } from './search.js';
 
 export { createServer, SERVER_NAME, SERVER_VERSION } from './server.js';
+export type { CreateServerOptions } from './server.js';
+
+export { gitStatus, gitDiff, gitCommit, parseStatusPorcelainV2 } from './gitTools.js';
+export type {
+  GitRunner,
+  GitRunResult,
+  GitFileState,
+  GitFileStatus,
+  GitStatusSummary,
+  GitStatusResult,
+  GitDiffResult,
+  GitCommitInput,
+  GitCommitResult,
+} from './gitTools.js';
+export { createGitRunner, buildGitArgs } from './gitRunner.js';
+export type { GitExec } from './gitRunner.js';
 
 export { startHttpServer } from './httpServer.js';
 export type { StartHttpServerOptions, HttpServerHandle } from './httpServer.js';

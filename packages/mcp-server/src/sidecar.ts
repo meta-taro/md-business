@@ -13,6 +13,7 @@ import type { Readable } from 'node:stream';
 import type { ToolLogEntry } from './toolLog.js';
 import { FileDocumentStore } from './fileStore.js';
 import { startHttpServer } from './httpServer.js';
+import { createGitRunner, type GitExec } from './gitRunner.js';
 import { encodeSidecarEvent, parseControlLine, splitControlLines } from './control.js';
 
 /** サイドカーが使う入出力。実行時は process.stdin / process.stdout を渡す。 */
@@ -33,6 +34,8 @@ export interface StartSidecarOptions {
   io: SidecarIo;
   /** ログ時刻源（テスト用に注入可能）。 */
   now?: () => number;
+  /** `git` の実行部（テスト用に注入可能。既定は実際の子プロセス起動）。 */
+  gitExec?: GitExec;
 }
 
 export interface SidecarHandle {
@@ -49,13 +52,18 @@ export interface SidecarHandle {
 
 /** HTTP サーバーを起動し、制御チャネルを結線して ready を通知する。 */
 export async function startSidecar(options: StartSidecarOptions): Promise<SidecarHandle> {
-  const { io, token, now } = options;
+  const { io, token, now, gitExec } = options;
   const store = new FileDocumentStore(options.root);
 
   const base = {
     store,
     token,
     ...(now !== undefined ? { now } : {}),
+    // root は set-root で切り替わるので、実行のたびに現在値を読み直す。
+    git:
+      gitExec === undefined
+        ? createGitRunner(() => store.getRoot())
+        : createGitRunner(() => store.getRoot(), gitExec),
     onLog: (entry: ToolLogEntry) => io.write(encodeSidecarEvent(entry)),
   };
   // 前回と同じポートを希望しても、別のアプリに取られていることはある。そのときは

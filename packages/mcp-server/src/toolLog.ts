@@ -25,8 +25,8 @@ export interface ToolLogEntry {
 /** entry を組むのに参照するツール結果の最小形（成功・失敗の共通部分だけ見る）。 */
 export interface ToolResultLike {
   ok: boolean;
-  /** 成功結果が持つ正規化済みパス。 */
-  path?: string;
+  /** 成功結果が持つ正規化済みパス。対象がワークスペース全体の結果は null を持つ。 */
+  path?: string | null;
   /** 失敗結果が持つ日本語理由。 */
   error?: string;
 }
@@ -34,8 +34,8 @@ export interface ToolResultLike {
 /**
  * ツール結果 + 引数パス + 時刻から操作ログ entry を組む。
  *
- * - `path` は成功結果の正規化済み `result.path` を最優先し、無ければ引数の `argPath`
- *   （失敗時のフォールバック）を使う。どちらも無いツールでは省略する。
+ * - `path` は成功結果の正規化済み `result.path` を最優先し、無ければ（null 含む）引数の
+ *   `argPath`（失敗時のフォールバック）を使う。どちらも無いツールでは省略する。
  * - `detail` は失敗時のみ `error` を載せる（成功時は付けない）。
  */
 export function buildToolLogEntry(

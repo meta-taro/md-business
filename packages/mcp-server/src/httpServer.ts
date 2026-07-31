@@ -12,7 +12,8 @@
 import { createServer as createHttpServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import type { DocumentStore } from './store.js';
-import { createServer } from './server.js';
+import { createServer, type CreateServerOptions } from './server.js';
+import type { GitRunner } from './gitTools.js';
 import type { ToolLogEntry } from './toolLog.js';
 import { isAuthorized } from './httpAuth.js';
 
@@ -35,6 +36,8 @@ export interface StartHttpServerOptions {
   onLog?: (entry: ToolLogEntry) => void;
   /** ログ時刻源（テスト用に注入可能）。 */
   now?: () => number;
+  /** `git` 実行器。渡したときだけ git ツールを公開する。 */
+  git?: GitRunner;
 }
 
 /** 起動済み HTTP サーバーのハンドル。 */
@@ -60,7 +63,7 @@ function respondError(res: ServerResponse, status: number, message: string): voi
  * spawn 側（Rust / bin）はこの port と token を AI クライアントへ渡す。
  */
 export async function startHttpServer(options: StartHttpServerOptions): Promise<HttpServerHandle> {
-  const { store, token, onLog, now } = options;
+  const { store, token, onLog, now, git } = options;
   const host = options.host ?? LOOPBACK;
 
   const httpServer = createHttpServer((req: IncomingMessage, res: ServerResponse) => {
@@ -88,7 +91,7 @@ export async function startHttpServer(options: StartHttpServerOptions): Promise<
       enableDnsRebindingProtection: true,
       allowedHosts: [`${host}:${boundPort}`, `localhost:${boundPort}`],
     });
-    const mcp = createServer(store, onLogOption());
+    const mcp = createServer(store, serverOptions());
     res.on('close', () => {
       void transport.close();
       void mcp.close();
@@ -100,11 +103,12 @@ export async function startHttpServer(options: StartHttpServerOptions): Promise<
     await transport.handleRequest(req, res);
   }
 
-  // createServer のオプションを onLog / now の指定有無に応じて組む（exactOptionalPropertyTypes 対応）。
-  function onLogOption(): { onLog?: (entry: ToolLogEntry) => void; now?: () => number } {
-    const opt: { onLog?: (entry: ToolLogEntry) => void; now?: () => number } = {};
+  // createServer のオプションを指定有無に応じて組む（exactOptionalPropertyTypes 対応）。
+  function serverOptions(): CreateServerOptions {
+    const opt: CreateServerOptions = {};
     if (onLog !== undefined) opt.onLog = onLog;
     if (now !== undefined) opt.now = now;
+    if (git !== undefined) opt.git = git;
     return opt;
   }
 

@@ -3,7 +3,24 @@ import { PassThrough } from 'node:stream';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
+import { Client } from '@modelcontextprotocol/sdk/client/index.js';
+import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { startSidecar, type SidecarHandle } from './sidecar.js';
+
+/** サイドカーが listen した HTTP エンドポイントへ MCP クライアントを繋ぐ。 */
+async function connectMcp(url: string, token: string): Promise<Client> {
+  const transport = new StreamableHTTPClientTransport(new URL(url), {
+    requestInit: { headers: { Authorization: `Bearer ${token}` } },
+  });
+  const client = new Client({ name: 'test-client', version: '0.0.0' });
+  openClients.push(client);
+  // exactOptionalPropertyTypes と SDK トランスポート型の分散差を、メソッド自身の引数型で埋める。
+  await client.connect(transport as Parameters<typeof client.connect>[0]);
+  return client;
+}
+
+/** 接続を閉じ忘れるとサーバーの close が待たされるので、後始末用に控えておく。 */
+const openClients: Client[] = [];
 
 /** 制御チャネルへ流した行を JSON として集める簡易受け手。 */
 function collector(): { lines: unknown[]; write: (line: string) => void } {
@@ -40,6 +57,7 @@ describe('startSidecar', () => {
   });
 
   afterEach(async () => {
+    for (const c of openClients.splice(0)) await c.close().catch(() => undefined);
     await handle?.stop();
     input.destroy();
     await rm(workspace, { recursive: true, force: true });
@@ -131,6 +149,27 @@ describe('startSidecar', () => {
     } finally {
       await occupant.stop();
     }
+  });
+
+  it('git ツールを公開し、set-root 後は新しい root に対して git を実行する', async () => {
+    // フォルダを切り替えたのに前のフォルダの git を見ていては、履歴が食い違う。
+    const seen: string[][] = [];
+    handle = await startSidecar({
+      root: workspace,
+      token: 'tok',
+      io: { input, write: out.write },
+      gitExec: async (args) => {
+        seen.push(args);
+        return { ok: true, stdout: '', stderr: '' };
+      },
+    });
+    const client = await connectMcp(handle.url, 'tok');
+    expect((await client.listTools()).tools.map((t) => t.name)).toContain('git_status');
+
+    await send(input, JSON.stringify({ type: 'set-root', root: other }));
+    await client.callTool({ name: 'git_status', arguments: {} });
+
+    expect(seen[0]?.[1]).toBe(resolve(other));
   });
 
   it('停止後は制御行を処理しない', async () => {

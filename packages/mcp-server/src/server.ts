@@ -21,6 +21,8 @@ import type { UpdateDocumentInput } from './tools.js';
 import { readTsv, appendTsvRow, updateTsvRow } from './tsvTools.js';
 import { searchDocuments } from './search.js';
 import type { SearchQuery } from './search.js';
+import { gitStatus, gitDiff, gitCommit } from './gitTools.js';
+import type { GitCommitInput, GitRunner } from './gitTools.js';
 import { buildToolLogEntry, type ToolLogEntry, type ToolResultLike } from './toolLog.js';
 
 /** MCP クライアントへ提示するサーバー名 / バージョン（プロトコル上の識別子）。 */
@@ -33,6 +35,11 @@ export interface CreateServerOptions {
   onLog?: (entry: ToolLogEntry) => void;
   /** ログの時刻源。テストで固定できるよう注入可能にする（既定は実時刻）。 */
   now?: () => number;
+  /**
+   * `git` 実行器。指定したときだけ git ツールを公開する。
+   * ワークスペースが git 管理でない使い方もあるため、既定では公開しない。
+   */
+  git?: GitRunner;
 }
 
 /** 任意ペイロードを MCP のテキスト結果へ包む。ToolError 相当は isError で明示する。 */
@@ -52,7 +59,7 @@ const frontmatterShape = z.record(z.string(), z.unknown());
  */
 export function createServer(store: DocumentStore, options: CreateServerOptions = {}): McpServer {
   const server = new McpServer({ name: SERVER_NAME, version: SERVER_VERSION });
-  const { onLog, now = () => Date.now() } = options;
+  const { onLog, now = () => Date.now(), git } = options;
 
   // ツール実行の直後に 1 件ログを流す。onLog 未指定なら完全に no-op（既存の挙動不変）。
   // argPath は失敗時にパスを拾うためのフォールバック（成功結果は自前の path を持つ）。
@@ -244,6 +251,63 @@ export function createServer(store: DocumentStore, options: CreateServerOptions 
       return jsonResult(r);
     },
   );
+
+  // git ツールは実行器が渡されたときだけ公開する。
+  // push は含めない — リモートへ出す操作は人が内容を確認してから行う。
+  if (git !== undefined) {
+    server.registerTool(
+      'git_status',
+      {
+        description:
+          'ワークスペースの変更状況（ブランチ・upstream との差・変更ファイル一覧）を返す。編集内容をコミットする前の確認に使う。',
+        inputSchema: {},
+      },
+      async () => {
+        const r = await gitStatus(git);
+        emit('git_status', undefined, r);
+        return jsonResult(r, !r.ok);
+      },
+    );
+
+    server.registerTool(
+      'git_diff',
+      {
+        description:
+          'HEAD と作業ツリーの差分を unified diff で返す。path を指定すると 1 ファイルに絞る。未追跡ファイルは差分が出ないので untracked:true を返す（中身は read_document で読む）。',
+        inputSchema: {
+          path: z.string().optional().describe('ワークスペース相対パス（省略で全体）'),
+        },
+      },
+      async ({ path }) => {
+        const r = path === undefined ? await gitDiff(git) : await gitDiff(git, path);
+        emit('git_diff', path, r);
+        return jsonResult(r, !r.ok);
+      },
+    );
+
+    server.registerTool(
+      'git_commit',
+      {
+        description:
+          '変更をステージしてコミットする（push はしない）。paths を指定するとその分だけ、省略すると全変更をコミットし、コミットハッシュと最新の変更状況を返す。',
+        inputSchema: {
+          message: z.string().describe('コミットメッセージ'),
+          paths: z
+            .array(z.string())
+            .optional()
+            .describe('コミットするワークスペース相対パス（省略で全変更）'),
+        },
+      },
+      async ({ message, paths }) => {
+        // exactOptionalPropertyTypes 下では undefined を明示せず、指定された項目のみ渡す。
+        const input: GitCommitInput = { message };
+        if (paths !== undefined) input.paths = paths;
+        const r = await gitCommit(git, input);
+        emit('git_commit', undefined, r);
+        return jsonResult(r, !r.ok);
+      },
+    );
+  }
 
   return server;
 }
