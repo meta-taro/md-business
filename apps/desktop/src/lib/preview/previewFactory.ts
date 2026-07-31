@@ -18,6 +18,7 @@
 import {
   validateWithCompiled,
   type CompiledValidator,
+  type FrontmatterProblem,
   type ValidationError,
 } from '@md-business/core';
 import { buildPreviewDocument, type PreviewTheme } from './previewDocument';
@@ -77,6 +78,11 @@ export interface PreviewNotApplicable {
   ok: false;
   /** 対応スキーマ無し / 解析不能などの理由（日本語）。 */
   reason: string;
+  /**
+   * frontmatter が読めなかった場合の分類と位置。表示側がこれを読み手の言語の
+   * 1 文にする（reason はログ・診断用に原文を残す）。
+   */
+  problem?: FrontmatterProblem;
 }
 
 export type PreviewResult = PreviewOk | PreviewNotApplicable;

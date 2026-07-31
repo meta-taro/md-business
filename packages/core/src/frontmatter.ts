@@ -1,4 +1,15 @@
 import yaml from 'js-yaml';
+import { FrontmatterError, classifyYamlReason } from './frontmatterError.js';
+
+/** A js-yaml exception carries the failure reason and its position separately. */
+interface YamlExceptionLike {
+  reason?: string;
+  mark?: { line?: number; column?: number };
+}
+
+function isYamlException(error: unknown): error is Error & YamlExceptionLike {
+  return error instanceof Error && typeof (error as YamlExceptionLike).reason === 'string';
+}
 
 export interface FrontmatterSplit {
   data: Record<string, unknown>;
@@ -95,13 +106,15 @@ export function splitFrontmatter(src: string): FrontmatterSplit {
   const body = afterOpen.slice(closingMatch.index + closingMatch[0].length);
 
   if (yamlBlock.length > MAX_FRONTMATTER_CHARS) {
-    throw new Error(
+    throw new FrontmatterError(
+      'too-large',
       `Frontmatter is too large (${yamlBlock.length} characters, limit ${MAX_FRONTMATTER_CHARS}).`,
     );
   }
   const anchors = countMatches(yamlBlock, ANCHOR_RE);
   if (anchors > MAX_YAML_ANCHORS) {
-    throw new Error(
+    throw new FrontmatterError(
+      'too-many-anchors',
       `Frontmatter declares too many YAML anchors (${anchors}, limit ${MAX_YAML_ANCHORS}).`,
     );
   }
@@ -112,7 +125,8 @@ export function splitFrontmatter(src: string): FrontmatterSplit {
   if (anchors > 0) {
     const aliases = countMatches(yamlBlock, ALIAS_RE);
     if (aliases > MAX_YAML_ALIASES) {
-      throw new Error(
+      throw new FrontmatterError(
+        'too-many-aliases',
         `Frontmatter uses too many YAML aliases (${aliases}, limit ${MAX_YAML_ALIASES}). ` +
           'Repeated aliases multiply the expanded size.',
       );
@@ -124,7 +138,20 @@ export function splitFrontmatter(src: string): FrontmatterSplit {
   // collections can overflow the composer. Callers that hand in an already
   // parsed object instead of Markdown skip that check — `findDepthOverflow`
   // covers them.
-  const parsed = yaml.load(yamlBlock, { schema: yaml.JSON_SCHEMA });
+  let parsed: unknown;
+  try {
+    parsed = yaml.load(yamlBlock, { schema: yaml.JSON_SCHEMA });
+  } catch (error: unknown) {
+    if (!isYamlException(error)) throw error;
+    const reason = error.reason ?? error.message;
+    // The parser counts lines from the start of the block it was handed, which
+    // begins at the line break that ends the opening `---`. So its line 0 is
+    // the file's line 1, and a 1-based file line is simply `mark.line + 1`.
+    throw new FrontmatterError(classifyYamlReason(reason), reason, {
+      line: typeof error.mark?.line === 'number' ? error.mark.line + 1 : null,
+      column: typeof error.mark?.column === 'number' ? error.mark.column + 1 : null,
+    });
+  }
   const data =
     parsed && typeof parsed === 'object' && !Array.isArray(parsed)
       ? (parsed as Record<string, unknown>)

@@ -1,5 +1,6 @@
-import { parseMarkdown } from '@md-business/core';
+import { describeFrontmatterError, parseMarkdown } from '@md-business/core';
 import { createDefaultRegistry, type SchemaPlugin, type PluginRegistry } from '../plugins/index.js';
+import { frontmatterHint } from './frontmatterHint.js';
 import type { ValidationError } from '@md-business/core';
 
 export interface LoadedDocument {
@@ -69,7 +70,7 @@ export function loadMarkdown(source: string, options: LoadMarkdownOptions = {}):
     return {
       ok: false,
       reason: 'Markdown の frontmatter を解析できませんでした。',
-      details: [error instanceof Error ? error.message : String(error)],
+      details: [frontmatterHint(describeFrontmatterError(error))],
     };
   }
 
@@ -162,7 +163,7 @@ export function previewMarkdown(
     return {
       ok: false,
       reason: 'Markdown の frontmatter を解析できませんでした。',
-      details: [error instanceof Error ? error.message : String(error)],
+      details: [frontmatterHint(describeFrontmatterError(error))],
     };
   }
 

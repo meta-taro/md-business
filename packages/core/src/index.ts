@@ -6,6 +6,12 @@ export {
   MAX_YAML_ALIASES,
 } from './frontmatter.js';
 export {
+  FrontmatterError,
+  classifyYamlReason,
+  describeFrontmatterError,
+} from './frontmatterError.js';
+export type { FrontmatterProblem, FrontmatterProblemKind } from './frontmatterError.js';
+export {
   findDepthOverflow,
   findStructureOverflow,
   depthValidationError,

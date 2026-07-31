@@ -2,6 +2,7 @@
   import { untrack, onMount, onDestroy } from 'svelte';
   import { themeController } from '$lib/theme.svelte';
   import { renderPreview } from '$lib/preview/renderPreview';
+  import { frontmatterMessage } from '$lib/preview/frontmatterMessage';
   import { pdfExport } from '$lib/preview/pdfExport.svelte';
   import CodeMirrorEditor from '$lib/editor/CodeMirrorEditor.svelte';
   import { debounce } from '$lib/util/debounce';
@@ -491,7 +492,9 @@
       {/if}
     {:else}
       <div class="pane-empty">
-        <p class="hint">{preview.reason}</p>
+        <p class="hint">
+          {preview.problem ? frontmatterMessage(preview.problem, t) : preview.reason}
+        </p>
         <span class="env">{t('page.frontmatterHint')}</span>
       </div>
     {/if}

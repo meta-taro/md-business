@@ -169,6 +169,17 @@ export interface Messages {
   'page.previewHead': string;
   'page.previewTitle': string;
   'page.frontmatterHint': string;
+  'frontmatter.failed': string;
+  'frontmatter.atLine': string;
+  'frontmatter.indentation': string;
+  'frontmatter.tab': string;
+  'frontmatter.duplicateKey': string;
+  'frontmatter.unterminated': string;
+  'frontmatter.blockMapping': string;
+  'frontmatter.tooLarge': string;
+  'frontmatter.tooManyAnchors': string;
+  'frontmatter.tooManyAliases': string;
+  'frontmatter.unknown': string;
 }
 
 /** 翻訳キー型（t() の引数に使う）。 */
@@ -324,6 +335,17 @@ const en: Messages = {
   'page.previewHead': 'Preview',
   'page.previewTitle': '{label} preview',
   'page.frontmatterHint': 'Check the frontmatter format (the top block enclosed by ---)',
+  'frontmatter.failed': 'Could not read the frontmatter. {detail}',
+  'frontmatter.atLine': 'Line {line}: {detail}',
+  'frontmatter.indentation': 'the indentation does not line up with the lines above.',
+  'frontmatter.tab': 'a tab is used for indentation. Use spaces instead.',
+  'frontmatter.duplicateKey': 'the same item name appears twice.',
+  'frontmatter.unterminated': 'a quote or bracket was opened but never closed.',
+  'frontmatter.blockMapping': 'this line is not written as `name: value`.',
+  'frontmatter.tooLarge': 'the frontmatter block is too large to read.',
+  'frontmatter.tooManyAnchors': 'too many YAML anchors (&name) are declared.',
+  'frontmatter.tooManyAliases': 'too many YAML references (*name) are used.',
+  'frontmatter.unknown': 'reading stopped here ({raw}).',
 };
 
 const ja: Messages = {
@@ -476,6 +498,17 @@ const ja: Messages = {
   'page.previewHead': 'プレビュー',
   'page.previewTitle': '{label}プレビュー',
   'page.frontmatterHint': 'frontmatter（--- で囲む先頭ブロック）の書式を確認してください',
+  'frontmatter.failed': 'frontmatter を読み取れませんでした。{detail}',
+  'frontmatter.atLine': '{line} 行目: {detail}',
+  'frontmatter.indentation': '行頭の字下げが、上の行とそろっていません。',
+  'frontmatter.tab': '字下げにタブが使われています。空白に置き換えてください。',
+  'frontmatter.duplicateKey': '同じ項目名が 2 回書かれています。',
+  'frontmatter.unterminated': '引用符またはかっこが閉じられていません。',
+  'frontmatter.blockMapping': 'この行が「項目名: 値」の形になっていません。',
+  'frontmatter.tooLarge': 'frontmatter が大きすぎて読み取れません。',
+  'frontmatter.tooManyAnchors': 'YAML のアンカー（&名前）が多すぎます。',
+  'frontmatter.tooManyAliases': 'YAML の参照（*名前）が多すぎます。',
+  'frontmatter.unknown': 'ここで読み取りが止まりました（{raw}）。',
 };
 
 const zh: Messages = {
@@ -626,6 +659,17 @@ const zh: Messages = {
   'page.previewHead': '预览',
   'page.previewTitle': '{label}预览',
   'page.frontmatterHint': '请检查 frontmatter（由 --- 包围的开头块）的格式',
+  'frontmatter.failed': '无法读取 frontmatter。{detail}',
+  'frontmatter.atLine': '第 {line} 行：{detail}',
+  'frontmatter.indentation': '行首缩进与上面几行没有对齐。',
+  'frontmatter.tab': '缩进使用了制表符，请改用空格。',
+  'frontmatter.duplicateKey': '同一个项目名出现了两次。',
+  'frontmatter.unterminated': '引号或括号没有闭合。',
+  'frontmatter.blockMapping': '该行没有写成「项目名: 值」的形式。',
+  'frontmatter.tooLarge': 'frontmatter 过大，无法读取。',
+  'frontmatter.tooManyAnchors': 'YAML 锚点（&名称）过多。',
+  'frontmatter.tooManyAliases': 'YAML 引用（*名称）过多。',
+  'frontmatter.unknown': '读取在此处中断（{raw}）。',
 };
 
 const ko: Messages = {
@@ -778,6 +822,17 @@ const ko: Messages = {
   'page.previewHead': '미리보기',
   'page.previewTitle': '{label} 미리보기',
   'page.frontmatterHint': 'frontmatter(--- 로 감싼 첫 블록) 형식을 확인하세요',
+  'frontmatter.failed': 'frontmatter를 읽을 수 없습니다. {detail}',
+  'frontmatter.atLine': '{line}번째 줄: {detail}',
+  'frontmatter.indentation': '줄 앞 들여쓰기가 위 줄과 맞지 않습니다.',
+  'frontmatter.tab': '들여쓰기에 탭이 사용되었습니다. 공백으로 바꿔 주세요.',
+  'frontmatter.duplicateKey': '같은 항목 이름이 두 번 적혀 있습니다.',
+  'frontmatter.unterminated': '따옴표 또는 괄호가 닫히지 않았습니다.',
+  'frontmatter.blockMapping': '이 줄이 「항목 이름: 값」 형태가 아닙니다.',
+  'frontmatter.tooLarge': 'frontmatter가 너무 커서 읽을 수 없습니다.',
+  'frontmatter.tooManyAnchors': 'YAML 앵커(&이름)가 너무 많습니다.',
+  'frontmatter.tooManyAliases': 'YAML 참조(*이름)가 너무 많습니다.',
+  'frontmatter.unknown': '여기에서 읽기가 중단되었습니다({raw}).',
 };
 
 /** ロケール→文言辞書。i18n.svelte.ts が現ロケールと fallback(ja) を引く。 */

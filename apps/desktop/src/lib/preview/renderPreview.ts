@@ -5,7 +5,7 @@
  * 該当 provider の permissive パイプラインで iframe srcdoc を生成する。対応
  * スキーマが無い / 解析不能なら not-applicable を返す（呼び出し側が理由表示）。
  */
-import { parseMarkdown } from '@md-business/core';
+import { describeFrontmatterError, parseMarkdown } from '@md-business/core';
 import { resolveProvider } from './registry';
 import { PROVIDERS } from './providers';
 import { renderMarkdownFallback } from './providers/markdownFallback';
@@ -28,7 +28,12 @@ export function renderPreview(
     // データ駆動 4 スキーマは body を無視する。
     body = parsed.body;
   } catch (error: unknown) {
-    return { ok: false, reason: `frontmatter を解析できませんでした: ${messageOf(error)}` };
+    // reason は診断用（パーサ原文）。画面に出すのは problem を訳した 1 文。
+    return {
+      ok: false,
+      reason: `frontmatter を解析できませんでした: ${messageOf(error)}`,
+      problem: describeFrontmatterError(error),
+    };
   }
 
   const provider = resolveProvider(frontmatter, PROVIDERS);
