@@ -10,15 +10,11 @@
  */
 import type { TsvDocument } from '@md-business/schema-test-spec-tsv';
 import type { CellPos } from './gridNav';
+import { parseClipboardMatrix, serializeClipboardMatrix } from './clipboardCodec';
 
-/** クリップボード文字列（TSV）を文字列の二次元配列へ。空文字は空配列。 */
-export function parseClipboardMatrix(text: string): string[][] {
-  if (text === '') return [];
-  const lines = text.split(/\r\n|\r|\n/);
-  // Excel / Sheets は末尾に改行を付ける。末尾の空行 1 個だけ捨てる。
-  if (lines.length > 1 && lines[lines.length - 1] === '') lines.pop();
-  return lines.map((line) => line.split('\t'));
-}
+// 矩形 ⇄ 文字列の符号化は clipboardCodec が持つ（囲みの判定を貼り付けとコピーで
+// 共有するため）。呼び出し側の import 先を変えずに済むよう、ここから通す。
+export { parseClipboardMatrix };
 
 /**
  * アンカーセルを左上として矩形を貼り込んだ **新しい** ドキュメントを返す（入力は不変）。
@@ -55,5 +51,5 @@ export function rowToTsv(doc: TsvDocument, index: number): string {
   if (cells === undefined) return '';
   const padded = cells.slice();
   while (padded.length < doc.columns.length) padded.push('');
-  return padded.join('\t');
+  return serializeClipboardMatrix([padded]);
 }

@@ -7,6 +7,7 @@
  */
 import type { TsvDocument } from '@md-business/schema-test-spec-tsv';
 import type { CellPos, GridDims } from './gridNav';
+import { serializeClipboardMatrix } from './clipboardCodec';
 
 /** 選択範囲。anchor＝起点（固定）、focus＝伸長先（Shift で動く角）。 */
 export interface CellRange {
@@ -108,18 +109,19 @@ export function wholeRange(dims: GridDims): CellRange {
 
 /**
  * 矩形範囲をクリップボード用の TSV（行はタブ区切り・行間は改行）へ直列化する。
- * 欠けたセルは空文字で位置を保つ。セル内改行・タブはクオートせず素のまま
- * （本グリッドの貼り付けパーサ {@link ./gridClipboard} と対称に保つため）。
+ * 欠けたセルは空文字で位置を保つ。改行やタブを含むセルの囲みは
+ * {@link ./clipboardCodec} が持ち、貼り付け側と同じ判定を共有する。
  */
 export function rangeToTsv(doc: TsvDocument, range: CellRange): string {
   const { r0, c0, r1, c1 } = rangeBounds(range);
-  const lines: string[] = [];
+  const matrix: string[][] = [];
   for (let r = r0; r <= r1; r++) {
     const cells: string[] = [];
     for (let c = c0; c <= c1; c++) {
       cells.push(doc.rows[r]?.[c] ?? '');
     }
-    lines.push(cells.join('\t'));
+    matrix.push(cells);
   }
-  return lines.join('\n');
+  // セル内の改行・タブが行区切り・列区切りと混ざらないよう、必要なセルだけ囲む。
+  return serializeClipboardMatrix(matrix);
 }
