@@ -71,6 +71,7 @@
     rangeToTsv,
     rowRange,
   } from './gridRange';
+  import { canStartDrag, beginDrag } from './gridDrag';
   import { displayRowCount, editPaddedCell } from './gridBlankRows';
   import { columnLabels } from './columnLabel';
   import {
@@ -587,13 +588,35 @@
     }
   });
 
-  function selectCell(row: number, col: number, extend = false): void {
+  // マウスでの範囲選択。押したセルをアンカーに、ボタンを押したまま通ったセルまで広げる。
+  // 押下 → 通過 → 離す の 3 点だけを見て、範囲の計算は gridDrag / gridRange に任せる。
+  let dragging = false;
+
+  function onCellPointerDown(row: number, col: number, event: PointerEvent): void {
+    const intent = {
+      button: event.button,
+      shift: event.shiftKey,
+      editing: isActive(row, col) && mode === 'edit',
+    };
+    // 右クリック（列メニュー）と編集中のウィジェット操作は、選択に奪わせない。
+    if (!canStartDrag(intent)) return;
+    // ドラッグ中にセルの文字が範囲選択されると、掴んだものが分からなくなる。
+    // 既定の選択開始を止める（セルへのフォーカスは選択反映後の effect が行う）。
+    event.preventDefault();
+    dragging = true;
     engaged = true;
-    // Shift+クリック＝アンカーを保って範囲を広げる。通常クリックは単一セルへ畳む。
-    selection = extend
-      ? { anchor: selection.anchor, focus: { row, col } }
-      : { anchor: { row, col }, focus: { row, col } };
+    selection = beginDrag(selection, { row, col }, intent, dims);
     mode = 'nav';
+  }
+
+  function onCellPointerEnter(row: number, col: number): void {
+    if (!dragging) return;
+    selection = extendRangeTo(selection, { row, col }, dims);
+  }
+
+  // 離すのはグリッドの外かもしれないので window で受ける（掴んだままになるのを防ぐ）。
+  function endDrag(): void {
+    dragging = false;
   }
 
   // 行番号クリック＝その行全体（先頭列〜末尾列）を範囲選択。
@@ -768,7 +791,13 @@
   }
 </script>
 
-<svelte:window onkeydown={(e) => { if (e.key === 'Escape' && colMenu) closeColMenu(); }} />
+<svelte:window
+  onkeydown={(e) => {
+    if (e.key === 'Escape' && colMenu) closeColMenu();
+  }}
+  onpointerup={endDrag}
+  onpointercancel={endDrag}
+/>
 
 <div class="grid-shell">
   <div
@@ -1008,13 +1037,15 @@
                 title={issue}
                 data-cell={`${r}-${c}`}
                 onkeydown={(e) => onGridKeydown(r, c, e)}
+                onpointerdown={(e) => onCellPointerDown(r, c, e)}
+                onpointerenter={() => onCellPointerEnter(r, c)}
                 oncontextmenu={(e) => openColMenu(c, e)}
                 ondblclick={enterEdit}
               >
                 {#if !active}
-                  <!-- 非アクティブ＝静的表示。クリックで選択（nav）。キーボード操作は
-                       td の onkeydown（nav⇄edit）で提供済みのため click 単独で問題ない。 -->
-                  <!-- svelte-ignore a11y_click_events_have_key_events -->
+                  <!-- 非アクティブ＝静的表示。選択（nav）は td の onpointerdown が持つ
+                       （クリックとドラッグを 1 か所で受けるため）。キーボード操作は
+                       td の onkeydown（nav⇄edit）で提供済み。 -->
                   <div
                     class="cell-view"
                     class:num={widget?.kind === 'number'}
@@ -1022,9 +1053,6 @@
                     class:overflow={colModes[c] === 'overflow'}
                     class:spill
                     style={cellAlign}
-                    role="button"
-                    tabindex="-1"
-                    onclick={(e) => selectCell(r, c, e.shiftKey)}
                   >
                     {cellDisplayText(widget?.kind, value)}
                   </div>
