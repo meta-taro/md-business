@@ -19,6 +19,7 @@ import {
 const defaults: LayoutDefaults = {
   colWidths: [176, 88, 256],
   colModes: ['clip', 'clip', 'wrap'],
+  colAligns: ['left', 'right', 'left'],
   rowHeight: 30,
 };
 
@@ -27,6 +28,7 @@ describe('readLayout', () => {
     const layout = readLayout([], 2, defaults);
     expect(layout.colWidths).toEqual([176, 88, 256]);
     expect(layout.colModes).toEqual(['clip', 'clip', 'wrap']);
+    expect(layout.colAligns).toEqual(['left', 'right', 'left']);
     expect(layout.rowHeights).toEqual([30, 30]);
   });
 
@@ -45,6 +47,11 @@ describe('readLayout', () => {
     expect(layout.colModes).toEqual(['wrap', 'clip', 'wrap']);
   });
 
+  it('align は妥当な寄せのみ採用（不正値は無視）', () => {
+    const layout = readLayout(['align 0=center 1=bogus 9=right'], 0, defaults);
+    expect(layout.colAligns).toEqual(['center', 'right', 'left']);
+  });
+
   it('範囲外・非数の列指定は無視する', () => {
     const layout = readLayout(['colwidth 5=300 x=99 1=0'], 0, defaults);
     // 5 は範囲外、x は非数、0px は下限割れとして無視 → 全て既定のまま
@@ -61,6 +68,7 @@ describe('writeLayoutDirectives', () => {
   const base: GridLayout = {
     colWidths: [176, 88, 256],
     colModes: ['clip', 'clip', 'wrap'],
+    colAligns: ['left', 'right', 'left'],
     rowHeights: [30, 30],
   };
 
@@ -72,12 +80,14 @@ describe('writeLayoutDirectives', () => {
     const layout: GridLayout = {
       colWidths: [240, 88, 256],
       colModes: ['clip', 'overflow', 'wrap'],
+      colAligns: ['left', 'right', 'center'],
       rowHeights: [30, 72],
     };
     expect(writeLayoutDirectives([], layout, defaults)).toEqual([
       'colwidth 0=240',
       'rowheight 1=72',
       'colmode 1=overflow',
+      'align 2=center',
     ]);
   });
 
@@ -93,10 +103,17 @@ describe('writeLayoutDirectives', () => {
     expect(result).toEqual(['style X 1=#fff', 'colwidth 0=300']);
   });
 
+  it('既存の align 行も置き換える（重複しない）', () => {
+    const layout: GridLayout = { ...base, colAligns: ['center', 'right', 'left'] };
+    const result = writeLayoutDirectives(['align 2=right'], layout, defaults);
+    expect(result).toEqual(['align 0=center']);
+  });
+
   it('read(write(layout)) は差分を復元する（round-trip）', () => {
     const layout: GridLayout = {
       colWidths: [240, 100, 256],
       colModes: ['clip', 'clip', 'overflow'],
+      colAligns: ['center', 'right', 'right'],
       rowHeights: [30, 48, 30],
     };
     const directives = writeLayoutDirectives(['style keep'], layout, defaults);

@@ -26,7 +26,7 @@
 - 列型 / UI ヒントの型: [`packages/schema-test-spec-tsv/src/types.ts`](../../packages/schema-test-spec-tsv/src/types.ts)
 - グリッド出し分けの判定: [`apps/desktop/src/lib/tsv/detect.ts`](../../apps/desktop/src/lib/tsv/detect.ts)
 - 表ヘッダ拡張ディレクティブ（note / group）: [`apps/desktop/src/lib/tsv/gridHeaderDirectives.ts`](../../apps/desktop/src/lib/tsv/gridHeaderDirectives.ts)
-- レイアウト永続化ディレクティブ（colwidth / rowheight / colmode）: [`apps/desktop/src/lib/tsv/gridLayoutDirectives.ts`](../../apps/desktop/src/lib/tsv/gridLayoutDirectives.ts)
+- レイアウト永続化ディレクティブ（colwidth / rowheight / colmode / align）: [`apps/desktop/src/lib/tsv/gridLayoutDirectives.ts`](../../apps/desktop/src/lib/tsv/gridLayoutDirectives.ts)
 - サンプル: [`templates/test-spec/standard-ja.tsv`](../../templates/test-spec/standard-ja.tsv)
 
 ## 最小導線
@@ -96,9 +96,20 @@ data 行は tab 区切りで分割する。最初に現れた data 行を **型�
 | colwidth | `#@ colwidth <i>=<px> …` | 列 `i`（0 始まり）の幅を px で指定。空白区切りで複数列。 |
 | rowheight | `#@ rowheight <i>=<px> …` | 行 `i`（0 始まり）の高さを px で指定。空白区切りで複数行。 |
 | colmode | `#@ colmode <i>=<mode> …` | 列 `i`（0 始まり）の表示モード（折り返し等）を指定。 |
+| align | `#@ align <i>=<left\|center\|right> …` | 列 `i`（0 始まり）の寄せを指定。列名（型付きヘッダ）・データセル・グループ見出しに効く。 |
 | style | `#@ style <列名> <値>=<色> …` | 条件付き書式。指定列のセル値に応じて**行全体**へ背景色を敷く。 |
 
-レイアウト系（colwidth / rowheight / colmode）は **sparse** に書き出される。既定値と同じ列 / 行は出力されないため、未調整のファイルにはレイアウト行が現れない（差分を最小化する）。範囲外インデックス・非数値・不正モードの指定は読み込み時に捨てられ、同種が複数あれば後勝ち。
+レイアウト系（colwidth / rowheight / colmode / align）は **sparse** に書き出される。既定値と同じ列 / 行は出力されないため、未調整のファイルにはレイアウト行が現れない（差分を最小化する）。範囲外インデックス・非数値・不正な値（未知のモード / 寄せ）の指定は読み込み時に捨てられ、同種が複数あれば後勝ち。
+
+### `#@ align`（列の寄せ）
+
+```
+#@ align 0=right 3=center
+```
+
+寄せの既定は `number` 列が右、それ以外の型は左。既定と同じ列は出力されない。
+
+グループ見出し（`#@ group`）は列をまたぐため、**所属列の寄せに従う**。所属列の指定が揃っていればその寄せ、割れていれば中央になる。
 
 ### `#@ style`（条件付き書式）
 
