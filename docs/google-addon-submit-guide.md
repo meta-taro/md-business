@@ -193,7 +193,7 @@ GCP プロジェクトが Workspace 組織（例: `example.com`）配下にあ�
 
 ### B-4 補足: External 状態で個人 Gmail からアクセスすると「アクセス権限をリクエスト」が走る
 
-Workspace ドメインポリシーが External + Testing 状態の OAuth に preempt をかけているため、テストユーザー登録が無効化される条件がある。その状態で個人 Gmail（例: `taro@gmail.com`）で OAuth 画面を開くと、「アクセス権限をリクエスト」UI（https://support.google.com/docs/answer/16722399 に redirect）が出る。**ここで「リクエストを送信」を押すと、個人 Gmail から業務 Apps Script への共有依頼メールが管理者宛に飛ぶ**。
+Workspace ドメインポリシーが External + Testing 状態の OAuth に preempt をかけているため、テストユーザー登録が無効化される条件がある。その状態で個人 Gmail（`<個人アカウント>@gmail.com`）で OAuth 画面を開くと、「アクセス権限をリクエスト」UI（https://support.google.com/docs/answer/16722399 に redirect）が出る。**ここで「リクエストを送信」を押すと、個人 Gmail から業務 Apps Script への共有依頼メールが管理者宛に飛ぶ**。
 
 **対処**:
 
