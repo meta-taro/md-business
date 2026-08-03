@@ -18,6 +18,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+        with:
+          # identity スキャンが PR の全コミットを辿るため、浅いクローンにしない。
+          fetch-depth: 0
 
       - uses: actions/setup-node@v6
         with:
@@ -28,3 +31,13 @@ jobs:
 
       - name: Scan tree for internal references
         run: node scripts/oss-guard/check-tree.mjs --strict
+
+      # merge されると author/committer は履歴の書き換えなしには直せない。main は
+      # PR 運用なので、ここが公開前の最後のゲートになる。
+      # 範囲は PR の新規コミットのみ（公開済みの既存履歴は対象外）。
+      - name: Scan commit identity (pull request only)
+        if: github.event_name == 'pull_request'
+        env:
+          # 式展開はシェルへ直接埋めず env 経由で渡す。
+          RANGE: ${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}
+        run: node scripts/oss-guard/check-identity.mjs --range "$RANGE"
