@@ -6,6 +6,11 @@ set -e
 echo "[pre-commit] OSS 内部参照スキャン..."
 node scripts/oss-guard/check-staged.mjs
 
+# コミットが作られてしまうと author/committer は後続コミットでは直せない
+# （履歴の書き換えが要る）ため、作る前のここで弾く。
+echo "[pre-commit] コミット identity..."
+node scripts/oss-guard/check-identity.mjs
+
 echo "[pre-commit] lint..."
 pnpm -w run lint
 
