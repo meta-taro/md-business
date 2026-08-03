@@ -1,8 +1,8 @@
 /**
  * 検証グリッドのレイアウト永続化ディレクティブ（
- * 列幅・行高・改行時の表示を変えられるようにし、それらを tsv 側に記憶する）。
+ * 列幅・行高・改行時の表示・寄せを変えられるようにし、それらを tsv 側に記憶する）。
  * ------------------------------------------------------------------
- * 列幅 / 行高 / 列表示モードを `#@ colwidth|rowheight|colmode` ディレクティブへ載せる。
+ * 列幅 / 行高 / 列表示モード / 列寄せを `#@ colwidth|rowheight|colmode|align` へ載せる。
  * 既存の共有パーサ（`schema-test-spec-tsv`）は `#@` 行を `doc.directives` に生文字列として
  * 収集・再出力する（round-trip 済み）ため、フォーマット契約を変えずにレイアウトを tsv へ
  * 焼ける。既存 `#@ style …`（条件付き書式）と同じ場所・同じ仕組みの追加ディレクティブ。
@@ -15,12 +15,14 @@
 import { MIN_COL_WIDTH } from './gridLayout';
 import { MIN_ROW_HEIGHT } from './gridRowLayout';
 import { COL_OVERFLOW_MODES, type ColOverflowMode } from './gridColumnMode';
+import { COL_ALIGNS, type ColAlign } from './gridColumnAlign';
 
-/** レイアウトディレクティブの種別（この 3 種だけを読み書き対象にする）。 */
+/** レイアウトディレクティブの種別（この 4 種だけを読み書き対象にする）。 */
 const COLWIDTH = 'colwidth';
 const ROWHEIGHT = 'rowheight';
 const COLMODE = 'colmode';
-const LAYOUT_KINDS = [COLWIDTH, ROWHEIGHT, COLMODE] as const;
+const ALIGN = 'align';
+const LAYOUT_KINDS = [COLWIDTH, ROWHEIGHT, COLMODE, ALIGN] as const;
 
 /** 列型ごとに決まる既定レイアウト（呼び出し側が算出して渡す）。 */
 export interface LayoutDefaults {
@@ -28,6 +30,8 @@ export interface LayoutDefaults {
   colWidths: number[];
   /** 列ごとの既定表示モード（multiline は wrap 等・列定義の並び）。 */
   colModes: ColOverflowMode[];
+  /** 列ごとの既定寄せ（number は right 等・列定義の並び）。 */
+  colAligns: ColAlign[];
   /** 行の既定高（px・全行共通）。 */
   rowHeight: number;
 }
@@ -36,6 +40,7 @@ export interface LayoutDefaults {
 export interface GridLayout {
   colWidths: number[];
   colModes: ColOverflowMode[];
+  colAligns: ColAlign[];
   rowHeights: number[];
 }
 
@@ -71,6 +76,10 @@ function isMode(raw: string): raw is ColOverflowMode {
   return (COL_OVERFLOW_MODES as readonly string[]).includes(raw);
 }
 
+function isAlign(raw: string): raw is ColAlign {
+  return (COL_ALIGNS as readonly string[]).includes(raw);
+}
+
 /**
  * ディレクティブ群から実効レイアウトを組む。レイアウト以外（`style` 等）は無視し、
  * 各項目は既定値を土台に妥当な指定だけ上書きする（範囲外・非数・不正モードは捨てる）。
@@ -83,6 +92,7 @@ export function readLayout(
 ): GridLayout {
   const colWidths = defaults.colWidths.slice();
   const colModes = defaults.colModes.slice();
+  const colAligns = defaults.colAligns.slice();
   const rowHeights = Array.from({ length: Math.max(0, rowCount) }, () => defaults.rowHeight);
 
   for (const directive of directives) {
@@ -101,10 +111,14 @@ export function readLayout(
       for (const [i, raw] of parsePairs(body)) {
         if (isMode(raw) && i < colModes.length) colModes[i] = raw;
       }
+    } else if ((body = bodyOf(directive, ALIGN)) !== null) {
+      for (const [i, raw] of parsePairs(body)) {
+        if (isAlign(raw) && i < colAligns.length) colAligns[i] = raw;
+      }
     }
   }
 
-  return { colWidths, colModes, rowHeights };
+  return { colWidths, colModes, colAligns, rowHeights };
 }
 
 /** 既定と異なる要素だけを `index=value` 文字列の並びへ（sparse エンコード）。 */
@@ -118,7 +132,7 @@ function sparsePairs<T>(values: T[], defaultAt: (i: number) => T): string[] {
 
 /**
  * 実効レイアウトを sparse なレイアウトディレクティブへ書き戻す。レイアウト以外の
- * ディレクティブは元の順で温存し、レイアウト行（colwidth→rowheight→colmode の順）を
+ * ディレクティブは元の順で温存し、レイアウト行（colwidth→rowheight→colmode→align の順）を
  * 末尾へ付け直す。差分ゼロの種別は行を出さない。
  */
 export function writeLayoutDirectives(
@@ -139,6 +153,9 @@ export function writeLayoutDirectives(
 
   const modePairs = sparsePairs(layout.colModes, (i) => defaults.colModes[i]);
   if (modePairs.length > 0) lines.push(`${COLMODE} ${modePairs.join(' ')}`);
+
+  const alignPairs = sparsePairs(layout.colAligns, (i) => defaults.colAligns[i]);
+  if (alignPairs.length > 0) lines.push(`${ALIGN} ${alignPairs.join(' ')}`);
 
   return [...kept, ...lines];
 }

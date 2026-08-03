@@ -44,6 +44,14 @@
     setColMode,
     colModeMenuItems,
   } from './gridColumnMode';
+  import {
+    type ColAlign,
+    defaultColAligns,
+    setColAlign,
+    colAlignMenuItems,
+    groupAlign,
+    alignStyle,
+  } from './gridColumnAlign';
   import { spillsRight } from './gridSpill';
   import { keepsNativeContextMenu } from './gridContextMenu';
   import {
@@ -228,9 +236,9 @@
   const notesBottom = $derived(COORD_ROW_H + noteRowCount * NOTE_ROW_H);
   const headTop = $derived(notesBottom + (hasGroupHeader ? GROUP_ROW_H : 0));
 
-  // ── レイアウト（列幅 px / 行高 px / 列表示モード）。列幅・行高・改行時の表示を
-  //    変えられるようにし、それらの状態を tsv 側に記憶するため、これらは
-  //    `#@ colwidth|rowheight|colmode` ディレクティブとして doc に永続化する。読み書きは
+  // ── レイアウト（列幅 px / 行高 px / 列表示モード / 列寄せ）。列幅・行高・改行時の表示・
+  //    寄せを変えられるようにし、それらの状態を tsv 側に記憶するため、これらは
+  //    `#@ colwidth|rowheight|colmode|align` ディレクティブとして doc に永続化する。読み書きは
   //    gridLayoutDirectives の純ロジック、リサイズ実測と永続タイミングだけが薄いグルー。
   //    編集のたび doc は再パースされ列/directives 参照が変わるが、レイアウトは directives
   //    から読み直すので、調整幅・行高・表示モードがセル入力で既定へ戻らない。 ──
@@ -241,6 +249,7 @@
     return {
       colWidths: defaultColWidths(doc.columns),
       colModes: defaultColModes(doc.columns),
+      colAligns: defaultColAligns(doc.columns),
       rowHeight: DEFAULT_ROW_HEIGHT,
     };
   }
@@ -252,6 +261,7 @@
   let colWidths = $state<number[]>(initLayout.colWidths);
   let rowHeights = $state<number[]>(initLayout.rowHeights);
   let colModes = $state<ColOverflowMode[]>(initLayout.colModes);
+  let colAligns = $state<ColAlign[]>(initLayout.colAligns);
 
   // ── 空パッド行（「行を追加しても増えない」不具合の対処）。
   //    カスタム TSV は全セルが空の行をテキスト化できない（round-trip で消える）ため、
@@ -275,6 +285,7 @@
     colWidths = layout.colWidths;
     rowHeights = layout.rowHeights;
     colModes = layout.colModes;
+    colAligns = layout.colAligns;
     const sig = columnSignature();
     if (sig !== lastSignature) {
       lastSignature = sig;
@@ -289,6 +300,7 @@
     const layout: GridLayout = {
       colWidths,
       colModes,
+      colAligns,
       rowHeights: rowHeights.slice(0, doc.rows.length),
     };
     const directives = writeLayoutDirectives(doc.directives, layout, layoutDefaults());
@@ -390,14 +402,18 @@
     persistLayout(); // 既定へ戻した行高も tsv へ焼く（既定なら sparse で行が消える）
   }
 
-  // ── 列の表示モード（clip / wrap / overflow）。右クリックメニューで列ごとに
-  //    「折り返す／突き抜ける／見切れる」を切替。選択肢生成・状態は
-  //    gridColumnMode の純ロジック、メニュー描画・座標だけ Svelte 側の薄いグルー。状態は
-  //    上のレイアウトセクションで colModes として宣言済み（directives から復元・変更で永続化）。 ──
-  // 右クリックで開く列モードメニュー。対象列と画面座標を持つ（null＝非表示）。
+  // ── 列の表示モード（clip / wrap / overflow）と寄せ（left / center / right）。右クリック
+  //    メニューで列ごとに「折り返す／突き抜ける／見切れる」と「左／中央／右寄せ」を切替。
+  //    選択肢生成・状態は gridColumnMode / gridColumnAlign の純ロジック、メニュー描画・座標
+  //    だけ Svelte 側の薄いグルー。状態は上のレイアウトセクションで colModes / colAligns と
+  //    して宣言済み（directives から復元・変更で永続化）。 ──
+  // 右クリックで開く列メニュー。対象列と画面座標を持つ（null＝非表示）。
   let colMenu = $state<{ col: number; x: number; y: number } | null>(null);
   const colMenuItems = $derived(
     colMenu ? colModeMenuItems(colModes[colMenu.col] ?? 'clip') : [],
+  );
+  const colAlignItems = $derived(
+    colMenu ? colAlignMenuItems(colAligns[colMenu.col] ?? 'left') : [],
   );
   function openColMenu(col: number, event: MouseEvent): void {
     event.preventDefault(); // WebView2 ネイティブメニューを抑止しカスタムメニューを出す
@@ -407,6 +423,13 @@
     if (colMenu) {
       colModes = setColMode(colModes, colMenu.col, mode);
       persistLayout(); // 表示モードを tsv へ焼く
+    }
+    colMenu = null;
+  }
+  function chooseColAlign(align: ColAlign): void {
+    if (colMenu) {
+      colAligns = setColAlign(colAligns, colMenu.col, align);
+      persistLayout(); // 寄せを tsv へ焼く
     }
     colMenu = null;
   }
@@ -867,17 +890,19 @@
           <tr class="group-row">
             <th class="rownum group-corner" scope="col" aria-hidden="true" style={`top:${notesBottom}px`}></th>
             {#each groupHeaderCells as cell, gi (gi)}
+              <!-- 大分類の寄せは所属列の指定に従う（割れていれば中央）。 -->
+              {@const gAlign = alignStyle(groupAlign(colAligns, cell.start, cell.span))}
               <th
                 class="group-cell"
                 class:group-filled={cell.label !== ''}
                 colspan={cell.span}
                 scope="colgroup"
                 title={cell.label}
-                style={`top:${notesBottom}px; height:${GROUP_ROW_H}px`}
+                style={`top:${notesBottom}px; height:${GROUP_ROW_H}px; ${gAlign}`}
               >
-                <!-- 中央寄せの横並びは内側で組む（th を flex にすると colspan が効かず、
+                <!-- ラベルの横並びは内側で組む（th を flex にすると colspan が効かず、
                      列をまたぐはずの大分類が 1 列目へ潰れる）。 -->
-                <div class="group-body">
+                <div class="group-body" style={gAlign}>
                   {#if editable && cell.label !== '' && editingGroup?.start === cell.start}
                     <!-- 改名中: input 化。Enter 確定・Esc 取消・blur 確定（グリッド nav へ非伝播）。 -->
                     <input
@@ -915,6 +940,7 @@
             <th
               scope="col"
               class:required={column.required}
+              style={alignStyle(colAligns[col] ?? 'left')}
               oncontextmenu={(e) => openColMenu(col, e)}
             >
               <span class="colname">{column.name}</span>
@@ -969,6 +995,7 @@
               {@const value = cellValue(r, c)}
               {@const issue = issueOf(r, c)}
               {@const active = isActive(r, c)}
+              {@const cellAlign = alignStyle(colAligns[c] ?? 'left')}
               {@const spill =
                 colModes[c] === 'clip' &&
                 widget?.kind !== 'number' &&
@@ -994,6 +1021,7 @@
                     class:wrap={colModes[c] === 'wrap'}
                     class:overflow={colModes[c] === 'overflow'}
                     class:spill
+                    style={cellAlign}
                     role="button"
                     tabindex="-1"
                     onclick={(e) => selectCell(r, c, e.shiftKey)}
@@ -1003,7 +1031,7 @@
                 {:else if editable && mode === 'edit'}
                   <!-- アクティブかつ編集モード＝実ウィジェット。ダブルクリック / Enter / F2 /
                        文字入力で入る（単一クリックは選択のまま＝静的表示のブランチへ）。 -->
-                  <div class="cell-edit" role="presentation">
+                  <div class="cell-edit" style={cellAlign} role="presentation">
                     {#if widget === undefined}
                       <span class="plain">{value}</span>
                     {:else if widget.kind === 'checkbox'}
@@ -1084,6 +1112,7 @@
                     class:wrap={colModes[c] === 'wrap'}
                     class:overflow={colModes[c] === 'overflow'}
                     class:spill
+                    style={cellAlign}
                     tabindex="-1"
                   >
                     {cellDisplayText(widget?.kind, value)}
@@ -1135,7 +1164,7 @@
   {/if}
 
   {#if colMenu}
-    <!-- 列表示モードのカスタム右クリックメニュー。背後クリック /
+    <!-- 列の表示モード / 寄せのカスタム右クリックメニュー。背後クリック /
          右クリック / Esc で閉じる。ネイティブ WebView2 メニューは openColMenu で抑止済み。 -->
     <button
       type="button"
@@ -1157,6 +1186,23 @@
             class="col-menu-item"
             class:checked={item.checked}
             onclick={() => chooseColMode(item.mode)}
+          >
+            <span class="check" aria-hidden="true">{item.checked ? '✓' : ''}</span>
+            {item.label}
+          </button>
+        </li>
+      {/each}
+      <!-- 寄せは型付きヘッダ・データセル・大分類（所属列の指定に従う）へ同時に効く。 -->
+      <li class="col-menu-head" role="presentation">寄せ</li>
+      {#each colAlignItems as item (item.align)}
+        <li role="none">
+          <button
+            type="button"
+            role="menuitemradio"
+            aria-checked={item.checked}
+            class="col-menu-item"
+            class:checked={item.checked}
+            onclick={() => chooseColAlign(item.align)}
           >
             <span class="check" aria-hidden="true">{item.checked ? '✓' : ''}</span>
             {item.label}
@@ -1493,7 +1539,7 @@
     border-right: 1px solid var(--border-strong);
   }
 
-  /* ラベル＋削除ボタン / 改名 input の中央寄せ横並びはセルの内側で組む。 */
+  /* ラベル＋削除ボタン / 改名 input の横並びはセルの内側で組む（寄せは inline 指定）。 */
   .group-body {
     display: flex;
     align-items: center;
@@ -1558,7 +1604,7 @@
     color: var(--text-primary);
     font: inherit;
     font-weight: var(--text-sm-weight);
-    text-align: center;
+    text-align: inherit;
   }
 
   .group-input:focus {
@@ -1709,9 +1755,16 @@
     color: var(--text-primary);
   }
 
-  /* 数値列は右寄せ（表計算の慣習）。スピナー矢印は隠す（列幅を食う・スプレにない）。 */
+  /* 入力中の文字位置は静的表示と同じ寄せに揃える（編集へ入った瞬間に文字が飛ばない）。
+     寄せは .cell-edit の inline 指定を親から受け取る。 */
+  .cell-edit input,
+  .cell-edit select,
+  .cell-edit textarea {
+    text-align: inherit;
+  }
+
+  /* 数値列はスピナー矢印を隠す（列幅を食う・スプレにない）。寄せは列指定（既定は右）に従う。 */
   input[type='number'] {
-    text-align: right;
     font-variant-numeric: tabular-nums;
     appearance: textfield;
     -moz-appearance: textfield;
@@ -1735,23 +1788,22 @@
     background: var(--bg-elevated);
   }
 
-  /* チェックボックス / ラジオはセル中央に。 */
+  /* チェックボックス / ラジオも列の寄せに従う（横位置は .cell-edit の inline 指定が決める）。 */
   .cell-edit:has(> input[type='checkbox']),
   .cell-edit:has(> .radio-group) {
     display: flex;
     align-items: center;
-    justify-content: center;
   }
 
   input[type='checkbox'] {
-    margin: 0 auto;
+    margin: 0;
   }
 
   .radio-group {
     display: flex;
     flex-wrap: wrap;
     gap: 2px var(--space-3);
-    justify-content: center;
+    justify-content: inherit;
     padding: 0 var(--space-2);
   }
 
@@ -1808,6 +1860,13 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+  }
+
+  /* 2 つ目以降の見出し（寄せ）は罫線で区切り、上のまとまりと混ざらないようにする。 */
+  .col-menu-head:not(:first-child) {
+    margin-top: var(--space-1);
+    padding-top: var(--space-2);
+    border-top: 1px solid var(--border);
   }
 
   .col-menu-item {
