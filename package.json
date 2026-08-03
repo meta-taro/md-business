@@ -31,7 +31,8 @@
     "prepare": "husky",
     "changeset": "changeset",
     "version": "changeset version",
-    "release": "turbo run build && changeset publish"
+    "release": "turbo run build && changeset publish",
+    "oss-guard:identity": "node scripts/oss-guard/check-identity.mjs"
   },
   "devDependencies": {
     "@changesets/cli": "^2.27.9",
