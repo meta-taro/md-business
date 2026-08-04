@@ -4,7 +4,7 @@ export { classifyLine } from './classify.js';
 export { parseTsv } from './parse.js';
 export { serializeTsv, serializeHeader } from './serialize.js';
 export { validateTsv } from './validate.js';
-export { generateRowId, withRowIds, withoutRowIds, ROW_ID_COLUMN } from './rowId.js';
+export { generateRowId, isRowId, withRowIds, withoutRowIds, ROW_ID_COLUMN } from './rowId.js';
 export type { ColumnType, ColumnUiHint, ParsedHeader } from './types.js';
 export type { IdentifiedTsv } from './rowId.js';
 export type { LineKind } from './classify.js';

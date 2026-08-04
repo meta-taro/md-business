@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { generateRowId, withRowIds, withoutRowIds, ROW_ID_COLUMN } from '../src/rowId.js';
+import { generateRowId, isRowId, withRowIds, withoutRowIds, ROW_ID_COLUMN } from '../src/rowId.js';
 import { parseTsv } from '../src/parse.js';
 import { serializeTsv } from '../src/serialize.js';
 import type { TsvDocument } from '../src/parse.js';
@@ -45,6 +45,26 @@ describe('generateRowId', () => {
   it('呼ぶたび違う ID になる', () => {
     const ids = new Set(Array.from({ length: 200 }, () => generateRowId()));
     expect(ids.size).toBe(200);
+  });
+});
+
+describe('isRowId', () => {
+  it('採番した ID を ID と判定する', () => {
+    expect(isRowId(generateRowId())).toBe(true);
+  });
+
+  it('数字だけのキーは ID ではない', () => {
+    // `#@ rowheight <key>=<px>` の key は行インデックス（既存ファイル）と ID が混在する。
+    // 構文だけで振り分けられることが、フォーマットのバージョンを上げずに済む根拠。
+    expect(isRowId('0')).toBe(false);
+    expect(isRowId('12')).toBe(false);
+  });
+
+  it('桁数違い・16 進以外は ID ではない', () => {
+    expect(isRowId('rabc')).toBe(false);
+    expect(isRowId('rAAAAAAAAAAAA')).toBe(false);
+    expect(isRowId('raaaaaaaaaaaaa')).toBe(false);
+    expect(isRowId('')).toBe(false);
   });
 });
 

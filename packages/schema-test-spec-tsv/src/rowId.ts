@@ -37,6 +37,16 @@ const ROW_ID_DIRECTIVE = 'rowid';
  */
 const ROW_ID_PATTERN = /^r[0-9a-f]{12}$/;
 
+/**
+ * 行 ID の形かどうか。
+ *
+ * `#@ rowheight <key>=<px>` の key は、既存ファイルの行インデックス（数字のみ）と
+ * ID が混ざる。振り分けの判断をこの 1 箇所に置く。
+ */
+export function isRowId(value: string): boolean {
+  return ROW_ID_PATTERN.test(value);
+}
+
 /** 新しい行 ID を作る。 */
 export function generateRowId(): string {
   const bytes = new Uint8Array(6);

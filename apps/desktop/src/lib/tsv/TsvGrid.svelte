@@ -256,9 +256,7 @@
   }
 
   // 初期レイアウトは directives から復元（untrack で「初期値キャプチャ」を明示）。
-  const initLayout = untrack(() =>
-    readLayout(doc.directives, doc.rows.length, layoutDefaults()),
-  );
+  const initLayout = untrack(() => readLayout(doc.directives, doc.rowIds, layoutDefaults()));
   let colWidths = $state<number[]>(initLayout.colWidths);
   let rowHeights = $state<number[]>(initLayout.rowHeights);
   let colModes = $state<ColOverflowMode[]>(initLayout.colModes);
@@ -280,9 +278,9 @@
   }
   let lastSignature = untrack(() => columnSignature());
   $effect(() => {
-    // readLayout / columnSignature が doc.directives・doc.columns・doc.rows.length を読むので、
+    // readLayout / columnSignature が doc.directives・doc.columns・doc.rowIds を読むので、
     // それらの変化でこの effect が再走する（明示的な依存宣言は不要）。
-    const layout = readLayout(doc.directives, doc.rows.length, layoutDefaults());
+    const layout = readLayout(doc.directives, doc.rowIds, layoutDefaults());
     colWidths = layout.colWidths;
     rowHeights = layout.rowHeights;
     colModes = layout.colModes;
@@ -304,7 +302,7 @@
       colAligns,
       rowHeights: rowHeights.slice(0, doc.rows.length),
     };
-    const directives = writeLayoutDirectives(doc.directives, layout, layoutDefaults());
+    const directives = writeLayoutDirectives(doc.directives, layout, layoutDefaults(), doc.rowIds);
     onChange({ ...doc, directives });
   }
   // テーブル全幅＝行番号列 + 各列幅の合計（fixed レイアウトで横スクロール可能に）。
