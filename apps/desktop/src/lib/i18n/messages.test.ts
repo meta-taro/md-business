@@ -42,3 +42,51 @@ describe('ソース管理パネルの文言', () => {
     expect(messages.ja['scm.commitCount']).toContain('{count}');
   });
 });
+
+// Node 未検出は、利用者が自分で直せる唯一の劣化理由。「入れてください」だけだと
+// どの版を入れればいいか分からず、入れた後もアプリを起動し直さないと PATH が更新されず
+// 同じ表示のままになる（実運用で発生した）。文言そのものは変わりうるので、
+// 検査するのは「対処に必要な 2 点が載っていること」に絞る。
+describe('Node 未検出の文言', () => {
+  it('どの言語でも必要な版が分かる', () => {
+    for (const locale of LOCALES) {
+      expect(messages[locale]['mcp.reason.nodeMissing'], locale).toMatch(/\d+/);
+    }
+  });
+
+  it('どの言語でも入れた後に起動し直すことが分かる', () => {
+    const restart = /起動し直|再起動|重新启动|restart|다시 시작/i;
+    for (const locale of LOCALES) {
+      expect(messages[locale]['mcp.reason.nodeMissing'], locale).toMatch(restart);
+    }
+  });
+});
+
+// 書き出す設定ファイルには接続トークンが入る。何が置かれるか分からないまま押せると、
+// 公開リポジトリへそのまま載せてしまう。説明にトークンのことが要る。
+describe('接続設定の書き出しの説明', () => {
+  it('どの言語でもトークンが入ることが分かる', () => {
+    const token = /トークン|token|令牌|토큰/i;
+    for (const locale of LOCALES) {
+      expect(messages[locale]['mcp.writeConfigNote'], locale).toMatch(token);
+    }
+  });
+});
+
+// この文はそのまま AI に渡される。読んだ AI が版を選べないと、18 系を入れられて
+// 直らないまま「入れました」で終わる。要求する版が文に入っている必要がある。
+describe('AI に頼む文', () => {
+  it('どの言語でも Node 20 以上と分かる', () => {
+    for (const locale of LOCALES) {
+      expect(messages[locale]['mcp.askAiText'], locale).toMatch(/Node\s*20/);
+    }
+  });
+
+  it('どの言語でも入れ終わった後にすることが書いてある', () => {
+    // 入れて終わりだと繋がらない。押す先（もう一度さがす）まで文に含める。
+    for (const locale of LOCALES) {
+      const text = messages[locale]['mcp.askAiText'];
+      expect(text, locale).toContain(messages[locale]['mcp.retry']);
+    }
+  });
+});

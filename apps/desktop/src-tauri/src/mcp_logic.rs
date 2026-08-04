@@ -265,6 +265,269 @@ pub fn pick_existing(candidates: &[PathBuf], exists: impl Fn(&Path) -> bool) -> 
     candidates.iter().find(|p| exists(p)).cloned()
 }
 
+/// Node 実行ファイルの名前。
+pub fn node_exe_name() -> &'static str {
+    if cfg!(windows) {
+        "node.exe"
+    } else {
+        "node"
+    }
+}
+
+/// Node を探すときに参照する、環境から取れる位置。取れなければ `None`。
+///
+/// 実際の取得は Tauri 側（[`crate::mcp`]）が行い、ここには値だけを渡す。
+#[derive(Debug, Default, Clone)]
+pub struct NodeEnv {
+    pub home: Option<PathBuf>,
+    pub program_files: Option<PathBuf>,
+    pub local_app_data: Option<PathBuf>,
+    pub app_data: Option<PathBuf>,
+    /// fnm が版を置く場所（`FNM_DIR`）。利用者が既定から動かしていれば、ここだけが手掛かり。
+    pub fnm_dir: Option<PathBuf>,
+    /// nvm-windows が版を置く場所（`NVM_HOME`）。同上。
+    pub nvm_home: Option<PathBuf>,
+}
+
+/// 版ごとにフォルダを切る管理ツールの置き場。
+///
+/// `dir` 直下の各フォルダ（＝版）に `suffix` を継いだものが実行ファイルの候補になる。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct NodeVersionRoot {
+    pub dir: PathBuf,
+    pub suffix: PathBuf,
+}
+
+/// 固定位置にある Node の候補を、優先順に並べる。
+///
+/// PATH に載っていない Node を拾うための一覧。画面から起動したアプリが受け取る PATH は
+/// ログイン時点のもので、その後に入れた Node は載らない。存在しない位置は
+/// [`pick_existing`] 側で落ちるので、OS をまたいだ候補をまとめて並べてよい。
+pub fn node_candidates(env: &NodeEnv) -> Vec<PathBuf> {
+    let exe = node_exe_name();
+    let mut candidates = Vec::new();
+    if let Some(dir) = &env.program_files {
+        // 公式インストーラ。nvm-windows も既定でここへ symlink を張るため、
+        // 版管理を使っていても現行版がここに現れる。
+        candidates.push(dir.join("nodejs").join(exe));
+    }
+    if let Some(dir) = &env.local_app_data {
+        candidates.push(dir.join("Programs").join("nodejs").join(exe));
+        candidates.push(dir.join("Volta").join("bin").join(exe));
+    }
+    if let Some(dir) = &env.home {
+        candidates.push(dir.join(".volta").join("bin").join(exe));
+        candidates.push(
+            dir.join("scoop")
+                .join("apps")
+                .join("nodejs")
+                .join("current")
+                .join(exe),
+        );
+    }
+    // 版管理を使わない一般的な導入先（Homebrew / 手動展開 / ディストリのパッケージ）。
+    candidates.push(PathBuf::from("/opt/homebrew/bin").join(exe));
+    candidates.push(PathBuf::from("/usr/local/bin").join(exe));
+    candidates.push(PathBuf::from("/usr/bin").join(exe));
+    candidates
+}
+
+/// 版ごとにフォルダを切る管理ツールの置き場を、優先順に並べる。
+pub fn node_version_roots(env: &NodeEnv) -> Vec<NodeVersionRoot> {
+    let exe = node_exe_name();
+    let mut roots = Vec::new();
+    // 管理ツール自身が宣言した位置を先に見る。既定から動かされていると、ここにしか無い。
+    if let Some(dir) = &env.fnm_dir {
+        roots.push(NodeVersionRoot {
+            dir: dir.join("node-versions"),
+            suffix: Path::new("installation").join(exe),
+        });
+        // Unix 版の fnm は installation の下がさらに bin で切られる。
+        roots.push(NodeVersionRoot {
+            dir: dir.join("node-versions"),
+            suffix: Path::new("installation").join("bin").join(exe),
+        });
+    }
+    if let Some(dir) = &env.nvm_home {
+        roots.push(NodeVersionRoot {
+            dir: dir.clone(),
+            suffix: PathBuf::from(exe),
+        });
+    }
+    if let Some(dir) = &env.app_data {
+        // nvm-windows: %APPDATA%\nvm\v22.22.2\node.exe
+        roots.push(NodeVersionRoot {
+            dir: dir.join("nvm"),
+            suffix: PathBuf::from(exe),
+        });
+        // fnm (Windows): %APPDATA%\fnm\node-versions\v22.22.2\installation\node.exe
+        // Windows の fnm は Roaming 側に置く。Local 側だけを見ると丸ごと取り逃がす。
+        roots.push(NodeVersionRoot {
+            dir: dir.join("fnm").join("node-versions"),
+            suffix: Path::new("installation").join(exe),
+        });
+    }
+    if let Some(dir) = &env.local_app_data {
+        roots.push(NodeVersionRoot {
+            dir: dir.join("fnm").join("node-versions"),
+            suffix: Path::new("installation").join(exe),
+        });
+    }
+    if let Some(dir) = &env.home {
+        roots.push(NodeVersionRoot {
+            dir: dir.join(".nvm").join("versions").join("node"),
+            suffix: Path::new("bin").join(exe),
+        });
+        roots.push(NodeVersionRoot {
+            dir: dir
+                .join(".local")
+                .join("share")
+                .join("fnm")
+                .join("node-versions"),
+            suffix: Path::new("installation").join("bin").join(exe),
+        });
+        roots.push(NodeVersionRoot {
+            dir: dir
+                .join("Library")
+                .join("Application Support")
+                .join("fnm")
+                .join("node-versions"),
+            suffix: Path::new("installation").join("bin").join(exe),
+        });
+    }
+    roots
+}
+
+/// 版フォルダ名を新しい順に並べる。
+///
+/// 文字列順では `v9` が `v22` より後ろに来てしまう（先頭の文字だけで大小が決まるため）。
+/// 数の並びとして比べる必要がある。版として読めない名前（`lts` など）は最後へ回す。
+pub fn sort_node_versions(names: Vec<String>) -> Vec<String> {
+    let mut sorted = names;
+    sorted.sort_by(|a, b| {
+        let (ka, kb) = (version_key(a), version_key(b));
+        match (ka, kb) {
+            (Some(x), Some(y)) => y.cmp(&x),
+            (Some(_), None) => std::cmp::Ordering::Less,
+            (None, Some(_)) => std::cmp::Ordering::Greater,
+            (None, None) => a.cmp(b),
+        }
+    });
+    sorted
+}
+
+/// `v22.22.2` のような名前を、比較できる数の並びへ直す。読めなければ `None`。
+fn version_key(name: &str) -> Option<Vec<u64>> {
+    let body = name.strip_prefix('v').unwrap_or(name);
+    // 先行版の識別子（`-rc.1` など）は比較に使わない。
+    let body = body.split('-').next().unwrap_or(body);
+    let parts: Vec<u64> = body
+        .split('.')
+        .map(|p| p.parse::<u64>().ok())
+        .collect::<Option<Vec<u64>>>()?;
+    if parts.is_empty() {
+        None
+    } else {
+        Some(parts)
+    }
+}
+
+/// 起動を試す順に実行ファイルを並べる。
+///
+/// PATH の `node` を先頭に置くのは、利用者が選んだ版を尊重するため。絶対パスは
+/// PATH に載っていなかったときの受け皿で、後ろに続ける。同じものは二度試さない。
+pub fn node_programs(found: Vec<PathBuf>) -> Vec<PathBuf> {
+    let mut programs = vec![PathBuf::from("node")];
+    for path in found {
+        if !programs.contains(&path) {
+            programs.push(path);
+        }
+    }
+    programs
+}
+
+/// AI クライアントの設定ファイル名。作業フォルダ単位の設定として主要クライアントが読む。
+pub const CONFIG_FILE_NAME: &str = ".mcp.json";
+
+/// 設定ファイルの中で、このアプリのサーバーを指す名前。
+pub const CONFIG_SERVER_KEY: &str = "md-business";
+
+/// 接続設定に要る接続先とトークンを取り出す。まだ繋がっていなければ理由を返す。
+pub fn connection_parts(status: &McpStatus) -> Result<(&str, &str), String> {
+    match (status.url.as_deref(), status.token.as_deref()) {
+        (Some(url), Some(token)) if status.state == McpState::Ready => Ok((url, token)),
+        _ => Err("MCP サーバーが起動していないため、接続設定を作れません".to_string()),
+    }
+}
+
+/// 起動をやり直せる状態か。
+///
+/// Node を入れた直後に押されることを想定している。動いている間に受け付けると、
+/// 前の子プロセスが取り残されたままもう 1 つ起動し、古い方がポートを掴み続ける。
+pub fn can_retry(status: &McpStatus) -> bool {
+    status.state == McpState::Unavailable
+}
+
+/// 接続設定を、既にある設定ファイルへ書き足した全文を返す。
+///
+/// 手で貼らせると、貼り先も書式も分からないまま止まる。作業フォルダへ直接置けば、
+/// そこで動く AI クライアントが自分で読む。既存の設定は保ち、自分のぶんだけ入れ替える
+/// （port は起動ごとに変わりうるので、古い接続先を残せない）。
+///
+/// 読めない設定ファイルは書き換えない。手で書いた中身を黙って作り直すと失われるため。
+pub fn merge_client_config(
+    existing: Option<&str>,
+    url: &str,
+    token: &str,
+) -> Result<String, String> {
+    let mut root = match existing.map(str::trim) {
+        Some(text) if !text.is_empty() => serde_json::from_str::<serde_json::Value>(text)
+            .map_err(|err| err.to_string())?,
+        _ => serde_json::json!({}),
+    };
+    let servers = root
+        .as_object_mut()
+        .ok_or_else(|| "設定ファイルの中身が JSON のオブジェクトではありません".to_string())?
+        .entry("mcpServers")
+        .or_insert_with(|| serde_json::json!({}));
+    servers
+        .as_object_mut()
+        .ok_or_else(|| "mcpServers が JSON のオブジェクトではありません".to_string())?
+        .insert(
+            CONFIG_SERVER_KEY.to_string(),
+            serde_json::json!({
+                "type": "http",
+                "url": url,
+                "headers": { "Authorization": format!("Bearer {token}") },
+            }),
+        );
+    let mut text = serde_json::to_string_pretty(&root).map_err(|err| err.to_string())?;
+    text.push('\n');
+    Ok(text)
+}
+
+/// 除外ファイルへ 1 行足した全文を返す。既に除外されていれば `None`（書き換え不要）。
+///
+/// 設定ファイルには接続トークンが入る。追跡対象のまま置くと、公開リポジトリへそのまま載る。
+pub fn ensure_ignored(existing: Option<&str>, entry: &str) -> Option<String> {
+    let text = existing.unwrap_or("");
+    let already = text.lines().map(str::trim).any(|line| {
+        // 先頭の / は位置を根に固定する書き方で、指すものは同じ。
+        line == entry || line.strip_prefix('/') == Some(entry)
+    });
+    if already {
+        return None;
+    }
+    let mut next = text.to_string();
+    // 末尾に改行が無いファイルへそのまま足すと、前の行とつながって別の指定になる。
+    if !next.is_empty() && !next.ends_with('\n') {
+        next.push('\n');
+    }
+    next.push_str(entry);
+    next.push('\n');
+    Some(next)
+}
+
 /// サイドカーへ渡す引数を順に並べる。
 ///
 /// 第 1 引数が作業対象フォルダ、第 2 引数が接続情報（トークン / ポート）の保存先。
@@ -602,7 +865,10 @@ mod tests {
 
     #[test]
     fn 診断文は取れた手掛かりだけで作る() {
-        assert_eq!(startup_detail("  \n ", Some(3)).as_deref(), Some("exit code 3"));
+        assert_eq!(
+            startup_detail("  \n ", Some(3)).as_deref(),
+            Some("exit code 3")
+        );
         assert_eq!(startup_detail("boom", None).as_deref(), Some("boom"));
     }
 
@@ -640,5 +906,254 @@ mod tests {
         .unwrap();
         assert_eq!(json.get("state").and_then(|v| v.as_str()), Some("ready"));
         assert_eq!(json.get("port").and_then(|v| v.as_u64()), Some(1));
+    }
+
+    /// Node を PATH だけに頼って探すと、入っているのに見つからない環境がある。
+    ///
+    /// 画面から起動したアプリが受け取る PATH はログイン時点のもので、その後に入れた Node や
+    /// シェル起動時に PATH を書き換える版管理ツール（nvm / fnm）の Node は載っていない。
+    /// 利用者から見ると「Node は入っているのに Node が無いと言われる」状態になる。
+    fn full_env() -> NodeEnv {
+        NodeEnv {
+            home: Some(PathBuf::from("/home/u")),
+            program_files: Some(PathBuf::from("/pf")),
+            local_app_data: Some(PathBuf::from("/lad")),
+            app_data: Some(PathBuf::from("/ad")),
+            fnm_dir: Some(PathBuf::from("/fnm")),
+            nvm_home: Some(PathBuf::from("/nvm")),
+        }
+    }
+
+    fn joined(candidates: &[PathBuf]) -> String {
+        candidates
+            .iter()
+            .map(|p| p.to_string_lossy().replace('\\', "/"))
+            .collect::<Vec<_>>()
+            .join("\n")
+    }
+
+    #[test]
+    fn node候補に既定の導入先を並べる() {
+        let text = joined(&node_candidates(&full_env()));
+        // 公式インストーラ（nvm-windows もここへ symlink を張る）。
+        assert!(text.contains("/pf/nodejs/"));
+        // パッケージ管理を通さない一般的な導入先。
+        assert!(text.contains("/usr/local/bin/"));
+    }
+
+    #[test]
+    fn 環境から取れない位置の候補は並べない() {
+        let text = joined(&node_candidates(&NodeEnv::default()));
+        assert!(!text.contains("nodejs"));
+        assert!(!text.contains("Volta"));
+    }
+
+    #[test]
+    fn 候補はすべて実行ファイル名で終わる() {
+        let candidates = node_candidates(&full_env());
+        assert!(!candidates.is_empty());
+        assert!(candidates.iter().all(|p| p.ends_with(node_exe_name())));
+    }
+
+    #[test]
+    fn 版ごとにフォルダを切る管理ツールは掘る先を持つ() {
+        let roots = node_version_roots(&full_env());
+        let text = roots
+            .iter()
+            .map(|r| r.dir.to_string_lossy().replace('\\', "/"))
+            .collect::<Vec<_>>()
+            .join("\n");
+        // nvm-windows は %APPDATA%\nvm\v<版>\node.exe。
+        assert!(text.contains("/ad/nvm"));
+        // fnm は node-versions の下に版フォルダを切る。
+        assert!(text.contains("node-versions"));
+        assert!(roots.iter().all(|r| r.suffix.ends_with(node_exe_name())));
+    }
+
+    #[test]
+    fn windowsのfnmはroaming側に置かれる() {
+        // 実機で確認: %APPDATA%\fnm\node-versions\v22.22.2\installation\node.exe。
+        // Local 側だけを見ていると、fnm で入れた Node をまるごと取り逃がす。
+        let roots = node_version_roots(&full_env());
+        assert!(roots
+            .iter()
+            .any(|r| r.dir == PathBuf::from("/ad").join("fnm").join("node-versions")));
+    }
+
+    #[test]
+    fn 管理ツールが位置を宣言していればそちらを先に見る() {
+        // FNM_DIR / NVM_HOME は利用者が置き場を動かしたときの唯一の手掛かり。
+        // 既定の位置を先に当たると、動かした先にある新しい版を取り逃がす。
+        let roots = node_version_roots(&full_env());
+        let first_fnm = roots
+            .iter()
+            .position(|r| r.dir.starts_with("/fnm"))
+            .expect("FNM_DIR の候補があること");
+        let default_fnm = roots
+            .iter()
+            .position(|r| r.dir.starts_with("/ad"))
+            .expect("既定位置の候補があること");
+        assert!(first_fnm < default_fnm);
+        assert!(roots.iter().any(|r| r.dir == Path::new("/nvm")));
+    }
+
+    #[test]
+    fn 版フォルダは数として新しい順に並べる() {
+        // 文字列順だと v9 が v22 より新しい扱いになる。数として比べる必要がある。
+        let sorted = sort_node_versions(vec![
+            "v9.0.0".to_string(),
+            "v22.22.2".to_string(),
+            "v10.1.0".to_string(),
+        ]);
+        assert_eq!(sorted, vec!["v22.22.2", "v10.1.0", "v9.0.0"]);
+    }
+
+    #[test]
+    fn 版として読めない名前は後ろへ回す() {
+        let sorted = sort_node_versions(vec![
+            "lts".to_string(),
+            "v18.0.0".to_string(),
+            "v20.1.0".to_string(),
+        ]);
+        assert_eq!(sorted, vec!["v20.1.0", "v18.0.0", "lts"]);
+    }
+
+    #[test]
+    fn まずpathのnodeを試してから絶対パスへ落ちる() {
+        let programs = node_programs(vec![PathBuf::from("/pf/nodejs/node")]);
+        assert_eq!(programs[0], PathBuf::from("node"));
+        assert_eq!(programs[1], PathBuf::from("/pf/nodejs/node"));
+    }
+
+    #[test]
+    fn 同じ実行ファイルを二度試さない() {
+        let programs = node_programs(vec![
+            PathBuf::from("/pf/nodejs/node"),
+            PathBuf::from("/pf/nodejs/node"),
+        ]);
+        assert_eq!(programs.len(), 2);
+    }
+
+    // 接続設定は、利用者の作業フォルダにある既存の設定ファイルへ書き足す。
+    // 手で貼らせると、貼り先も書式も分からないまま止まる。
+
+    fn parse(text: &str) -> serde_json::Value {
+        serde_json::from_str(text).expect("JSON として読めること")
+    }
+
+    #[test]
+    fn 設定ファイルが無ければ新しく組み立てる() {
+        let text = merge_client_config(None, "http://127.0.0.1:1/mcp", "tok").expect("組み立て成功");
+        let value = parse(&text);
+        let entry = &value["mcpServers"][CONFIG_SERVER_KEY];
+        assert_eq!(entry["url"], "http://127.0.0.1:1/mcp");
+        assert_eq!(entry["headers"]["Authorization"], "Bearer tok");
+    }
+
+    #[test]
+    fn 既にある他のサーバーの設定は残す() {
+        // 上書きで消すと、利用者が自分で入れた接続がこのボタン 1 つで失われる。
+        let existing = r#"{"mcpServers":{"other":{"command":"x"}},"note":"keep"}"#;
+        let text = merge_client_config(Some(existing), "http://127.0.0.1:1/mcp", "tok")
+            .expect("組み立て成功");
+        let value = parse(&text);
+        assert_eq!(value["mcpServers"]["other"]["command"], "x");
+        assert_eq!(value["note"], "keep");
+        assert!(value["mcpServers"][CONFIG_SERVER_KEY].is_object());
+    }
+
+    #[test]
+    fn 自分の設定は入れ替える() {
+        // 起動のたびに port が変わりうる。古い接続先が残ると、つながらない設定になる。
+        let existing = r#"{"mcpServers":{"md-business":{"url":"http://127.0.0.1:9/mcp"}}}"#;
+        let text = merge_client_config(Some(existing), "http://127.0.0.1:1/mcp", "tok")
+            .expect("組み立て成功");
+        let value = parse(&text);
+        assert_eq!(
+            value["mcpServers"][CONFIG_SERVER_KEY]["url"],
+            "http://127.0.0.1:1/mcp"
+        );
+    }
+
+    #[test]
+    fn 読めない設定ファイルは書き換えない() {
+        // 手で書いた設定が壊れているときに黙って作り直すと、中身を失う。
+        assert!(merge_client_config(Some("{ こわれている"), "http://127.0.0.1:1/mcp", "tok").is_err());
+    }
+
+    #[test]
+    fn 中身が空の設定ファイルは新規と同じ扱い() {
+        let text =
+            merge_client_config(Some("  \n"), "http://127.0.0.1:1/mcp", "tok").expect("組み立て成功");
+        assert!(parse(&text)["mcpServers"][CONFIG_SERVER_KEY].is_object());
+    }
+
+    #[test]
+    fn 設定ファイルは改行で終わる() {
+        let text = merge_client_config(None, "http://127.0.0.1:1/mcp", "tok").expect("組み立て成功");
+        assert!(text.ends_with('\n'));
+    }
+
+    // 設定ファイルには接続トークンが入る。git 管理下のフォルダなら、追跡対象に
+    // 入らないようにしてから書く（公開リポジトリへそのまま載る事故を防ぐ）。
+
+    #[test]
+    fn 除外指定が無ければ書き足す() {
+        let text = ensure_ignored(Some("dist\n"), ".mcp.json").expect("書き足す");
+        assert!(text.contains(".mcp.json"));
+        assert!(text.contains("dist"));
+    }
+
+    #[test]
+    fn 除外ファイルが無ければ新しく作る() {
+        let text = ensure_ignored(None, ".mcp.json").expect("書き足す");
+        assert!(text.starts_with(".mcp.json"));
+    }
+
+    #[test]
+    fn 既に除外されていれば触らない() {
+        assert_eq!(ensure_ignored(Some("dist\n.mcp.json\n"), ".mcp.json"), None);
+        // 先頭の / で位置を固定する書き方も、同じものを指している。
+        assert_eq!(ensure_ignored(Some("/.mcp.json\n"), ".mcp.json"), None);
+    }
+
+    #[test]
+    fn 書き足すときは行が続いてしまわないようにする() {
+        // 末尾に改行が無いファイルへそのまま足すと、前の行とつながって別の指定になる。
+        let text = ensure_ignored(Some("dist"), ".mcp.json").expect("書き足す");
+        assert!(text.contains("dist\n"));
+        assert!(text.ends_with(".mcp.json\n"));
+    }
+
+    #[test]
+    fn 接続できていれば接続先とトークンが取れる() {
+        let status = McpStatus::ready("http://127.0.0.1:1/mcp".into(), 1, "tok".into());
+        let (url, token) = connection_parts(&status).expect("取れる");
+        assert_eq!(url, "http://127.0.0.1:1/mcp");
+        assert_eq!(token, "tok");
+    }
+
+    #[test]
+    fn 接続できていなければ設定は作れない() {
+        assert!(connection_parts(&McpStatus::starting()).is_err());
+        assert!(connection_parts(&McpStatus::unavailable(McpReason::NodeMissing)).is_err());
+    }
+
+    #[test]
+    fn 起動できていない状態からはやり直せる() {
+        // Node を入れた直後がこれ。アプリを起動し直さずに繋がるようにする。
+        assert!(can_retry(&McpStatus::unavailable(McpReason::NodeMissing)));
+        assert!(can_retry(&McpStatus::unavailable(McpReason::SidecarMissing)));
+    }
+
+    #[test]
+    fn 動いている間はやり直さない() {
+        // 二重に起動すると、前の子プロセスが取り残されてポートを掴んだまま残る。
+        assert!(!can_retry(&McpStatus::ready(
+            "http://127.0.0.1:1/mcp".into(),
+            1,
+            "tok".into()
+        )));
+        assert!(!can_retry(&McpStatus::starting()));
     }
 }

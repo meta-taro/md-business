@@ -317,6 +317,57 @@ describe('createServer / MCP 配線', () => {
   });
 });
 
+/**
+ * initialize の instructions は「このサーバーをいつ使うか」をエージェントへ渡す唯一の口。
+ *
+ * ツール個別の description は「そのツールが何をするか」しか言えず、"生のファイル編集ではなく
+ * こちらを使う" は表明できない。エージェントから見れば汎用の読み書き手段は常に存在して確実に
+ * 動くので、この欄が空だと業務文書まで素のファイル編集で触られ、スキーマ検証も画面反映も
+ * 操作ログも素通りする（実運用で発生した）。文言そのものは変わりうるので、
+ * 検査するのは「判断を変えるだけの内容が載っていること」に絞る。
+ */
+describe('createServer / instructions', () => {
+  async function instructions(): Promise<string> {
+    const client = await connect(new MemoryDocumentStore());
+    const text = client.getInstructions();
+    expect(text).toBeDefined();
+    return text ?? '';
+  }
+
+  it('initialize で instructions を返す', async () => {
+    expect((await instructions()).length).toBeGreaterThan(0);
+  });
+
+  it('業務文書を素のファイル編集で触らないことを明示する', async () => {
+    const text = await instructions();
+    // 「編集」だけでは読み手に伝わらない。対象（.md / .tsv）と代替（このサーバーのツール）が要る。
+    expect(text).toContain('.md');
+    expect(text).toContain('.tsv');
+    expect(text).toMatch(/直接編集しない|直接書き換えない/);
+  });
+
+  it('そうする理由を書く（理由の無い禁止は従われない）', async () => {
+    const text = await instructions();
+    expect(text).toContain('スキーマ');
+    expect(text).toContain('画面');
+    expect(text).toContain('操作ログ');
+  });
+
+  it('最初に呼ぶツールを名指しする', async () => {
+    const text = await instructions();
+    // 入口が分からないと、結局そこにある汎用手段へ戻ってしまう。
+    expect(text).toContain('search_documents');
+    expect(text).toContain('list_schemas');
+  });
+
+  it('検証シート（TSV）は行単位のツールで触ることを書く', async () => {
+    const text = await instructions();
+    // TSV を全文書き換えすると「1 レコード = 1 物理行」の差分の意味が壊れる。
+    expect(text).toContain('read_tsv');
+    expect(text).toContain('update_tsv_row');
+  });
+});
+
 describe('createServer / git ツール', () => {
   /** 呼ばれた引数を記録し、決まった結果を順に返すフェイク git。 */
   function fakeGit(results: GitRunResult[]): GitRunner & { calls: string[][] } {

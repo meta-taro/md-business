@@ -139,27 +139,6 @@ export function indicatorText(status: McpStatus): McpIndicator {
   return { key: 'status.mcpStarting', tone: 'neutral' };
 }
 
-/**
- * AI クライアントの設定へそのまま貼れる接続設定を組む。
- *
- * トークンだけを写す形だと、貼り先の書式を利用者が自分で組み立てることになる。
- * 主要クライアントが共通で解釈できる形（HTTP + Authorization ヘッダ）で丸ごと渡す。
- * 接続できない状態では設定を作れないので null。
- */
-export function clientConfigJson(status: McpStatus): string | null {
-  if (status.state !== 'ready' || status.url === null || status.token === null) return null;
-  const config = {
-    mcpServers: {
-      'md-business': {
-        type: 'http',
-        url: status.url,
-        headers: { Authorization: `Bearer ${status.token}` },
-      },
-    },
-  };
-  return JSON.stringify(config, null, 2);
-}
-
 /** ツール実行がワークスペースに与えた変化（ファイル監視イベントと同じ形）。 */
 export interface McpFileChange {
   relPath: string;

@@ -3,7 +3,8 @@
   // グリッド幅を制御する。MCP タブは組み込みサーバーの接続情報と操作ログを表示する。
   import { t } from '$lib/i18n/i18n.svelte';
   import { mcp } from '$lib/mcp/mcp.svelte';
-  import { clientConfigJson, formatLogTime } from '$lib/mcp/mcpLog';
+  import { formatLogTime } from '$lib/mcp/mcpLog';
+  import { workspace } from '$lib/workspace/workspace.svelte';
 
   interface SidePanelProps {
     open: boolean;
@@ -20,11 +21,8 @@
   let active = $state<Tab>(enabled);
 
   /** 直近に写した対象（ボタンの手応えを 1 つずつ出し分ける）。 */
-  let copied = $state<'token' | 'config' | null>(null);
+  let copied = $state<'token' | 'config' | 'ask' | null>(null);
   let copyTimer: ReturnType<typeof setTimeout> | undefined;
-
-  // AI クライアントの設定へそのまま貼れる形。接続できていないときは作れない。
-  const configJson = $derived(clientConfigJson(mcp.status));
 
   // 接続先 URL は訳す対象ではないので、翻訳が要る場合とだけ描き分ける。
   const connText = $derived(
@@ -32,7 +30,7 @@
   );
 
   /** 文字列を写し、どのボタンで写したかをしばらく表示する。 */
-  async function copy(text: string | null, kind: 'token' | 'config'): Promise<void> {
+  async function copy(text: string | null, kind: 'token' | 'config' | 'ask'): Promise<void> {
     if (text === null) return;
     try {
       await navigator.clipboard.writeText(text);
@@ -43,6 +41,47 @@
       }, 1500);
     } catch {
       // 書き込みが拒否される環境では黙って諦める（表示は変えない）。
+    }
+  }
+
+  /** 設定の全文を組んでから写す。組むのはサーバー側なので、押した時点で取りに行く。 */
+  async function copyConfig(): Promise<void> {
+    try {
+      await copy(await mcp.clientConfig(), 'config');
+    } catch {
+      // 接続できていなければ組めない。ボタンは接続中しか出ないので、表示は変えない。
+    }
+  }
+
+  /** やり直して、まだ繋がらなかったか。押した手応えを出すために持つ。 */
+  let retried = $state(false);
+
+  /**
+   * 起動をやり直す。Node を入れ終わった直後に押される。
+   *
+   * 結果は戻り値で判定する。`mcp.status` を読むと、状態変化のイベントがまだ届いておらず
+   * 古い値（= 押す前の失敗）を見てしまう。
+   */
+  async function retry(): Promise<void> {
+    retried = false;
+    try {
+      retried = (await mcp.retry()).state === 'unavailable';
+    } catch {
+      // 起動処理中・稼働中は受け付けない。その場合は上の状態表示がそのまま答えになる。
+    }
+  }
+
+  /** 設定を書き出した結果。書き出したパス、または失敗の理由。 */
+  let wrote = $state<{ ok: boolean; detail: string } | null>(null);
+
+  /** 開いているフォルダへ設定ファイルを置く。 */
+  async function writeConfig(): Promise<void> {
+    if (workspace.root === null) return;
+    try {
+      wrote = { ok: true, detail: await mcp.writeClientConfig(workspace.root) };
+    } catch (err) {
+      // 失敗の理由は書き出し先ごとに違う（読み取り専用・壊れた設定など）ので、原文を添える。
+      wrote = { ok: false, detail: String(err) };
     }
   }
 </script>
@@ -89,9 +128,37 @@
             <pre class="conn-detail">{mcp.status.detail}</pre>
           {/if}
 
+          {#if mcp.status.state === 'unavailable'}
+            <!--
+              理由を出すだけでは利用者は進めない（Node が何かを知らない人が多数）。
+              隣で動いている AI に渡せる形にして、導入まで任せられるようにする。
+            -->
+            <button class="token primary" type="button" onclick={() => copy(t('mcp.askAiText'), 'ask')}>
+              {copied === 'ask' ? t('mcp.askedAi') : t('mcp.askAi')}
+            </button>
+            <p class="note">{t('mcp.askAiNote')}</p>
+            <!-- 入れた直後にアプリを起動し直させない。入れた本人には作業の続きに見える。 -->
+            <button class="token" type="button" onclick={retry}>{t('mcp.retry')}</button>
+            {#if retried}
+              <p class="wrote failed">{t('mcp.retryFailed')}</p>
+            {/if}
+          {/if}
+
           {#if mcp.isReady && mcp.status.token !== null}
-            <!-- 設定ごと写せる方を主にする。トークン単体は、既に設定を持っている人向け。 -->
-            <button class="token primary" type="button" onclick={() => copy(configJson, 'config')}>
+            <!-- 置くだけで済む方を主にする。写して貼るのは、それを読まないクライアント向け。 -->
+            {#if workspace.root !== null}
+              <button class="token primary" type="button" onclick={writeConfig}>
+                {t('mcp.writeConfig')}
+              </button>
+              <!-- 何が置かれるか（トークンが入る）を押す前に見せる。 -->
+              <p class="note">{t('mcp.writeConfigNote')}</p>
+              {#if wrote !== null}
+                <p class="wrote" class:failed={!wrote.ok} title={wrote.detail}>
+                  {wrote.ok ? t('mcp.wroteConfig') : t('mcp.writeConfigFailed')}
+                </p>
+              {/if}
+            {/if}
+            <button class="token" type="button" onclick={copyConfig}>
               {copied === 'config' ? t('mcp.copiedConfig') : t('mcp.copyConfig')}
             </button>
             <button class="token" type="button" onclick={() => copy(mcp.status.token, 'token')}>
@@ -99,7 +166,11 @@
             </button>
           {/if}
 
-          <!-- 使い方が分からないと機能ごと気付かれないので、画面の中に置く。 -->
+          <!--
+            使い方が分からないと機能ごと気付かれないので、画面の中に置く。ただし手順は
+            接続できている前提の文（上のボタンを押す）なので、出ていない間は畳んだままにしない。
+          -->
+          {#if mcp.isReady}
           <details class="howto">
             <summary>{t('mcp.howto')}</summary>
             <ol>
@@ -109,6 +180,7 @@
             </ol>
             <p class="note">{t('mcp.howtoNote')}</p>
           </details>
+          {/if}
 
           <ul class="logs">
             <!-- 同一ミリ秒に同じツールが並びうるので、キー付き each にはしない。 -->
@@ -302,6 +374,25 @@
   .token.primary {
     border-color: var(--accent);
     color: var(--text-primary);
+  }
+
+  .mcp > .note {
+    margin: var(--space-1) var(--space-3) 0;
+    font-size: var(--text-xs-size);
+    color: var(--text-tertiary);
+    line-height: 1.5;
+    flex: none;
+  }
+
+  .wrote {
+    margin: var(--space-1) var(--space-3) 0;
+    font-size: var(--text-xs-size);
+    color: var(--text-secondary);
+    flex: none;
+  }
+
+  .wrote.failed {
+    color: var(--danger-fg);
   }
 
   .howto {

@@ -141,6 +141,10 @@ export interface Messages {
   'mcp.copied': string;
   'mcp.copyConfig': string;
   'mcp.copiedConfig': string;
+  'mcp.writeConfig': string;
+  'mcp.wroteConfig': string;
+  'mcp.writeConfigFailed': string;
+  'mcp.writeConfigNote': string;
   'mcp.howto': string;
   'mcp.howtoStep1': string;
   'mcp.howtoStep2': string;
@@ -148,6 +152,12 @@ export interface Messages {
   'mcp.howtoNote': string;
   'mcp.logsEmpty': string;
   'mcp.logsDisabled': string;
+  'mcp.askAi': string;
+  'mcp.askedAi': string;
+  'mcp.askAiText': string;
+  'mcp.askAiNote': string;
+  'mcp.retry': string;
+  'mcp.retryFailed': string;
   'mcp.reason.sidecarMissing': string;
   'mcp.reason.nodeMissing': string;
   'mcp.reason.spawnFailed': string;
@@ -329,18 +339,35 @@ const en: Messages = {
   'mcp.copied': 'Token copied',
   'mcp.copyConfig': 'Copy client settings',
   'mcp.copiedConfig': 'Settings copied',
+  'mcp.writeConfig': 'Add settings to the open folder',
+  'mcp.wroteConfig': 'Settings written',
+  'mcp.writeConfigFailed': 'The settings could not be written',
+  'mcp.writeConfigNote':
+    'Writes .mcp.json into the open folder. It holds an access token, so in a Git repository it is added to .gitignore. Settings already in the file are kept.',
   'mcp.howto': 'How to connect an AI client',
-  'mcp.howtoStep1': 'Press “Copy client settings” above.',
+  'mcp.howtoStep1': 'Press “Add settings to the open folder” above.',
   'mcp.howtoStep2':
-    'Paste them into the MCP settings of your AI client (Claude Code, Claude Desktop, Cursor, Cline and so on).',
+    'Start your AI client in that folder (Claude Code and other clients that read .mcp.json pick it up on their own).',
   'mcp.howtoStep3':
-    'The folder open in this window is what the AI reads and writes. Switch folders and the AI follows.',
+    'For a client that does not read .mcp.json, press “Copy client settings” and paste them into its MCP settings.',
   'mcp.howtoNote':
-    'The address and access token stay the same the next time you start the app, so settings you pasted keep working.',
+    'The address and access token stay the same the next time you start the app, so settings you wrote or pasted keep working.',
   'mcp.logsEmpty': 'Actions from your AI client will appear here',
   'mcp.logsDisabled': 'The server is not running, so no actions are recorded',
+  'mcp.askAi': 'Copy a request for your AI',
+  'mcp.askedAi': 'Copied — paste it to your AI',
+  'mcp.askAiText':
+    'The md-business desktop app cannot start its MCP server because Node was not found.\n' +
+    'Please install Node 20 or later on this machine.\n' +
+    'The app looks in PATH and in the default locations of the official installer, fnm, nvm, Volta, scoop and Homebrew, so any of them is fine.\n' +
+    'Tell me when it is done — I will press “Look again” in the app’s MCP tab.',
+  'mcp.askAiNote':
+    'Paste this to the AI you already have open. It can install Node for you.',
+  'mcp.retry': 'Look again',
+  'mcp.retryFailed': 'Node was still not found',
   'mcp.reason.sidecarMissing': 'MCP server files were not found',
-  'mcp.reason.nodeMissing': 'Node was not found. Install Node to enable MCP',
+  'mcp.reason.nodeMissing':
+    'Node was not found. Install Node 20 or later, then restart this app to enable MCP',
   'mcp.reason.spawnFailed': 'The MCP server could not be started',
   'mcp.reason.noOutput': 'No output could be read from the MCP server',
   'mcp.reason.exitedEarly': 'The MCP server stopped before it was ready',
@@ -514,18 +541,34 @@ const ja: Messages = {
   'mcp.copied': 'トークンを写しました',
   'mcp.copyConfig': '接続設定を写す',
   'mcp.copiedConfig': '接続設定を写しました',
+  'mcp.writeConfig': '開いているフォルダへ設定を置く',
+  'mcp.wroteConfig': '設定を置きました',
+  'mcp.writeConfigFailed': '設定を置けませんでした',
+  'mcp.writeConfigNote':
+    '開いているフォルダに .mcp.json を書く。接続トークンが入るので、Git リポジトリなら .gitignore へ追記する。すでにある設定は残す。',
   'mcp.howto': 'AI クライアントとつなぐ手順',
-  'mcp.howtoStep1': '上の「接続設定を写す」を押す。',
+  'mcp.howtoStep1': '上の「開いているフォルダへ設定を置く」を押す。',
   'mcp.howtoStep2':
-    'AI クライアント（Claude Code / Claude Desktop / Cursor / Cline など）の MCP 設定へ貼る。',
+    'そのフォルダで AI クライアントを開く（Claude Code など .mcp.json を読むものは自分で見つける）。',
   'mcp.howtoStep3':
-    'この画面で開いているフォルダが AI の読み書き対象になる。フォルダを切り替えれば AI も追いかける。',
+    '.mcp.json を読まないクライアントは「接続設定を写す」で写し、そのクライアントの MCP 設定へ貼る。',
   'mcp.howtoNote':
-    '接続先とトークンは次に起動しても変わらないので、貼った設定はそのまま使い続けられる。',
+    '接続先とトークンは次に起動しても変わらないので、置いた設定・貼った設定はそのまま使い続けられる。',
   'mcp.logsEmpty': 'AI からの操作がここに並びます',
   'mcp.logsDisabled': 'サーバーが動いていないため操作は記録されません',
+  'mcp.askAi': 'AI に頼む文をコピー',
+  'mcp.askedAi': 'コピーしました。AI に貼ってください',
+  'mcp.askAiText':
+    'md-business のデスクトップアプリが Node を見つけられず、MCP サーバーを起動できていません。\n' +
+    'この PC に Node 20 以上を入れてください。\n' +
+    'アプリは PATH のほか、公式インストーラ・fnm・nvm・Volta・scoop・Homebrew の既定の導入先を見に行くので、どれで入れても構いません。\n' +
+    '入れ終わったら教えてください。アプリの MCP タブで「もう一度さがす」を押します。',
+  'mcp.askAiNote': '開いている AI に貼るだけで、Node の導入まで任せられます。',
+  'mcp.retry': 'もう一度さがす',
+  'mcp.retryFailed': 'まだ Node が見つかりません',
   'mcp.reason.sidecarMissing': 'MCP サーバー本体が見つかりません',
-  'mcp.reason.nodeMissing': 'Node が見つかりません。Node を入れると MCP 連携が使えます',
+  'mcp.reason.nodeMissing':
+    'Node が見つかりません。Node 20 以上を入れてアプリを起動し直すと MCP 連携が使えます',
   'mcp.reason.spawnFailed': 'MCP サーバーを起動できませんでした',
   'mcp.reason.noOutput': 'MCP サーバーの出力を受け取れません',
   'mcp.reason.exitedEarly': 'MCP サーバーが接続可能になる前に終了しました',
@@ -699,16 +742,31 @@ const zh: Messages = {
   'mcp.copied': '已复制令牌',
   'mcp.copyConfig': '复制连接设置',
   'mcp.copiedConfig': '已复制连接设置',
+  'mcp.writeConfig': '将设置写入打开的文件夹',
+  'mcp.wroteConfig': '已写入设置',
+  'mcp.writeConfigFailed': '无法写入设置',
+  'mcp.writeConfigNote':
+    '在打开的文件夹中写入 .mcp.json。其中包含连接令牌，因此在 Git 仓库中会追加到 .gitignore。已有的设置会保留。',
   'mcp.howto': '连接 AI 客户端的步骤',
-  'mcp.howtoStep1': '点击上方的「复制连接设置」。',
+  'mcp.howtoStep1': '点击上方的「将设置写入打开的文件夹」。',
   'mcp.howtoStep2':
-    '粘贴到 AI 客户端（Claude Code / Claude Desktop / Cursor / Cline 等）的 MCP 设置中。',
-  'mcp.howtoStep3': '此窗口打开的文件夹即 AI 读写的对象。切换文件夹后 AI 也会跟随。',
-  'mcp.howtoNote': '下次启动应用时地址和令牌不变，粘贴过的设置可以继续使用。',
+    '在该文件夹中启动 AI 客户端（Claude Code 等会读取 .mcp.json 的客户端会自行找到）。',
+  'mcp.howtoStep3': '不读取 .mcp.json 的客户端，请用「复制连接设置」复制后粘贴到其 MCP 设置中。',
+  'mcp.howtoNote': '下次启动应用时地址和令牌不变，写入或粘贴过的设置可以继续使用。',
   'mcp.logsEmpty': 'AI 的操作将显示在这里',
   'mcp.logsDisabled': '服务器未运行，因此不会记录操作',
+  'mcp.askAi': '复制给 AI 的请求',
+  'mcp.askedAi': '已复制，请粘贴给 AI',
+  'mcp.askAiText':
+    'md-business 桌面应用未找到 Node，无法启动 MCP 服务器。\n' +
+    '请在这台电脑上安装 Node 20 或更高版本。\n' +
+    '应用会查找 PATH，以及官方安装程序、fnm、nvm、Volta、scoop、Homebrew 的默认安装位置，用哪一种都可以。\n' +
+    '装好后请告诉我，我会在应用的 MCP 标签页点击「重新查找」。',
+  'mcp.askAiNote': '粘贴给已经打开的 AI，它可以直接帮你安装 Node。',
+  'mcp.retry': '重新查找',
+  'mcp.retryFailed': '仍未找到 Node',
   'mcp.reason.sidecarMissing': '未找到 MCP 服务器本体',
-  'mcp.reason.nodeMissing': '未找到 Node。安装 Node 后即可使用 MCP',
+  'mcp.reason.nodeMissing': '未找到 Node。安装 Node 20 或更高版本并重新启动本应用后即可使用 MCP',
   'mcp.reason.spawnFailed': '无法启动 MCP 服务器',
   'mcp.reason.noOutput': '无法读取 MCP 服务器的输出',
   'mcp.reason.exitedEarly': 'MCP 服务器在就绪前已退出',
@@ -882,18 +940,34 @@ const ko: Messages = {
   'mcp.copied': '토큰을 복사했습니다',
   'mcp.copyConfig': '연결 설정 복사',
   'mcp.copiedConfig': '연결 설정을 복사했습니다',
+  'mcp.writeConfig': '열려 있는 폴더에 설정 넣기',
+  'mcp.wroteConfig': '설정을 넣었습니다',
+  'mcp.writeConfigFailed': '설정을 넣지 못했습니다',
+  'mcp.writeConfigNote':
+    '열려 있는 폴더에 .mcp.json 을 씁니다. 접속 토큰이 들어가므로 Git 저장소라면 .gitignore 에 추가합니다. 이미 있는 설정은 남깁니다.',
   'mcp.howto': 'AI 클라이언트 연결 방법',
-  'mcp.howtoStep1': '위의 「연결 설정 복사」를 누릅니다.',
+  'mcp.howtoStep1': '위의 「열려 있는 폴더에 설정 넣기」를 누릅니다.',
   'mcp.howtoStep2':
-    'AI 클라이언트(Claude Code / Claude Desktop / Cursor / Cline 등)의 MCP 설정에 붙여 넣습니다.',
+    '그 폴더에서 AI 클라이언트를 엽니다(Claude Code 등 .mcp.json 을 읽는 클라이언트는 스스로 찾습니다).',
   'mcp.howtoStep3':
-    '이 창에서 열어 둔 폴더가 AI의 읽기·쓰기 대상입니다. 폴더를 바꾸면 AI도 따라갑니다.',
+    '.mcp.json 을 읽지 않는 클라이언트는 「연결 설정 복사」로 복사해 해당 클라이언트의 MCP 설정에 붙여 넣습니다.',
   'mcp.howtoNote':
-    '앱을 다시 시작해도 주소와 토큰이 그대로이므로 붙여 넣은 설정을 계속 사용할 수 있습니다.',
+    '앱을 다시 시작해도 주소와 토큰이 그대로이므로 넣거나 붙여 넣은 설정을 계속 사용할 수 있습니다.',
   'mcp.logsEmpty': 'AI 의 작업이 여기에 표시됩니다',
   'mcp.logsDisabled': '서버가 실행 중이 아니므로 작업이 기록되지 않습니다',
+  'mcp.askAi': 'AI에 보낼 요청 복사',
+  'mcp.askedAi': '복사했습니다. AI에 붙여넣으세요',
+  'mcp.askAiText':
+    'md-business 데스크톱 앱이 Node를 찾지 못해 MCP 서버를 시작하지 못했습니다.\n' +
+    '이 PC에 Node 20 이상을 설치해 주세요.\n' +
+    '앱은 PATH와 함께 공식 설치 프로그램, fnm, nvm, Volta, scoop, Homebrew의 기본 설치 위치를 확인하므로 어느 것으로 설치해도 됩니다.\n' +
+    '설치가 끝나면 알려 주세요. 앱의 MCP 탭에서 「다시 찾기」를 누르겠습니다.',
+  'mcp.askAiNote': '이미 열려 있는 AI에 붙여넣기만 하면 Node 설치까지 맡길 수 있습니다.',
+  'mcp.retry': '다시 찾기',
+  'mcp.retryFailed': '아직 Node를 찾지 못했습니다',
   'mcp.reason.sidecarMissing': 'MCP 서버 본체를 찾을 수 없습니다',
-  'mcp.reason.nodeMissing': 'Node 를 찾을 수 없습니다. Node 를 설치하면 MCP 를 사용할 수 있습니다',
+  'mcp.reason.nodeMissing':
+    'Node 를 찾을 수 없습니다. Node 20 이상을 설치한 뒤 앱을 다시 시작하면 MCP 를 사용할 수 있습니다',
   'mcp.reason.spawnFailed': 'MCP 서버를 시작할 수 없었습니다',
   'mcp.reason.noOutput': 'MCP 서버의 출력을 읽을 수 없습니다',
   'mcp.reason.exitedEarly': 'MCP 서버가 준비되기 전에 종료되었습니다',
