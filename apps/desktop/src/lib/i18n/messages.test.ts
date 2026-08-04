@@ -61,3 +61,14 @@ describe('Node 未検出の文言', () => {
     }
   });
 });
+
+// 書き出す設定ファイルには接続トークンが入る。何が置かれるか分からないまま押せると、
+// 公開リポジトリへそのまま載せてしまう。説明にトークンのことが要る。
+describe('接続設定の書き出しの説明', () => {
+  it('どの言語でもトークンが入ることが分かる', () => {
+    const token = /トークン|token|令牌|토큰/i;
+    for (const locale of LOCALES) {
+      expect(messages[locale]['mcp.writeConfigNote'], locale).toMatch(token);
+    }
+  });
+});

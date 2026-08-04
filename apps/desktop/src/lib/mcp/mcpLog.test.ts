@@ -6,7 +6,6 @@ import {
   formatLogTime,
   connectionText,
   indicatorText,
-  clientConfigJson,
   fileChangeFromLog,
   reasonMessageKey,
   type McpLogEntry,
@@ -196,28 +195,6 @@ describe('indicatorText', () => {
     for (const locale of LOCALES) {
       for (const key of keys) expect(messages[locale][key]).toBeTruthy();
     }
-  });
-});
-
-describe('clientConfigJson', () => {
-  it('接続先とトークンを載せた設定を組む', () => {
-    const json = clientConfigJson(ready());
-    expect(json).not.toBeNull();
-    expect(JSON.parse(json as string)).toEqual({
-      mcpServers: {
-        'md-business': {
-          type: 'http',
-          url: 'http://127.0.0.1:51234/mcp',
-          headers: { Authorization: `Bearer ${'a'.repeat(64)}` },
-        },
-      },
-    });
-  });
-
-  it('接続できない状態では設定を作らない', () => {
-    expect(clientConfigJson({ ...ready(), state: 'starting' })).toBeNull();
-    expect(clientConfigJson({ ...ready(), token: null })).toBeNull();
-    expect(clientConfigJson({ ...ready(), url: null })).toBeNull();
   });
 });
 

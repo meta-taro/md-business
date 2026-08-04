@@ -15,9 +15,11 @@ use std::sync::{Arc, Mutex};
 use tauri::{AppHandle, Emitter, Manager, State};
 
 use crate::mcp_logic::{
-    append_detail, node_candidates, node_programs, node_version_roots, parse_sidecar_line,
-    pick_existing, response_line, set_root_line, sidecar_args, sidecar_candidates,
-    sort_node_versions, startup_detail, McpReason, McpState, McpStatus, NodeEnv, SidecarEvent,
+    append_detail, connection_parts, ensure_ignored, merge_client_config, node_candidates,
+    node_programs,
+    node_version_roots, parse_sidecar_line, pick_existing, response_line, set_root_line,
+    sidecar_args, sidecar_candidates, sort_node_versions, startup_detail, McpReason, McpState,
+    McpStatus, NodeEnv, SidecarEvent, CONFIG_FILE_NAME,
 };
 
 /// 状態変化をフロントへ知らせるイベント名。
@@ -390,4 +392,145 @@ pub fn mcp_respond(
     error: Option<String>,
 ) -> Result<(), String> {
     write_control_line(&state, response_line(&id, ok, error.as_deref()), "応答")
+}
+
+/// 既にあれば読み、無ければ `None`。読めない場合はエラー（無かったことにしない）。
+fn read_if_exists(path: &Path) -> Result<Option<String>, String> {
+    match std::fs::read_to_string(path) {
+        Ok(text) => Ok(Some(text)),
+        Err(err) if err.kind() == std::io::ErrorKind::NotFound => Ok(None),
+        Err(err) => Err(format!("{} を読めません: {}", path.display(), err)),
+    }
+}
+
+/// 開いているフォルダへ接続設定を書き出す。書き出したファイルのパスを返す。
+///
+/// 設定を手で貼らせると、貼り先も書式も分からないまま止まる。作業フォルダに置けば、
+/// そこで動く AI クライアントが自分で読む。設定にはトークンが入るので、git 管理下では
+/// 追跡対象から外してから書く。
+#[tauri::command]
+pub fn mcp_write_client_config(state: State<McpRuntime>, root: String) -> Result<String, String> {
+    let status = mcp_status(state);
+    let (url, token) = connection_parts(&status)?;
+    write_client_config_impl(Path::new(&root), url, token)
+}
+
+/// 接続設定の全文を返す。設定ファイルを読まないクライアントへ、手で貼るため。
+///
+/// 書き出す側と同じ組み立てを使う。別々に組むと、片方だけ直したときに写した設定が
+/// 繋がらなくなる（繋がらない理由が利用者からは見えない）。
+#[tauri::command]
+pub fn mcp_client_config(state: State<McpRuntime>) -> Result<String, String> {
+    let status = mcp_status(state);
+    let (url, token) = connection_parts(&status)?;
+    merge_client_config(None, url, token)
+}
+
+/// 設定ファイルと、必要なら除外指定を書く。書いた設定ファイルのパスを返す。
+fn write_client_config_impl(root: &Path, url: &str, token: &str) -> Result<String, String> {
+    if !root.is_dir() {
+        return Err("フォルダが開かれていません".to_string());
+    }
+
+    // 除外指定を先に済ませる。設定を書いてからここで失敗すると、トークンの入った
+    // ファイルが追跡対象のまま残る。
+    if root.join(".git").exists() {
+        let ignore_path = root.join(".gitignore");
+        let current = read_if_exists(&ignore_path)?;
+        if let Some(next) = ensure_ignored(current.as_deref(), CONFIG_FILE_NAME) {
+            std::fs::write(&ignore_path, next)
+                .map_err(|err| format!("{} を書けません: {}", ignore_path.display(), err))?;
+        }
+    }
+
+    let config_path = root.join(CONFIG_FILE_NAME);
+    let merged = merge_client_config(read_if_exists(&config_path)?.as_deref(), url, token)?;
+    std::fs::write(&config_path, merged)
+        .map_err(|err| format!("{} を書けません: {}", config_path.display(), err))?;
+    Ok(config_path.display().to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::atomic::{AtomicU32, Ordering};
+
+    struct TempRoot {
+        path: PathBuf,
+    }
+
+    impl TempRoot {
+        fn new(tag: &str) -> Self {
+            static N: AtomicU32 = AtomicU32::new(0);
+            let n = N.fetch_add(1, Ordering::SeqCst);
+            let path =
+                std::env::temp_dir().join(format!("mdbiz_{}_{}_{}", tag, std::process::id(), n));
+            std::fs::create_dir_all(&path).expect("temp ルート作成");
+            TempRoot { path }
+        }
+
+        fn file(&self, rel: &str, body: &str) {
+            let p = self.path.join(rel);
+            if let Some(parent) = p.parent() {
+                std::fs::create_dir_all(parent).expect("親ディレクトリ作成");
+            }
+            std::fs::write(&p, body).expect("ファイル書き込み");
+        }
+
+        fn read(&self, rel: &str) -> String {
+            std::fs::read_to_string(self.path.join(rel)).expect("読み込み")
+        }
+    }
+
+    impl Drop for TempRoot {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_dir_all(&self.path);
+        }
+    }
+
+    fn write(root: &TempRoot) -> Result<String, String> {
+        write_client_config_impl(&root.path, "http://127.0.0.1:1/mcp", "tok")
+    }
+
+    #[test]
+    fn 設定ファイルを置く() {
+        let root = TempRoot::new("mcpcfg");
+        write(&root).expect("書き出し成功");
+        assert!(root.read(".mcp.json").contains("Bearer tok"));
+    }
+
+    #[test]
+    fn git管理下ならトークンを追跡対象から外す() {
+        // 設定ファイルにはトークンが入る。追跡対象のままだと、公開リポジトリへそのまま載る。
+        let root = TempRoot::new("mcpcfg_git");
+        root.file(".git/HEAD", "ref: refs/heads/main\n");
+        write(&root).expect("書き出し成功");
+        assert!(root.read(".gitignore").contains(".mcp.json"));
+    }
+
+    #[test]
+    fn git管理下でなければ除外ファイルを作らない() {
+        let root = TempRoot::new("mcpcfg_nogit");
+        write(&root).expect("書き出し成功");
+        assert!(!root.path.join(".gitignore").exists());
+    }
+
+    #[test]
+    fn 読めない設定ファイルがあれば書き換えない() {
+        // 手で書いた設定が壊れているときに作り直すと、中身を失う。
+        let root = TempRoot::new("mcpcfg_broken");
+        root.file(".mcp.json", "{ こわれている");
+        assert!(write(&root).is_err());
+        assert_eq!(root.read(".mcp.json"), "{ こわれている");
+    }
+
+    #[test]
+    fn フォルダが無ければ書かない() {
+        assert!(write_client_config_impl(
+            Path::new("/mdbiz_no_such_dir"),
+            "http://127.0.0.1:1/mcp",
+            "tok"
+        )
+        .is_err());
+    }
 }

@@ -446,6 +446,80 @@ pub fn node_programs(found: Vec<PathBuf>) -> Vec<PathBuf> {
     programs
 }
 
+/// AI クライアントの設定ファイル名。作業フォルダ単位の設定として主要クライアントが読む。
+pub const CONFIG_FILE_NAME: &str = ".mcp.json";
+
+/// 設定ファイルの中で、このアプリのサーバーを指す名前。
+pub const CONFIG_SERVER_KEY: &str = "md-business";
+
+/// 接続設定に要る接続先とトークンを取り出す。まだ繋がっていなければ理由を返す。
+pub fn connection_parts(status: &McpStatus) -> Result<(&str, &str), String> {
+    match (status.url.as_deref(), status.token.as_deref()) {
+        (Some(url), Some(token)) if status.state == McpState::Ready => Ok((url, token)),
+        _ => Err("MCP サーバーが起動していないため、接続設定を作れません".to_string()),
+    }
+}
+
+/// 接続設定を、既にある設定ファイルへ書き足した全文を返す。
+///
+/// 手で貼らせると、貼り先も書式も分からないまま止まる。作業フォルダへ直接置けば、
+/// そこで動く AI クライアントが自分で読む。既存の設定は保ち、自分のぶんだけ入れ替える
+/// （port は起動ごとに変わりうるので、古い接続先を残せない）。
+///
+/// 読めない設定ファイルは書き換えない。手で書いた中身を黙って作り直すと失われるため。
+pub fn merge_client_config(
+    existing: Option<&str>,
+    url: &str,
+    token: &str,
+) -> Result<String, String> {
+    let mut root = match existing.map(str::trim) {
+        Some(text) if !text.is_empty() => serde_json::from_str::<serde_json::Value>(text)
+            .map_err(|err| err.to_string())?,
+        _ => serde_json::json!({}),
+    };
+    let servers = root
+        .as_object_mut()
+        .ok_or_else(|| "設定ファイルの中身が JSON のオブジェクトではありません".to_string())?
+        .entry("mcpServers")
+        .or_insert_with(|| serde_json::json!({}));
+    servers
+        .as_object_mut()
+        .ok_or_else(|| "mcpServers が JSON のオブジェクトではありません".to_string())?
+        .insert(
+            CONFIG_SERVER_KEY.to_string(),
+            serde_json::json!({
+                "type": "http",
+                "url": url,
+                "headers": { "Authorization": format!("Bearer {token}") },
+            }),
+        );
+    let mut text = serde_json::to_string_pretty(&root).map_err(|err| err.to_string())?;
+    text.push('\n');
+    Ok(text)
+}
+
+/// 除外ファイルへ 1 行足した全文を返す。既に除外されていれば `None`（書き換え不要）。
+///
+/// 設定ファイルには接続トークンが入る。追跡対象のまま置くと、公開リポジトリへそのまま載る。
+pub fn ensure_ignored(existing: Option<&str>, entry: &str) -> Option<String> {
+    let text = existing.unwrap_or("");
+    let already = text.lines().map(str::trim).any(|line| {
+        // 先頭の / は位置を根に固定する書き方で、指すものは同じ。
+        line == entry || line.strip_prefix('/') == Some(entry)
+    });
+    if already {
+        return None;
+    }
+    let mut next = text.to_string();
+    // 末尾に改行が無いファイルへそのまま足すと、前の行とつながって別の指定になる。
+    if !next.is_empty() && !next.ends_with('\n') {
+        next.push('\n');
+    }
+    next.push_str(entry);
+    next.push('\n');
+    Some(next)
+}
+
 /// サイドカーへ渡す引数を順に並べる。
 ///
 /// 第 1 引数が作業対象フォルダ、第 2 引数が接続情報（トークン / ポート）の保存先。
@@ -950,5 +1024,110 @@ mod tests {
             PathBuf::from("/pf/nodejs/node"),
         ]);
         assert_eq!(programs.len(), 2);
+    }
+
+    // 接続設定は、利用者の作業フォルダにある既存の設定ファイルへ書き足す。
+    // 手で貼らせると、貼り先も書式も分からないまま止まる。
+
+    fn parse(text: &str) -> serde_json::Value {
+        serde_json::from_str(text).expect("JSON として読めること")
+    }
+
+    #[test]
+    fn 設定ファイルが無ければ新しく組み立てる() {
+        let text = merge_client_config(None, "http://127.0.0.1:1/mcp", "tok").expect("組み立て成功");
+        let value = parse(&text);
+        let entry = &value["mcpServers"][CONFIG_SERVER_KEY];
+        assert_eq!(entry["url"], "http://127.0.0.1:1/mcp");
+        assert_eq!(entry["headers"]["Authorization"], "Bearer tok");
+    }
+
+    #[test]
+    fn 既にある他のサーバーの設定は残す() {
+        // 上書きで消すと、利用者が自分で入れた接続がこのボタン 1 つで失われる。
+        let existing = r#"{"mcpServers":{"other":{"command":"x"}},"note":"keep"}"#;
+        let text = merge_client_config(Some(existing), "http://127.0.0.1:1/mcp", "tok")
+            .expect("組み立て成功");
+        let value = parse(&text);
+        assert_eq!(value["mcpServers"]["other"]["command"], "x");
+        assert_eq!(value["note"], "keep");
+        assert!(value["mcpServers"][CONFIG_SERVER_KEY].is_object());
+    }
+
+    #[test]
+    fn 自分の設定は入れ替える() {
+        // 起動のたびに port が変わりうる。古い接続先が残ると、つながらない設定になる。
+        let existing = r#"{"mcpServers":{"md-business":{"url":"http://127.0.0.1:9/mcp"}}}"#;
+        let text = merge_client_config(Some(existing), "http://127.0.0.1:1/mcp", "tok")
+            .expect("組み立て成功");
+        let value = parse(&text);
+        assert_eq!(
+            value["mcpServers"][CONFIG_SERVER_KEY]["url"],
+            "http://127.0.0.1:1/mcp"
+        );
+    }
+
+    #[test]
+    fn 読めない設定ファイルは書き換えない() {
+        // 手で書いた設定が壊れているときに黙って作り直すと、中身を失う。
+        assert!(merge_client_config(Some("{ こわれている"), "http://127.0.0.1:1/mcp", "tok").is_err());
+    }
+
+    #[test]
+    fn 中身が空の設定ファイルは新規と同じ扱い() {
+        let text =
+            merge_client_config(Some("  \n"), "http://127.0.0.1:1/mcp", "tok").expect("組み立て成功");
+        assert!(parse(&text)["mcpServers"][CONFIG_SERVER_KEY].is_object());
+    }
+
+    #[test]
+    fn 設定ファイルは改行で終わる() {
+        let text = merge_client_config(None, "http://127.0.0.1:1/mcp", "tok").expect("組み立て成功");
+        assert!(text.ends_with('\n'));
+    }
+
+    // 設定ファイルには接続トークンが入る。git 管理下のフォルダなら、追跡対象に
+    // 入らないようにしてから書く（公開リポジトリへそのまま載る事故を防ぐ）。
+
+    #[test]
+    fn 除外指定が無ければ書き足す() {
+        let text = ensure_ignored(Some("dist\n"), ".mcp.json").expect("書き足す");
+        assert!(text.contains(".mcp.json"));
+        assert!(text.contains("dist"));
+    }
+
+    #[test]
+    fn 除外ファイルが無ければ新しく作る() {
+        let text = ensure_ignored(None, ".mcp.json").expect("書き足す");
+        assert!(text.starts_with(".mcp.json"));
+    }
+
+    #[test]
+    fn 既に除外されていれば触らない() {
+        assert_eq!(ensure_ignored(Some("dist\n.mcp.json\n"), ".mcp.json"), None);
+        // 先頭の / で位置を固定する書き方も、同じものを指している。
+        assert_eq!(ensure_ignored(Some("/.mcp.json\n"), ".mcp.json"), None);
+    }
+
+    #[test]
+    fn 書き足すときは行が続いてしまわないようにする() {
+        // 末尾に改行が無いファイルへそのまま足すと、前の行とつながって別の指定になる。
+        let text = ensure_ignored(Some("dist"), ".mcp.json").expect("書き足す");
+        assert!(text.contains("dist\n"));
+        assert!(text.ends_with(".mcp.json\n"));
+    }
+
+    #[test]
+    fn 接続できていれば接続先とトークンが取れる() {
+        let status = McpStatus::ready("http://127.0.0.1:1/mcp".into(), 1, "tok".into());
+        let (url, token) = connection_parts(&status).expect("取れる");
+        assert_eq!(url, "http://127.0.0.1:1/mcp");
+        assert_eq!(token, "tok");
+    }
+
+    #[test]
+    fn 接続できていなければ設定は作れない() {
+        assert!(connection_parts(&McpStatus::starting()).is_err());
+        assert!(connection_parts(&McpStatus::unavailable(McpReason::NodeMissing)).is_err());
     }
 }

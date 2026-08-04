@@ -49,7 +49,9 @@ pub fn run() {
             git::forge_file_url,
             mcp::mcp_status,
             mcp::mcp_set_root,
-            mcp::mcp_respond
+            mcp::mcp_respond,
+            mcp::mcp_write_client_config,
+            mcp::mcp_client_config
         ])
         .build(tauri::generate_context!())
         .expect("error while running tauri application")

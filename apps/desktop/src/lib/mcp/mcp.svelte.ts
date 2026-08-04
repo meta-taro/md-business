@@ -73,6 +73,26 @@ class McpStore {
     };
   }
 
+  /**
+   * 開いているフォルダへ接続設定を書き出す。書き出したパスを返す。
+   *
+   * 手で貼らせると、貼り先も書式も分からないまま止まる。フォルダに置いてしまえば、
+   * そこで動く AI クライアントが自分で読む。
+   */
+  async writeClientConfig(root: string): Promise<string> {
+    return await invoke<string>('mcp_write_client_config', { root });
+  }
+
+  /**
+   * 手で貼るための接続設定の全文。
+   *
+   * 組み立てはサーバー側と同じものを使う。画面側でも組むと、片方だけ直したときに
+   * 写した設定が繋がらなくなる。
+   */
+  async clientConfig(): Promise<string> {
+    return await invoke<string>('mcp_client_config');
+  }
+
   /** 購読を解除する。 */
   dispose(): void {
     for (const off of this.unlisten) off();

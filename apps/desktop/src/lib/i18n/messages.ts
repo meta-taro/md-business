@@ -141,6 +141,10 @@ export interface Messages {
   'mcp.copied': string;
   'mcp.copyConfig': string;
   'mcp.copiedConfig': string;
+  'mcp.writeConfig': string;
+  'mcp.wroteConfig': string;
+  'mcp.writeConfigFailed': string;
+  'mcp.writeConfigNote': string;
   'mcp.howto': string;
   'mcp.howtoStep1': string;
   'mcp.howtoStep2': string;
@@ -329,14 +333,19 @@ const en: Messages = {
   'mcp.copied': 'Token copied',
   'mcp.copyConfig': 'Copy client settings',
   'mcp.copiedConfig': 'Settings copied',
+  'mcp.writeConfig': 'Add settings to the open folder',
+  'mcp.wroteConfig': 'Settings written',
+  'mcp.writeConfigFailed': 'The settings could not be written',
+  'mcp.writeConfigNote':
+    'Writes .mcp.json into the open folder. It holds an access token, so in a Git repository it is added to .gitignore. Settings already in the file are kept.',
   'mcp.howto': 'How to connect an AI client',
-  'mcp.howtoStep1': 'Press “Copy client settings” above.',
+  'mcp.howtoStep1': 'Press “Add settings to the open folder” above.',
   'mcp.howtoStep2':
-    'Paste them into the MCP settings of your AI client (Claude Code, Claude Desktop, Cursor, Cline and so on).',
+    'Start your AI client in that folder (Claude Code and other clients that read .mcp.json pick it up on their own).',
   'mcp.howtoStep3':
-    'The folder open in this window is what the AI reads and writes. Switch folders and the AI follows.',
+    'For a client that does not read .mcp.json, press “Copy client settings” and paste them into its MCP settings.',
   'mcp.howtoNote':
-    'The address and access token stay the same the next time you start the app, so settings you pasted keep working.',
+    'The address and access token stay the same the next time you start the app, so settings you wrote or pasted keep working.',
   'mcp.logsEmpty': 'Actions from your AI client will appear here',
   'mcp.logsDisabled': 'The server is not running, so no actions are recorded',
   'mcp.reason.sidecarMissing': 'MCP server files were not found',
@@ -515,14 +524,19 @@ const ja: Messages = {
   'mcp.copied': 'トークンを写しました',
   'mcp.copyConfig': '接続設定を写す',
   'mcp.copiedConfig': '接続設定を写しました',
+  'mcp.writeConfig': '開いているフォルダへ設定を置く',
+  'mcp.wroteConfig': '設定を置きました',
+  'mcp.writeConfigFailed': '設定を置けませんでした',
+  'mcp.writeConfigNote':
+    '開いているフォルダに .mcp.json を書く。接続トークンが入るので、Git リポジトリなら .gitignore へ追記する。すでにある設定は残す。',
   'mcp.howto': 'AI クライアントとつなぐ手順',
-  'mcp.howtoStep1': '上の「接続設定を写す」を押す。',
+  'mcp.howtoStep1': '上の「開いているフォルダへ設定を置く」を押す。',
   'mcp.howtoStep2':
-    'AI クライアント（Claude Code / Claude Desktop / Cursor / Cline など）の MCP 設定へ貼る。',
+    'そのフォルダで AI クライアントを開く（Claude Code など .mcp.json を読むものは自分で見つける）。',
   'mcp.howtoStep3':
-    'この画面で開いているフォルダが AI の読み書き対象になる。フォルダを切り替えれば AI も追いかける。',
+    '.mcp.json を読まないクライアントは「接続設定を写す」で写し、そのクライアントの MCP 設定へ貼る。',
   'mcp.howtoNote':
-    '接続先とトークンは次に起動しても変わらないので、貼った設定はそのまま使い続けられる。',
+    '接続先とトークンは次に起動しても変わらないので、置いた設定・貼った設定はそのまま使い続けられる。',
   'mcp.logsEmpty': 'AI からの操作がここに並びます',
   'mcp.logsDisabled': 'サーバーが動いていないため操作は記録されません',
   'mcp.reason.sidecarMissing': 'MCP サーバー本体が見つかりません',
@@ -701,12 +715,17 @@ const zh: Messages = {
   'mcp.copied': '已复制令牌',
   'mcp.copyConfig': '复制连接设置',
   'mcp.copiedConfig': '已复制连接设置',
+  'mcp.writeConfig': '将设置写入打开的文件夹',
+  'mcp.wroteConfig': '已写入设置',
+  'mcp.writeConfigFailed': '无法写入设置',
+  'mcp.writeConfigNote':
+    '在打开的文件夹中写入 .mcp.json。其中包含连接令牌，因此在 Git 仓库中会追加到 .gitignore。已有的设置会保留。',
   'mcp.howto': '连接 AI 客户端的步骤',
-  'mcp.howtoStep1': '点击上方的「复制连接设置」。',
+  'mcp.howtoStep1': '点击上方的「将设置写入打开的文件夹」。',
   'mcp.howtoStep2':
-    '粘贴到 AI 客户端（Claude Code / Claude Desktop / Cursor / Cline 等）的 MCP 设置中。',
-  'mcp.howtoStep3': '此窗口打开的文件夹即 AI 读写的对象。切换文件夹后 AI 也会跟随。',
-  'mcp.howtoNote': '下次启动应用时地址和令牌不变，粘贴过的设置可以继续使用。',
+    '在该文件夹中启动 AI 客户端（Claude Code 等会读取 .mcp.json 的客户端会自行找到）。',
+  'mcp.howtoStep3': '不读取 .mcp.json 的客户端，请用「复制连接设置」复制后粘贴到其 MCP 设置中。',
+  'mcp.howtoNote': '下次启动应用时地址和令牌不变，写入或粘贴过的设置可以继续使用。',
   'mcp.logsEmpty': 'AI 的操作将显示在这里',
   'mcp.logsDisabled': '服务器未运行，因此不会记录操作',
   'mcp.reason.sidecarMissing': '未找到 MCP 服务器本体',
@@ -884,14 +903,19 @@ const ko: Messages = {
   'mcp.copied': '토큰을 복사했습니다',
   'mcp.copyConfig': '연결 설정 복사',
   'mcp.copiedConfig': '연결 설정을 복사했습니다',
+  'mcp.writeConfig': '열려 있는 폴더에 설정 넣기',
+  'mcp.wroteConfig': '설정을 넣었습니다',
+  'mcp.writeConfigFailed': '설정을 넣지 못했습니다',
+  'mcp.writeConfigNote':
+    '열려 있는 폴더에 .mcp.json 을 씁니다. 접속 토큰이 들어가므로 Git 저장소라면 .gitignore 에 추가합니다. 이미 있는 설정은 남깁니다.',
   'mcp.howto': 'AI 클라이언트 연결 방법',
-  'mcp.howtoStep1': '위의 「연결 설정 복사」를 누릅니다.',
+  'mcp.howtoStep1': '위의 「열려 있는 폴더에 설정 넣기」를 누릅니다.',
   'mcp.howtoStep2':
-    'AI 클라이언트(Claude Code / Claude Desktop / Cursor / Cline 등)의 MCP 설정에 붙여 넣습니다.',
+    '그 폴더에서 AI 클라이언트를 엽니다(Claude Code 등 .mcp.json 을 읽는 클라이언트는 스스로 찾습니다).',
   'mcp.howtoStep3':
-    '이 창에서 열어 둔 폴더가 AI의 읽기·쓰기 대상입니다. 폴더를 바꾸면 AI도 따라갑니다.',
+    '.mcp.json 을 읽지 않는 클라이언트는 「연결 설정 복사」로 복사해 해당 클라이언트의 MCP 설정에 붙여 넣습니다.',
   'mcp.howtoNote':
-    '앱을 다시 시작해도 주소와 토큰이 그대로이므로 붙여 넣은 설정을 계속 사용할 수 있습니다.',
+    '앱을 다시 시작해도 주소와 토큰이 그대로이므로 넣거나 붙여 넣은 설정을 계속 사용할 수 있습니다.',
   'mcp.logsEmpty': 'AI 의 작업이 여기에 표시됩니다',
   'mcp.logsDisabled': '서버가 실행 중이 아니므로 작업이 기록되지 않습니다',
   'mcp.reason.sidecarMissing': 'MCP 서버 본체를 찾을 수 없습니다',
