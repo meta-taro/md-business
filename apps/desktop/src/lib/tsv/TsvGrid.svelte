@@ -12,7 +12,7 @@
    * Svelte 側はそれらを描画・フォーカス制御する薄いグルー（manual-verify）。
    */
   import { untrack } from 'svelte';
-  import type { TsvDocument } from '@md-business/schema-test-spec-tsv';
+  import type { IdentifiedTsv } from '@md-business/schema-test-spec-tsv';
   import { validateTsv } from '@md-business/schema-test-spec-tsv';
   import {
     gridWidgets,
@@ -87,10 +87,10 @@
   import { readRowTints, rowTintOf } from './gridStyleDirectives';
 
   interface Props {
-    /** 表示・編集対象の TSV ドキュメント（`parseTsv` の結果）。 */
-    doc: TsvDocument;
+    /** 表示・編集対象の TSV ドキュメント（`parseTsv` を `withRowIds` に通した結果）。 */
+    doc: IdentifiedTsv;
     /** セル編集で得た新ドキュメントを親へ通知（省略時は読み取り専用）。 */
-    onChange?: (next: TsvDocument) => void;
+    onChange?: (next: IdentifiedTsv) => void;
     /** ナビ中の Ctrl+Z。履歴は親（正本ソース）が持つ。 */
     onUndo?: () => void;
     /** ナビ中の Ctrl+Y / Ctrl+Shift+Z。 */
@@ -479,9 +479,9 @@
       onChange?.(setCell(doc, row, col, value));
       return;
     }
-    const res = editPaddedCell(doc.rows, padRows, row, col, value);
+    const res = editPaddedCell(doc.rows, doc.rowIds, padRows, row, col, value);
     padRows = res.padRows;
-    onChange?.({ ...doc, rows: res.rows });
+    onChange?.({ ...doc, rows: res.rows, rowIds: res.rowIds });
   }
 
   // datetime-local 入力は `YYYY-MM-DDTHH:MM`（T 区切り）を期待する。正本セルは

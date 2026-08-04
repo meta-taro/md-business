@@ -48,12 +48,17 @@ export function generateRowId(): string {
   return `r${hex}`;
 }
 
-/** ID 列を分離した検証シート。グリッド・MCP はこの形で扱う。 */
-export interface IdentifiedTsv {
-  /** ID 列を取り除いた doc（列も行も、人が見る分だけ）。 */
-  doc: TsvDocument;
-  /** `doc.rows` と同じ長さ・同じ並びの行 ID。 */
-  rowIds: string[];
+/**
+ * ID 列を分離した検証シート。グリッド・MCP はこの形で扱う。
+ *
+ * ID を別の入れ物にせず doc そのものに載せているのは、行を増減させる操作
+ * （貼り付け・複製・削除・空行の刈り取り）がグリッドの各所に散っているため。
+ * doc と別に持つと、それぞれの呼び出し側が ID の並びを追随させる必要があり、
+ * 1 箇所でも漏れると ID が別の行を指したまま保存される。
+ */
+export interface IdentifiedTsv extends TsvDocument {
+  /** `rows` と同じ長さ・同じ並びの行 ID。 */
+  rowIds: readonly string[];
   /** 書き戻すときの ID 列名。 */
   idColumn: string;
 }
@@ -122,7 +127,7 @@ export function withRowIds(doc: TsvDocument, newId: () => string = generateRowId
 
   const columns = index >= 0 ? doc.columns.filter((_, i) => i !== index) : doc.columns;
 
-  return { doc: { ...doc, columns, rows }, rowIds, idColumn: name };
+  return { ...doc, columns, rows, rowIds, idColumn: name };
 }
 
 /**
@@ -130,8 +135,12 @@ export function withRowIds(doc: TsvDocument, newId: () => string = generateRowId
  *
  * 宣言はディレクティブの先頭に置く。レイアウト系（`colwidth` 等）は書き戻しのたびに
  * 末尾へ付け直されるため、宣言を先頭に固定しておくと保存のたびに並びが揺れない。
+ *
+ * 持ち回り用の `rowIds` / `idColumn` は返り値から落とす。書き出し経路に居残ると
+ * シリアライザや MCP の出力へ紛れ込む。
  */
-export function withoutRowIds({ doc, rowIds, idColumn }: IdentifiedTsv): TsvDocument {
+export function withoutRowIds(identified: IdentifiedTsv): TsvDocument {
+  const { rowIds, idColumn, ...doc } = identified;
   const index = doc.columns.length;
   const header: ParsedHeader = { name: idColumn, type: 'text', required: false };
 

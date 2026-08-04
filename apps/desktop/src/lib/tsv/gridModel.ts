@@ -106,8 +106,16 @@ export function cellDisplayText(kind: CellWidgetKind | undefined, value: string)
  *
  * 末尾セルが省略された行（`validateTsv` が許容する短い行）を編集する場合は、
  * `col` まで空文字でパディングしてから設定する。触れない行は同一参照のまま残す。
+ *
+ * 行数が変わらないので、行 ID を載せた doc（`IdentifiedTsv`）をそのまま通せる。
+ * 返り値の型を入力に合わせているのはそのため。
  */
-export function setCell(doc: TsvDocument, row: number, col: number, value: string): TsvDocument {
+export function setCell<T extends TsvDocument>(
+  doc: T,
+  row: number,
+  col: number,
+  value: string,
+): T {
   const rows = doc.rows.map((cells, rowIndex) => {
     if (rowIndex !== row) {
       return cells;

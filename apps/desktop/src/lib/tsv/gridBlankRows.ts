@@ -13,6 +13,7 @@
  * ファイルに焼かない）。ここでは実体化・空行判定・表示行数を DOM 非依存の純関数に
  * 切り出し、node 環境の vitest で検査する。Svelte 側は pad 数を持って描画する薄いグルー。
  */
+import { generateRowId } from '@md-business/schema-test-spec-tsv';
 
 /** 全セルが空文字（未入力）の行か。TSV round-trip で消える＝実データにできない行。 */
 export function isBlankRow(cells: readonly string[]): boolean {
@@ -28,6 +29,8 @@ export function displayRowCount(dataRowCount: number, padRows: number): number {
 export interface PaddedEdit {
   /** onChange へ渡す実データ行（全空行を畳み済み）。 */
   rows: string[][];
+  /** `rows` と同じ長さ・同じ並びの行 ID。 */
+  rowIds: string[];
   /** 表示行数を保つよう再計算した pad 行数。 */
   padRows: number;
 }
@@ -39,24 +42,40 @@ export interface PaddedEdit {
  * 実データ行を確定する（パーサの空行スキップと同じ挙動＝round-trip で state が食い違わない）。
  * pad 行数は表示行数 `rows.length + padRows` を保つよう再計算するので、値の入った pad 行が
  * 実データへ繰り上がり、残りは pad のまま画面に残る。空文字を書いた場合は実体化されない。
+ *
+ * 行 ID は実データ行と一緒に動かす。実体化した pad 行には振り、畳まれた行のぶんは落とし、
+ * 残った行のものは動かさない。ここでずれると、版間の突き合わせで別の行が消えたように見える。
  */
 export function editPaddedCell(
   rows: readonly string[][],
+  rowIds: readonly string[],
   padRows: number,
   row: number,
   col: number,
   value: string,
+  newId: () => string = generateRowId,
 ): PaddedEdit {
   const total = displayRowCount(rows.length, padRows);
   const matrix: string[][] = [];
+  // pad 行はまだ ID を持たない。実体化した時点で採番するため、ここでは空で置く。
+  const ids: string[] = [];
   for (let r = 0; r < total; r++) {
     matrix.push(rows[r] ? rows[r].slice() : []);
+    ids.push(rowIds[r] ?? '');
   }
   if (row >= 0 && row < total) {
     const target = matrix[row];
     while (target.length <= col) target.push('');
     target[col] = value;
   }
-  const kept = matrix.filter((cells) => !isBlankRow(cells));
-  return { rows: kept, padRows: Math.max(0, total - kept.length) };
+
+  const kept: string[][] = [];
+  const keptIds: string[] = [];
+  matrix.forEach((cells, r) => {
+    if (isBlankRow(cells)) return;
+    kept.push(cells);
+    keptIds.push(ids[r] === '' ? newId() : ids[r]);
+  });
+
+  return { rows: kept, rowIds: keptIds, padRows: Math.max(0, total - kept.length) };
 }

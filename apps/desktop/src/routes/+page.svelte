@@ -6,7 +6,13 @@
   import { pdfExport } from '$lib/preview/pdfExport.svelte';
   import CodeMirrorEditor from '$lib/editor/CodeMirrorEditor.svelte';
   import { debounce } from '$lib/util/debounce';
-  import { parseTsv, serializeTsv, type TsvDocument } from '@md-business/schema-test-spec-tsv';
+  import {
+    parseTsv,
+    serializeTsv,
+    withRowIds,
+    withoutRowIds,
+    type IdentifiedTsv,
+  } from '@md-business/schema-test-spec-tsv';
   import { isTsvSource } from '$lib/tsv/detect';
   import { preserveTrailingEol } from '$lib/tsv/gridEol';
   import TsvGrid from '$lib/tsv/TsvGrid.svelte';
@@ -248,16 +254,21 @@
 
   // カスタム TSV 検証シートは読み取りプレビューでなく編集グリッドで開く。
   // 先頭マジック行で判定し、TSV なら parseTsv した doc をグリッドへ渡す。
+  // 行 ID 列は読み込みで抜いて doc に持たせ、保存で末尾へ戻す（グリッドの列には出さない）。
+  // ID を持たない既存ファイルはここで採番され、保存した時点でファイルへ焼かれる。
   const isTsv = $derived(isTsvSource(debouncedSource));
-  const tsvDoc = $derived(isTsv ? parseTsv(debouncedSource) : null);
+  const tsvDoc = $derived(isTsv ? withRowIds(parseTsv(debouncedSource)) : null);
 
   // グリッド編集 → serializeTsv で source（＝正本）へ書き戻し、エディターと即同期する。
   // debouncedSource も即更新して doc を再導出し、グリッドを遅延なく反映する。
   // 併せて確定スナップショットを履歴へ積む（Ctrl+Z / Ctrl+Y で戻せるように）。
   // serializeTsv は末尾改行を付けない契約なので、元ソースの末尾改行をここで引き継ぐ
   // （落とすと編集内容と無関係な 1 行が毎回 diff に出る）。
-  function handleGridChange(next: TsvDocument): void {
-    const text = preserveTrailingEol(serializeTsv(next), untrack(() => workspace.source));
+  function handleGridChange(next: IdentifiedTsv): void {
+    const text = preserveTrailingEol(
+      serializeTsv(withoutRowIds(next)),
+      untrack(() => workspace.source),
+    );
     gridHistory = pushHistory(gridHistory, text);
     workspace.setSource(text);
     debouncedSource = text;

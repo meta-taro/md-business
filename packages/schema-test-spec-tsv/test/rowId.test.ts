@@ -17,6 +17,8 @@ import type { TsvDocument } from '../src/parse.js';
  *   差分が出ない。
  * - **ID 列はグリッドから見えない**。`withRowIds` が doc から抜くので、以降の
  *   レイアウト・書式・検証はいまの列インデックスのまま無改修で動く。
+ * - **ID は doc と同じ器に載る**。行を増減させる操作はグリッドの各所に散っており、
+ *   ID を別の入れ物で持つと呼び出し側が追随しきれない。
  */
 
 function makeDoc(overrides: Partial<TsvDocument>): TsvDocument {
@@ -57,12 +59,12 @@ describe('withRowIds — 読み込み時に ID 列を抜く', () => {
       ],
     });
 
-    const { doc: stripped, rowIds, idColumn } = withRowIds(doc, counter());
+    const identified = withRowIds(doc, counter());
 
-    expect(idColumn).toBe(ROW_ID_COLUMN);
-    expect(rowIds).toEqual(['raaaaaaaaaaaa', 'rbbbbbbbbbbbb']);
-    expect(stripped.columns).toEqual([項目, 結果]);
-    expect(stripped.rows).toEqual([
+    expect(identified.idColumn).toBe(ROW_ID_COLUMN);
+    expect(identified.rowIds).toEqual(['raaaaaaaaaaaa', 'rbbbbbbbbbbbb']);
+    expect(identified.columns).toEqual([項目, 結果]);
+    expect(identified.rows).toEqual([
       ['ログイン', 'OK'],
       ['ログアウト', 'NG'],
     ]);
@@ -78,11 +80,11 @@ describe('withRowIds — 読み込み時に ID 列を抜く', () => {
   it('ID 列が無ければ採番する（doc の列はそのまま）', () => {
     const doc = makeDoc({ columns: [項目, 結果], rows: [['ログイン', 'OK'], ['ログアウト', '']] });
 
-    const { doc: stripped, rowIds } = withRowIds(doc, counter());
+    const identified = withRowIds(doc, counter());
 
-    expect(rowIds).toEqual(['r000000000001', 'r000000000002']);
-    expect(stripped.columns).toEqual([項目, 結果]);
-    expect(stripped.rows).toEqual([['ログイン', 'OK'], ['ログアウト', '']]);
+    expect(identified.rowIds).toEqual(['r000000000001', 'r000000000002']);
+    expect(identified.columns).toEqual([項目, 結果]);
+    expect(identified.rows).toEqual([['ログイン', 'OK'], ['ログアウト', '']]);
   });
 
   it('形式に合わない ID は採番し直す', () => {
@@ -122,19 +124,19 @@ describe('withRowIds — 読み込み時に ID 列を抜く', () => {
       rows: [['ログイン']],
     });
 
-    const { doc: stripped, rowIds } = withRowIds(doc, counter());
+    const identified = withRowIds(doc, counter());
 
-    expect(rowIds).toEqual(['r000000000001']);
-    expect(stripped.rows).toEqual([['ログイン']]);
+    expect(identified.rowIds).toEqual(['r000000000001']);
+    expect(identified.rows).toEqual([['ログイン']]);
   });
 
   it('宣言された列名が存在しなければ、その名前で採番する', () => {
     const doc = makeDoc({ directives: ['rowid 行ID'], columns: [項目], rows: [['a']] });
 
-    const { rowIds, idColumn } = withRowIds(doc, counter());
+    const identified = withRowIds(doc, counter());
 
-    expect(idColumn).toBe('行ID');
-    expect(rowIds).toEqual(['r000000000001']);
+    expect(identified.idColumn).toBe('行ID');
+    expect(identified.rowIds).toEqual(['r000000000001']);
   });
 });
 
@@ -147,7 +149,7 @@ describe('withoutRowIds — 保存時に ID 列を戻す', () => {
     });
 
     const joined = withoutRowIds({
-      doc,
+      ...doc,
       rowIds: ['raaaaaaaaaaaa'],
       idColumn: ROW_ID_COLUMN,
     });
@@ -163,7 +165,7 @@ describe('withoutRowIds — 保存時に ID 列を戻す', () => {
     // 埋めないと ID が別の列の位置に入り、読み戻しでずれる。
     const doc = makeDoc({ columns: [項目, 結果], rows: [['ログイン']] });
 
-    const joined = withoutRowIds({ doc, rowIds: ['raaaaaaaaaaaa'], idColumn: ROW_ID_COLUMN });
+    const joined = withoutRowIds({ ...doc, rowIds: ['raaaaaaaaaaaa'], idColumn: ROW_ID_COLUMN });
 
     expect(joined.rows).toEqual([['ログイン', '', 'raaaaaaaaaaaa']]);
   });
@@ -175,9 +177,19 @@ describe('withoutRowIds — 保存時に ID 列を戻す', () => {
       rows: [['a']],
     });
 
-    const joined = withoutRowIds({ doc, rowIds: ['raaaaaaaaaaaa'], idColumn: ROW_ID_COLUMN });
+    const joined = withoutRowIds({ ...doc, rowIds: ['raaaaaaaaaaaa'], idColumn: ROW_ID_COLUMN });
 
     expect(joined.directives).toEqual([`rowid ${ROW_ID_COLUMN}`, 'style 結果 OK=#e7f6ec']);
+  });
+
+  it('ID の持ち回り用フィールドを書き出す doc に残さない', () => {
+    // 保存経路へ渡る doc に居残ると、シリアライザや MCP の出力へ紛れ込む。
+    const doc = makeDoc({ columns: [項目], rows: [['a']] });
+
+    const joined = withoutRowIds({ ...doc, rowIds: ['raaaaaaaaaaaa'], idColumn: ROW_ID_COLUMN });
+
+    expect(joined).not.toHaveProperty('rowIds');
+    expect(joined).not.toHaveProperty('idColumn');
   });
 });
 
