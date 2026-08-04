@@ -149,7 +149,7 @@ They are adapters around the Markdown source of truth.
 
 | Template           | Schema         | Location                                              |
 | ------------------ | -------------- | ----------------------------------------------------- |
-| Invoice            | `invoice/v1`   | [`templates/invoice/`](./templates/invoice/) — 4 variants |
+| Invoice / quote / receipt | `invoice/v1` | [`templates/invoice/`](./templates/invoice/) — 6 variants |
 | Test specification | `test-spec/v1` | [`templates/test-spec/`](./templates/test-spec/)      |
 | Design document    | `spec/v1`      | [`templates/spec/`](./templates/spec/)                |
 
@@ -163,10 +163,12 @@ Every shipped template uses dummy data — no real company names, registration n
 - `standard-ja.md` — Japanese baseline, mixed 10% / 8% tax rates, bank account, and 適格請求書発行事業者 registration number (T + 13-digit dummy)
 - `tax-exempt-ja.md` — 免税事業者 (tax-exempt sole proprietor) variant — no registration number, with the 2023–2029 経過措置 footnote
 - `inbound-eligible.md` — Multi-item invoice exercising both the standard and the reduced tax rate
+- `quote-ja.md` — Quotation (`種別: 見積書`) with a validity date instead of a payment due date
+- `receipt-ja.md` — Receipt (`種別: 領収書`) with a 但し書き line and an opt-in revenue stamp box
 
 Open any of these in the Chrome extension viewer or render via `@md-business/renderer-pdf` to produce a print-ready PDF without writing any code.
 
-Future templates may include estimates, meeting notes, contracts, API documents, database design documents, operational checklists, and other business documents.
+Future templates may include meeting notes, contracts, API documents, database design documents, operational checklists, and other business documents.
 
 ## Screenshots
 
@@ -206,7 +208,7 @@ The goal is to make the canonical business document layer open, portable, review
 
 | Schema | Spec | Package |
 | --- | --- | --- |
-| Qualified invoice (Japanese インボイス制度) | `invoice/v1` | [docs/spec/invoice-v1.md](./docs/spec/invoice-v1.md) → [packages/schema-invoice/](./packages/schema-invoice/README.md) |
+| Invoice / quote / receipt (Japanese インボイス制度) | `invoice/v1` | [docs/spec/invoice-v1.md](./docs/spec/invoice-v1.md) → [packages/schema-invoice/](./packages/schema-invoice/README.md) |
 | Design document | `spec/v1` | [docs/spec/spec-v1.md](./docs/spec/spec-v1.md) → [packages/schema-spec/](./packages/schema-spec/README.md) |
 | Test specification | `test-spec/v1` | [docs/spec/test-spec-v1.md](./docs/spec/test-spec-v1.md) → [packages/schema-test-spec/](./packages/schema-test-spec/README.md) |
 

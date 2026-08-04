@@ -2,6 +2,22 @@
 
 JSON Schema for Japanese qualified invoices (適格請求書) — conforms to the 2023-10-01 invoice regulation (適格請求書等保存方式).
 
+Quotations (見積書) and receipts (領収書) share this schema: set `documentType` (`種別`) and the titles,
+field labels and default file name follow. The three document types differ only in wording plus the
+receipt-only 但し書き / 収入印紙欄, so keeping them in one schema keeps the tax math, the Japanese key
+dictionary and the PDF template single-sourced.
+
+## Document types
+
+| `documentType` | Title | Number label | Date label | `dueDate` label |
+| --- | --- | --- | --- | --- |
+| (omitted) / `請求書` | 請求書 | 請求書番号 | 発行日 | 支払期限 |
+| `見積書` | 見積書 | 見積書番号 | 発行日 | 有効期限 |
+| `領収書` | 領収書 | 領収書番号 | 領収日 | 支払期限 |
+
+`subject` (但し書き) and `revenueStamp` (収入印紙) render on receipts only. The stamp box is off by
+default — electronically delivered receipts are not subject to stamp duty.
+
 ## Coverage
 
 The 7 mandatory items required by the regulation:
@@ -31,6 +47,8 @@ if (result.ok) {
 
 - [`templates/invoice/standard.md`](../../templates/invoice/standard.md) — single rate (10%)
 - [`templates/invoice/inbound-eligible.md`](../../templates/invoice/inbound-eligible.md) — multi-rate including reduced rate (8%)
+- [`templates/invoice/quote-ja.md`](../../templates/invoice/quote-ja.md) — quotation (見積書)
+- [`templates/invoice/receipt-ja.md`](../../templates/invoice/receipt-ja.md) — receipt (領収書)
 
 ## Spec reference
 
