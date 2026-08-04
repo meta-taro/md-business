@@ -19,10 +19,23 @@
       "const": "invoice/v1",
       "description": "Schema version discriminator for forward compatibility."
     },
+    "documentType": {
+      "type": "string",
+      "enum": ["請求書", "見積書", "領収書"],
+      "description": "Document type (種別). Defaults to 請求書 when omitted. The three share one structure and differ only in labels, so they live in one schema."
+    },
     "invoiceNumber": {
       "type": "string",
       "minLength": 1,
-      "description": "Invoice number (請求書番号). Issuer-defined identifier."
+      "description": "Invoice number (請求書番号 / 見積書番号 / 領収書番号). Issuer-defined identifier."
+    },
+    "subject": {
+      "type": "string",
+      "description": "Purpose line for receipts (但し書き). Rendered after 但し, so write only the purpose (e.g. システム開発費用として)."
+    },
+    "revenueStamp": {
+      "type": "boolean",
+      "description": "Render the revenue stamp box (収入印紙欄) on receipts. Off by default — electronically delivered receipts are not subject to stamp duty."
     },
     "issueDate": {
       "type": "string",

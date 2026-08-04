@@ -1,3 +1,4 @@
+import { invoiceDocumentLabels } from './documentType.js';
 import type { Invoice } from './types.js';
 
 /**
@@ -17,14 +18,14 @@ import type { Invoice } from './types.js';
  * absent), so a template like `{請求先}{敬称}_{YMD}` cleanly degrades when
  * the recipient has no honorific.
  *
- * Falls back to the default rule `請求書_{請求書番号}` when no template is
- * provided.
+ * Falls back to the default rule `<種別>_{請求書番号}` when no template is
+ * provided (請求書 / 見積書 / 領収書).
  *
  * Windows-forbidden characters (/ \ : * ? " < > |) are replaced with `_`
  * after substitution so the resulting name is always safe to save.
  */
 export function renderInvoiceFileName(invoice: Invoice, template?: string): string {
-  const tpl = template?.trim() || '請求書_{請求書番号}';
+  const tpl = template?.trim() || `${invoiceDocumentLabels(invoice).fileNamePrefix}_{請求書番号}`;
   const now = todayLocal();
   const tokens: Record<string, string> = {
     '請求先': invoice.recipient.name ?? '',

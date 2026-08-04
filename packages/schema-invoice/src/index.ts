@@ -1,4 +1,11 @@
 export { invoiceSchema, SCHEMA_VERSION } from './schema.js';
+export {
+  invoiceDocumentLabels,
+  isInvoiceDocumentType,
+  INVOICE_DOCUMENT_TYPES,
+  INVOICE_DOCUMENT_LABELS,
+} from './documentType.js';
+export type { InvoiceDocumentType, InvoiceDocumentLabels } from './documentType.js';
 export type {
   Invoice,
   InvoiceIssuer,
@@ -30,5 +37,6 @@ export {
   INVOICE_JA_DICTIONARY,
   TAX_ROUNDING_TRANSLATIONS,
   ACCOUNT_TYPE_TRANSLATIONS,
+  DOCUMENT_TYPE_TRANSLATIONS,
 } from './dictionary.ja.js';
 export type { DictionaryScope, Dictionary } from './dictionary.ja.js';
