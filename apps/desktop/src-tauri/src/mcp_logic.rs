@@ -265,6 +265,187 @@ pub fn pick_existing(candidates: &[PathBuf], exists: impl Fn(&Path) -> bool) -> 
     candidates.iter().find(|p| exists(p)).cloned()
 }
 
+/// Node 実行ファイルの名前。
+pub fn node_exe_name() -> &'static str {
+    if cfg!(windows) {
+        "node.exe"
+    } else {
+        "node"
+    }
+}
+
+/// Node を探すときに参照する、環境から取れる位置。取れなければ `None`。
+///
+/// 実際の取得は Tauri 側（[`crate::mcp`]）が行い、ここには値だけを渡す。
+#[derive(Debug, Default, Clone)]
+pub struct NodeEnv {
+    pub home: Option<PathBuf>,
+    pub program_files: Option<PathBuf>,
+    pub local_app_data: Option<PathBuf>,
+    pub app_data: Option<PathBuf>,
+    /// fnm が版を置く場所（`FNM_DIR`）。利用者が既定から動かしていれば、ここだけが手掛かり。
+    pub fnm_dir: Option<PathBuf>,
+    /// nvm-windows が版を置く場所（`NVM_HOME`）。同上。
+    pub nvm_home: Option<PathBuf>,
+}
+
+/// 版ごとにフォルダを切る管理ツールの置き場。
+///
+/// `dir` 直下の各フォルダ（＝版）に `suffix` を継いだものが実行ファイルの候補になる。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct NodeVersionRoot {
+    pub dir: PathBuf,
+    pub suffix: PathBuf,
+}
+
+/// 固定位置にある Node の候補を、優先順に並べる。
+///
+/// PATH に載っていない Node を拾うための一覧。画面から起動したアプリが受け取る PATH は
+/// ログイン時点のもので、その後に入れた Node は載らない。存在しない位置は
+/// [`pick_existing`] 側で落ちるので、OS をまたいだ候補をまとめて並べてよい。
+pub fn node_candidates(env: &NodeEnv) -> Vec<PathBuf> {
+    let exe = node_exe_name();
+    let mut candidates = Vec::new();
+    if let Some(dir) = &env.program_files {
+        // 公式インストーラ。nvm-windows も既定でここへ symlink を張るため、
+        // 版管理を使っていても現行版がここに現れる。
+        candidates.push(dir.join("nodejs").join(exe));
+    }
+    if let Some(dir) = &env.local_app_data {
+        candidates.push(dir.join("Programs").join("nodejs").join(exe));
+        candidates.push(dir.join("Volta").join("bin").join(exe));
+    }
+    if let Some(dir) = &env.home {
+        candidates.push(dir.join(".volta").join("bin").join(exe));
+        candidates.push(
+            dir.join("scoop")
+                .join("apps")
+                .join("nodejs")
+                .join("current")
+                .join(exe),
+        );
+    }
+    // 版管理を使わない一般的な導入先（Homebrew / 手動展開 / ディストリのパッケージ）。
+    candidates.push(PathBuf::from("/opt/homebrew/bin").join(exe));
+    candidates.push(PathBuf::from("/usr/local/bin").join(exe));
+    candidates.push(PathBuf::from("/usr/bin").join(exe));
+    candidates
+}
+
+/// 版ごとにフォルダを切る管理ツールの置き場を、優先順に並べる。
+pub fn node_version_roots(env: &NodeEnv) -> Vec<NodeVersionRoot> {
+    let exe = node_exe_name();
+    let mut roots = Vec::new();
+    // 管理ツール自身が宣言した位置を先に見る。既定から動かされていると、ここにしか無い。
+    if let Some(dir) = &env.fnm_dir {
+        roots.push(NodeVersionRoot {
+            dir: dir.join("node-versions"),
+            suffix: Path::new("installation").join(exe),
+        });
+        // Unix 版の fnm は installation の下がさらに bin で切られる。
+        roots.push(NodeVersionRoot {
+            dir: dir.join("node-versions"),
+            suffix: Path::new("installation").join("bin").join(exe),
+        });
+    }
+    if let Some(dir) = &env.nvm_home {
+        roots.push(NodeVersionRoot {
+            dir: dir.clone(),
+            suffix: PathBuf::from(exe),
+        });
+    }
+    if let Some(dir) = &env.app_data {
+        // nvm-windows: %APPDATA%\nvm\v22.22.2\node.exe
+        roots.push(NodeVersionRoot {
+            dir: dir.join("nvm"),
+            suffix: PathBuf::from(exe),
+        });
+        // fnm (Windows): %APPDATA%\fnm\node-versions\v22.22.2\installation\node.exe
+        // Windows の fnm は Roaming 側に置く。Local 側だけを見ると丸ごと取り逃がす。
+        roots.push(NodeVersionRoot {
+            dir: dir.join("fnm").join("node-versions"),
+            suffix: Path::new("installation").join(exe),
+        });
+    }
+    if let Some(dir) = &env.local_app_data {
+        roots.push(NodeVersionRoot {
+            dir: dir.join("fnm").join("node-versions"),
+            suffix: Path::new("installation").join(exe),
+        });
+    }
+    if let Some(dir) = &env.home {
+        roots.push(NodeVersionRoot {
+            dir: dir.join(".nvm").join("versions").join("node"),
+            suffix: Path::new("bin").join(exe),
+        });
+        roots.push(NodeVersionRoot {
+            dir: dir
+                .join(".local")
+                .join("share")
+                .join("fnm")
+                .join("node-versions"),
+            suffix: Path::new("installation").join("bin").join(exe),
+        });
+        roots.push(NodeVersionRoot {
+            dir: dir
+                .join("Library")
+                .join("Application Support")
+                .join("fnm")
+                .join("node-versions"),
+            suffix: Path::new("installation").join("bin").join(exe),
+        });
+    }
+    roots
+}
+
+/// 版フォルダ名を新しい順に並べる。
+///
+/// 文字列順では `v9` が `v22` より後ろに来てしまう（先頭の文字だけで大小が決まるため）。
+/// 数の並びとして比べる必要がある。版として読めない名前（`lts` など）は最後へ回す。
+pub fn sort_node_versions(names: Vec<String>) -> Vec<String> {
+    let mut sorted = names;
+    sorted.sort_by(|a, b| {
+        let (ka, kb) = (version_key(a), version_key(b));
+        match (ka, kb) {
+            (Some(x), Some(y)) => y.cmp(&x),
+            (Some(_), None) => std::cmp::Ordering::Less,
+            (None, Some(_)) => std::cmp::Ordering::Greater,
+            (None, None) => a.cmp(b),
+        }
+    });
+    sorted
+}
+
+/// `v22.22.2` のような名前を、比較できる数の並びへ直す。読めなければ `None`。
+fn version_key(name: &str) -> Option<Vec<u64>> {
+    let body = name.strip_prefix('v').unwrap_or(name);
+    // 先行版の識別子（`-rc.1` など）は比較に使わない。
+    let body = body.split('-').next().unwrap_or(body);
+    let parts: Vec<u64> = body
+        .split('.')
+        .map(|p| p.parse::<u64>().ok())
+        .collect::<Option<Vec<u64>>>()?;
+    if parts.is_empty() {
+        None
+    } else {
+        Some(parts)
+    }
+}
+
+/// 起動を試す順に実行ファイルを並べる。
+///
+/// PATH の `node` を先頭に置くのは、利用者が選んだ版を尊重するため。絶対パスは
+/// PATH に載っていなかったときの受け皿で、後ろに続ける。同じものは二度試さない。
+pub fn node_programs(found: Vec<PathBuf>) -> Vec<PathBuf> {
+    let mut programs = vec![PathBuf::from("node")];
+    for path in found {
+        if !programs.contains(&path) {
+            programs.push(path);
+        }
+    }
+    programs
+}
+
 /// サイドカーへ渡す引数を順に並べる。
 ///
 /// 第 1 引数が作業対象フォルダ、第 2 引数が接続情報（トークン / ポート）の保存先。
@@ -602,7 +783,10 @@ mod tests {
 
     #[test]
     fn 診断文は取れた手掛かりだけで作る() {
-        assert_eq!(startup_detail("  \n ", Some(3)).as_deref(), Some("exit code 3"));
+        assert_eq!(
+            startup_detail("  \n ", Some(3)).as_deref(),
+            Some("exit code 3")
+        );
         assert_eq!(startup_detail("boom", None).as_deref(), Some("boom"));
     }
 
@@ -640,5 +824,131 @@ mod tests {
         .unwrap();
         assert_eq!(json.get("state").and_then(|v| v.as_str()), Some("ready"));
         assert_eq!(json.get("port").and_then(|v| v.as_u64()), Some(1));
+    }
+
+    /// Node を PATH だけに頼って探すと、入っているのに見つからない環境がある。
+    ///
+    /// 画面から起動したアプリが受け取る PATH はログイン時点のもので、その後に入れた Node や
+    /// シェル起動時に PATH を書き換える版管理ツール（nvm / fnm）の Node は載っていない。
+    /// 利用者から見ると「Node は入っているのに Node が無いと言われる」状態になる。
+    fn full_env() -> NodeEnv {
+        NodeEnv {
+            home: Some(PathBuf::from("/home/u")),
+            program_files: Some(PathBuf::from("/pf")),
+            local_app_data: Some(PathBuf::from("/lad")),
+            app_data: Some(PathBuf::from("/ad")),
+            fnm_dir: Some(PathBuf::from("/fnm")),
+            nvm_home: Some(PathBuf::from("/nvm")),
+        }
+    }
+
+    fn joined(candidates: &[PathBuf]) -> String {
+        candidates
+            .iter()
+            .map(|p| p.to_string_lossy().replace('\\', "/"))
+            .collect::<Vec<_>>()
+            .join("\n")
+    }
+
+    #[test]
+    fn node候補に既定の導入先を並べる() {
+        let text = joined(&node_candidates(&full_env()));
+        // 公式インストーラ（nvm-windows もここへ symlink を張る）。
+        assert!(text.contains("/pf/nodejs/"));
+        // パッケージ管理を通さない一般的な導入先。
+        assert!(text.contains("/usr/local/bin/"));
+    }
+
+    #[test]
+    fn 環境から取れない位置の候補は並べない() {
+        let text = joined(&node_candidates(&NodeEnv::default()));
+        assert!(!text.contains("nodejs"));
+        assert!(!text.contains("Volta"));
+    }
+
+    #[test]
+    fn 候補はすべて実行ファイル名で終わる() {
+        let candidates = node_candidates(&full_env());
+        assert!(!candidates.is_empty());
+        assert!(candidates.iter().all(|p| p.ends_with(node_exe_name())));
+    }
+
+    #[test]
+    fn 版ごとにフォルダを切る管理ツールは掘る先を持つ() {
+        let roots = node_version_roots(&full_env());
+        let text = roots
+            .iter()
+            .map(|r| r.dir.to_string_lossy().replace('\\', "/"))
+            .collect::<Vec<_>>()
+            .join("\n");
+        // nvm-windows は %APPDATA%\nvm\v<版>\node.exe。
+        assert!(text.contains("/ad/nvm"));
+        // fnm は node-versions の下に版フォルダを切る。
+        assert!(text.contains("node-versions"));
+        assert!(roots.iter().all(|r| r.suffix.ends_with(node_exe_name())));
+    }
+
+    #[test]
+    fn windowsのfnmはroaming側に置かれる() {
+        // 実機で確認: %APPDATA%\fnm\node-versions\v22.22.2\installation\node.exe。
+        // Local 側だけを見ていると、fnm で入れた Node をまるごと取り逃がす。
+        let roots = node_version_roots(&full_env());
+        assert!(roots
+            .iter()
+            .any(|r| r.dir == PathBuf::from("/ad").join("fnm").join("node-versions")));
+    }
+
+    #[test]
+    fn 管理ツールが位置を宣言していればそちらを先に見る() {
+        // FNM_DIR / NVM_HOME は利用者が置き場を動かしたときの唯一の手掛かり。
+        // 既定の位置を先に当たると、動かした先にある新しい版を取り逃がす。
+        let roots = node_version_roots(&full_env());
+        let first_fnm = roots
+            .iter()
+            .position(|r| r.dir.starts_with("/fnm"))
+            .expect("FNM_DIR の候補があること");
+        let default_fnm = roots
+            .iter()
+            .position(|r| r.dir.starts_with("/ad"))
+            .expect("既定位置の候補があること");
+        assert!(first_fnm < default_fnm);
+        assert!(roots.iter().any(|r| r.dir == Path::new("/nvm")));
+    }
+
+    #[test]
+    fn 版フォルダは数として新しい順に並べる() {
+        // 文字列順だと v9 が v22 より新しい扱いになる。数として比べる必要がある。
+        let sorted = sort_node_versions(vec![
+            "v9.0.0".to_string(),
+            "v22.22.2".to_string(),
+            "v10.1.0".to_string(),
+        ]);
+        assert_eq!(sorted, vec!["v22.22.2", "v10.1.0", "v9.0.0"]);
+    }
+
+    #[test]
+    fn 版として読めない名前は後ろへ回す() {
+        let sorted = sort_node_versions(vec![
+            "lts".to_string(),
+            "v18.0.0".to_string(),
+            "v20.1.0".to_string(),
+        ]);
+        assert_eq!(sorted, vec!["v20.1.0", "v18.0.0", "lts"]);
+    }
+
+    #[test]
+    fn まずpathのnodeを試してから絶対パスへ落ちる() {
+        let programs = node_programs(vec![PathBuf::from("/pf/nodejs/node")]);
+        assert_eq!(programs[0], PathBuf::from("node"));
+        assert_eq!(programs[1], PathBuf::from("/pf/nodejs/node"));
+    }
+
+    #[test]
+    fn 同じ実行ファイルを二度試さない() {
+        let programs = node_programs(vec![
+            PathBuf::from("/pf/nodejs/node"),
+            PathBuf::from("/pf/nodejs/node"),
+        ]);
+        assert_eq!(programs.len(), 2);
     }
 }

@@ -340,7 +340,8 @@ const en: Messages = {
   'mcp.logsEmpty': 'Actions from your AI client will appear here',
   'mcp.logsDisabled': 'The server is not running, so no actions are recorded',
   'mcp.reason.sidecarMissing': 'MCP server files were not found',
-  'mcp.reason.nodeMissing': 'Node was not found. Install Node to enable MCP',
+  'mcp.reason.nodeMissing':
+    'Node was not found. Install Node 20 or later, then restart this app to enable MCP',
   'mcp.reason.spawnFailed': 'The MCP server could not be started',
   'mcp.reason.noOutput': 'No output could be read from the MCP server',
   'mcp.reason.exitedEarly': 'The MCP server stopped before it was ready',
@@ -525,7 +526,8 @@ const ja: Messages = {
   'mcp.logsEmpty': 'AI からの操作がここに並びます',
   'mcp.logsDisabled': 'サーバーが動いていないため操作は記録されません',
   'mcp.reason.sidecarMissing': 'MCP サーバー本体が見つかりません',
-  'mcp.reason.nodeMissing': 'Node が見つかりません。Node を入れると MCP 連携が使えます',
+  'mcp.reason.nodeMissing':
+    'Node が見つかりません。Node 20 以上を入れてアプリを起動し直すと MCP 連携が使えます',
   'mcp.reason.spawnFailed': 'MCP サーバーを起動できませんでした',
   'mcp.reason.noOutput': 'MCP サーバーの出力を受け取れません',
   'mcp.reason.exitedEarly': 'MCP サーバーが接続可能になる前に終了しました',
@@ -708,7 +710,7 @@ const zh: Messages = {
   'mcp.logsEmpty': 'AI 的操作将显示在这里',
   'mcp.logsDisabled': '服务器未运行，因此不会记录操作',
   'mcp.reason.sidecarMissing': '未找到 MCP 服务器本体',
-  'mcp.reason.nodeMissing': '未找到 Node。安装 Node 后即可使用 MCP',
+  'mcp.reason.nodeMissing': '未找到 Node。安装 Node 20 或更高版本并重新启动本应用后即可使用 MCP',
   'mcp.reason.spawnFailed': '无法启动 MCP 服务器',
   'mcp.reason.noOutput': '无法读取 MCP 服务器的输出',
   'mcp.reason.exitedEarly': 'MCP 服务器在就绪前已退出',
@@ -893,7 +895,8 @@ const ko: Messages = {
   'mcp.logsEmpty': 'AI 의 작업이 여기에 표시됩니다',
   'mcp.logsDisabled': '서버가 실행 중이 아니므로 작업이 기록되지 않습니다',
   'mcp.reason.sidecarMissing': 'MCP 서버 본체를 찾을 수 없습니다',
-  'mcp.reason.nodeMissing': 'Node 를 찾을 수 없습니다. Node 를 설치하면 MCP 를 사용할 수 있습니다',
+  'mcp.reason.nodeMissing':
+    'Node 를 찾을 수 없습니다. Node 20 이상을 설치한 뒤 앱을 다시 시작하면 MCP 를 사용할 수 있습니다',
   'mcp.reason.spawnFailed': 'MCP 서버를 시작할 수 없었습니다',
   'mcp.reason.noOutput': 'MCP 서버의 출력을 읽을 수 없습니다',
   'mcp.reason.exitedEarly': 'MCP 서버가 준비되기 전에 종료되었습니다',

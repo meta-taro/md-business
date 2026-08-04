@@ -15,8 +15,9 @@ use std::sync::{Arc, Mutex};
 use tauri::{AppHandle, Emitter, Manager, State};
 
 use crate::mcp_logic::{
-    append_detail, parse_sidecar_line, pick_existing, response_line, set_root_line, sidecar_args,
-    sidecar_candidates, startup_detail, McpReason, McpState, McpStatus, SidecarEvent,
+    append_detail, node_candidates, node_programs, node_version_roots, parse_sidecar_line,
+    pick_existing, response_line, set_root_line, sidecar_args, sidecar_candidates,
+    sort_node_versions, startup_detail, McpReason, McpState, McpStatus, NodeEnv, SidecarEvent,
 };
 
 /// 状態変化をフロントへ知らせるイベント名。
@@ -91,9 +92,62 @@ fn state_path(app: &AppHandle) -> Option<PathBuf> {
     Some(dir.join("mcp.json"))
 }
 
+/// 環境変数から Node の探索位置を集める。取れないものは None のまま渡す。
+fn node_env() -> NodeEnv {
+    let var = |key: &str| std::env::var_os(key).map(PathBuf::from);
+    NodeEnv {
+        home: var("USERPROFILE").or_else(|| var("HOME")),
+        program_files: var("ProgramFiles"),
+        local_app_data: var("LOCALAPPDATA"),
+        app_data: var("APPDATA"),
+        fnm_dir: var("FNM_DIR"),
+        nvm_home: var("NVM_HOME"),
+    }
+}
+
+/// 版ごとにフォルダを切る管理ツール（nvm / fnm）の下から、新しい版の Node を拾う。
+///
+/// 版フォルダ名は実際に見に行かないと分からないので、ここだけディスクを読む。
+/// 読めないフォルダは黙って飛ばす（Node が無いこと自体は劣化表示で伝わる）。
+fn managed_nodes(env: &NodeEnv) -> Vec<PathBuf> {
+    let mut found = Vec::new();
+    for root in node_version_roots(env) {
+        let Ok(entries) = std::fs::read_dir(&root.dir) else {
+            continue;
+        };
+        let names: Vec<String> = entries
+            .flatten()
+            .filter(|e| e.path().is_dir())
+            .map(|e| e.file_name().to_string_lossy().into_owned())
+            .collect();
+        for name in sort_node_versions(names) {
+            let path = root.dir.join(name).join(&root.suffix);
+            if path.exists() {
+                found.push(path);
+            }
+        }
+    }
+    found
+}
+
+/// 起動を試す Node を優先順に並べる。
+///
+/// 画面から起動したアプリが受け取る PATH はログイン時点のもので、その後に入れた Node や
+/// シェル起動時に PATH を書き換える版管理ツールの Node は載っていない。PATH だけに頼ると
+/// 「Node は入っているのに見つからない」状態になるため、既定の導入先も順に当たる。
+fn resolve_nodes() -> Vec<PathBuf> {
+    let env = node_env();
+    let mut found: Vec<PathBuf> = node_candidates(&env)
+        .into_iter()
+        .filter(|p| p.exists())
+        .collect();
+    found.extend(managed_nodes(&env));
+    node_programs(found)
+}
+
 /// Node の子プロセスを組み立てる。
-fn build_command(sidecar: &Path, root: &Path, state: Option<&Path>) -> Command {
-    let mut command = Command::new("node");
+fn build_command(node: &Path, sidecar: &Path, root: &Path, state: Option<&Path>) -> Command {
+    let mut command = Command::new(node);
     command
         .args(sidecar_args(sidecar, root, state))
         .stdin(Stdio::piped())
@@ -121,16 +175,30 @@ pub fn start(app: &AppHandle) {
 
     let root = initial_root(app);
     let state = state_path(app);
-    let mut child = match build_command(&sidecar, &root, state.as_deref()).spawn() {
-        Ok(child) => child,
-        Err(err) => {
-            // Node が入っていないだけの環境と、それ以外の起動失敗は利用者の対処が違う。
-            let status = if err.kind() == std::io::ErrorKind::NotFound {
-                McpStatus::unavailable(McpReason::NodeMissing)
-            } else {
-                McpStatus::unavailable_with(McpReason::SpawnFailed, err.to_string())
-            };
-            set_status(app, status);
+    // 見つかった順に起動を試す。NotFound はその Node が無いだけなので次へ進み、
+    // それ以外の失敗（権限など）は対処が違うのでその時点で止めて理由を出す。
+    let mut spawned: Option<Child> = None;
+    for node in resolve_nodes() {
+        match build_command(&node, &sidecar, &root, state.as_deref()).spawn() {
+            Ok(child) => {
+                spawned = Some(child);
+                break;
+            }
+            Err(err) if err.kind() == std::io::ErrorKind::NotFound => continue,
+            Err(err) => {
+                set_status(
+                    app,
+                    McpStatus::unavailable_with(McpReason::SpawnFailed, err.to_string()),
+                );
+                return;
+            }
+        }
+    }
+    let mut child = match spawned {
+        Some(child) => child,
+        None => {
+            // どこにも Node が無い。利用者の対処は「Node を入れる」の一択。
+            set_status(app, McpStatus::unavailable(McpReason::NodeMissing));
             return;
         }
     };
