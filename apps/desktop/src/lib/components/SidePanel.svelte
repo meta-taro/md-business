@@ -21,7 +21,7 @@
   let active = $state<Tab>(enabled);
 
   /** 直近に写した対象（ボタンの手応えを 1 つずつ出し分ける）。 */
-  let copied = $state<'token' | 'config' | null>(null);
+  let copied = $state<'token' | 'config' | 'ask' | null>(null);
   let copyTimer: ReturnType<typeof setTimeout> | undefined;
 
   // 接続先 URL は訳す対象ではないので、翻訳が要る場合とだけ描き分ける。
@@ -30,7 +30,7 @@
   );
 
   /** 文字列を写し、どのボタンで写したかをしばらく表示する。 */
-  async function copy(text: string | null, kind: 'token' | 'config'): Promise<void> {
+  async function copy(text: string | null, kind: 'token' | 'config' | 'ask'): Promise<void> {
     if (text === null) return;
     try {
       await navigator.clipboard.writeText(text);
@@ -50,6 +50,24 @@
       await copy(await mcp.clientConfig(), 'config');
     } catch {
       // 接続できていなければ組めない。ボタンは接続中しか出ないので、表示は変えない。
+    }
+  }
+
+  /** やり直して、まだ繋がらなかったか。押した手応えを出すために持つ。 */
+  let retried = $state(false);
+
+  /**
+   * 起動をやり直す。Node を入れ終わった直後に押される。
+   *
+   * 結果は戻り値で判定する。`mcp.status` を読むと、状態変化のイベントがまだ届いておらず
+   * 古い値（= 押す前の失敗）を見てしまう。
+   */
+  async function retry(): Promise<void> {
+    retried = false;
+    try {
+      retried = (await mcp.retry()).state === 'unavailable';
+    } catch {
+      // 起動処理中・稼働中は受け付けない。その場合は上の状態表示がそのまま答えになる。
     }
   }
 
@@ -110,6 +128,22 @@
             <pre class="conn-detail">{mcp.status.detail}</pre>
           {/if}
 
+          {#if mcp.status.state === 'unavailable'}
+            <!--
+              理由を出すだけでは利用者は進めない（Node が何かを知らない人が多数）。
+              隣で動いている AI に渡せる形にして、導入まで任せられるようにする。
+            -->
+            <button class="token primary" type="button" onclick={() => copy(t('mcp.askAiText'), 'ask')}>
+              {copied === 'ask' ? t('mcp.askedAi') : t('mcp.askAi')}
+            </button>
+            <p class="note">{t('mcp.askAiNote')}</p>
+            <!-- 入れた直後にアプリを起動し直させない。入れた本人には作業の続きに見える。 -->
+            <button class="token" type="button" onclick={retry}>{t('mcp.retry')}</button>
+            {#if retried}
+              <p class="wrote failed">{t('mcp.retryFailed')}</p>
+            {/if}
+          {/if}
+
           {#if mcp.isReady && mcp.status.token !== null}
             <!-- 置くだけで済む方を主にする。写して貼るのは、それを読まないクライアント向け。 -->
             {#if workspace.root !== null}
@@ -132,7 +166,11 @@
             </button>
           {/if}
 
-          <!-- 使い方が分からないと機能ごと気付かれないので、画面の中に置く。 -->
+          <!--
+            使い方が分からないと機能ごと気付かれないので、画面の中に置く。ただし手順は
+            接続できている前提の文（上のボタンを押す）なので、出ていない間は畳んだままにしない。
+          -->
+          {#if mcp.isReady}
           <details class="howto">
             <summary>{t('mcp.howto')}</summary>
             <ol>
@@ -142,6 +180,7 @@
             </ol>
             <p class="note">{t('mcp.howtoNote')}</p>
           </details>
+          {/if}
 
           <ul class="logs">
             <!-- 同一ミリ秒に同じツールが並びうるので、キー付き each にはしない。 -->

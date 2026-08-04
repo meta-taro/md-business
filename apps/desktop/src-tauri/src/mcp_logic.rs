@@ -460,6 +460,14 @@ pub fn connection_parts(status: &McpStatus) -> Result<(&str, &str), String> {
     }
 }
 
+/// 起動をやり直せる状態か。
+///
+/// Node を入れた直後に押されることを想定している。動いている間に受け付けると、
+/// 前の子プロセスが取り残されたままもう 1 つ起動し、古い方がポートを掴み続ける。
+pub fn can_retry(status: &McpStatus) -> bool {
+    status.state == McpState::Unavailable
+}
+
 /// 接続設定を、既にある設定ファイルへ書き足した全文を返す。
 ///
 /// 手で貼らせると、貼り先も書式も分からないまま止まる。作業フォルダへ直接置けば、
@@ -1129,5 +1137,23 @@ mod tests {
     fn 接続できていなければ設定は作れない() {
         assert!(connection_parts(&McpStatus::starting()).is_err());
         assert!(connection_parts(&McpStatus::unavailable(McpReason::NodeMissing)).is_err());
+    }
+
+    #[test]
+    fn 起動できていない状態からはやり直せる() {
+        // Node を入れた直後がこれ。アプリを起動し直さずに繋がるようにする。
+        assert!(can_retry(&McpStatus::unavailable(McpReason::NodeMissing)));
+        assert!(can_retry(&McpStatus::unavailable(McpReason::SidecarMissing)));
+    }
+
+    #[test]
+    fn 動いている間はやり直さない() {
+        // 二重に起動すると、前の子プロセスが取り残されてポートを掴んだまま残る。
+        assert!(!can_retry(&McpStatus::ready(
+            "http://127.0.0.1:1/mcp".into(),
+            1,
+            "tok".into()
+        )));
+        assert!(!can_retry(&McpStatus::starting()));
     }
 }

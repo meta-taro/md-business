@@ -72,3 +72,21 @@ describe('接続設定の書き出しの説明', () => {
     }
   });
 });
+
+// この文はそのまま AI に渡される。読んだ AI が版を選べないと、18 系を入れられて
+// 直らないまま「入れました」で終わる。要求する版が文に入っている必要がある。
+describe('AI に頼む文', () => {
+  it('どの言語でも Node 20 以上と分かる', () => {
+    for (const locale of LOCALES) {
+      expect(messages[locale]['mcp.askAiText'], locale).toMatch(/Node\s*20/);
+    }
+  });
+
+  it('どの言語でも入れ終わった後にすることが書いてある', () => {
+    // 入れて終わりだと繋がらない。押す先（もう一度さがす）まで文に含める。
+    for (const locale of LOCALES) {
+      const text = messages[locale]['mcp.askAiText'];
+      expect(text, locale).toContain(messages[locale]['mcp.retry']);
+    }
+  });
+});

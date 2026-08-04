@@ -93,6 +93,19 @@ class McpStore {
     return await invoke<string>('mcp_client_config');
   }
 
+  /**
+   * 起動をもう一度試す。Node を入れた直後に呼ばれる。
+   *
+   * アプリの起動し直しを挟ませない。入れた本人にとっては作業が終わった直後なので、
+   * そこで一段挟むと「入れたのに直らない」に見える。
+   *
+   * やり直した結果は戻り値で受け取る。状態変化のイベントはこの応答と別経路で届くので、
+   * 直後に `status` を読むと古い値のまま（繋がったのに失敗表示になる）。
+   */
+  async retry(): Promise<McpStatus> {
+    return await invoke<McpStatus>('mcp_retry');
+  }
+
   /** 購読を解除する。 */
   dispose(): void {
     for (const off of this.unlisten) off();

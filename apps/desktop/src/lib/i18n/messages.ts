@@ -152,6 +152,12 @@ export interface Messages {
   'mcp.howtoNote': string;
   'mcp.logsEmpty': string;
   'mcp.logsDisabled': string;
+  'mcp.askAi': string;
+  'mcp.askedAi': string;
+  'mcp.askAiText': string;
+  'mcp.askAiNote': string;
+  'mcp.retry': string;
+  'mcp.retryFailed': string;
   'mcp.reason.sidecarMissing': string;
   'mcp.reason.nodeMissing': string;
   'mcp.reason.spawnFailed': string;
@@ -348,6 +354,17 @@ const en: Messages = {
     'The address and access token stay the same the next time you start the app, so settings you wrote or pasted keep working.',
   'mcp.logsEmpty': 'Actions from your AI client will appear here',
   'mcp.logsDisabled': 'The server is not running, so no actions are recorded',
+  'mcp.askAi': 'Copy a request for your AI',
+  'mcp.askedAi': 'Copied — paste it to your AI',
+  'mcp.askAiText':
+    'The md-business desktop app cannot start its MCP server because Node was not found.\n' +
+    'Please install Node 20 or later on this machine.\n' +
+    'The app looks in PATH and in the default locations of the official installer, fnm, nvm, Volta, scoop and Homebrew, so any of them is fine.\n' +
+    'Tell me when it is done — I will press “Look again” in the app’s MCP tab.',
+  'mcp.askAiNote':
+    'Paste this to the AI you already have open. It can install Node for you.',
+  'mcp.retry': 'Look again',
+  'mcp.retryFailed': 'Node was still not found',
   'mcp.reason.sidecarMissing': 'MCP server files were not found',
   'mcp.reason.nodeMissing':
     'Node was not found. Install Node 20 or later, then restart this app to enable MCP',
@@ -539,6 +556,16 @@ const ja: Messages = {
     '接続先とトークンは次に起動しても変わらないので、置いた設定・貼った設定はそのまま使い続けられる。',
   'mcp.logsEmpty': 'AI からの操作がここに並びます',
   'mcp.logsDisabled': 'サーバーが動いていないため操作は記録されません',
+  'mcp.askAi': 'AI に頼む文をコピー',
+  'mcp.askedAi': 'コピーしました。AI に貼ってください',
+  'mcp.askAiText':
+    'md-business のデスクトップアプリが Node を見つけられず、MCP サーバーを起動できていません。\n' +
+    'この PC に Node 20 以上を入れてください。\n' +
+    'アプリは PATH のほか、公式インストーラ・fnm・nvm・Volta・scoop・Homebrew の既定の導入先を見に行くので、どれで入れても構いません。\n' +
+    '入れ終わったら教えてください。アプリの MCP タブで「もう一度さがす」を押します。',
+  'mcp.askAiNote': '開いている AI に貼るだけで、Node の導入まで任せられます。',
+  'mcp.retry': 'もう一度さがす',
+  'mcp.retryFailed': 'まだ Node が見つかりません',
   'mcp.reason.sidecarMissing': 'MCP サーバー本体が見つかりません',
   'mcp.reason.nodeMissing':
     'Node が見つかりません。Node 20 以上を入れてアプリを起動し直すと MCP 連携が使えます',
@@ -728,6 +755,16 @@ const zh: Messages = {
   'mcp.howtoNote': '下次启动应用时地址和令牌不变，写入或粘贴过的设置可以继续使用。',
   'mcp.logsEmpty': 'AI 的操作将显示在这里',
   'mcp.logsDisabled': '服务器未运行，因此不会记录操作',
+  'mcp.askAi': '复制给 AI 的请求',
+  'mcp.askedAi': '已复制，请粘贴给 AI',
+  'mcp.askAiText':
+    'md-business 桌面应用未找到 Node，无法启动 MCP 服务器。\n' +
+    '请在这台电脑上安装 Node 20 或更高版本。\n' +
+    '应用会查找 PATH，以及官方安装程序、fnm、nvm、Volta、scoop、Homebrew 的默认安装位置，用哪一种都可以。\n' +
+    '装好后请告诉我，我会在应用的 MCP 标签页点击「重新查找」。',
+  'mcp.askAiNote': '粘贴给已经打开的 AI，它可以直接帮你安装 Node。',
+  'mcp.retry': '重新查找',
+  'mcp.retryFailed': '仍未找到 Node',
   'mcp.reason.sidecarMissing': '未找到 MCP 服务器本体',
   'mcp.reason.nodeMissing': '未找到 Node。安装 Node 20 或更高版本并重新启动本应用后即可使用 MCP',
   'mcp.reason.spawnFailed': '无法启动 MCP 服务器',
@@ -918,6 +955,16 @@ const ko: Messages = {
     '앱을 다시 시작해도 주소와 토큰이 그대로이므로 넣거나 붙여 넣은 설정을 계속 사용할 수 있습니다.',
   'mcp.logsEmpty': 'AI 의 작업이 여기에 표시됩니다',
   'mcp.logsDisabled': '서버가 실행 중이 아니므로 작업이 기록되지 않습니다',
+  'mcp.askAi': 'AI에 보낼 요청 복사',
+  'mcp.askedAi': '복사했습니다. AI에 붙여넣으세요',
+  'mcp.askAiText':
+    'md-business 데스크톱 앱이 Node를 찾지 못해 MCP 서버를 시작하지 못했습니다.\n' +
+    '이 PC에 Node 20 이상을 설치해 주세요.\n' +
+    '앱은 PATH와 함께 공식 설치 프로그램, fnm, nvm, Volta, scoop, Homebrew의 기본 설치 위치를 확인하므로 어느 것으로 설치해도 됩니다.\n' +
+    '설치가 끝나면 알려 주세요. 앱의 MCP 탭에서 「다시 찾기」를 누르겠습니다.',
+  'mcp.askAiNote': '이미 열려 있는 AI에 붙여넣기만 하면 Node 설치까지 맡길 수 있습니다.',
+  'mcp.retry': '다시 찾기',
+  'mcp.retryFailed': '아직 Node를 찾지 못했습니다',
   'mcp.reason.sidecarMissing': 'MCP 서버 본체를 찾을 수 없습니다',
   'mcp.reason.nodeMissing':
     'Node 를 찾을 수 없습니다. Node 20 이상을 설치한 뒤 앱을 다시 시작하면 MCP 를 사용할 수 있습니다',

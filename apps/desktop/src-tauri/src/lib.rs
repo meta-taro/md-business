@@ -51,7 +51,8 @@ pub fn run() {
             mcp::mcp_set_root,
             mcp::mcp_respond,
             mcp::mcp_write_client_config,
-            mcp::mcp_client_config
+            mcp::mcp_client_config,
+            mcp::mcp_retry
         ])
         .build(tauri::generate_context!())
         .expect("error while running tauri application")

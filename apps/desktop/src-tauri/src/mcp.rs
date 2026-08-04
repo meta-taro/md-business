@@ -15,11 +15,10 @@ use std::sync::{Arc, Mutex};
 use tauri::{AppHandle, Emitter, Manager, State};
 
 use crate::mcp_logic::{
-    append_detail, connection_parts, ensure_ignored, merge_client_config, node_candidates,
-    node_programs,
-    node_version_roots, parse_sidecar_line, pick_existing, response_line, set_root_line,
-    sidecar_args, sidecar_candidates, sort_node_versions, startup_detail, McpReason, McpState,
-    McpStatus, NodeEnv, SidecarEvent, CONFIG_FILE_NAME,
+    append_detail, can_retry, connection_parts, ensure_ignored, merge_client_config,
+    node_candidates, node_programs, node_version_roots, parse_sidecar_line, pick_existing,
+    response_line, set_root_line, sidecar_args, sidecar_candidates, sort_node_versions,
+    startup_detail, McpReason, McpState, McpStatus, NodeEnv, SidecarEvent, CONFIG_FILE_NAME,
 };
 
 /// 状態変化をフロントへ知らせるイベント名。
@@ -424,6 +423,22 @@ pub fn mcp_client_config(state: State<McpRuntime>) -> Result<String, String> {
     let status = mcp_status(state);
     let (url, token) = connection_parts(&status)?;
     merge_client_config(None, url, token)
+}
+
+/// 起動をもう一度試す。Node を入れた直後に押される想定。
+///
+/// これが無いと、Node を入れた利用者はアプリを起動し直すしかない。入れた本人にとっては
+/// 作業が終わった直後なので、そこで一段挟まると「入れたのに直らない」に見える。
+/// やり直した結果は戻り値で返す。状態変化のイベントとコマンドの応答は別経路で届くため、
+/// 呼び出し側が応答の直後に状態を読むと、まだ古い値が入っている。
+#[tauri::command]
+pub fn mcp_retry(app: AppHandle) -> Result<McpStatus, String> {
+    if !can_retry(&mcp_status(app.state::<McpRuntime>())) {
+        return Err("MCP サーバーは起動処理中か、すでに動いています".to_string());
+    }
+    set_status(&app, McpStatus::starting());
+    start(&app);
+    Ok(mcp_status(app.state::<McpRuntime>()))
 }
 
 /// 設定ファイルと、必要なら除外指定を書く。書いた設定ファイルのパスを返す。
