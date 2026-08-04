@@ -1,7 +1,8 @@
-import type {
-  Invoice,
-  InvoiceItem,
-  InvoiceTaxBucket,
+import {
+  invoiceDocumentLabels,
+  type Invoice,
+  type InvoiceItem,
+  type InvoiceTaxBucket,
 } from '@md-business/schema-invoice';
 import { escapeHtml } from './escape.js';
 import { formatJpy, formatNumber, formatDateIso } from './format.js';
@@ -221,16 +222,29 @@ function renderStampForInvoice(invoice: Invoice) {
 
 export function renderInvoiceBody(invoice: Invoice, options: RenderInvoiceBodyOptions = {}): string {
   const { signatureArea = false, minItemRows = DEFAULT_MIN_ITEM_ROWS } = options;
+  const labels = invoiceDocumentLabels(invoice);
   const emptyRowCount = Math.max(0, minItemRows - invoice.items.length);
   const itemsMarkup =
     invoice.items.map(renderItemRow).join('') +
     Array.from({ length: emptyRowCount }, renderEmptyItemRow).join('');
   const dueLine = invoice.dueDate
-    ? `<dt>支払期限</dt><dd>${escapeHtml(formatDateIso(invoice.dueDate))}</dd>`
+    ? `<dt>${escapeHtml(labels.dueLabel)}</dt><dd>${escapeHtml(formatDateIso(invoice.dueDate))}</dd>`
     : '';
   const notes = invoice.notes
     ? `<section class="mdb-invoice__notes">${escapeHtml(invoice.notes)}</section>`
     : '';
+  // 但し書き・収入印紙欄は領収書だけ。金額の直下に「但し ◯◯として」を刷るのが
+  // 日本の領収書の慣習で、請求書・見積書には出さない。
+  const subjectLine =
+    labels.receiptFields && invoice.subject
+      ? `\n          <div class="subject">但し ${escapeHtml(invoice.subject)}</div>`
+      : '';
+  // 電子交付の領収書に印紙税はかからないため既定は出さない（既定で出すと不要な
+  // 収入印紙の貼付を促してしまう）。紙で手交する場合だけ著者が明示する。
+  const revenueStamp =
+    labels.receiptFields && invoice.revenueStamp === true
+      ? `\n      <section class="mdb-invoice__revenue-stamp"><span>収入印紙</span></section>\n`
+      : '';
   const stamp = renderStampForInvoice(invoice);
   const logoUrl = sanitizeLogoUrl(invoice.logo);
   // Stamp is overlaid on the 発行元 party box (top-right corner) — the
@@ -254,27 +268,33 @@ export function renderInvoiceBody(invoice: Invoice, options: RenderInvoiceBodyOp
   // ない」ケースが多いため出力しない（経過措置案内のみで法的情報は伝わる）。
   const isTaxExempt = invoice.issuer.taxExemptIssuer === true;
   const taxExemptAttr = isTaxExempt ? ' data-tax-exempt="true"' : '';
-  const transitionNotice = isTaxExempt
-    ? `<section class="mdb-invoice__transition-notice">本請求書は適格請求書発行事業者以外が発行したものです。インボイス制度の経過措置（2023年10月〜2029年9月）の範囲で仕入税額控除を行ってください。</section>`
+  // 見積書は仕入税額控除の証憑にならないので、経過措置の案内をする場面がない。
+  const transitionNotice = isTaxExempt && labels.taxNotice
+    ? `<section class="mdb-invoice__transition-notice">本${escapeHtml(labels.title)}は適格請求書発行事業者以外が発行したものです。インボイス制度の経過措置（2023年10月〜2029年9月）の範囲で仕入税額控除を行ってください。</section>`
     : '';
 
+  // 既定（請求書）では属性を出さない。種別を書いていない既存ファイルの出力を
+  // 1 文字も変えないため。CSS からは `:not([data-document-type])` で拾える。
+  const documentTypeAttr =
+    labels.title === '請求書' ? '' : ` data-document-type="${escapeHtml(labels.title)}"`;
+
   return `
-    <article class="mdb-invoice" data-schema-version="${escapeHtml(invoice.schemaVersion)}"${taxExemptAttr}${themeStyle}>
+    <article class="mdb-invoice" data-schema-version="${escapeHtml(invoice.schemaVersion)}"${documentTypeAttr}${taxExemptAttr}${themeStyle}>
       <header class="mdb-invoice__header">
         <div>
-          <h1 class="mdb-invoice__title">請求書</h1>
+          <h1 class="mdb-invoice__title">${escapeHtml(labels.title)}</h1>
         </div>
         <div class="mdb-invoice__meta">
           <dl>
-            <dt>請求書番号</dt><dd>${escapeHtml(invoice.invoiceNumber)}</dd>
-            <dt>発行日</dt><dd>${escapeHtml(formatDateIso(invoice.issueDate))}</dd>
+            <dt>${escapeHtml(labels.numberLabel)}</dt><dd>${escapeHtml(invoice.invoiceNumber)}</dd>
+            <dt>${escapeHtml(labels.dateLabel)}</dt><dd>${escapeHtml(formatDateIso(invoice.issueDate))}</dd>
             ${dueLine}
           </dl>
         </div>
       </header>
 
       <section class="mdb-invoice__parties">
-        ${renderParty('請求先', invoice.recipient)}
+        ${renderParty(labels.recipientLabel, invoice.recipient)}
         ${renderParty('発行元', { ...invoice.issuer }, issuerExtras)}
       </section>
 
@@ -309,12 +329,12 @@ export function renderInvoiceBody(invoice: Invoice, options: RenderInvoiceBodyOp
           </table>
         </div>
         <div class="mdb-invoice__grand-total">
-          <div class="label">ご請求金額（税込）</div>
-          <div class="amount">${formatJpy(invoice.totals.total)}</div>
+          <div class="label">${escapeHtml(labels.totalLabel)}</div>
+          <div class="amount">${formatJpy(invoice.totals.total)}</div>${subjectLine}
         </div>
       </section>
 
-      ${renderPayment(invoice)}
+      ${revenueStamp}${renderPayment(invoice)}
       ${transitionNotice}
       ${notes}
       ${fallbackSignature}

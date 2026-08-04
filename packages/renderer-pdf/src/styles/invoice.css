@@ -226,6 +226,28 @@ body {
   padding-bottom: 1mm;
 }
 
+/* 領収書の但し書き。金額の直下に置き、金額より小さく落ち着いた色にする。 */
+.mdb-invoice__grand-total .subject {
+  margin-top: 1.5mm;
+  font-size: 9.5pt;
+  color: var(--mdb-color-muted);
+}
+
+/* 収入印紙欄。実際の印紙は 30mm 角前後なので、貼れる大きさの枠を確保する。
+   印紙が不要な電子交付ではそもそもこのブロックを出力しない。 */
+.mdb-invoice__revenue-stamp {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30mm;
+  height: 30mm;
+  margin: 0 0 4mm auto;
+  border: 1px solid var(--mdb-color-border);
+  font-size: 8pt;
+  color: var(--mdb-color-muted);
+  letter-spacing: 0.08em;
+}
+
 /* Payment block is compact by design: a 3-item invoice should still fit on
    a single A4 sheet alongside header / parties / items / tax-summary / notes.
    Smaller type + tighter padding keeps the section under ~20mm tall. */

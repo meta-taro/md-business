@@ -1,4 +1,4 @@
-import type { Invoice } from '@md-business/schema-invoice';
+import { invoiceDocumentLabels, type Invoice } from '@md-business/schema-invoice';
 import { escapeHtml } from './escape.js';
 import { renderInvoiceBody, type RenderInvoiceBodyOptions } from './template.js';
 
@@ -7,7 +7,7 @@ export interface RenderInvoiceHtmlOptions extends RenderInvoiceBodyOptions {
   embedStyles?: string;
   /** External stylesheet href to <link rel="stylesheet">. */
   stylesHref?: string;
-  /** Document title (defaults to "請求書 <invoiceNumber>"). */
+  /** Document title (defaults to "<種別> <invoiceNumber>", e.g. "請求書 INV-001"). */
   documentTitle?: string;
   /** Page language attribute (defaults to "ja"). */
   lang?: string;
@@ -15,7 +15,8 @@ export interface RenderInvoiceHtmlOptions extends RenderInvoiceBodyOptions {
 
 export function renderInvoiceHtml(invoice: Invoice, options: RenderInvoiceHtmlOptions = {}): string {
   const lang = options.lang ?? 'ja';
-  const title = options.documentTitle ?? `請求書 ${invoice.invoiceNumber}`;
+  const title =
+    options.documentTitle ?? `${invoiceDocumentLabels(invoice).title} ${invoice.invoiceNumber}`;
   const styleTag = options.embedStyles
     ? `<style>${options.embedStyles}</style>`
     : '';
