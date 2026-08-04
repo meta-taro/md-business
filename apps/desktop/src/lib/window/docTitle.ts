@@ -4,7 +4,7 @@
  * 文書種別が判るときは frontmatter / TSV メタから「意味のある名前」を組み、
  * 該当しなければファイル名（相対パス末尾）にフォールバックする。
  *
- *   請求書  → 御請求書_{請求先}{敬称}_{発行元}_{YMD}
+ *   請求書 / 見積書 / 領収書 → 御請求書_{請求先}{敬称}_{発行元}_{YMD}（表題は種別に追随）
  *   タイトル付き文書（test-spec / spec 等） → その タイトル / title
  *   TSV 検証シート → メタ タイトル
  *
@@ -12,6 +12,7 @@
  * 渡して呼ぶ。パース失敗（壊れた YAML 等）は throw させずファイル名へ退避する。
  */
 import { splitFrontmatter } from '@md-business/core';
+import { invoiceDocumentLabels, DOCUMENT_TYPE_TRANSLATIONS } from '@md-business/schema-invoice';
 import { parseTsv } from '@md-business/schema-test-spec-tsv';
 import { isTsvSource } from '../tsv/detect';
 
@@ -58,7 +59,17 @@ function schemaId(data: Record<string, unknown>): string | null {
   return raw.split('/')[0] ?? null;
 }
 
-/** 御請求書_{請求先}{敬称}_{発行元}_{YMD}。名前が全く取れなければ null（→ファイル名）。 */
+/**
+ * 種別（未指定は請求書）を正規化して返す。ここはタイトル表示なので、未知の値は
+ * そのまま渡して請求書扱いに落とす（弾くのは検証の仕事で、表示は止めない）。
+ */
+function documentType(data: Record<string, unknown>): string | undefined {
+  const raw = firstString(data['種別'], data['documentType'], data['文書種別']);
+  if (raw === null) return undefined;
+  return DOCUMENT_TYPE_TRANSLATIONS[raw] ?? raw;
+}
+
+/** {種別の丁寧形}_{請求先}{敬称}_{発行元}_{YMD}。名前が全く取れなければ null（→ファイル名）。 */
 function invoiceName(data: Record<string, unknown>): string | null {
   const recipient = asObject(data['recipient']) ?? asObject(data['請求先']) ?? asObject(data['宛先']);
   const issuer = asObject(data['issuer']) ?? asObject(data['発行元']);
@@ -71,7 +82,7 @@ function invoiceName(data: Record<string, unknown>): string | null {
   // 請求先・発行元のどちらの名前も取れないなら「意味のある名前」に至らないのでフォールバック。
   if (recName === null && issName === null) return null;
 
-  const segments = ['御請求書'];
+  const segments = [invoiceDocumentLabels({ documentType: documentType(data) }).politeTitle];
   if (recName !== null) segments.push(`${recName}${honorific ?? ''}`);
   if (issName !== null) segments.push(issName);
   if (ymd !== null) segments.push(ymd);

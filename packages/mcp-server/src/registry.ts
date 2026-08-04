@@ -128,7 +128,9 @@ export interface SchemaEntry {
 export const SCHEMA_REGISTRY: readonly SchemaEntry[] = [
   {
     id: INVOICE_ID,
-    label: '適格請求書',
+    // 1 スキーマで 3 文書を扱う（`種別` で切り替え）。ラベルにも出さないと、
+    // エージェントが見積書・領収書を作れることに気づけない。
+    label: '請求書 / 見積書 / 領収書',
     validate: validateInvoice,
     schema: invoiceSchema,
     schemaKey: 'schemaVersion',

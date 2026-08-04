@@ -1,13 +1,17 @@
 /**
- * 適格請求書プレビュー provider。
+ * 請求書 / 見積書 / 領収書プレビュー provider。
  *
  * 他の設計書スキーマと違い identity キーは `schemaVersion`（invoice/v1）で、
  * documentTitle も請求書番号ベース。autofillInvoice が taxSummary / totals を
  * 常に出すため、それらの default 補完は不要。
+ *
+ * 3 文書は 1 スキーマ + `種別` で扱うため、見出し・タイトルだけ種別に追随させる
+ * （registry の静的 label は検出・一覧用なので請求書のまま）。
  */
 import {
   normalizeInvoiceFrontmatter,
   autofillInvoice,
+  invoiceDocumentLabels,
   translateInvoiceErrors,
   translateInvoiceWarnings,
   type Invoice,
@@ -40,7 +44,16 @@ export const invoiceProvider = createSchemaPreview<Invoice>({
   meta: {
     id: 'invoice',
     label: '請求書',
-    markers: ['invoiceNumber', '請求書番号', 'items', '品目', 'issuer', '発行元'],
+    markers: [
+      'invoiceNumber',
+      '請求書番号',
+      '見積書番号',
+      '領収書番号',
+      'items',
+      '品目',
+      'issuer',
+      '発行元',
+    ],
   },
   normalize: normalizeInvoiceFrontmatter,
   autofill: autofillInvoice,
@@ -48,7 +61,8 @@ export const invoiceProvider = createSchemaPreview<Invoice>({
   translateErrors: translateInvoiceErrors,
   translateWarnings: translateInvoiceWarnings,
   withPreviewDefaults,
-  documentTitle: (data) => `請求書 ${data.invoiceNumber}`,
+  documentTitle: (data) => `${invoiceDocumentLabels(data).title} ${data.invoiceNumber}`,
+  documentLabel: (data) => invoiceDocumentLabels(data).title,
   // データ駆動スキーマは frontmatter のみで描くため body は無視する。
   renderBody: (data) => renderInvoiceBody(data),
   // 画面プレビューだけ用紙が端に詰まって見えるため、@media screen で余白を足す。
