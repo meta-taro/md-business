@@ -1,5 +1,7 @@
 <script lang="ts">
+  import { openUrl } from '@tauri-apps/plugin-opener';
   import { updater } from './updater.svelte';
+  import { renderReleaseNotes, externalLinkHref } from './releaseNotes';
 
   // 更新フローのモーダル。updater コントローラの state / visible を購読し、状態ごとに
   // 「確認中 / 最新 / 更新あり（リリースノート）/ ダウンロード中（進捗バー）/ インストール中 /
@@ -9,8 +11,29 @@
   // ダウンロード / インストール中は誤って閉じられないよう、背景クリック・後で を無効化する。
   const busy = $derived(state.status === 'downloading' || state.status === 'installing');
 
+  // リリースノートは Markdown。素で出すと記号が本文に混ざるため HTML 化して描く。
+  const notesHtml = $derived(state.status === 'available' ? renderReleaseNotes(state.notes) : '');
+
   function onBackdrop(): void {
     if (!busy) updater.dismiss();
+  }
+
+  /**
+   * ノート内のリンクを既定のブラウザで開く。
+   *
+   * そのまま押させると webview 自体が遷移し、アプリの画面が消えて戻れなくなる。
+   */
+  function externalLinks(node: HTMLElement): { destroy(): void } {
+    const onClick = (event: MouseEvent): void => {
+      const href = externalLinkHref(event.target);
+      if (href === null) return;
+      event.preventDefault();
+      void openUrl(href).catch(() => undefined);
+    };
+    node.addEventListener('click', onClick);
+    return {
+      destroy: () => node.removeEventListener('click', onClick),
+    };
   }
 </script>
 
@@ -45,9 +68,10 @@
           <span class="badge new" aria-hidden="true">↑</span>
           <h2 class="title">新しいバージョン v{state.version} があります</h2>
         </div>
-        {#if state.notes.trim().length > 0}
+        {#if notesHtml.length > 0}
           <div class="notes-label">更新内容</div>
-          <div class="notes">{state.notes}</div>
+          <!-- 本文は sanitize 済み（renderReleaseNotes）。リンクだけ外部ブラウザへ逃がす。 -->
+          <div class="notes" use:externalLinks>{@html notesHtml}</div>
         {/if}
         <div class="actions">
           <button class="btn ghost" type="button" onclick={() => updater.dismiss()}>後で</button>
@@ -205,7 +229,7 @@
     color: var(--text-tertiary);
   }
 
-  /* リリースノート本文。改行を保ち、長文はスクロールさせる。 */
+  /* リリースノート本文（Markdown を HTML 化したもの）。長文はスクロールさせる。 */
   .notes {
     margin-top: var(--space-2);
     max-height: 220px;
@@ -217,8 +241,72 @@
     font-size: var(--text-sm-size);
     line-height: 1.6;
     color: var(--text-primary);
-    white-space: pre-wrap;
     word-break: break-word;
+  }
+
+  /* 差し込んだ HTML には :global が要る（コンポーネントのスコープが付かないため）。
+     ダイアログは狭いので、見出しも本文とほぼ同じ大きさに詰める。 */
+  .notes :global(> :first-child) {
+    margin-top: 0;
+  }
+
+  .notes :global(> :last-child) {
+    margin-bottom: 0;
+  }
+
+  .notes :global(p),
+  .notes :global(ul),
+  .notes :global(ol) {
+    margin: 0 0 var(--space-2);
+  }
+
+  .notes :global(h1),
+  .notes :global(h2),
+  .notes :global(h3),
+  .notes :global(h4) {
+    margin: var(--space-3) 0 var(--space-2);
+    font-size: 1em;
+    font-weight: 700;
+  }
+
+  .notes :global(ul),
+  .notes :global(ol) {
+    padding-left: 1.4em;
+  }
+
+  .notes :global(li + li) {
+    margin-top: 2px;
+  }
+
+  .notes :global(a) {
+    color: var(--accent);
+  }
+
+  .notes :global(code) {
+    padding: 0.1em 0.35em;
+    background: var(--bg-hover);
+    border-radius: var(--radius-sm, 4px);
+    font-size: 0.9em;
+  }
+
+  .notes :global(pre) {
+    margin: 0 0 var(--space-2);
+    padding: var(--space-2);
+    background: var(--bg-hover);
+    border-radius: var(--radius-md);
+    overflow-x: auto;
+  }
+
+  .notes :global(pre code) {
+    padding: 0;
+    background: none;
+  }
+
+  .notes :global(hr) {
+    height: 1px;
+    margin: var(--space-3) 0;
+    border: 0;
+    background: var(--border);
   }
 
   .progress {
