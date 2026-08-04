@@ -31,6 +31,42 @@ import { buildToolLogEntry, type ToolLogEntry, type ToolResultLike } from './too
 export const SERVER_NAME = 'md-business';
 export const SERVER_VERSION = '0.1.0';
 
+/**
+ * initialize で返す、このサーバーの使いどころ。
+ *
+ * ツール個別の description は「そのツールが何をするか」しか言えず、「素のファイル編集ではなく
+ * こちらを使う」は表明できない。AI クライアントは汎用の読み書き手段を常に持っており、そちらは
+ * 確実に動くので、この欄が空だと業務文書まで素のファイル編集で触られる。結果としてスキーマ検証も
+ * 画面反映も操作ログも素通りする（実運用で発生した）。ここはその唯一の伝達口なので、
+ * 「何をしないか」「代わりに何を呼ぶか」「なぜか」の 3 点を必ず含める。
+ *
+ * 長くすると読まれないため、入口のツールと守ってほしい一線だけに絞る。個々の使い方は
+ * ツールの description が持つ。
+ */
+export const SERVER_INSTRUCTIONS = `md-business は Markdown / TSV の業務文書（請求書・基本設計書・API 仕様書・DB 設計書・検証シート）を扱うワークスペースに接続されている。
+
+## このワークスペースの .md / .tsv は直接編集しない
+
+汎用のファイル読み書きでも書き換えられるが、そうすると次の 3 つが失われる。
+
+- **スキーマ検証**: 業務文書は JSON Schema に従う。素の編集では壊れたまま気づけない。
+- **画面反映**: 利用者はデスクトップアプリで同じファイルを開いている。ツール経由の書き込みだけが即座に画面へ出る。
+- **操作ログ**: AI が何を触ったかは MCP タブに残る。素の編集は記録されず、利用者から追えない。
+
+## どのツールを呼ぶか
+
+- 最初に **search_documents** でワークスペースにある文書を把握する。**list_schemas** で扱える種別が分かる。
+- Markdown を読むのは **read_document**、書くのは **create_document** / **update_document**。**validate_document** で検証だけもできる。
+- 新規作成の前に **get_schema** で必須項目と型を確認する。
+- 検証シート（\`.tsv\`）は **read_tsv** で読み、**update_tsv_row** / **append_tsv_row** で **行単位**に触る。
+  全文を書き直すと「1 レコード = 1 物理行」が崩れ、差分が読めなくなる。
+- 変更を確認して記録するのは **git_status** / **git_diff** / **git_commit**（利用可能な場合）。
+
+## 書式の約束
+
+- 表のセル・YAML のデータ値の未入力は **空のまま**にする。\`—\` \`N/A\` \`TBD\` などで埋めない。
+- スキーマ宣言（frontmatter の \`schema\` / TSV 1 行目の \`#!\` 行）は書き換えない。`;
+
 /** createServer の任意設定。ツール実行のたびに操作ログを受け取れるようにする。 */
 export interface CreateServerOptions {
   /** ツール実行 1 件ごとに呼ばれる（HTTP モードでは stdout へ、UI では emit へ流す）。 */
@@ -65,7 +101,10 @@ const frontmatterShape = z.record(z.string(), z.unknown());
  *（テストは InMemoryTransport、本番は StdioServerTransport）。
  */
 export function createServer(store: DocumentStore, options: CreateServerOptions = {}): McpServer {
-  const server = new McpServer({ name: SERVER_NAME, version: SERVER_VERSION });
+  const server = new McpServer(
+    { name: SERVER_NAME, version: SERVER_VERSION },
+    { instructions: SERVER_INSTRUCTIONS },
+  );
   const { onLog, now = () => Date.now(), git, app } = options;
 
   // ツール実行の直後に 1 件ログを流す。onLog 未指定なら完全に no-op（既存の挙動不変）。
