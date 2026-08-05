@@ -44,6 +44,23 @@ describe('loadGridDoc', () => {
     ]);
   });
 
+  it('控えを表示する指定なら外さずに全行を出す', () => {
+    // 戻す操作の導線。控えも普通の行として出し、預かり分は空になる。
+    const { doc, hidden } = loadGridDoc(withHidden, { reveal: true });
+
+    expect(doc.rows.map((cells) => cells[0])).toEqual([
+      'ログイン（改訂）',
+      'ログイン（初版）',
+      'ログアウト',
+    ]);
+    expect(hidden).toEqual([]);
+  });
+
+  it('控えを表示していても宣言は残す', () => {
+    // 消えると、表示のまま保存した時点で控えが普通の行に戻ってしまう。
+    expect(loadGridDoc(withHidden, { reveal: true }).doc.directives).toContain(`hidden ${B}`);
+  });
+
   it('控えのないシートは全行を出す', () => {
     const source = [
       '#! md-business:test-spec-tsv/v1',
@@ -87,6 +104,12 @@ describe('saveGridDoc', () => {
     const { doc, hidden } = loadGridDoc(source);
 
     expect(saveGridDoc(doc, hidden, source)).toBe(source);
+  });
+
+  it('控えを表示したまま保存しても元のまま', () => {
+    const { doc, hidden } = loadGridDoc(withHidden, { reveal: true });
+
+    expect(saveGridDoc(doc, hidden, withHidden)).toBe(withHidden);
   });
 
   it('ID 列を持たないシートは保存時に ID 列が付く', () => {

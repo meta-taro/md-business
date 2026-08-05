@@ -66,6 +66,7 @@
     const next = untrack(() => workspace.source);
     debouncedSource = next;
     gridHistory = initHistory(next);
+    revealHidden = false;
   });
 
   // 編集（source 変化）と設定変更を受けて、デバウンス保存を予約する。実際の発火可否は
@@ -250,8 +251,11 @@
   // 先頭マジック行で判定し、TSV なら表として見せる分だけをグリッドへ渡す。
   // 行 ID 列と控え行（`#@ hidden`）は読み込みで外し、保存で戻す（gridDoc）。
   // ID を持たない既存ファイルはここで採番され、保存した時点でファイルへ焼かれる。
+  // 控えを表に出しているか。戻す操作のための一時的な見せ方なので、ファイルには残さず
+  // 開き直しで既定（外す）へ戻す。
+  let revealHidden = $state(false);
   const isTsv = $derived(isTsvSource(debouncedSource));
-  const tsvGrid = $derived(isTsv ? loadGridDoc(debouncedSource) : null);
+  const tsvGrid = $derived(isTsv ? loadGridDoc(debouncedSource, { reveal: revealHidden }) : null);
   const tsvDoc = $derived(tsvGrid?.doc ?? null);
 
   // グリッド編集 → 正本ソースへ書き戻し、エディターと即同期する。
@@ -474,6 +478,8 @@
           onChange={handleGridChange}
           onUndo={handleGridUndo}
           onRedo={handleGridRedo}
+          reveal={revealHidden}
+          onToggleReveal={() => (revealHidden = !revealHidden)}
         />
       </div>
     {:else}

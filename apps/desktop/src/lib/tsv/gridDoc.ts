@@ -29,9 +29,20 @@ export interface GridDoc {
   hidden: HiddenRow[];
 }
 
+/** 読み込みの指定。 */
+export interface LoadGridDocOptions {
+  /**
+   * 控え行も表に出す。控えから戻す操作の導線で、外す処理を止めるだけ。
+   *
+   * 出しても宣言（`#@ hidden`）はそのまま残るので、表示したまま保存しても控えは控えのまま。
+   */
+  reveal?: boolean;
+}
+
 /** 検証シートのテキストをグリッドの表と控え行に分ける。 */
-export function loadGridDoc(source: string): GridDoc {
-  return splitHiddenRows(withRowIds(parseTsv(source)));
+export function loadGridDoc(source: string, options: LoadGridDocOptions = {}): GridDoc {
+  const doc = withRowIds(parseTsv(source));
+  return options.reveal === true ? { doc, hidden: [] } : splitHiddenRows(doc);
 }
 
 /**
