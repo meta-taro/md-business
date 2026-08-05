@@ -25,8 +25,13 @@ export const INVOICE_JA_DICTIONARY: Dictionary = {
   root: {
     スキーマ: 'schemaVersion',
     schemaVersion: 'schemaVersion',
+    種別: 'documentType',
+    documentType: 'documentType',
+    文書種別: 'documentType',
     請求書番号: 'invoiceNumber',
     invoiceNumber: 'invoiceNumber',
+    見積書番号: 'invoiceNumber',
+    領収書番号: 'invoiceNumber',
     番号: 'invoiceNumber',
     発行日: 'issueDate',
     issueDate: 'issueDate',
@@ -36,6 +41,14 @@ export const INVOICE_JA_DICTIONARY: Dictionary = {
     dueDate: 'dueDate',
     支払い期限: 'dueDate',
     お支払期限: 'dueDate',
+    有効期限: 'dueDate',
+    見積有効期限: 'dueDate',
+    但し書き: 'subject',
+    subject: 'subject',
+    但し: 'subject',
+    収入印紙: 'revenueStamp',
+    revenueStamp: 'revenueStamp',
+    印紙: 'revenueStamp',
     発行元: 'issuer',
     issuer: 'issuer',
     請求元: 'issuer',
@@ -174,6 +187,23 @@ export const INVOICE_JA_DICTIONARY: Dictionary = {
     tax: 'tax',
     税額: 'tax',
   },
+};
+
+/**
+ * Translate document-type values. The canonical values are Japanese (like
+ * `accountType`), so this map only folds in English aliases.
+ */
+export const DOCUMENT_TYPE_TRANSLATIONS: Record<string, string> = {
+  請求書: '請求書',
+  invoice: '請求書',
+  見積書: '見積書',
+  見積: '見積書',
+  quote: '見積書',
+  quotation: '見積書',
+  estimate: '見積書',
+  領収書: '領収書',
+  領収証: '領収書',
+  receipt: '領収書',
 };
 
 /**

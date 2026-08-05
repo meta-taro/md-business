@@ -1,10 +1,29 @@
-# Invoice Schema v1 — 適格請求書
+# Invoice Schema v1 — 請求書 / 見積書 / 領収書
 
 `schemaVersion: invoice/v1` で識別される、日本のインボイス制度（適格請求書等保存方式・2023-10-01 施行）対応スキーマ仕様。
+請求書・見積書・領収書の 3 文書を 1 スキーマで扱い、`documentType`（和名 `種別`）で切り替える。
 
 - JSON Schema: [`packages/schema-invoice/src/invoice.schema.json`](../../packages/schema-invoice/src/invoice.schema.json)
 - TypeScript 型: [`packages/schema-invoice/src/types.ts`](../../packages/schema-invoice/src/types.ts)
-- サンプル: [`templates/invoice/standard.md`](../../templates/invoice/standard.md) / [`templates/invoice/inbound-eligible.md`](../../templates/invoice/inbound-eligible.md)
+- サンプル: [`templates/invoice/standard.md`](../../templates/invoice/standard.md) / [`templates/invoice/inbound-eligible.md`](../../templates/invoice/inbound-eligible.md) / [`templates/invoice/quote-ja.md`](../../templates/invoice/quote-ja.md) / [`templates/invoice/receipt-ja.md`](../../templates/invoice/receipt-ja.md)
+
+## 文書種別（`documentType` / `種別`）
+
+省略時は請求書。3 文書は発行元・宛先・品目・税率別小計・合計・印影・テーマ・ロゴ・ファイル名がすべて同じで、
+違うのは表題といくつかのラベル、それに領収書固有の 但し書き / 収入印紙欄だけ。
+スキーマを分けると税計算・和英辞書・エラー和訳・PDF テンプレを 3 重に持つことになるため、1 スキーマにまとめている。
+
+| `種別` | 表題 | 番号の見出し | 日付の見出し | `dueDate` の見出し | 宛先の見出し | 合計の見出し |
+|---|---|---|---|---|---|---|
+| （省略） / `請求書` | 請求書 | 請求書番号 | 発行日 | 支払期限 | 請求先 | ご請求金額（税込） |
+| `見積書` | 見積書 | 見積書番号 | 発行日 | 有効期限 | 宛先 | お見積金額（税込） |
+| `領収書` | 領収書 | 領収書番号 | 領収日 | 支払期限 | 宛先 | 領収金額（税込） |
+
+- 番号は種別によらず `invoiceNumber` に書く。和名は `請求書番号` / `見積書番号` / `領収書番号` のどれでも受ける。
+- 免税事業者の経過措置注記は請求書・領収書にのみ出る。見積書は仕入税額控除の証憑にならないため出さない。
+- `subject`（`但し書き`）と `revenueStamp`（`収入印紙`）は領収書でのみ描画する。他の種別に書いても無視する。
+- 収入印紙欄は既定で出さない。電子交付の領収書に印紙税はかからないため、紙で手交するときだけ `収入印紙: true` を書く。
+- ファイル名テンプレート未指定時の既定接頭辞も種別に追随する（`請求書_` / `見積書_` / `領収書_`）。
 
 ## 適格請求書 7 必須項目 → スキーマフィールド対応
 
@@ -23,9 +42,12 @@
 | フィールド | 必須 | 型 | 説明 |
 |---|---|---|---|
 | `schemaVersion` | ✅ | `"invoice/v1"` | スキーマバージョン識別子 |
-| `invoiceNumber` | ✅ | string | 請求書番号（発行者定義の識別子） |
-| `issueDate` | ✅ | string (date) | 取引年月日／発行日 |
-| `dueDate` | | string (date) | 支払期限 |
+| `documentType` | | `"請求書" \| "見積書" \| "領収書"` | 文書種別（省略時は請求書） |
+| `invoiceNumber` | ✅ | string | 文書番号（発行者定義の識別子） |
+| `issueDate` | ✅ | string (date) | 取引年月日／発行日（領収書は領収日） |
+| `dueDate` | | string (date) | 支払期限（見積書は有効期限） |
+| `subject` | | string | 但し書き（領収書のみ。「但し ◯◯として」と刷る） |
+| `revenueStamp` | | boolean | 収入印紙欄を出すか（領収書のみ・既定 false） |
 | `issuer` | ✅ | object | 発行者情報 |
 | `recipient` | ✅ | object | 受領者情報 |
 | `items` | ✅ | array (minItems: 1) | 明細 |

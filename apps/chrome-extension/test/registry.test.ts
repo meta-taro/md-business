@@ -92,8 +92,28 @@ describe('invoicePlugin.detect', () => {
     expect(invoicePlugin.detect?.({ items: [] })).toBe(true);
   });
 
+  it('claims quotes and receipts written with their own number key', () => {
+    // 和名辞書が invoiceNumber の別名として受けるので、検出側も揃える。
+    expect(invoicePlugin.detect?.({ 見積書番号: 'EST-1' })).toBe(true);
+    expect(invoicePlugin.detect?.({ 領収書番号: 'RCP-1' })).toBe(true);
+  });
+
   it('does not claim unrelated documents', () => {
     expect(invoicePlugin.detect?.({ title: 'just a note' })).toBe(false);
+  });
+});
+
+describe('invoicePlugin.documentTitle', () => {
+  const doc = (documentType?: string) =>
+    ({ invoiceNumber: 'X-1', ...(documentType ? { documentType } : {}) }) as never;
+
+  it('種別を書いていない文書は従来どおり 請求書', () => {
+    expect(invoicePlugin.documentTitle?.(doc())).toBe('請求書 X-1');
+  });
+
+  it('種別に追随する', () => {
+    expect(invoicePlugin.documentTitle?.(doc('見積書'))).toBe('見積書 X-1');
+    expect(invoicePlugin.documentTitle?.(doc('領収書'))).toBe('領収書 X-1');
   });
 });
 

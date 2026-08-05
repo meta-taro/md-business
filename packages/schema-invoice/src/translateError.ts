@@ -17,9 +17,12 @@ import type { ValidationError } from '@md-business/core';
 // the index is substituted as `N+1` at lookup time (1-origin display).
 const INVOICE_FIELD_LABELS: Record<string, string> = {
   '/schemaVersion': 'スキーマバージョン',
+  '/documentType': '種別',
   '/invoiceNumber': '請求書番号',
   '/issueDate': '発行日',
   '/dueDate': '支払期限',
+  '/subject': '但し書き',
+  '/revenueStamp': '収入印紙欄',
   '/issuer': '発行元',
   '/issuer/name': '発行元の名前',
   '/issuer/registrationNumber': '発行元の登録番号',
@@ -89,6 +92,7 @@ const FORMAT_HINTS: Record<string, string> = {
 
 // Enum constraints — surface the allowed values to make the message actionable.
 const ALLOWED_VALUES: Record<string, string> = {
+  '/documentType': '請求書 / 見積書 / 領収書',
   '/items/N/taxRate': '10 / 8 / 0',
   '/taxSummary/standard/rate': '10',
   '/taxSummary/reduced/rate': '8',

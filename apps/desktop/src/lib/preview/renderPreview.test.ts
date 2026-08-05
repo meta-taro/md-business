@@ -8,6 +8,8 @@ import { renderPreview } from './renderPreview';
 // 正本テンプレ（複製せず単一ソース）。valid な完成文書として errors=0 を検証する。
 import apiSpecTemplate from '../../../../../templates/api-spec/standard-ja.md?raw';
 import invoiceTemplate from '../../../../../templates/invoice/standard-ja.md?raw';
+import quoteTemplate from '../../../../../templates/invoice/quote-ja.md?raw';
+import receiptTemplate from '../../../../../templates/invoice/receipt-ja.md?raw';
 
 describe('renderPreview（オーケストレーター）', () => {
   it('api-spec 正本テンプレを描画し errors 0（label=API 設計書）', () => {
@@ -27,6 +29,37 @@ describe('renderPreview（オーケストレーター）', () => {
     expect(r.label).toBe('請求書');
     expect(r.errors).toEqual([]);
     expect(r.documentTitle).toContain('請求書');
+  });
+
+  it('見積書テンプレは同じ provider で描き、見出し・タイトルが 見積書 になる', () => {
+    const r = renderPreview(quoteTemplate);
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.label).toBe('見積書');
+    expect(r.errors).toEqual([]);
+    expect(r.documentTitle).toBe('見積書 EST-2026-0042');
+  });
+
+  it('領収書テンプレは同じ provider で描き、見出し・タイトルが 領収書 になる', () => {
+    const r = renderPreview(receiptTemplate);
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.label).toBe('領収書');
+    expect(r.errors).toEqual([]);
+    expect(r.documentTitle).toBe('領収書 RCP-2026-0042');
+  });
+
+  it('見積書番号 / 領収書番号 だけでも invoice provider に振り分ける', () => {
+    // 和名辞書がこれらを invoiceNumber の別名として受けるので、検出側も揃える。
+    for (const [key, label] of [
+      ['見積書番号', '見積書'],
+      ['領収書番号', '領収書'],
+    ]) {
+      const r = renderPreview(`---\n種別: ${label}\n${key}: X-1\n---\n`);
+      expect(r.ok).toBe(true);
+      if (!r.ok) return;
+      expect(r.label).toBe(label);
+    }
   });
 
   it('db-spec を schema prefix で振り分ける（tables マーカー）', () => {

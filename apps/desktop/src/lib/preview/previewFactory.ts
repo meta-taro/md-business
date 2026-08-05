@@ -48,6 +48,13 @@ export interface SchemaPreviewConfig<T> {
   withPreviewDefaults: (data: Record<string, unknown>) => T;
   documentTitle: (data: T) => string;
   /**
+   * ペイン見出しに出す表示名を文書ごとに上書きする（省略時は `meta.label`）。
+   * invoice のように 1 スキーマで複数の文書種別（請求書 / 見積書 / 領収書）を
+   * 扱う場合、見出しがスキーマ名のままだと開いている文書と食い違うため。
+   * registry 側の静的な `meta.label` は検出・一覧用なのでそのまま残す。
+   */
+  documentLabel?: (data: T) => string;
+  /**
    * body 断片を生成する。第 2 引数 `body` は Markdown 本文（frontmatter 除去済み）。
    * prose スキーマ（spec / test-spec）はこれを HTML 化・sanitize して本文に描く。
    * データ駆動スキーマは frontmatter のみで描くため body を無視する（`(data) => …`
@@ -126,6 +133,7 @@ export function createSchemaPreview<T>(config: SchemaPreviewConfig<T>): PreviewP
 
       const safe = config.withPreviewDefaults(autofilled.data);
       const documentTitle = config.documentTitle(safe);
+      const label = config.documentLabel?.(safe) ?? meta.label;
 
       let bodyHtml: string;
       try {
@@ -135,7 +143,7 @@ export function createSchemaPreview<T>(config: SchemaPreviewConfig<T>): PreviewP
           ok: true,
           srcdoc: buildPreviewDocument({ bodyHtml: '', css: config.css, title: documentTitle, theme }),
           documentTitle,
-          label: meta.label,
+          label,
           warnings,
           errors,
           fatal: `プレビューを描画できませんでした: ${messageOf(error)}`,
@@ -146,7 +154,7 @@ export function createSchemaPreview<T>(config: SchemaPreviewConfig<T>): PreviewP
         ok: true,
         srcdoc: buildPreviewDocument({ bodyHtml, css: config.css, title: documentTitle, theme }),
         documentTitle,
-        label: meta.label,
+        label,
         warnings,
         errors,
       };

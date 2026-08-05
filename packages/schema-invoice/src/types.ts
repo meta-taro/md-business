@@ -1,3 +1,5 @@
+import type { InvoiceDocumentType } from './documentType.js';
+
 export type TaxRate = 0 | 8 | 10;
 export type AccountType = '普通' | '当座' | '貯蓄';
 
@@ -73,9 +75,24 @@ export interface InvoiceStamp {
 
 export interface Invoice {
   schemaVersion: 'invoice/v1';
+  /**
+   * 文書種別。省略時は請求書。
+   * 3 文書は構造が同じで表記だけが違うため、スキーマを分けず種別で持つ。
+   */
+  documentType?: InvoiceDocumentType;
   invoiceNumber: string;
   issueDate: string;
   dueDate?: string;
+  /**
+   * 但し書き（領収書）。「但し」に続けて表示するため、値には用途だけを書く
+   * （例: `システム開発費用として`）。
+   */
+  subject?: string;
+  /**
+   * 収入印紙欄を出すか（領収書・既定は出さない）。
+   * 電子交付の領収書に印紙税はかからないので、紙で渡す発行元だけが立てる。
+   */
+  revenueStamp?: boolean;
   issuer: InvoiceIssuer;
   recipient: InvoiceRecipient;
   items: InvoiceItem[];

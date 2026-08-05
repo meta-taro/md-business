@@ -4,6 +4,7 @@ import {
   TAX_ROUNDING_TRANSLATIONS,
   ACCOUNT_TYPE_TRANSLATIONS,
   THEME_VALUE_TRANSLATIONS,
+  DOCUMENT_TYPE_TRANSLATIONS,
   type DictionaryScope,
 } from './dictionary.ja.js';
 
@@ -89,6 +90,11 @@ function translateLeaf(
   warnings: NormalizeWarning[],
   depth: number,
 ): unknown {
+  if (key === 'documentType' && typeof value === 'string') {
+    // 未知の値はそのまま通す。スキーマの enum が弾いて、どの値が駄目だったかを
+    // 著者に見せる（ここで請求書へ倒すと、誤字が黙って請求書として発行される）。
+    return DOCUMENT_TYPE_TRANSLATIONS[value.trim()] ?? value.trim();
+  }
   if (key === 'taxRounding' && typeof value === 'string') {
     return TAX_ROUNDING_TRANSLATIONS[value] ?? value;
   }

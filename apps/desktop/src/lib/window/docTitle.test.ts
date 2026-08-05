@@ -61,6 +61,64 @@ describe('documentDisplayName', () => {
     expect(documentDisplayName(src, FALLBACK)).toBe(FALLBACK);
   });
 
+  it('invoice: 種別: 見積書 は 御見積書_ で組む', () => {
+    const src = [
+      '---',
+      'スキーマ: invoice/v1',
+      '種別: 見積書',
+      '発行日: "2026-06-30"',
+      '発行元:',
+      '  名前: 発行元商事',
+      '請求先:',
+      '  名前: 得意先小売',
+      '  敬称: 御中',
+      '---',
+    ].join('\n');
+    expect(documentDisplayName(src, FALLBACK)).toBe('御見積書_得意先小売御中_発行元商事_20260630');
+  });
+
+  it('invoice: 種別: 領収書 は 領収書_ で組む（「御領収書」とは言わない）', () => {
+    const src = [
+      '---',
+      'スキーマ: invoice/v1',
+      '種別: 領収書',
+      '発行元:',
+      '  名前: 発行元商事',
+      '請求先:',
+      '  名前: 得意先小売',
+      '---',
+    ].join('\n');
+    expect(documentDisplayName(src, FALLBACK)).toBe('領収書_得意先小売_発行元商事');
+  });
+
+  it('invoice: 英語表記の種別（quote）も受ける', () => {
+    const src = [
+      '---',
+      'schemaVersion: invoice/v1',
+      'documentType: quote',
+      'issuer:',
+      '  name: 発行元商事',
+      'recipient:',
+      '  name: 得意先小売',
+      '---',
+    ].join('\n');
+    expect(documentDisplayName(src, FALLBACK)).toBe('御見積書_得意先小売_発行元商事');
+  });
+
+  it('invoice: 未知の種別は請求書として組む（表示は検証エラーの邪魔をしない）', () => {
+    const src = [
+      '---',
+      'スキーマ: invoice/v1',
+      '種別: 納品書',
+      '発行元:',
+      '  名前: 発行元商事',
+      '請求先:',
+      '  名前: 得意先小売',
+      '---',
+    ].join('\n');
+    expect(documentDisplayName(src, FALLBACK)).toBe('御請求書_得意先小売_発行元商事');
+  });
+
   it('invoice: 日本語キー（発行元 / 敬称 / 発行日）でも組める', () => {
     const src = [
       '---',

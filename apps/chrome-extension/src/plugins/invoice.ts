@@ -3,6 +3,7 @@ import {
   normalizeInvoiceFrontmatter,
   autofillInvoice,
   renderInvoiceFileName,
+  invoiceDocumentLabels,
   translateInvoiceErrors,
   translateInvoiceWarnings,
   type Invoice,
@@ -40,13 +41,22 @@ function withPreviewDefaults(data: Record<string, unknown>): Invoice {
 
 export const invoicePlugin: SchemaPlugin<Invoice> = {
   id: 'invoice',
-  label: '請求書（適格 / 免税対応）',
+  label: '請求書 / 見積書 / 領収書（適格 / 免税対応）',
   schema: invoiceSchema,
   stylesHref: 'styles/invoice.css',
   detect(frontmatter) {
     // Marker keys unique to invoice frontmatter — both English and the
     // Japanese aliases that normalize would translate. Any one is enough.
-    const markers = ['invoiceNumber', '請求書番号', 'items', '品目', 'issuer', '発行元'];
+    const markers = [
+      'invoiceNumber',
+      '請求書番号',
+      '見積書番号',
+      '領収書番号',
+      'items',
+      '品目',
+      'issuer',
+      '発行元',
+    ];
     return markers.some((k) => k in frontmatter);
   },
   validate(frontmatter) {
@@ -99,7 +109,7 @@ export const invoicePlugin: SchemaPlugin<Invoice> = {
     }
   },
   documentTitle(frontmatter) {
-    return `請求書 ${frontmatter.invoiceNumber}`;
+    return `${invoiceDocumentLabels(frontmatter).title} ${frontmatter.invoiceNumber}`;
   },
   pdfFileName(frontmatter) {
     return renderInvoiceFileName(frontmatter, frontmatter.fileName);
