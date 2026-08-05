@@ -108,13 +108,12 @@
     <li>The folder you opened is remembered, so the next time you launch the app it reopens it for you.</li>
   </ol>
   <div class="callout note">
-    <strong>Starting a brand-new document.</strong> This version edits files that already exist in the
-    folder; there is no "New file" button inside the app yet. To start a new invoice or test sheet,
-    copy one of the ready-made templates into your folder first — see
+    <strong>Starting a brand-new document.</strong> Test sheets can be created inside the app
+    (<a href="#testsheet">section 6</a>). For other documents such as invoices and specs, copy one of
+    the ready-made templates into your folder first — see
     <a href="https://github.com/meta-taro/md-business/tree/main/templates"><code>templates/</code></a>
-    in the repository (invoice, spec, test-spec, api-spec — including a <code>.tsv</code> test-sheet
-    template that opens in the editable grid). Once the file is in your folder, it appears in the tree
-    and you can open and edit it.
+    in the repository (invoice, spec, test-spec, api-spec). Once the file is in your folder, it appears
+    in the tree and you can open and edit it.
   </div>
 </section>
 
@@ -170,10 +169,32 @@
     so you can fill in results directly like a spreadsheet. The grid opens for a <strong>custom TSV</strong>
     test sheet — a file whose first line is the magic line <code>#! md-business:test-spec-tsv/v1</code>
     (a <code>schema: test-spec/v1</code> Markdown test sheet opens as a read-only preview, not the grid).
-    The quickest way to start is to copy the template
-    <a href="https://github.com/meta-taro/md-business/tree/main/templates/test-spec"><code>templates/test-spec/standard-ja.tsv</code></a>
-    into your working folder and open it.
   </p>
+
+  <h3>Create a new test sheet</h3>
+  <p>
+    You can start from scratch by picking a set of columns. Press the <strong>+</strong> button at the
+    top right of the left rail (creates the file at the top of the open folder), or
+    <strong>right-click a folder in the tree &rarr; "New test sheet"</strong> (creates it inside that
+    folder). A dialog asks for three things.
+  </p>
+  <ul>
+    <li><strong>Template</strong> — a ready-made set of columns.
+      <strong>Test cases</strong> (item / steps / expected result) is for running through steps and
+      recording what happened; <strong>Viewpoints</strong> (category / viewpoint / how to check) is for
+      listing what you want to confirm and spotting gaps. Both add result, date, owner and notes columns.</li>
+    <li><strong>File name</strong> — you can leave out <code>.tsv</code>; it is added for you.</li>
+    <li><strong>Title</strong> — optional. If you fill it in, it becomes the title at the top of the sheet.</li>
+  </ul>
+  <p>
+    The new sheet opens in the grid straight away. If a file with the same name already exists, nothing
+    is overwritten and the dialog tells you why. You can still start from a template file instead by
+    copying
+    <a href="https://github.com/meta-taro/md-business/tree/main/templates/test-spec"><code>templates/test-spec/standard-ja.tsv</code></a>
+    into your working folder.
+  </p>
+
+  <h3>Fill it in</h3>
   <ul>
     <li>Click a cell and type to edit it; use the arrow keys and copy / paste to move around, the same
       as a spreadsheet. Depending on the column type, a dropdown / radio / date or datetime picker /
@@ -339,9 +360,10 @@
     you open a folder cannot be saved — open a folder and a file first (<a href="#open">section 3</a>).
   </p>
 
-  <h3>I can't create a new file inside the app</h3>
+  <h3>I can't create anything other than a test sheet</h3>
   <p>
-    This version edits existing files. Copy a template from
+    Test sheets are the document type you can create inside the app (<a href="#testsheet">section 6</a>).
+    For invoices and specs, copy a template from
     <a href="https://github.com/meta-taro/md-business/tree/main/templates"><code>templates/</code></a>
     into your folder to start a new document (<a href="#open">section 3</a>).
   </p>

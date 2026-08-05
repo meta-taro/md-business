@@ -104,12 +104,11 @@
     <li>開いたフォルダは記憶され、次回起動時に自動で開き直します。</li>
   </ol>
   <div class="callout note">
-    <strong>新しい文書を作るには。</strong>本バージョンはフォルダ内の既存ファイルを編集する方式で、アプリ内に
-    「新規作成」ボタンはまだありません。新しい請求書や検証シートを始めるには、まずひな型をフォルダにコピーします。
-    リポジトリの
+    <strong>新しい文書を作るには。</strong>検証シートはアプリ内で作れます（<a href="#testsheet">第 6 項</a>）。
+    請求書や設計書など他の文書は、ひな型をフォルダにコピーして始めます。リポジトリの
     <a href="https://github.com/meta-taro/md-business/tree/main/templates"><code>templates/</code></a>
-    に invoice / spec / test-spec / api-spec のひな型があります（検証シートをグリッドで編集する
-    <code>.tsv</code> ひな型も含みます）。ファイルをフォルダに置くとツリーに現れ、開いて編集できます。
+    に invoice / spec / test-spec / api-spec のひな型があります。ファイルをフォルダに置くとツリーに現れ、
+    開いて編集できます。
   </div>
 </section>
 
@@ -164,10 +163,30 @@
     結果を直接記入できます。グリッドで開くのは、ファイル先頭にマジック行
     <code>#! md-business:test-spec-tsv/v1</code> がある <strong>カスタム TSV 形式</strong>の検証シートです
     （<code>schema: test-spec/v1</code> の Markdown 検証シートは、グリッドではなく読み取りプレビューで開きます）。
-    最短の始め方は、ひな型
-    <a href="https://github.com/meta-taro/md-business/tree/main/templates/test-spec"><code>templates/test-spec/standard-ja.tsv</code></a>
-    を作業フォルダにコピーして開くことです。
   </p>
+
+  <h3>新しい検証シートを作る</h3>
+  <p>
+    列の組み合わせを選ぶだけで、白紙から作れます。左レール右上の <strong>＋</strong>（ルート直下に作る）か、
+    ツリーのフォルダを<strong>右クリック →「検証シートを新規作成」</strong>（そのフォルダの中に作る）を押すと、
+    次の 3 つを聞くダイアログが出ます。
+  </p>
+  <ul>
+    <li><strong>ひな形</strong> — 用意されている列の組です。
+      <strong>試験ケース</strong>（項目 / 手順 / 期待結果）は手順どおり実施して結果を残す形、
+      <strong>観点表</strong>（分類 / 観点 / 確認方法）は確かめたい点を挙げて抜けを探す形です。
+      どちらも結果・実施日・担当・備考の列が付きます。</li>
+    <li><strong>ファイル名</strong> — <code>.tsv</code> は省略できます（自動で付きます）。</li>
+    <li><strong>タイトル</strong> — 任意です。入れるとシート冒頭のタイトルになります。</li>
+  </ul>
+  <p>
+    作成するとそのままグリッドで開きます。同じ名前のファイルが既にある場合は上書きせず、理由をダイアログに
+    表示します。ひな型ファイルから始めたい場合は、これまでどおり
+    <a href="https://github.com/meta-taro/md-business/tree/main/templates/test-spec"><code>templates/test-spec/standard-ja.tsv</code></a>
+    を作業フォルダにコピーしても構いません。
+  </p>
+
+  <h3>記入する</h3>
   <ul>
     <li>セルをクリックして入力します。矢印キーでの移動、コピー / 貼り付けも表計算と同じ感覚で使えます。列型に応じて
       プルダウン / ラジオ / 日付・日時ピッカー / チェックボックスがインライン表示されます。</li>
@@ -351,9 +370,9 @@
     できません。先にフォルダとファイルを開いてください（<a href="#open">第 3 項</a>）。
   </p>
 
-  <h3>アプリ内で新規ファイルを作れない</h3>
+  <h3>検証シート以外を新規作成できない</h3>
   <p>
-    本バージョンは既存ファイルの編集用です。新しい文書は
+    アプリ内で新規作成できるのは検証シートです（<a href="#testsheet">第 6 項</a>）。請求書や設計書は
     <a href="https://github.com/meta-taro/md-business/tree/main/templates"><code>templates/</code></a>
     のひな型をフォルダにコピーして始めてください（<a href="#open">第 3 項</a>）。
   </p>
