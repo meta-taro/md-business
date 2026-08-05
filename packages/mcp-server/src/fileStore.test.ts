@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { mkdtemp, rm, mkdir, writeFile, readdir } from 'node:fs/promises';
+import { mkdtemp, rm, mkdir, writeFile, readdir, symlink } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { FileDocumentStore } from './fileStore.js';
@@ -88,6 +88,99 @@ describe('FileDocumentStore', () => {
     const store = new FileDocumentStore(root);
     await expect(store.read('../escape.md')).rejects.toThrow();
     await expect(store.write('../escape.md', 'x')).rejects.toThrow();
+  });
+});
+
+/**
+ * Windows の symlink は作成に権限が要るが、ディレクトリ junction は権限なしで作れる。
+ * リンクを作れない環境（権限のない CI など）では、検査せず黙って緑になるのを避けるため
+ * describe ごと skip する。
+ */
+const linkType = process.platform === 'win32' ? 'junction' : 'dir';
+const canLink = await (async () => {
+  const probe = await mkdtemp(join(tmpdir(), 'mdbiz-link-probe-'));
+  try {
+    await mkdir(join(probe, 'target'));
+    await symlink(join(probe, 'target'), join(probe, 'link'), linkType);
+    return true;
+  } catch {
+    return false;
+  } finally {
+    await rm(probe, { recursive: true, force: true });
+  }
+})();
+
+/**
+ * 相対パスに `..` が無くても、root 配下にリンクが 1 本あればその先は root の外。
+ * 字句上のパス比較だけでは踏み抜けるので、実パス（リンク解決後）で判定する。
+ */
+describe.skipIf(!canLink)('FileDocumentStore — リンク越しの root 逸脱', () => {
+  let root: string;
+  let outside: string;
+
+  beforeEach(async () => {
+    root = await mkdtemp(join(tmpdir(), 'mdbiz-link-root-'));
+    outside = await mkdtemp(join(tmpdir(), 'mdbiz-link-out-'));
+    await writeFile(join(outside, 'secret.md'), '外の秘密');
+    await symlink(outside, join(root, 'link'), linkType);
+  });
+
+  afterEach(async () => {
+    await rm(root, { recursive: true, force: true });
+    await rm(outside, { recursive: true, force: true });
+  });
+
+  it('リンク越しの read を拒否する', async () => {
+    const store = new FileDocumentStore(root);
+    await expect(store.read('link/secret.md')).rejects.toThrow(/ワークスペース外/);
+  });
+
+  it('リンク越しの write を拒否する', async () => {
+    const store = new FileDocumentStore(root);
+    await expect(store.write('link/planted.md', '外へ書く')).rejects.toThrow(/ワークスペース外/);
+    expect(await readdir(outside)).toEqual(['secret.md']);
+  });
+
+  it('リンク越しの write は root 外にディレクトリも作らない', async () => {
+    // 検査の前に mkdir すると、拒否したはずの経路で外にフォルダだけが残る。
+    const store = new FileDocumentStore(root);
+    await expect(store.write('link/sub/deep/planted.md', '外へ書く')).rejects.toThrow();
+    expect(await readdir(outside)).toEqual(['secret.md']);
+  });
+
+  it('リンク越しの exists は false を返す', async () => {
+    const store = new FileDocumentStore(root);
+    expect(await store.exists('link/secret.md')).toBe(false);
+  });
+});
+
+/**
+ * root 自体がリンクである場合（macOS の `/tmp` → `/private/tmp` など）、
+ * 実パスに直すと root 文字列とは一致しなくなる。root 側も同じ解決を通さないと、
+ * 正当な読み書きまで「root 外」と誤判定して全部落ちる。
+ */
+describe.skipIf(!canLink)('FileDocumentStore — root 自体がリンク', () => {
+  let real: string;
+  let linked: string;
+
+  beforeEach(async () => {
+    const base = await mkdtemp(join(tmpdir(), 'mdbiz-link-self-'));
+    real = join(base, 'real');
+    linked = join(base, 'linked');
+    await mkdir(real);
+    await symlink(real, linked, linkType);
+  });
+
+  afterEach(async () => {
+    await rm(dirname(real), { recursive: true, force: true });
+  });
+
+  it('リンク経由の root でも通常どおり読み書きできる', async () => {
+    const store = new FileDocumentStore(linked);
+    await store.write('docs/a.md', '本文');
+    expect(await store.read('docs/a.md')).toBe('本文');
+    expect(await store.exists('docs/a.md')).toBe(true);
+    expect(await store.list()).toEqual(['docs/a.md']);
   });
 });
 

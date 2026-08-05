@@ -5,7 +5,16 @@
  * safeRelativePath で境界を担保済みだが、ここでも root 逸脱を実パスで再検査する
  * （多重防御）。テスト・dry-run はインメモリ実装（MemoryDocumentStore）を使う。
  */
-import { readFile, writeFile, mkdir, access, readdir, rename, rm } from 'node:fs/promises';
+import {
+  readFile,
+  writeFile,
+  mkdir,
+  access,
+  readdir,
+  rename,
+  rm,
+  realpath,
+} from 'node:fs/promises';
 import { randomBytes } from 'node:crypto';
 import { join, resolve, dirname, basename, relative, sep } from 'node:path';
 import type { DocumentStore } from './store.js';
@@ -41,8 +50,40 @@ export class FileDocumentStore implements DocumentStore {
     return abs;
   }
 
+  /**
+   * 絶対パスをシンボリックリンク解決後の実パスへ直し、root 配下でなければ例外を投げる。
+   *
+   * `..` を含まない相対パスでも、root 配下にリンクが 1 本あればその先は root の外に出る。
+   * 字句上の比較（absolute）はそれを見抜けないので、実パスで判定し直す。root 側も同じ
+   * 解決を通す（root 自体がリンクのことがある。macOS の `/tmp` → `/private/tmp` など）。
+   *
+   * 対象がまだ存在しない場合（新規ファイル・未作成の中間フォルダ）は実在する最も深い
+   * 祖先まで遡って判定する。存在しない区間にリンクは無いので、そこまで見れば十分。
+   */
+  private async realPathWithin(abs: string): Promise<string> {
+    const realRoot = await realpath(this.root);
+    const denied = new Error(`ワークスペース外へのアクセスは拒否されました: ${abs}`);
+
+    const pending: string[] = [];
+    let probe = abs;
+    for (;;) {
+      let real: string;
+      try {
+        real = await realpath(probe);
+      } catch {
+        const parent = dirname(probe);
+        if (parent === probe) throw denied; // 直上まで遡っても実在しない
+        pending.unshift(basename(probe));
+        probe = parent;
+        continue;
+      }
+      if (real !== realRoot && !real.startsWith(realRoot + sep)) throw denied;
+      return join(real, ...pending);
+    }
+  }
+
   async read(relativePath: string): Promise<string> {
-    return readFile(this.absolute(relativePath), 'utf8');
+    return readFile(await this.realPathWithin(this.absolute(relativePath)), 'utf8');
   }
 
   /**
@@ -55,12 +96,15 @@ export class FileDocumentStore implements DocumentStore {
    */
   async write(relativePath: string, content: string): Promise<void> {
     const abs = this.absolute(relativePath);
-    const dir = dirname(abs);
+    // 親を実パスで検査してから mkdir する。順序を逆にすると、リンク越しの書き込みを
+    // 拒否したあとも root 外にフォルダだけが残る。
+    const dir = await this.realPathWithin(dirname(abs));
     await mkdir(dir, { recursive: true });
+    const target = join(dir, basename(abs));
     const temp = join(dir, `.${basename(abs)}.${randomBytes(6).toString('hex')}.partial`);
     try {
       await writeFile(temp, content, 'utf8');
-      await rename(temp, abs);
+      await rename(temp, target);
     } catch (error) {
       await rm(temp, { force: true }).catch(() => undefined);
       throw error;
@@ -69,7 +113,7 @@ export class FileDocumentStore implements DocumentStore {
 
   async exists(relativePath: string): Promise<boolean> {
     try {
-      await access(this.absolute(relativePath));
+      await access(await this.realPathWithin(this.absolute(relativePath)));
       return true;
     } catch {
       return false;
