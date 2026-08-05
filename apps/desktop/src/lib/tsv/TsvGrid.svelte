@@ -26,6 +26,7 @@
   import { seedFromKey } from './gridEdit';
   import { parseClipboardMatrix, applyPaste, rowToTsv } from './gridClipboard';
   import { duplicateRow, deleteRow, clearRow } from './gridRows';
+  import { canFillDown, fillDown } from './gridFill';
   import {
     MIN_COL_WIDTH,
     defaultColWidths,
@@ -678,6 +679,13 @@
         void copySelection();
         return;
       }
+      // Ctrl+D は選択範囲を下へ埋める（表計算と同じ）。WebView 既定のブックマーク登録は
+      // 検証中に出ても邪魔にしかならないので、編集不可のときも既定動作だけは止める。
+      if ((event.ctrlKey || event.metaKey) && (event.key === 'd' || event.key === 'D')) {
+        event.preventDefault();
+        fillSelectionDown();
+        return;
+      }
       // undo / redo は履歴を持つ親へ委譲（正本ソースが真）。編集中セルの入力は
       // それ自身のテキスト undo を使うため、ここ（nav）でだけ横取りする。
       const key = event.key.toLowerCase();
@@ -767,6 +775,15 @@
   // 実データ末尾より下＝pad 行（まだファイルに焼けない空行）。複製/削除/クリア/コピーは
   // 実データ行にだけ意味があるので pad 行では抑止する。
   const activeIsData = $derived(activeCell.row < doc.rows.length);
+
+  // ── 下へ埋める（Ctrl+D）。検証は `結果` `実施日` `担当` を同じ値で何十行も埋めるので、
+  //    列ごとの専用機能ではなく表計算と同じ 1 本で足す。 ──
+  const fillableDown = $derived(canFillDown(doc, rangeBounds(selection)));
+
+  function fillSelectionDown(): void {
+    if (!editable) return;
+    onChange?.(fillDown(doc, rangeBounds(selection)));
+  }
 
   function addRow(): void {
     // ファイルに焼けない空行なので onChange せず、ローカル pad を 1 増やして即座に見せる。
@@ -1184,6 +1201,16 @@
       </button>
       <button type="button" class="row-btn" onclick={clearActiveRow} disabled={!activeIsData}>
         選択行をクリア
+      </button>
+      <!-- 結果・実施日・担当を同じ値で何十行も埋める作業を 1 操作にする（Ctrl+D）。 -->
+      <button
+        type="button"
+        class="row-btn"
+        onclick={fillSelectionDown}
+        disabled={!fillableDown}
+        title="選択範囲の先頭行の値を下の行へ配る（Ctrl+D）。単一セルなら直上の値を引く"
+      >
+        下へ埋める
       </button>
       <button
         type="button"
