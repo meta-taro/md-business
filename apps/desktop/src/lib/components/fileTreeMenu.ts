@@ -6,6 +6,7 @@
 
 /** コンテキストメニューの操作種別。 */
 export type FileTreeMenuAction =
+  | 'newTestSheet'
   | 'rename'
   | 'reveal'
   | 'copyName'
@@ -26,13 +27,15 @@ export function toAbsolutePath(root: string, relPath: string): string {
 }
 
 /**
- * ノード種別ごとの利用可能なメニュー項目。フォルダは名前の変更・reveal・各種コピー。
- * ファイルは加えてフォージで開く（`/blob/` URL は個別ファイル向けのため）。
- * openForge の最終的な可否は forge_file_url の戻り（remote 無しなら null）で更に絞る。
+ * ノード種別ごとの利用可能なメニュー項目。フォルダは検証シートの新規作成・名前の変更・
+ * reveal・各種コピー。ファイルは新規作成の代わりにフォージで開く（`/blob/` URL は個別
+ * ファイル向けのため）。openForge の最終的な可否は forge_file_url の戻り（remote 無しなら
+ * null）で更に絞る。
  */
 export function menuActionsForKind(kind: 'file' | 'folder'): FileTreeMenuAction[] {
   const common: FileTreeMenuAction[] = ['rename', 'reveal', 'copyName', 'copyRelPath', 'copyPath'];
-  return kind === 'file' ? [...common, 'openForge'] : common;
+  // 新規作成は「どこに作るか」をフォルダで指す操作なので、フォルダにだけ出す。
+  return kind === 'file' ? [...common, 'openForge'] : ['newTestSheet', ...common];
 }
 
 /** 相対パスの末尾の名前（改名の初期値・ファイル名のコピーで使う）。 */
@@ -71,6 +74,15 @@ export function validateNewName(name: string, kind: 'file' | 'folder'): NewNameE
   if (INVALID_NAME_SYMBOLS.test(trimmed) || hasControlChar(trimmed)) return 'invalidChar';
   if (kind === 'file' && !ALLOWED_EXT.test(trimmed)) return 'extension';
   return null;
+}
+
+/**
+ * フォルダの下に置くファイルの相対パス。区切りは走査と同じ "/" に揃え、
+ * ルート直下（親が空）では先頭に区切りを付けない。
+ */
+export function childPath(parentRelPath: string, name: string): string {
+  const segments = parentRelPath.split(/[\\/]+/).filter((s) => s !== '');
+  return [...segments, name.trim()].join('/');
 }
 
 /** 改名後の相対パス（末尾の名前だけ差し替える）。 */

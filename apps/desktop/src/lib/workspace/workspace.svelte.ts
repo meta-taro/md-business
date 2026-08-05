@@ -22,6 +22,7 @@ import {
   collectFolderPaths,
   shouldReopenFile,
   remapRenamedPath,
+  withAncestorsExpanded,
 } from './workspaceLogic';
 import { parseStoredFolder } from './lastFolder';
 import {
@@ -418,6 +419,23 @@ class WorkspaceStore {
       // shouldReopenFile が true なら next は非 null。
       await this.select(next as string);
     }
+  }
+
+  /**
+   * ルート配下に新しいファイルを作り、ツリーを取り直して開く。
+   *
+   * 既存があれば Rust 側が Err を返す（上書きしない）。呼び出し元が入力欄にその理由を出せるよう
+   * そのまま投げる。作った先が畳まれた階層でも見つけられるよう、親フォルダは開いた状態にする。
+   */
+  async createDocument(relPath: string, content: string): Promise<void> {
+    if (this.root === null) return;
+    await invoke('create_document', { root: this.root, relPath, content });
+    await this.scan(this.root); // activePath は null に戻る
+    this.expanded = withAncestorsExpanded(this.expanded, relPath);
+    if (shouldReopenFile(relPath, this.allFilePaths())) {
+      await this.select(relPath);
+    }
+    this.persistView();
   }
 
   /** 開いているファイルの外部変更を競合として記録する（編集中なので自動再読込しない）。 */

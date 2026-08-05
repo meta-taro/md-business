@@ -20,6 +20,7 @@ import {
   type ParsedHeader,
   type TsvDocument,
 } from '@md-business/schema-test-spec-tsv';
+import type { MessageKey } from '$lib/i18n/messages';
 import { TSV_FORMAT_ID } from './detect';
 
 /** 検証シートのファイル拡張子。 */
@@ -35,10 +36,10 @@ const RESULT_STYLE = `style 結果 OK=#e7f6ec NG=#fcebec 保留=#fdf3e2`;
 export interface TsvPreset {
   /** 保存・受け渡しに使う識別子。表示名を変えても壊れないよう英字で持つ。 */
   id: string;
-  /** 選択肢に出す名前。 */
-  label: string;
-  /** どんなときに選ぶかの一言。 */
-  description: string;
+  /** 選択肢に出す名前（辞書キー）。列名は日本語のままだが、選ぶ画面は表示言語に合わせる。 */
+  labelKey: MessageKey;
+  /** どんなときに選ぶかの一言（辞書キー）。 */
+  descriptionKey: MessageKey;
   /** 生成する `#@` 行（種別語を含む本体）。 */
   directives: string[];
   /** 生成する列定義。 */
@@ -74,8 +75,8 @@ function trailingColumns(): ParsedHeader[] {
 export const TSV_PRESETS: readonly TsvPreset[] = [
   {
     id: 'test-case',
-    label: '試験ケース',
-    description: '手順と期待結果を 1 件ずつ並べて、上から実施していく形。',
+    labelKey: 'newSheet.presetTestCase',
+    descriptionKey: 'newSheet.presetTestCaseDesc',
     directives: [`rowid ${ROW_ID_COLUMN}`, RESULT_STYLE],
     columns: [
       { name: 'No.', type: 'number', required: false },
@@ -87,8 +88,8 @@ export const TSV_PRESETS: readonly TsvPreset[] = [
   },
   {
     id: 'viewpoint',
-    label: '観点表',
-    description: '確かめたい観点を分類ごとに挙げて、抜けを見つける形。',
+    labelKey: 'newSheet.presetViewpoint',
+    descriptionKey: 'newSheet.presetViewpointDesc',
     directives: [`rowid ${ROW_ID_COLUMN}`, RESULT_STYLE],
     columns: [
       { name: 'No.', type: 'number', required: false },

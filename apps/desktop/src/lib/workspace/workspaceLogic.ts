@@ -148,6 +148,23 @@ export function collectFolderPaths(tree: readonly TreeNode[]): string[] {
   return paths;
 }
 
+/**
+ * 相対パスの親フォルダをすべて開いた展開集合を返す（元の集合は変えない）。
+ * 作ったファイルが畳まれた階層の中に入ると、書き込めたのに見当たらない状態になる。
+ */
+export function withAncestorsExpanded(
+  expanded: ReadonlySet<string>,
+  relPath: string,
+): Set<string> {
+  const next = new Set(expanded);
+  const segments = relPath.split(/[\\/]+/).filter((s) => s !== '');
+  // 末尾はファイル自身なので畳の対象にしない。
+  for (let i = 1; i < segments.length; i += 1) {
+    next.add(segments.slice(0, i).join('/'));
+  }
+  return next;
+}
+
 /** 十字キー操作の結果。何も起きない場合は null。 */
 export type TreeKeyAction =
   | { kind: 'move'; index: number }
