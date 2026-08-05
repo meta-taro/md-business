@@ -12,8 +12,15 @@ export {
   withoutRowIds,
   ROW_ID_COLUMN,
 } from './rowId.js';
+export {
+  mergeHiddenRows,
+  readHiddenIds,
+  setHiddenIds,
+  splitHiddenRows,
+} from './hiddenRows.js';
 export type { ColumnType, ColumnUiHint, ParsedHeader } from './types.js';
 export type { IdentifiedTsv } from './rowId.js';
+export type { HiddenRow } from './hiddenRows.js';
 export type { LineKind } from './classify.js';
 export type { TsvDocument } from './parse.js';
 export type { ValidationCode, ValidationIssue } from './validate.js';
