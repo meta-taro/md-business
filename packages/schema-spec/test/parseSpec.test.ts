@@ -151,6 +151,13 @@ describe('parseSpecObject — nesting depth', () => {
 // key normalisation, the validator — pays that expanded cost, so a document
 // this small has to be turned away rather than parsed.
 describe('parseSpecMarkdown — alias expansion', () => {
+  // What the timing assertions below check is whether the guard engaged at all,
+  // not how fast the machine is. Without a guard, `12 ** 8` nodes take minutes or
+  // exhaust memory, so any bound far below that separates the two cases. The bound
+  // is kept well clear of a loaded shared runner: the guarded path measured 528ms
+  // and 582ms on CI against ~40ms locally, and a tighter bound only reports jitter.
+  const GUARD_ENGAGED_MS = 3_000;
+
   function aliasBomb(anchors: number, fanout: number): string {
     const lines = ['schemaVersion: spec/v1', 'title: t'];
     lines.push(`a0: &a0 [${Array(fanout).fill('x').join(', ')}]`);
@@ -170,7 +177,7 @@ describe('parseSpecMarkdown — alias expansion', () => {
     // oversized block or an excess of anchors does — the document never
     // becomes a value the caller could report errors against.
     expect(() => parseSpecMarkdown(src, validate)).toThrow(/alias/i);
-    expect(performance.now() - started).toBeLessThan(500);
+    expect(performance.now() - started).toBeLessThan(GUARD_ENGAGED_MS);
   });
 
   // The node budget is the backstop for the same attack arriving as an object,
@@ -187,6 +194,6 @@ describe('parseSpecMarkdown — alias expansion', () => {
     if (result.ok === false) {
       expect(result.errors[0]?.keyword).toBe('maxNodes');
     }
-    expect(elapsed).toBeLessThan(500);
+    expect(elapsed).toBeLessThan(GUARD_ENGAGED_MS);
   });
 });
