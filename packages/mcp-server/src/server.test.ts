@@ -63,6 +63,15 @@ totals:
 /** 検証シートの最小 TSV（型付きヘッダ + データ 1 行）。 */
 const SHEET_TSV = 'No.:number\t項目!\t結果:enum(OK|NG)\n1\t新規登録\tOK\n';
 
+/** 行 ID 列を持つ検証シート。行 index ではなく ID で行を指す。 */
+const ID_SHEET_TSV =
+  [
+    '#! md-business:test-spec-tsv/v1',
+    '#@ rowid _id',
+    'No.:number\t項目!\t結果:enum(OK|NG)\t_id',
+    '1\t新規登録\tOK\traaaaaaaaaaaa',
+  ].join('\n') + '\n';
+
 /** InMemoryTransport でサーバーへ繋いだ Client を返す。 */
 async function connect(store: MemoryDocumentStore): Promise<Client> {
   const server = createServer(store);
@@ -309,6 +318,27 @@ describe('createServer / MCP 配線', () => {
     })) as CallToolResult;
     expect(parse(res).isError).toBe(true);
     expect(await store.read('sheets/t.tsv')).toBe(SHEET_TSV);
+  });
+
+  // 行 ID は文字列なので、inputSchema が number 固定だと zod 層で弾かれて
+  // ツール本体まで届かない。MCP 経由で通ることをここで担保する。
+  it('update_tsv_row は行 ID で行を指定できる', async () => {
+    const store = new MemoryDocumentStore();
+    await store.write('sheets/id.tsv', ID_SHEET_TSV);
+    const client = await connect(store);
+    const read = (await client.callTool({
+      name: 'read_tsv',
+      arguments: { path: 'sheets/id.tsv' },
+    })) as CallToolResult;
+    expect((parse(read).text as { rowIds: string[] }).rowIds).toEqual(['raaaaaaaaaaaa']);
+
+    const res = (await client.callTool({
+      name: 'update_tsv_row',
+      arguments: { path: 'sheets/id.tsv', row: 'raaaaaaaaaaaa', values: { 結果: 'NG' } },
+    })) as CallToolResult;
+    const { text, isError } = parse(res);
+    expect(isError).toBe(false);
+    expect((text as { values: string[] }).values).toEqual(['1', '新規登録', 'NG']);
   });
 
   it('サーバー情報に名前が載る', async () => {

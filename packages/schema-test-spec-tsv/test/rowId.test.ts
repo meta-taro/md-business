@@ -1,5 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import { generateRowId, isRowId, withRowIds, withoutRowIds, ROW_ID_COLUMN } from '../src/rowId.js';
+import {
+  generateRowId,
+  hasRowIdColumn,
+  isRowId,
+  withRowIds,
+  withoutRowIds,
+  ROW_ID_COLUMN,
+} from '../src/rowId.js';
 import { parseTsv } from '../src/parse.js';
 import { serializeTsv } from '../src/serialize.js';
 import type { TsvDocument } from '../src/parse.js';
@@ -65,6 +72,30 @@ describe('isRowId', () => {
     expect(isRowId('rAAAAAAAAAAAA')).toBe(false);
     expect(isRowId('raaaaaaaaaaaaa')).toBe(false);
     expect(isRowId('')).toBe(false);
+  });
+});
+
+describe('hasRowIdColumn', () => {
+  it('宣言があれば true', () => {
+    const doc = makeDoc({
+      directives: [`rowid ${ROW_ID_COLUMN}`],
+      columns: [項目, idCol],
+      rows: [['ログイン', 'raaaaaaaaaaaa']],
+    });
+    expect(hasRowIdColumn(doc)).toBe(true);
+  });
+
+  it('宣言が落ちていても末尾列が既定名なら true', () => {
+    const doc = makeDoc({ columns: [項目, idCol], rows: [['ログイン', 'raaaaaaaaaaaa']] });
+    expect(hasRowIdColumn(doc)).toBe(true);
+  });
+
+  it('ID 列を持たないファイルは false', () => {
+    // `withRowIds` は ID 列の無いファイルにも採番するので、返ってきた ID だけでは
+    // 「ファイルに焼かれた ID」か「その場限りの採番」かを区別できない。
+    // 書き手（MCP）が既存ファイルへ ID 列を足すかどうかを決めるための判定。
+    const doc = makeDoc({ columns: [項目, 結果], rows: [['ログイン', 'OK']] });
+    expect(hasRowIdColumn(doc)).toBe(false);
   });
 });
 

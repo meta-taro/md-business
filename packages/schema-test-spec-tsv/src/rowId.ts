@@ -106,6 +106,17 @@ function locateIdColumn(doc: TsvDocument): { index: number; name: string } {
 }
 
 /**
+ * この検証シートが ID 列をファイルに持っているか。
+ *
+ * {@link withRowIds} は ID 列の無いファイルにも採番して返すので、返ってきた ID だけでは
+ * 「ファイルに焼かれた ID」か「その場限りの採番」かを区別できない。ID 列を持たない
+ * ファイルへ書き込むとき、ID 列ごと足すか、いまの体裁のまま残すかの判断に使う。
+ */
+export function hasRowIdColumn(doc: TsvDocument): boolean {
+  return locateIdColumn(doc).index >= 0;
+}
+
+/**
  * 読み込み時に ID 列を doc から抜き、行 ID の並びとして取り出す。
  *
  * 形式に合わない値・重複した値は採番し直す。別ツールが書いた値をそのまま信用せず、

@@ -9,12 +9,22 @@
  * 値は列 index ではなく **列名キー**で受け取る。エージェントは read_tsv で列名を見て
  * そのまま書けるため、列の並び替えに壊されない。
  *
+ * 行を指す手段も同じ考えで、行 ID を持つシートでは **行 ID** で受け取る。行 index は
+ * 人が 1 行挿すだけで以降が全部ずれるので、read してから update するまでの間に編集が
+ * 入ると、黙って別の行を書き換えることになる。
+ *
  * fs には触れず DocumentStore 越しに動くので、純ロジックとして単体テストできる。
  */
 import {
+  generateRowId,
+  hasRowIdColumn,
+  isRowId,
   parseTsv,
   serializeTsv,
   validateTsv,
+  withRowIds,
+  withoutRowIds,
+  type IdentifiedTsv,
   type ParsedHeader,
   type TsvDocument,
   type ValidationIssue,
@@ -59,6 +69,14 @@ export interface ReadTsvOk {
   columns: ParsedHeader[];
   /** データ行（列順・unescape 済み）。 */
   rows: string[][];
+  /**
+   * `rows` と同じ並びの行 ID。行 ID を持たないシートでは空配列。
+   *
+   * 空でなければ、update_tsv_row の宛先はこの ID。ID を持たないシートで採番結果を
+   * 返さないのは、それがファイルに焼かれていない一時値だからで、次の読み込みでは
+   * 別の値になる。渡せば「安定した ID」として使われ、指し先が狂う。
+   */
+  rowIds: string[];
   /** 列型に照らした違反の一覧（空なら全セル妥当）。 */
   issues: ValidationIssue[];
 }
@@ -68,6 +86,8 @@ export interface TsvRowOk {
   path: string;
   /** 追加 / 更新した行の index（`rows` 基準・0 始まり）。 */
   row: number;
+  /** その行の ID。行 ID を持たないシートでは付かない。 */
+  rowId?: string;
   /** 書き込み後のその行の値（列順・欠けは空文字で埋めた形）。 */
   values: string[];
   /** **その行の**違反（他行の既存違反は含めない）。 */
@@ -83,15 +103,21 @@ export interface AppendTsvRowInput {
 
 export interface UpdateTsvRowInput {
   path: string;
-  /** 更新対象の行 index（`rows` 基準・0 始まり）。 */
-  row: number;
+  /**
+   * 更新対象。行 ID を持つシートでは行 ID、持たないシートでは行 index
+   * （`rows` 基準・0 始まり）。
+   */
+  row: number | string;
   values: TsvRowValues;
 }
 
 /** 読み込んだ TSV と、書き戻しに必要な元テキストの体裁。 */
 interface LoadedTsv {
   relative: string;
-  doc: TsvDocument;
+  /** ID 列を抜いた形。ID 列を持たないシートでは素の解析結果と同じ。 */
+  doc: IdentifiedTsv;
+  /** ID 列がファイルにあるか。無ければ書き戻しでも足さない。 */
+  tracksIds: boolean;
   source: string;
 }
 
@@ -130,14 +156,14 @@ async function load(store: DocumentStore, relative: string): Promise<LoadedTsv |
         `（${source.length} 文字・上限 ${MAX_TSV_SOURCE_CHARS} 文字。シートを分割してください）`,
     };
   }
-  const doc = parseTsv(source);
-  if (doc.columns.length === 0) {
+  const parsed = parseTsv(source);
+  if (parsed.columns.length === 0) {
     return {
       ok: false,
       error: `TSV のヘッダ行が見つかりません: ${relative}（1 行目に型付きヘッダが必要です）`,
     };
   }
-  return { relative, doc, source };
+  return { relative, doc: withRowIds(parsed), tracksIds: hasRowIdColumn(parsed), source };
 }
 
 /**
@@ -204,23 +230,77 @@ function preserveTrailingEol(next: string, prev: string): string {
   return `${next}\n`;
 }
 
+/**
+ * 書き出す形に戻す。ID 列を持つシートだけ ID 列を末尾へ書き戻す。
+ *
+ * 持たないシートへ足すと、触った覚えのない全行が diff に出る。ID 列を焼くのは
+ * グリッドで開いて保存したときの仕事で、MCP は受け取った体裁のまま返す。
+ */
+function toWritable(loaded: LoadedTsv, doc: IdentifiedTsv): TsvDocument {
+  if (loaded.tracksIds) return withoutRowIds(doc);
+  const { rowIds: _rowIds, idColumn: _idColumn, ...rest } = doc;
+  return rest;
+}
+
 /** 更新後の文書を書き出し、対象行の検証結果を添えて返す。 */
 async function persist(
   store: DocumentStore,
   loaded: LoadedTsv,
-  doc: TsvDocument,
+  doc: IdentifiedTsv,
   rowIndex: number,
 ): Promise<TsvRowOk> {
-  await store.write(loaded.relative, preserveTrailingEol(serializeTsv(doc), loaded.source));
+  const next = serializeTsv(toWritable(loaded, doc));
+  await store.write(loaded.relative, preserveTrailingEol(next, loaded.source));
+  // 検証は ID 列を抜いた形で行う。列 index が read_tsv の columns と揃う。
   const issues = validateTsv(doc);
+  const rowId = loaded.tracksIds ? doc.rowIds[rowIndex] : undefined;
   return {
     ok: true,
     path: loaded.relative,
     row: rowIndex,
+    ...(rowId === undefined ? {} : { rowId }),
     values: doc.rows[rowIndex] as string[],
     issues: issues.filter((issue) => issue.row === rowIndex),
     totalIssues: issues.length,
   };
+}
+
+/**
+ * 更新対象の行を決める。
+ *
+ * ID を持つシートで行 index を受け付けないのは、受け付けると ID がある場面でも
+ * index が使われ続け、read から update までの間の挿し込みに黙って壊されるため。
+ */
+function resolveRow(loaded: LoadedTsv, row: number | string): number | ToolError {
+  const { rows, rowIds } = loaded.doc;
+
+  if (loaded.tracksIds) {
+    if (typeof row !== 'string' || !isRowId(row)) {
+      return {
+        ok: false,
+        error: `この検証シートは行 ID で行を指定します（受け取った値: ${row}）。read_tsv の rowIds から選んでください`,
+      };
+    }
+    const at = rowIds.indexOf(row);
+    if (at < 0) {
+      return {
+        ok: false,
+        error: `行 ID が見つかりません: ${row}（削除された行の可能性があります。read_tsv で取り直してください）`,
+      };
+    }
+    return at;
+  }
+
+  if (typeof row === 'string') {
+    return {
+      ok: false,
+      error: `この検証シートは行 ID を持ちません（受け取った値: ${row}）。行 index（0〜${rows.length - 1}）で指定してください`,
+    };
+  }
+  if (!Number.isInteger(row) || row < 0 || row >= rows.length) {
+    return { ok: false, error: `行 index が範囲外です: ${row}（データ行は 0〜${rows.length - 1}）` };
+  }
+  return row;
 }
 
 /** 検証シート TSV を読み、ヘッダ・メタ・行と列型の検証結果を返す。 */
@@ -228,7 +308,7 @@ export async function readTsv(
   store: DocumentStore,
   requestedPath: string,
 ): Promise<ReadTsvOk | ToolError> {
-  return withLoaded(store, requestedPath, async ({ relative, doc }) => ({
+  return withLoaded(store, requestedPath, async ({ relative, doc, tracksIds }) => ({
     ok: true as const,
     path: relative,
     formatId: doc.formatId,
@@ -236,6 +316,7 @@ export async function readTsv(
     directives: doc.directives,
     columns: doc.columns,
     rows: doc.rows,
+    rowIds: tracksIds ? [...doc.rowIds] : [],
     issues: validateTsv(doc),
   }));
 }
@@ -254,7 +335,11 @@ export async function appendTsvRow(
     const row = applyValues(loaded.doc.columns, [], input.values);
     if (!Array.isArray(row)) return row;
 
-    const doc: TsvDocument = { ...loaded.doc, rows: [...loaded.doc.rows, row] };
+    const doc: IdentifiedTsv = {
+      ...loaded.doc,
+      rows: [...loaded.doc.rows, row],
+      rowIds: [...loaded.doc.rowIds, generateRowId()],
+    };
     return persist(store, loaded, doc, doc.rows.length - 1);
   });
 }
@@ -268,19 +353,15 @@ export async function updateTsvRow(
   input: UpdateTsvRowInput,
 ): Promise<TsvRowOk | ToolError> {
   return withLoaded(store, input.path, async (loaded) => {
-    const { rows } = loaded.doc;
-    if (!Number.isInteger(input.row) || input.row < 0 || input.row >= rows.length) {
-      return {
-        ok: false as const,
-        error: `行 index が範囲外です: ${input.row}（データ行は 0〜${rows.length - 1}）`,
-      };
-    }
+    const at = resolveRow(loaded, input.row);
+    if (typeof at !== 'number') return at;
 
-    const row = applyValues(loaded.doc.columns, rows[input.row] as string[], input.values);
+    const { rows } = loaded.doc;
+    const row = applyValues(loaded.doc.columns, rows[at] as string[], input.values);
     if (!Array.isArray(row)) return row;
 
     const nextRows = [...rows];
-    nextRows[input.row] = row;
-    return persist(store, loaded, { ...loaded.doc, rows: nextRows }, input.row);
+    nextRows[at] = row;
+    return persist(store, loaded, { ...loaded.doc, rows: nextRows }, at);
   });
 }

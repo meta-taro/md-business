@@ -208,6 +208,156 @@ describe('updateTsvRow', () => {
   });
 });
 
+/**
+ * 行 ID を持つ検証シート。
+ *
+ * 行 index は 1 本挿すだけで以降が全部ずれるので、read してから update するまでの間に
+ * 人が行を足すと、エージェントは黙って別の行を書き換える。ID なら同じ行を指し続ける。
+ */
+const ID_SHEET =
+  [
+    '#! md-business:test-spec-tsv/v1',
+    '#@ rowid _id',
+    'No.:number\t項目!\t結果:enum(OK|NG)\t_id',
+    '1\t新規登録\tOK\traaaaaaaaaaaa',
+    '2\t金額計算\tNG\trbbbbbbbbbbbb',
+  ].join('\n') + '\n';
+
+function idStore(): MemoryDocumentStore {
+  return new MemoryDocumentStore({ 'sheets/id.tsv': ID_SHEET });
+}
+
+describe('行 ID を持つ検証シート', () => {
+  it('read_tsv は行 ID を返し、ID 列は列にも行にも出さない', async () => {
+    const r = await readTsv(idStore(), 'sheets/id.tsv');
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.rowIds).toEqual(['raaaaaaaaaaaa', 'rbbbbbbbbbbbb']);
+    // ID は行を指すための識別子であって記入欄ではない。列として見せると
+    // エージェントが書き換えてしまい、指し先が変わる。
+    expect(r.columns.map((c) => c.name)).toEqual(['No.', '項目', '結果']);
+    expect(r.rows[0]).toEqual(['1', '新規登録', 'OK']);
+  });
+
+  it('行 ID で対象行を指して更新できる', async () => {
+    const s = idStore();
+    const r = await updateTsvRow(s, {
+      path: 'sheets/id.tsv',
+      row: 'rbbbbbbbbbbbb',
+      values: { 結果: 'OK' },
+    });
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.row).toBe(1);
+    expect(r.rowId).toBe('rbbbbbbbbbbbb');
+    expect(r.values).toEqual(['2', '金額計算', 'OK']);
+  });
+
+  it('読んだ後に行が挿さっても、同じ ID は同じ行を指す', async () => {
+    const s = idStore();
+    // 人が先頭へ 1 行挿した状態（アプリの外での編集）。
+    await s.write(
+      'sheets/id.tsv',
+      ID_SHEET.replace('1\t新規登録', '0\t事前確認\tOK\trcccccccccccc\n1\t新規登録'),
+    );
+
+    const r = await updateTsvRow(s, {
+      path: 'sheets/id.tsv',
+      row: 'raaaaaaaaaaaa',
+      values: { 結果: 'NG' },
+    });
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.row).toBe(1);
+    expect(r.values).toEqual(['1', '新規登録', 'NG']);
+  });
+
+  it('知らない行 ID は書き込まずに失敗する', async () => {
+    const s = idStore();
+    const r = await updateTsvRow(s, {
+      path: 'sheets/id.tsv',
+      row: 'rdddddddddddd',
+      values: { 結果: 'OK' },
+    });
+    expect(r.ok).toBe(false);
+    if (r.ok) return;
+    expect(r.error).toContain('rdddddddddddd');
+    expect(await s.read('sheets/id.tsv')).toBe(ID_SHEET);
+  });
+
+  it('ID を持つシートへの行 index 指定は拒否する', async () => {
+    // 受け付けると、ID がある場面でも index が使われ続けて挿し込みに壊される。
+    const s = idStore();
+    const r = await updateTsvRow(s, { path: 'sheets/id.tsv', row: 0, values: { 結果: 'NG' } });
+    expect(r.ok).toBe(false);
+    if (r.ok) return;
+    expect(r.error).toContain('行 ID');
+    expect(await s.read('sheets/id.tsv')).toBe(ID_SHEET);
+  });
+
+  it('追記した行にも ID を振り、その ID で更新できる', async () => {
+    const s = idStore();
+    const appended = await appendTsvRow(s, {
+      path: 'sheets/id.tsv',
+      values: { 'No.': '3', 項目: '追加項目' },
+    });
+    expect(appended.ok).toBe(true);
+    if (!appended.ok) return;
+    expect(appended.rowId).toBeDefined();
+    expect(appended.values).toEqual(['3', '追加項目', '']);
+
+    const r = await updateTsvRow(s, {
+      path: 'sheets/id.tsv',
+      row: appended.rowId as string,
+      values: { 結果: 'OK' },
+    });
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.values).toEqual(['3', '追加項目', 'OK']);
+  });
+
+  it('ID 列は書き込み対象にならない', async () => {
+    const s = idStore();
+    const r = await appendTsvRow(s, { path: 'sheets/id.tsv', values: { _id: 'reeeeeeeeeeee' } });
+    expect(r.ok).toBe(false);
+    if (r.ok) return;
+    expect(r.error).toContain('未知の列名');
+  });
+});
+
+describe('行 ID を持たない検証シート', () => {
+  // 既存シートは ID 列を持たない。MCP が勝手に ID 列を足すと、触った覚えのない
+  // 全行が diff に出る。ID 列を焼くのはグリッドで保存したときだけにする。
+  it('read_tsv の行 ID は空（その場限りの採番を ID として渡さない）', async () => {
+    const r = await readTsv(store(), 'sheets/受注.tsv');
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.rowIds).toEqual([]);
+  });
+
+  it('追記しても ID 列・rowid 宣言が増えない', async () => {
+    const s = store();
+    await appendTsvRow(s, { path: 'sheets/受注.tsv', values: { 'No.': '3' } });
+    const after = await s.read('sheets/受注.tsv');
+    expect(after).not.toContain('rowid');
+    expect(after).not.toContain('_id');
+    expect(after).toBe(SHEET + '3\t\t\t\t\n');
+  });
+
+  it('行 ID を渡すと、行 index で指すよう促して失敗する', async () => {
+    const s = store();
+    const r = await updateTsvRow(s, {
+      path: 'sheets/受注.tsv',
+      row: 'raaaaaaaaaaaa',
+      values: { 結果: 'OK' },
+    });
+    expect(r.ok).toBe(false);
+    if (r.ok) return;
+    expect(r.error).toContain('index');
+    expect(await s.read('sheets/受注.tsv')).toBe(SHEET);
+  });
+});
+
 describe('同じシートへの並行操作', () => {
   it('同時に追記しても行が消えない', async () => {
     const s = store();
