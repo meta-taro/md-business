@@ -85,6 +85,7 @@
     setGroup,
   } from './gridHeaderDirectives';
   import { readRowTints, rowTintOf } from './gridStyleDirectives';
+  import { hideRow, hiddenRowCount, isHiddenRow, unhideRow } from './gridHidden';
 
   interface Props {
     /** 表示・編集対象の TSV ドキュメント（`parseTsv` を `withRowIds` に通した結果）。 */
@@ -95,9 +96,13 @@
     onUndo?: () => void;
     /** ナビ中の Ctrl+Y / Ctrl+Shift+Z。 */
     onRedo?: () => void;
+    /** 控え行（`#@ hidden`）も表に出しているか。外すのは親（読み込み）の担当。 */
+    reveal?: boolean;
+    /** 控えの表示／非表示の切り替えを親へ通知（省略時は切り替えボタンを出さない）。 */
+    onToggleReveal?: () => void;
   }
 
-  let { doc, onChange, onUndo, onRedo }: Props = $props();
+  let { doc, onChange, onUndo, onRedo, reveal = false, onToggleReveal }: Props = $props();
 
   // 列型 → 入力ウィジェット仕様。列定義の変化に追従。
   const widgets = $derived(gridWidgets(doc.columns));
@@ -778,6 +783,19 @@
     if (activeIsData) onChange?.(clearRow(doc, activeCell.row));
   }
 
+  // ── 控え行（`#@ hidden`）。書き直した元の文言を、消していいか悩まずに残しておくための
+  //    退避先。表からは外れるが件数は常に出し、外したこと自体は見えるようにする。 ──
+  const hiddenCount = $derived(hiddenRowCount(doc));
+  // 控えを表示中は、選択行がすでに控えかどうかでボタンの意味が変わる。
+  const activeIsHidden = $derived(activeIsData && isHiddenRow(doc, activeCell.row));
+
+  function toggleActiveRowHidden(): void {
+    if (!activeIsData) return;
+    onChange?.(
+      activeIsHidden ? unhideRow(doc, activeCell.row) : hideRow(doc, activeCell.row),
+    );
+  }
+
   // 選択行を TSV（タブ区切り）でクリップボードへ。失敗（権限・非対応）は握り潰す。
   async function copyActiveRow(): Promise<void> {
     if (!activeIsData) return;
@@ -995,6 +1013,7 @@
         {#each Array(displayRows) as _row, r (r)}
           {@const tint = rowTintOf(rowTints, doc.rows[r] ?? [])}
           <tr
+            class:hidden-row={reveal && r < doc.rows.length && isHiddenRow(doc, r)}
             style={`height:${rowHeights[r] ?? DEFAULT_ROW_HEIGHT}px${tint ? `; --row-tint:${tint}` : ''}`}
           >
             <!-- 行番号クリックで行全体を選択（スプレ同様）。下端のグリップは行高リサイズ。 -->
@@ -1174,6 +1193,19 @@
       >
         選択行を削除
       </button>
+      <!-- 書き直した元の文言を、消していいか悩まずに退避する（#@ hidden …）。
+           表示中なら同じボタンが戻す側になる。 -->
+      <button
+        type="button"
+        class="row-btn"
+        onclick={toggleActiveRowHidden}
+        disabled={!activeIsData}
+        title={activeIsHidden
+          ? '控えをやめて通常の行に戻す'
+          : '行をファイルに残したまま表から外す'}
+      >
+        {activeIsHidden ? '控えから戻す' : '選択行を控えに'}
+      </button>
       <!-- 表の上の補足行を 1 本追加（#@ note …）。「表の上に補足」の編集導線。 -->
       <button type="button" class="row-btn" onclick={startNewNote}>＋ 補足行</button>
       <!-- 選択中の列範囲に肉厚グループ（大分類）を張る（#@ group …）。既定名で作って即改名。 -->
@@ -1183,6 +1215,19 @@
         onclick={createGroupFromSelection}
         title="選択中の列に大分類（グループ見出し）を作成"
       >＋ グループ</button>
+      <!-- 控えを預かっていることは常に見えるようにする。件数を出さないと、外した行が
+           あること自体を忘れて「消えた」と受け取られる。 -->
+      {#if hiddenCount > 0 && onToggleReveal}
+        <button
+          type="button"
+          class="row-btn"
+          class:on={reveal}
+          onclick={onToggleReveal}
+          title={reveal ? '控え行を表から外す' : '控え行を表に出して中身を確かめる'}
+        >
+          控え {hiddenCount} 行{reveal ? 'を隠す' : 'を表示'}
+        </button>
+      {/if}
       <span class="active-row" aria-live="polite">
         {modeLabel}中: {activeRowLabel}{#if selectionLabel} · {selectionLabel}{/if}
       </span>
@@ -1305,6 +1350,13 @@
     cursor: default;
   }
 
+  /* 控えを表示中であることを、押している側のボタンで示す。 */
+  .row-btn.on {
+    background: var(--accent-subtle);
+    color: var(--text-primary);
+    border-color: var(--accent);
+  }
+
   .active-row {
     margin-left: auto;
     font-size: var(--text-2xs-size, var(--text-sm-size));
@@ -1406,6 +1458,18 @@
         from var(--row-tint, #0000) var(--row-tint-dark-l) min(c * 3, var(--row-tint-dark-c-max)) h
       );
     }
+  }
+
+  /* 控えを表示中の行。文字を落として左端に印を付け、表の本体でないことを見た目で分ける。
+     背景は条件付き書式（--row-tint）が使っているので触らない。文字を薄くするのは表示側
+     （.cell-view）だけにして、編集に入った入力欄はそのまま読める濃さを保つ。 */
+  tbody tr.hidden-row .cell-view {
+    opacity: 0.5;
+  }
+
+  tbody tr.hidden-row .rownum {
+    color: var(--accent);
+    box-shadow: inset 3px 0 0 var(--accent);
   }
 
   /* 行番号列＝横スクロールでも固定（sticky left）。左上隅も固定。 */

@@ -19,11 +19,14 @@ import {
   generateRowId,
   hasRowIdColumn,
   isRowId,
+  mergeHiddenRows,
   parseTsv,
   serializeTsv,
+  splitHiddenRows,
   validateTsv,
   withRowIds,
   withoutRowIds,
+  type HiddenRow,
   type IdentifiedTsv,
   type ParsedHeader,
   type TsvDocument,
@@ -114,10 +117,12 @@ export interface UpdateTsvRowInput {
 /** 読み込んだ TSV と、書き戻しに必要な元テキストの体裁。 */
 interface LoadedTsv {
   relative: string;
-  /** ID 列を抜いた形。ID 列を持たないシートでは素の解析結果と同じ。 */
+  /** ID 列と控え行を抜いた形。ID 列を持たないシートでは素の解析結果と同じ。 */
   doc: IdentifiedTsv;
   /** ID 列がファイルにあるか。無ければ書き戻しでも足さない。 */
   tracksIds: boolean;
+  /** 表から外した控え行。書き戻しで元の位置へ戻す。 */
+  hidden: HiddenRow[];
   source: string;
 }
 
@@ -163,7 +168,10 @@ async function load(store: DocumentStore, relative: string): Promise<LoadedTsv |
       error: `TSV のヘッダ行が見つかりません: ${relative}（1 行目に型付きヘッダが必要です）`,
     };
   }
-  return { relative, doc: withRowIds(parsed), tracksIds: hasRowIdColumn(parsed), source };
+  // 控えは行 ID で指すので、ID が出そろってから外す。外してしまえば行の指定・検証は
+  // 控えを知らずに済み、表に出ていない行を書き換える手立ても無くなる。
+  const { doc, hidden } = splitHiddenRows(withRowIds(parsed));
+  return { relative, doc, tracksIds: hasRowIdColumn(parsed), hidden, source };
 }
 
 /**
@@ -231,14 +239,15 @@ function preserveTrailingEol(next: string, prev: string): string {
 }
 
 /**
- * 書き出す形に戻す。ID 列を持つシートだけ ID 列を末尾へ書き戻す。
+ * 書き出す形に戻す。控え行を元の位置へ戻し、ID 列を持つシートだけ ID 列を末尾へ書き戻す。
  *
- * 持たないシートへ足すと、触った覚えのない全行が diff に出る。ID 列を焼くのは
+ * ID 列を持たないシートへ足すと、触った覚えのない全行が diff に出る。ID 列を焼くのは
  * グリッドで開いて保存したときの仕事で、MCP は受け取った体裁のまま返す。
  */
 function toWritable(loaded: LoadedTsv, doc: IdentifiedTsv): TsvDocument {
-  if (loaded.tracksIds) return withoutRowIds(doc);
-  const { rowIds: _rowIds, idColumn: _idColumn, ...rest } = doc;
+  const merged = mergeHiddenRows(doc, loaded.hidden);
+  if (loaded.tracksIds) return withoutRowIds(merged);
+  const { rowIds: _rowIds, idColumn: _idColumn, ...rest } = merged;
   return rest;
 }
 

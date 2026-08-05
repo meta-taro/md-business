@@ -6,15 +6,9 @@
   import { pdfExport } from '$lib/preview/pdfExport.svelte';
   import CodeMirrorEditor from '$lib/editor/CodeMirrorEditor.svelte';
   import { debounce } from '$lib/util/debounce';
-  import {
-    parseTsv,
-    serializeTsv,
-    withRowIds,
-    withoutRowIds,
-    type IdentifiedTsv,
-  } from '@md-business/schema-test-spec-tsv';
+  import type { IdentifiedTsv } from '@md-business/schema-test-spec-tsv';
   import { isTsvSource } from '$lib/tsv/detect';
-  import { preserveTrailingEol } from '$lib/tsv/gridEol';
+  import { loadGridDoc, saveGridDoc } from '$lib/tsv/gridDoc';
   import TsvGrid from '$lib/tsv/TsvGrid.svelte';
   import {
     initHistory,
@@ -72,6 +66,7 @@
     const next = untrack(() => workspace.source);
     debouncedSource = next;
     gridHistory = initHistory(next);
+    revealHidden = false;
   });
 
   // 編集（source 変化）と設定変更を受けて、デバウンス保存を予約する。実際の発火可否は
@@ -253,20 +248,24 @@
   });
 
   // カスタム TSV 検証シートは読み取りプレビューでなく編集グリッドで開く。
-  // 先頭マジック行で判定し、TSV なら parseTsv した doc をグリッドへ渡す。
-  // 行 ID 列は読み込みで抜いて doc に持たせ、保存で末尾へ戻す（グリッドの列には出さない）。
+  // 先頭マジック行で判定し、TSV なら表として見せる分だけをグリッドへ渡す。
+  // 行 ID 列と控え行（`#@ hidden`）は読み込みで外し、保存で戻す（gridDoc）。
   // ID を持たない既存ファイルはここで採番され、保存した時点でファイルへ焼かれる。
+  // 控えを表に出しているか。戻す操作のための一時的な見せ方なので、ファイルには残さず
+  // 開き直しで既定（外す）へ戻す。
+  let revealHidden = $state(false);
   const isTsv = $derived(isTsvSource(debouncedSource));
-  const tsvDoc = $derived(isTsv ? withRowIds(parseTsv(debouncedSource)) : null);
+  const tsvGrid = $derived(isTsv ? loadGridDoc(debouncedSource, { reveal: revealHidden }) : null);
+  const tsvDoc = $derived(tsvGrid?.doc ?? null);
 
-  // グリッド編集 → serializeTsv で source（＝正本）へ書き戻し、エディターと即同期する。
+  // グリッド編集 → 正本ソースへ書き戻し、エディターと即同期する。
   // debouncedSource も即更新して doc を再導出し、グリッドを遅延なく反映する。
   // 併せて確定スナップショットを履歴へ積む（Ctrl+Z / Ctrl+Y で戻せるように）。
-  // serializeTsv は末尾改行を付けない契約なので、元ソースの末尾改行をここで引き継ぐ
-  // （落とすと編集内容と無関係な 1 行が毎回 diff に出る）。
+  // 控え行は編集中の doc に載っていないので、読み込み時に外したものをここで戻す。
   function handleGridChange(next: IdentifiedTsv): void {
-    const text = preserveTrailingEol(
-      serializeTsv(withoutRowIds(next)),
+    const text = saveGridDoc(
+      next,
+      untrack(() => tsvGrid?.hidden ?? []),
       untrack(() => workspace.source),
     );
     gridHistory = pushHistory(gridHistory, text);
@@ -479,6 +478,8 @@
           onChange={handleGridChange}
           onUndo={handleGridUndo}
           onRedo={handleGridRedo}
+          reveal={revealHidden}
+          onToggleReveal={() => (revealHidden = !revealHidden)}
         />
       </div>
     {:else}

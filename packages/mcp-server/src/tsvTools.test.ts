@@ -325,6 +325,95 @@ describe('行 ID を持つ検証シート', () => {
   });
 });
 
+/**
+ * 控え行を持つ検証シート。
+ *
+ * 控え（`#@ hidden <id> …`）は、書き直した元の文言を消さずに表から外しておくためのもの。
+ * エージェントから見えると、実施対象と勘違いして結果を書き込んだり、`△` のような
+ * 過去の記入を直そうとしたりする。読みでは外し、書き戻しでは元の位置へ戻す。
+ */
+const HIDDEN_SHEET =
+  [
+    '#! md-business:test-spec-tsv/v1',
+    '#@ rowid _id',
+    '#@ hidden rbbbbbbbbbbbb',
+    'No.:number\t項目!\t結果:enum(OK|NG)\t_id',
+    '1\t新規登録\tOK\traaaaaaaaaaaa',
+    '2\t新規登録（初版）\t△\trbbbbbbbbbbbb',
+    '3\t金額計算\tNG\trcccccccccccc',
+  ].join('\n') + '\n';
+
+function hiddenStore(): MemoryDocumentStore {
+  return new MemoryDocumentStore({ 'sheets/hidden.tsv': HIDDEN_SHEET });
+}
+
+describe('控え行を持つ検証シート', () => {
+  it('read_tsv は控え行を出さない', async () => {
+    const r = await readTsv(hiddenStore(), 'sheets/hidden.tsv');
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.rows.map((row) => row[1])).toEqual(['新規登録', '金額計算']);
+    expect(r.rowIds).toEqual(['raaaaaaaaaaaa', 'rcccccccccccc']);
+  });
+
+  it('控え行は issues に出さない', async () => {
+    // 控えは過去の記入をそのまま預かる場所なので、列型に反していても直す対象ではない。
+    const r = await readTsv(hiddenStore(), 'sheets/hidden.tsv');
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.issues).toEqual([]);
+  });
+
+  it('控えの宣言はそのまま返す（控えがあること自体は隠さない）', async () => {
+    const r = await readTsv(hiddenStore(), 'sheets/hidden.tsv');
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.directives).toContain('hidden rbbbbbbbbbbbb');
+  });
+
+  it('別の行を更新しても控えは元の位置に残る', async () => {
+    const s = hiddenStore();
+    const r = await updateTsvRow(s, {
+      path: 'sheets/hidden.tsv',
+      row: 'rcccccccccccc',
+      values: { 結果: 'OK' },
+    });
+    expect(r.ok).toBe(true);
+
+    expect(await s.read('sheets/hidden.tsv')).toBe(
+      HIDDEN_SHEET.replace('3\t金額計算\tNG', '3\t金額計算\tOK'),
+    );
+  });
+
+  it('追記しても控えは元の位置に残る', async () => {
+    const s = hiddenStore();
+    const r = await appendTsvRow(s, {
+      path: 'sheets/hidden.tsv',
+      values: { 'No.': '4', 項目: '在庫引当' },
+    });
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+
+    const after = (await s.read('sheets/hidden.tsv')).split('\n');
+    expect(after[5]).toBe('2\t新規登録（初版）\t△\trbbbbbbbbbbbb');
+    expect(after[7]).toBe(`4\t在庫引当\t\t${r.rowId as string}`);
+  });
+
+  it('控えの行 ID を指した更新は書き込まずに失敗する', async () => {
+    // 書けてしまうと、表に出ていない行が知らないうちに書き換わる。
+    const s = hiddenStore();
+    const r = await updateTsvRow(s, {
+      path: 'sheets/hidden.tsv',
+      row: 'rbbbbbbbbbbbb',
+      values: { 結果: 'OK' },
+    });
+    expect(r.ok).toBe(false);
+    if (r.ok) return;
+    expect(r.error).toContain('rbbbbbbbbbbbb');
+    expect(await s.read('sheets/hidden.tsv')).toBe(HIDDEN_SHEET);
+  });
+});
+
 describe('行 ID を持たない検証シート', () => {
   // 既存シートは ID 列を持たない。MCP が勝手に ID 列を足すと、触った覚えのない
   // 全行が diff に出る。ID 列を焼くのはグリッドで保存したときだけにする。
