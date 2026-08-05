@@ -8,21 +8,34 @@ import type { TsvDocument } from '@md-business/schema-test-spec-tsv';
 import type { RangeBounds } from './gridRange';
 
 /**
- * 範囲の先頭行の値を、以降の行へ列ごとに配った **新しい** ドキュメントを返す（入力は不変）。
+ * 埋める元の行と、埋める先の最終行を求める。
  *
- * - 単一セルの選択は直上のセルから引く（表計算と同じ。直上が無ければ何もしない）
- * - 実データより下（パッド行）へは書かない。空行を実体化させるのは行追加の仕事
- * - 値が 1 つも変わらないなら入力をそのまま返す（履歴に空のスナップショットを積まない）
+ * 単一行の選択は直上を種にする（表計算と同じ）。範囲選択は先頭行が種で、埋める先は次の行から。
+ * 実データより下（パッド行）へは書かない。空行を実体化させるのは行追加の仕事。
+ */
+function fillRange(doc: TsvDocument, bounds: RangeBounds): { from: number; to: number } | null {
+  const last = doc.rows.length - 1;
+  const from = bounds.r0 === bounds.r1 ? bounds.r0 - 1 : bounds.r0;
+  const to = Math.min(bounds.r1, last);
+  if (from < 0 || from > last || to <= from) return null;
+  return { from, to };
+}
+
+/** 下へ埋められる範囲か（導線の活性判定。{@link fillDown} と同じ判断に乗せる）。 */
+export function canFillDown(doc: TsvDocument, bounds: RangeBounds): boolean {
+  return fillRange(doc, bounds) !== null;
+}
+
+/**
+ * 範囲の先頭行の値を、以降の行へ列ごとに配った **新しい** ドキュメントを返す（入力は不変）。
+ * 値が 1 つも変わらないなら入力をそのまま返す（履歴に空のスナップショットを積まない）。
  *
  * 行数が変わらないので、行 ID を載せた doc をそのまま通せる。
  */
 export function fillDown<T extends TsvDocument>(doc: T, bounds: RangeBounds): T {
-  const last = doc.rows.length - 1;
-  // 単一行の選択は直上を種にする。範囲選択は先頭行が種で、埋める先は次の行から。
-  const single = bounds.r0 === bounds.r1;
-  const from = single ? bounds.r0 - 1 : bounds.r0;
-  const to = Math.min(bounds.r1, last);
-  if (from < 0 || from > last || to <= from) return doc;
+  const range = fillRange(doc, bounds);
+  if (range === null) return doc;
+  const { from, to } = range;
 
   const source = doc.rows[from] as string[];
   let changed = false;

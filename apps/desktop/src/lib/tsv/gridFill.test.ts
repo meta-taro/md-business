@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { TsvDocument } from '@md-business/schema-test-spec-tsv';
-import { fillDown } from './gridFill';
+import { canFillDown, fillDown } from './gridFill';
 
 /**
  * 選択範囲を下方向へ埋める（Ctrl+D）純ロジックの検査。
@@ -20,6 +20,34 @@ function doc(rows: string[][]): TsvDocument {
     directives: [],
   } as unknown as TsvDocument;
 }
+
+/** 導線（ボタン）の活性は fillDown と同じ判定に乗せる。二重に持つと必ずずれる。 */
+describe('canFillDown', () => {
+  const three = doc([
+    ['1', 'OK', ''],
+    ['2', '', ''],
+    ['3', '', ''],
+  ]);
+
+  it('複数行の範囲は埋められる', () => {
+    expect(canFillDown(three, { r0: 0, c0: 1, r1: 2, c1: 1 })).toBe(true);
+  });
+  it('2 行目以降の単一セルは直上から引ける', () => {
+    expect(canFillDown(three, { r0: 1, c0: 1, r1: 1, c1: 1 })).toBe(true);
+  });
+  it('先頭行の単一セルは引く先が無い', () => {
+    expect(canFillDown(three, { r0: 0, c0: 1, r1: 0, c1: 1 })).toBe(false);
+  });
+  it('範囲がまるごとパッド行なら埋められない', () => {
+    expect(canFillDown(three, { r0: 5, c0: 1, r1: 7, c1: 1 })).toBe(false);
+  });
+  it('末尾行から下のパッド行までの範囲は、埋める先が無い', () => {
+    expect(canFillDown(three, { r0: 2, c0: 1, r1: 6, c1: 1 })).toBe(false);
+  });
+  it('行が 1 件も無ければ埋められない', () => {
+    expect(canFillDown(doc([]), { r0: 0, c0: 0, r1: 3, c1: 0 })).toBe(false);
+  });
+});
 
 describe('fillDown', () => {
   it('複数行の範囲は、先頭行の値を以降の行へ配る', () => {
