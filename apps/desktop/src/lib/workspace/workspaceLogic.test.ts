@@ -11,6 +11,7 @@ import {
   collectFolderPaths,
   shouldClearFilter,
   decideTreeKey,
+  withAncestorsExpanded,
   type VisibleRow,
 } from './workspaceLogic';
 
@@ -313,6 +314,28 @@ describe('collectFolderPaths', () => {
   it('フォルダが無ければ空配列', () => {
     const tree = buildTree(entries('x.md', 'y.md'));
     expect(collectFolderPaths(tree)).toEqual([]);
+  });
+});
+
+describe('withAncestorsExpanded', () => {
+  it('親をすべて開いた集合を返す（作ったファイルが畳まれた中に隠れない）', () => {
+    const next = withAncestorsExpanded(new Set(), 'docs/検証/001-login.tsv');
+    expect([...next].sort()).toEqual(['docs', 'docs/検証']);
+  });
+
+  it('もとの展開状態は残す', () => {
+    const next = withAncestorsExpanded(new Set(['other']), 'docs/a.md');
+    expect([...next].sort()).toEqual(['docs', 'other']);
+  });
+
+  it('ルート直下のファイルでは何も足さない', () => {
+    expect([...withAncestorsExpanded(new Set(['x']), 'a.md')]).toEqual(['x']);
+  });
+
+  it('渡された集合は書き換えない', () => {
+    const before = new Set<string>();
+    withAncestorsExpanded(before, 'docs/a.md');
+    expect(before.size).toBe(0);
   });
 });
 

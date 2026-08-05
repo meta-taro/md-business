@@ -5,6 +5,7 @@ import {
   baseName,
   validateNewName,
   renamedPath,
+  childPath,
 } from './fileTreeMenu';
 
 describe('toAbsolutePath', () => {
@@ -45,14 +46,19 @@ describe('menuActionsForKind', () => {
     ]);
   });
 
-  it('フォルダは openForge を持たない（フォージ blob はファイル向け）', () => {
+  it('フォルダは openForge を持たず、代わりに新規作成を先頭に持つ', () => {
     expect(menuActionsForKind('folder')).toEqual([
+      'newTestSheet',
       'rename',
       'reveal',
       'copyName',
       'copyRelPath',
       'copyPath',
     ]);
+  });
+
+  it('ファイルには新規作成を出さない（作る先はフォルダで指す）', () => {
+    expect(menuActionsForKind('file')).not.toContain('newTestSheet');
   });
 });
 
@@ -131,5 +137,23 @@ describe('renamedPath', () => {
 
   it('前後の空白は落として組み立てる', () => {
     expect(renamedPath('docs/a.md', '  b.md  ')).toBe('docs/b.md');
+  });
+});
+
+describe('childPath', () => {
+  it('フォルダの下に名前を繋ぐ', () => {
+    expect(childPath('docs/検証', '001-login.tsv')).toBe('docs/検証/001-login.tsv');
+  });
+
+  it('ルート直下は名前だけになる（先頭に区切りを付けない）', () => {
+    expect(childPath('', '001-login.tsv')).toBe('001-login.tsv');
+  });
+
+  it('区切り文字は走査と同じ "/" に揃える', () => {
+    expect(childPath('docs\\検証', '001-login.tsv')).toBe('docs/検証/001-login.tsv');
+  });
+
+  it('前後の空白と余分な区切りは落とす', () => {
+    expect(childPath('/docs//検証/', '  001-login.tsv  ')).toBe('docs/検証/001-login.tsv');
   });
 });

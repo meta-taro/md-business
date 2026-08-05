@@ -123,6 +123,23 @@ export interface Messages {
   'tree.renameErrorSeparator': string;
   'tree.renameErrorInvalidChar': string;
   'tree.renameErrorExtension': string;
+  'tree.menuNewTestSheet': string;
+  // 検証シートの新規作成ダイアログ
+  'newSheet.title': string;
+  'newSheet.folder': string;
+  'newSheet.folderRoot': string;
+  'newSheet.preset': string;
+  'newSheet.presetTestCase': string;
+  'newSheet.presetTestCaseDesc': string;
+  'newSheet.presetViewpoint': string;
+  'newSheet.presetViewpointDesc': string;
+  'newSheet.fileName': string;
+  'newSheet.fileNamePlaceholder': string;
+  'newSheet.fileNameHint': string;
+  'newSheet.sheetTitle': string;
+  'newSheet.sheetTitlePlaceholder': string;
+  'newSheet.create': string;
+  'newSheet.cancel': string;
   // Git 変更状態（ツリーのバッジ説明）
   'git.state.modified': string;
   'git.state.added': string;
@@ -324,6 +341,22 @@ const en: Messages = {
   'tree.renameErrorSeparator': 'A name cannot contain path separators',
   'tree.renameErrorInvalidChar': 'That name contains characters that cannot be used',
   'tree.renameErrorExtension': 'The extension must stay .md or .tsv',
+  'tree.menuNewTestSheet': 'New test sheet',
+  'newSheet.title': 'New test sheet',
+  'newSheet.folder': 'Location',
+  'newSheet.folderRoot': 'Top of the open folder',
+  'newSheet.preset': 'Template',
+  'newSheet.presetTestCase': 'Test cases',
+  'newSheet.presetTestCaseDesc': 'Steps and expected results, one case per row.',
+  'newSheet.presetViewpoint': 'Viewpoints',
+  'newSheet.presetViewpointDesc': 'Points to check, grouped by category, to find what is missing.',
+  'newSheet.fileName': 'File name',
+  'newSheet.fileNamePlaceholder': '001-login',
+  'newSheet.fileNameHint': 'Adds .tsv if you leave it out',
+  'newSheet.sheetTitle': 'Title (optional)',
+  'newSheet.sheetTitlePlaceholder': 'Order flow test sheet',
+  'newSheet.create': 'Create',
+  'newSheet.cancel': 'Cancel',
   'git.state.modified': 'Modified (uncommitted)',
   'git.state.added': 'Staged addition',
   'git.state.untracked': 'Untracked (new)',
@@ -526,6 +559,22 @@ const ja: Messages = {
   'tree.renameErrorSeparator': '名前に区切り文字は使えません',
   'tree.renameErrorInvalidChar': '名前に使えない文字が含まれています',
   'tree.renameErrorExtension': '拡張子は .md / .tsv のままにしてください',
+  'tree.menuNewTestSheet': '検証シートを新規作成',
+  'newSheet.title': '検証シートを新規作成',
+  'newSheet.folder': '作成先',
+  'newSheet.folderRoot': '開いているフォルダの直下',
+  'newSheet.preset': 'ひな形',
+  'newSheet.presetTestCase': '試験ケース',
+  'newSheet.presetTestCaseDesc': '手順と期待結果を 1 件ずつ並べて、上から実施していく形。',
+  'newSheet.presetViewpoint': '観点表',
+  'newSheet.presetViewpointDesc': '確かめたい観点を分類ごとに挙げて、抜けを見つける形。',
+  'newSheet.fileName': 'ファイル名',
+  'newSheet.fileNamePlaceholder': '001-login',
+  'newSheet.fileNameHint': '省略すると .tsv を付けます',
+  'newSheet.sheetTitle': 'タイトル（任意）',
+  'newSheet.sheetTitlePlaceholder': '受発注ワークフロー 検証シート',
+  'newSheet.create': '作成',
+  'newSheet.cancel': '取り消し',
   'git.state.modified': '変更あり（未コミット）',
   'git.state.added': 'ステージ済みの追加',
   'git.state.untracked': '未追跡（新規）',
@@ -727,6 +776,22 @@ const zh: Messages = {
   'tree.renameErrorSeparator': '名称中不能包含路径分隔符',
   'tree.renameErrorInvalidChar': '名称中包含无法使用的字符',
   'tree.renameErrorExtension': '扩展名必须保持为 .md 或 .tsv',
+  'tree.menuNewTestSheet': '新建验证表',
+  'newSheet.title': '新建验证表',
+  'newSheet.folder': '创建位置',
+  'newSheet.folderRoot': '当前文件夹根目录',
+  'newSheet.preset': '模板',
+  'newSheet.presetTestCase': '测试用例',
+  'newSheet.presetTestCaseDesc': '每行一条，列出步骤与预期结果，自上而下执行。',
+  'newSheet.presetViewpoint': '检查观点表',
+  'newSheet.presetViewpointDesc': '按分类列出要确认的观点，用于发现遗漏。',
+  'newSheet.fileName': '文件名',
+  'newSheet.fileNamePlaceholder': '001-login',
+  'newSheet.fileNameHint': '省略时会自动加上 .tsv',
+  'newSheet.sheetTitle': '标题（可选）',
+  'newSheet.sheetTitlePlaceholder': '订单流程 验证表',
+  'newSheet.create': '创建',
+  'newSheet.cancel': '取消',
   'git.state.modified': '已更改（未提交）',
   'git.state.added': '已暂存的新增',
   'git.state.untracked': '未跟踪（新增）',
@@ -925,6 +990,22 @@ const ko: Messages = {
   'tree.renameErrorSeparator': '이름에 경로 구분자는 사용할 수 없습니다',
   'tree.renameErrorInvalidChar': '이름에 사용할 수 없는 문자가 있습니다',
   'tree.renameErrorExtension': '확장자는 .md 또는 .tsv 여야 합니다',
+  'tree.menuNewTestSheet': '검증 시트 새로 만들기',
+  'newSheet.title': '검증 시트 새로 만들기',
+  'newSheet.folder': '만들 위치',
+  'newSheet.folderRoot': '열려 있는 폴더 바로 아래',
+  'newSheet.preset': '서식',
+  'newSheet.presetTestCase': '시험 케이스',
+  'newSheet.presetTestCaseDesc': '절차와 기대 결과를 한 건씩 나열해 위에서부터 진행하는 형식.',
+  'newSheet.presetViewpoint': '관점표',
+  'newSheet.presetViewpointDesc': '확인할 관점을 분류별로 적어 빠진 부분을 찾는 형식.',
+  'newSheet.fileName': '파일 이름',
+  'newSheet.fileNamePlaceholder': '001-login',
+  'newSheet.fileNameHint': '생략하면 .tsv를 붙입니다',
+  'newSheet.sheetTitle': '제목(선택)',
+  'newSheet.sheetTitlePlaceholder': '수발주 워크플로 검증 시트',
+  'newSheet.create': '만들기',
+  'newSheet.cancel': '취소',
   'git.state.modified': '변경됨 (커밋 안 됨)',
   'git.state.added': '스테이지된 추가',
   'git.state.untracked': '추적 안 됨 (신규)',

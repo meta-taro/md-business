@@ -26,8 +26,10 @@
     baseName,
     validateNewName,
     renamedPath,
+    childPath,
     type FileTreeMenuAction,
   } from './fileTreeMenu';
+  import NewSheetDialog from './NewSheetDialog.svelte';
 
   // git 状態 → ホバー説明（バッジ title）。色マークの意味を言葉でも補う。
   // t() はロケール反応なので関数で都度引く（キーは git.state.<state>）。
@@ -129,6 +131,7 @@
   } | null>(null);
 
   const MENU_LABEL_KEYS: Record<FileTreeMenuAction, MessageKey> = {
+    newTestSheet: 'tree.menuNewTestSheet',
     rename: 'tree.menuRename',
     reveal: 'tree.menuReveal',
     copyName: 'tree.menuCopyName',
@@ -162,7 +165,9 @@
     closeMenu();
     if (m === null || workspace.root === null) return;
     const abs = toAbsolutePath(workspace.root, m.path);
-    if (action === 'rename') {
+    if (action === 'newTestSheet') {
+      newSheetFolder = m.path;
+    } else if (action === 'rename') {
       startRename(m.path, m.kind);
     } else if (action === 'reveal') {
       await revealItemInDir(abs).catch(() => undefined);
@@ -176,6 +181,16 @@
     } else if (action === 'openForge' && m.forgeUrl !== null) {
       await openUrl(m.forgeUrl).catch(() => undefined);
     }
+  }
+
+  // ── 検証シートの新規作成 ──────────────────────────────────────
+  // 作成先フォルダの相対パス（ルート直下は空文字）。null の間はダイアログを出さない。
+  let newSheetFolder = $state<string | null>(null);
+
+  /** ダイアログから受けた本文を書き込む。失敗（同名衝突など）はそのまま投げ返す。 */
+  async function createSheet(name: string, content: string): Promise<void> {
+    if (newSheetFolder === null) return;
+    await workspace.createDocument(childPath(newSheetFolder, name), content);
   }
 
   // ── 名前の変更 ────────────────────────────────────────────────
@@ -258,8 +273,8 @@
   // （フィルタ入力の Esc とは、開いているものを優先することで排他になる）。
   function onWindowKeydown(e: KeyboardEvent): void {
     if (e.key !== 'Escape') return;
-    // 改名中の Esc は入力欄側が受ける（ここで履歴ポップオーバーまで畳まない）。
-    if (renaming !== null) return;
+    // 改名中・新規作成中の Esc はそれぞれの入力側が受ける（ここで他のものまで畳まない）。
+    if (renaming !== null || newSheetFolder !== null) return;
     if (menu !== null) {
       e.preventDefault();
       closeMenu();
@@ -339,6 +354,27 @@
       </button>
       <span class="title">{t('tree.explorer')}</span>
     </div>
+    {#if workspace.root !== null}
+      <!-- ツリーには root 直下しか出ないため、フォルダを 1 つも持たないリポジトリでは
+           右クリックの入口がない。ルート直下へ作る道をヘッダーに常設する。 -->
+      <button
+        class="new-sheet"
+        type="button"
+        onclick={() => (newSheetFolder = '')}
+        title={t('tree.menuNewTestSheet')}
+        aria-label={t('tree.menuNewTestSheet')}
+      >
+        <svg viewBox="0 0 16 16" aria-hidden="true">
+          <path
+            d="M8 3.5v9M3.5 8h9"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.4"
+            stroke-linecap="round"
+          />
+        </svg>
+      </button>
+    {/if}
   </div>
 
   {#if workspace.root !== null}
@@ -600,6 +636,14 @@
   </ul>
 {/if}
 
+{#if newSheetFolder !== null}
+  <NewSheetDialog
+    folderPath={newSheetFolder}
+    onclose={() => (newSheetFolder = null)}
+    oncreate={createSheet}
+  />
+{/if}
+
 <style>
   .filetree {
     height: 100%;
@@ -652,6 +696,32 @@
     align-items: center;
     gap: var(--space-1);
     min-width: 0;
+  }
+
+  /* ヘッダー右端の新規作成ボタン。 */
+  .new-sheet {
+    width: 22px;
+    height: 22px;
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border: none;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--text-tertiary);
+    cursor: pointer;
+  }
+
+  .new-sheet:hover {
+    background: var(--bg-hover, transparent);
+    color: var(--text-primary);
+  }
+
+  .new-sheet svg {
+    width: 14px;
+    height: 14px;
   }
 
   /* ヘッダーの畳みボタン（開いている状態から ‹ で畳む）。 */
