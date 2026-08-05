@@ -1192,14 +1192,35 @@
   {#if editable && doc.columns.length > 0}
     <!-- 行操作バー。対象は「選択中の行」＝アクティブセルの行。 -->
     <div class="grid-actions">
-      <button type="button" class="row-btn" onclick={addRow}>＋ 行を追加</button>
-      <button type="button" class="row-btn" onclick={duplicateActiveRow} disabled={!activeIsData}>
-        選択行を複製
+      <!-- 足す位置・複製先を label に書く。「行を追加」だけだと選択行の隣に入ると読まれる。 -->
+      <button type="button" class="row-btn" onclick={addRow} title="表の一番下に空の行を 1 本足す">
+        ＋ 末尾に行を追加
       </button>
-      <button type="button" class="row-btn" onclick={copyActiveRow} disabled={!activeIsData}>
+      <button
+        type="button"
+        class="row-btn"
+        onclick={duplicateActiveRow}
+        disabled={!activeIsData}
+        title="選択行と同じ内容の行を、そのすぐ下に足す"
+      >
+        選択行の下に複製
+      </button>
+      <button
+        type="button"
+        class="row-btn"
+        onclick={copyActiveRow}
+        disabled={!activeIsData}
+        title="選択行をクリップボードへ写す"
+      >
         選択行をコピー
       </button>
-      <button type="button" class="row-btn" onclick={clearActiveRow} disabled={!activeIsData}>
+      <button
+        type="button"
+        class="row-btn"
+        onclick={clearActiveRow}
+        disabled={!activeIsData}
+        title="選択行の中身だけを消す（行は残る）"
+      >
         選択行をクリア
       </button>
       <!-- 結果・実施日・担当を同じ値で何十行も埋める作業を 1 操作にする（Ctrl+D）。 -->
@@ -1217,6 +1238,7 @@
         class="row-btn danger"
         onclick={deleteActiveRow}
         disabled={!activeIsData && padRows === 0}
+        title="選択行を表から取り除く（戻せない。迷うなら控えに）"
       >
         選択行を削除
       </button>
@@ -1234,7 +1256,14 @@
         {activeIsHidden ? '控えから戻す' : '選択行を控えに'}
       </button>
       <!-- 表の上の補足行を 1 本追加（#@ note …）。「表の上に補足」の編集導線。 -->
-      <button type="button" class="row-btn" onclick={startNewNote}>＋ 補足行</button>
+      <button
+        type="button"
+        class="row-btn"
+        onclick={startNewNote}
+        title="表の上に置く補足の 1 行を足す"
+      >
+        ＋ 補足行
+      </button>
       <!-- 選択中の列範囲に肉厚グループ（大分類）を張る（#@ group …）。既定名で作って即改名。 -->
       <button
         type="button"
@@ -1343,6 +1372,13 @@
   .row-btn {
     height: 26px;
     padding: 0 var(--space-3);
+    /* 幅が足りないときは折り返さず「…」で詰める。2 行になるとバーの高さが動き、
+       グリッドの見える行数が変わってしまう。全文は title（ホバー）で読める。
+       min-width は既定の auto（＝内容幅）だと縮まないので、明示して床を与える。 */
+    min-width: 3.5em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
     border: 1px solid var(--border);
     border-radius: var(--radius-md);
     background: var(--bg-app);
