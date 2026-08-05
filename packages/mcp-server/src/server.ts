@@ -62,6 +62,8 @@ export const SERVER_INSTRUCTIONS = `md-business は Markdown / TSV の業務文�
   全文を書き直すと「1 レコード = 1 物理行」が崩れ、差分が読めなくなる。
   read_tsv の \`rowIds\` が空でなければ、更新する行は **行 ID** で指す。行 index は利用者が
   1 行挿すだけでずれるので、読んでから書くまでの間に編集が入ると別の行を書き換えてしまう。
+  \`directives\` の \`hidden\` は、利用者が表から外して控えにした行。read_tsv には出ないし
+  書き換えもできない。控えの扱いはアプリ側の操作なので、宣言を書き換えて戻そうとしない。
 - 変更を確認して記録するのは **git_status** / **git_diff** / **git_commit**（利用可能な場合）。
 
 ## 書式の約束
