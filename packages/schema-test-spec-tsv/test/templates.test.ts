@@ -5,6 +5,7 @@ import path from 'node:path';
 import { parseTsv } from '../src/parse.js';
 import { validateTsv } from '../src/validate.js';
 import { serializeTsv } from '../src/serialize.js';
+import { isRowId, withRowIds } from '../src/rowId.js';
 
 /**
  * 配布物（templates/test-spec/*.tsv）は、Desktop の「新規検証シート」テンプレの
@@ -26,8 +27,21 @@ describe('templates/test-spec/standard-ja.tsv', () => {
     expect(doc.meta['タイトル']).toBeTruthy();
   });
 
+  // 新規シートが最初から行 ID を持っていれば、行を挿しても外からの参照が生き残る。
+  // テンプレに焼いていないと、利用者が一度保存するまで ID が無い状態が続く。
+  it('行 ID 列を持ち、全行に固有の ID が焼かれている', () => {
+    const raw = parseTsv(loadTemplate('standard-ja.tsv'));
+    expect(raw.columns.at(-1)?.name).toBe('_id');
+    expect(raw.directives).toContain('rowid _id');
+
+    const doc = withRowIds(raw);
+    expect(doc.rowIds).toHaveLength(doc.rows.length);
+    expect(doc.rowIds.every(isRowId)).toBe(true);
+    expect(new Set(doc.rowIds).size).toBe(doc.rowIds.length);
+  });
+
   it('md 版正本と同じ列構成（No. を先頭に追加）を型付きで持つ', () => {
-    const doc = parseTsv(loadTemplate('standard-ja.tsv'));
+    const doc = withRowIds(parseTsv(loadTemplate('standard-ja.tsv')));
     expect(doc.columns.map((c) => c.name)).toEqual([
       'No.',
       '項目',
