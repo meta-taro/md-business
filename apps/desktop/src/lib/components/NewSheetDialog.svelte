@@ -4,7 +4,23 @@
   // （tsvPresets の純関数・テスト済み）に作らせる。書き込みは呼び出し元へ返し、ここは入力と
   // 見せ方だけを持つ。作成後にファイルを開くところまでがストアの責務。
   import { t } from '$lib/i18n/i18n.svelte';
-  import { TSV_PRESETS, buildPresetTsv, presetFileName, findPreset } from '$lib/tsv/tsvPresets';
+  import type { MessageKey } from '$lib/i18n/messages';
+  import type { NewNameError } from '$lib/components/fileTreeMenu';
+  import {
+    TSV_PRESETS,
+    buildPresetTsv,
+    presetFileName,
+    findPreset,
+    validateSheetName,
+  } from '$lib/tsv/tsvPresets';
+
+  // 改名と同じ文言を使う（名前の規則が同じなので、理由の書き方まで揃える）。
+  const NAME_ERROR_KEYS = {
+    empty: 'tree.renameErrorEmpty',
+    separator: 'tree.renameErrorSeparator',
+    invalidChar: 'tree.renameErrorInvalidChar',
+    extension: 'tree.renameErrorExtension',
+  } as const satisfies Record<NewNameError, MessageKey>;
 
   let {
     folderPath,
@@ -35,6 +51,13 @@
 
   async function submit(): Promise<void> {
     if (!canCreate) return;
+    // 書き込みの手前で理由を出す。区切り文字などは Rust 側でも弾かれるが、そちらの文言は
+    // 入力した人に向けたものではない。
+    const invalid = validateSheetName(fileName);
+    if (invalid !== null) {
+      error = t(NAME_ERROR_KEYS[invalid]);
+      return;
+    }
     busy = true;
     error = null;
     try {
