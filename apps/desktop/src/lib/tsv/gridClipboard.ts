@@ -8,7 +8,8 @@
  * 方針: 行（＝データ）は足りなければ空行を足して伸ばす。列（＝型付きスキーマ）は
  * 固定なので、右へ溢れた分は切り捨てる（勝手に無型の列を生やさない）。
  */
-import type { TsvDocument } from '@md-business/schema-test-spec-tsv';
+import { generateRowId } from '@md-business/schema-test-spec-tsv';
+import type { IdentifiedTsv, TsvDocument } from '@md-business/schema-test-spec-tsv';
 import type { CellPos } from './gridNav';
 import { parseClipboardMatrix, serializeClipboardMatrix } from './clipboardCodec';
 
@@ -19,15 +20,27 @@ export { parseClipboardMatrix };
 /**
  * アンカーセルを左上として矩形を貼り込んだ **新しい** ドキュメントを返す（入力は不変）。
  * 貼り付けるものが無い / 列範囲外のアンカーなら、元ドキュメントをそのまま返す。
+ *
+ * 行 ID は伸ばしたぶんにだけ振る。書き換えただけの行は同じ行なので ID を変えない
+ * （変えると版間の突き合わせやレビューの往復でその行を見失う）。
  */
-export function applyPaste(doc: TsvDocument, anchor: CellPos, text: string): TsvDocument {
+export function applyPaste(
+  doc: IdentifiedTsv,
+  anchor: CellPos,
+  text: string,
+  newId: () => string = generateRowId,
+): IdentifiedTsv {
   const matrix = parseClipboardMatrix(text);
   const colCount = doc.columns.length;
   if (matrix.length === 0 || colCount === 0 || anchor.col >= colCount) return doc;
 
   const rows = doc.rows.map((cells) => cells.slice());
+  const rowIds = [...doc.rowIds];
   const lastRow = anchor.row + matrix.length - 1;
-  while (rows.length <= lastRow) rows.push(new Array<string>(colCount).fill(''));
+  while (rows.length <= lastRow) {
+    rows.push(new Array<string>(colCount).fill(''));
+    rowIds.push(newId());
+  }
 
   matrix.forEach((cells, i) => {
     const row = rows[anchor.row + i];
@@ -39,7 +52,7 @@ export function applyPaste(doc: TsvDocument, anchor: CellPos, text: string): Tsv
     });
   });
 
-  return { ...doc, rows };
+  return { ...doc, rows, rowIds };
 }
 
 /**

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import type { ParsedHeader, TsvDocument } from '@md-business/schema-test-spec-tsv';
+import type { IdentifiedTsv, ParsedHeader } from '@md-business/schema-test-spec-tsv';
 import { parseClipboardMatrix, applyPaste, rowToTsv } from './gridClipboard';
 
 /**
@@ -11,14 +11,27 @@ function col(name: string): ParsedHeader {
   return { name, type: 'text', required: false } as ParsedHeader;
 }
 
-function doc(cols: number, rows: string[][]): TsvDocument {
+/** 行 ID は `id(1)`, `id(2)`, … と読めるようにして、並びの検査を目視できる形にする。 */
+function id(n: number): string {
+  return `r${String(n).padStart(12, '0')}`;
+}
+
+/** 採番を検査可能にする差し替え用。既存行の ID と混ざらないよう 900 番台から振る。 */
+function counter(): () => string {
+  let n = 900;
+  return () => id(++n);
+}
+
+function doc(cols: number, rows: string[][]): IdentifiedTsv {
   return {
     formatId: 'md-business:test-spec-tsv/v1',
     meta: {},
     directives: [],
     columns: Array.from({ length: cols }, (_, i) => col(`列${i + 1}`)),
     rows,
-  } as TsvDocument;
+    rowIds: rows.map((_, i) => id(i + 1)),
+    idColumn: '_id',
+  } as IdentifiedTsv;
 }
 
 describe('parseClipboardMatrix', () => {
@@ -47,6 +60,26 @@ describe('parseClipboardMatrix', () => {
 
   it('単一セルはそのまま 1x1', () => {
     expect(parseClipboardMatrix('合格')).toEqual([['合格']]);
+  });
+});
+
+describe('applyPaste — 行 ID', () => {
+  it('伸ばした行にだけ ID を振り、元からある行の ID は変えない', () => {
+    // 貼り付けは既存行の書き換えと行の追加を同時にやる。書き換えられた行の ID が
+    // 変わると、レビューの往復や版間の突き合わせでその行を見失う。
+    const after = applyPaste(doc(2, [['a', 'b']]), { row: 0, col: 0 }, 'x\ty\nz\tw', counter());
+
+    expect(after.rows).toEqual([
+      ['x', 'y'],
+      ['z', 'w'],
+    ]);
+    expect(after.rowIds).toEqual([id(1), id(901)]);
+  });
+
+  it('行が増えないなら ID はそのまま', () => {
+    const after = applyPaste(doc(2, [['a', 'b']]), { row: 0, col: 0 }, 'x\ty', counter());
+
+    expect(after.rowIds).toEqual([id(1)]);
   });
 });
 

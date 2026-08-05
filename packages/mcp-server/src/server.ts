@@ -60,6 +60,8 @@ export const SERVER_INSTRUCTIONS = `md-business は Markdown / TSV の業務文�
 - 新規作成の前に **get_schema** で必須項目と型を確認する。
 - 検証シート（\`.tsv\`）は **read_tsv** で読み、**update_tsv_row** / **append_tsv_row** で **行単位**に触る。
   全文を書き直すと「1 レコード = 1 物理行」が崩れ、差分が読めなくなる。
+  read_tsv の \`rowIds\` が空でなければ、更新する行は **行 ID** で指す。行 index は利用者が
+  1 行挿すだけでずれるので、読んでから書くまでの間に編集が入ると別の行を書き換えてしまう。
 - 変更を確認して記録するのは **git_status** / **git_diff** / **git_commit**（利用可能な場合）。
 
 ## 書式の約束
@@ -226,7 +228,7 @@ export function createServer(store: DocumentStore, options: CreateServerOptions 
     'read_tsv',
     {
       description:
-        '検証シート（カスタム TSV）を読み、メタ情報・列定義（型 / 必須 / 選択肢）・データ行・列型の検証結果を返す。行を書き込む前に列名を確認するために使う。',
+        '検証シート（カスタム TSV）を読み、メタ情報・列定義（型 / 必須 / 選択肢）・データ行・行 ID・列型の検証結果を返す。行を書き込む前に列名を確認するために使う。rowIds が空でなければ、update_tsv_row の宛先は行 index ではなくその ID。',
       inputSchema: { path: z.string().describe('ワークスペース相対パス（例 sheets/受注.tsv）') },
     },
     async ({ path }) => {
@@ -259,10 +261,14 @@ export function createServer(store: DocumentStore, options: CreateServerOptions 
     'update_tsv_row',
     {
       description:
-        '検証シートの既存 1 行のうち、指定した列だけを差し替える（他の列は据え置き）。空文字を渡すとそのセルを未入力へ戻す。',
+        '検証シートの既存 1 行のうち、指定した列だけを差し替える（他の列は据え置き）。空文字を渡すとそのセルを未入力へ戻す。行は read_tsv の rowIds があれば行 ID で、無ければ行 index で指定する。',
       inputSchema: {
         path: z.string().describe('ワークスペース相対パス'),
-        row: z.number().int().describe('データ行の index（0 始まり・read_tsv の rows 基準）'),
+        row: z
+          .union([z.string(), z.number().int()])
+          .describe(
+            '更新する行。read_tsv の rowIds が空でなければその行 ID、空なら行 index（0 始まり・rows 基準）',
+          ),
         values: z.record(z.string(), z.string()).describe('列名 → 差し替えるセル値'),
       },
     },
