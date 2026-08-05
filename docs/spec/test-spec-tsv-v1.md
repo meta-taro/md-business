@@ -23,6 +23,7 @@
 - 全体パース: [`packages/schema-test-spec-tsv/src/parse.ts`](../../packages/schema-test-spec-tsv/src/parse.ts)
 - 型別バリデーション: [`packages/schema-test-spec-tsv/src/validate.ts`](../../packages/schema-test-spec-tsv/src/validate.ts)
 - シリアライズ（書き戻し）: [`packages/schema-test-spec-tsv/src/serialize.ts`](../../packages/schema-test-spec-tsv/src/serialize.ts)
+- 控え行の抜き差し（hidden）: [`packages/schema-test-spec-tsv/src/hiddenRows.ts`](../../packages/schema-test-spec-tsv/src/hiddenRows.ts)
 - 列型 / UI ヒントの型: [`packages/schema-test-spec-tsv/src/types.ts`](../../packages/schema-test-spec-tsv/src/types.ts)
 - グリッド出し分けの判定: [`apps/desktop/src/lib/tsv/detect.ts`](../../apps/desktop/src/lib/tsv/detect.ts)
 - 表ヘッダ拡張ディレクティブ（note / group）: [`apps/desktop/src/lib/tsv/gridHeaderDirectives.ts`](../../apps/desktop/src/lib/tsv/gridHeaderDirectives.ts)
@@ -96,6 +97,7 @@ data 行は tab 区切りで分割する。最初に現れた data 行を **型�
 | colwidth | `#@ colwidth <i>=<px> …` | 列 `i`（0 始まり）の幅を px で指定。空白区切りで複数列。 |
 | rowheight | `#@ rowheight <key>=<px> …` | 行の高さを px で指定。`key` は**行 ID**（行 ID 列があるファイル）または行インデックス（0 始まり・無いファイル）。空白区切りで複数行。 |
 | rowid | `#@ rowid <列名>` | 行 ID を格納する列を宣言する。複数あれば後勝ち。 |
+| hidden | `#@ hidden <id> …` | 表から外して控えにする行。**行 ID のみ**で指す。空白区切りで複数行、複数行に分けて書いた場合は合算。 |
 | colmode | `#@ colmode <i>=<mode> …` | 列 `i`（0 始まり）の表示モード（折り返し等）を指定。 |
 | align | `#@ align <i>=<left\|center\|right> …` | 列 `i`（0 始まり）の寄せを指定。列名（型付きヘッダ）・データセル・グループ見出しに効く。 |
 | style | `#@ style <列名> <値>=<色> …` | 条件付き書式。指定列のセル値に応じて**行全体**へ背景色を敷く。 |
@@ -117,6 +119,21 @@ data 行は tab 区切りで分割する。最初に現れた data 行を **型�
 - ID 列は**表として見せない**。読み込みで列を抜き、保存で末尾へ戻す。列インデックスを参照する記法（`colwidth` / `colmode` / `align` / `group`）は ID 列を数えない。
 
 ID 列を持たないファイルはそのまま扱える。**読み手が勝手に ID 列を足すことはしない**（既存シートのバイト列が書き込みのたびに変わってしまうため）。ID を持たないファイルでは `#@ rowheight` の key は従来どおり行インデックスで、MCP の `update_tsv_row` も行インデックスで行を指す。
+
+### `#@ hidden`（控え行）
+
+```
+#@ hidden r3f9a2c81b40e r7c02d5e1a934
+```
+
+項目の文言を書き直したとき、元の行を消していいか判断がつかないことがある。消さずに表から外して**控え**にしておく（表計算ソフトの非表示行に相当）。行の中身も並びもファイルに残り、外れるのは表示だけ。
+
+- 指すのは**行 ID のみ**。行インデックスで覚えると、1 行挿さった時点で別の行が控えになる。ID を持たないファイルでは、控えにした保存で ID 列が焼き込まれる。
+- ID 以外のトークン（行インデックス・壊れた ID）は読み込み時に捨てられる。
+- 同種が複数行あれば **合算**（後勝ちではない）。長い 1 行を手で分割しても控えが消えない。
+- 読み込みで控え行を表から外し、保存で**直前の可視行の後ろ**へ戻す。戻し先の行が消えていた場合は末尾へ回す（控えを落とさない）。
+- 控えは表に出ていないので、検証（`validate`）の対象にも、MCP の行指定の対象にもならない。過去の記入がそのまま残っていても直す対象ではない。
+- デスクトップアプリは控えの件数を常に表示し、表に出す／戻す操作を用意する。表に出している間も宣言は残るので、出したまま保存しても控えのまま。
 
 ### `#@ align`（列の寄せ）
 
@@ -231,6 +248,7 @@ No.:number	項目	手順:multiline	結果:enum(OK|NG|保留|未実施)	実施日
 - note / group / レイアウト行は、書き戻し時に他ディレクティブの後（末尾側）へまとめ直される場合がある。値は保持されるが物理的な行位置は正規化される。
 - `text` 列は型注記なしで出力される。
 - **行 ID 列は末尾へ戻り、`#@ rowid` 宣言はディレクティブの先頭に置かれる**。レイアウト系は書き戻しのたびに末尾へ付け直されるため、宣言を先頭に固定しておくと保存のたびに並びが揺れない。
+- **控え行（`#@ hidden`）は元の位置へ戻る**。読み込みで表から外した行は、直前の可視行の後ろへ差し戻される。控えを増減させたときの `#@ hidden` 宣言は 1 行にまとめ直され、控えが 0 件になると宣言ごと消える。
 - シリアライザ自身はファイル末尾に改行を付けない（付与はファイル書き出し層の責務）。デスクトップのグリッド編集は **元ファイルの末尾改行の有無をそのまま引き継ぐ**ため、末尾改行ありのファイルは編集後も末尾改行ありのまま保存される（編集内容と無関係な行が差分に出ない）。
 
 ## 10. 運用上の制約
