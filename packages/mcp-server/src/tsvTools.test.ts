@@ -532,3 +532,100 @@ describe('入力サイズの上限', () => {
     expect(await s.read('big.tsv')).toBe(big);
   });
 });
+
+/**
+ * 計算列（`#@ computed <列名> = <式>`）を持つ検証シート。
+ *
+ * 事故はここで起きた。人の「実数で埋めて」の一声で AI が集計列を潰し、
+ * そのまま提出物として出た。アプリのグリッドだけを塞いでも、MCP から同じことができる。
+ */
+const COMPUTED_SHEET =
+  [
+    '#! md-business:test-spec-tsv/v1',
+    '#@ computed No. = rowNumber()',
+    'No.:number\t項目!\t結果:enum(OK|NG)',
+    '1\t新規登録\tOK',
+    '2\t金額計算\tNG',
+  ].join('\n') + '\n';
+
+function computedStore(): MemoryDocumentStore {
+  return new MemoryDocumentStore({ 'sheets/計算.tsv': COMPUTED_SHEET });
+}
+
+describe('計算列を持つ検証シート', () => {
+  it('計算列への追加時の指定は書き込まずに失敗する', async () => {
+    const s = computedStore();
+    const r = await appendTsvRow(s, {
+      path: 'sheets/計算.tsv',
+      values: { 'No.': '99', 項目: '在庫引当' },
+    });
+    expect(r.ok).toBe(false);
+    if (r.ok) return;
+    // 黙って落とすと、埋めたつもりのまま完了報告される。列名を挙げて理由を返す。
+    expect(r.error).toContain('No.');
+    expect(r.error).toContain('計算列');
+    expect(await s.read('sheets/計算.tsv')).toBe(COMPUTED_SHEET);
+  });
+
+  it('計算列への更新時の指定も書き込まずに失敗する', async () => {
+    const s = computedStore();
+    const r = await updateTsvRow(s, {
+      path: 'sheets/計算.tsv',
+      row: 0,
+      values: { 'No.': '99' },
+    });
+    expect(r.ok).toBe(false);
+    if (r.ok) return;
+    expect(r.error).toContain('計算列');
+    expect(await s.read('sheets/計算.tsv')).toBe(COMPUTED_SHEET);
+  });
+
+  it('計算列を指定しない追加は通り、計算列は算出値で埋まる', async () => {
+    const s = computedStore();
+    const r = await appendTsvRow(s, { path: 'sheets/計算.tsv', values: { 項目: '在庫引当' } });
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    // 空のままにすると、表計算へ貼ったときに番号列だけが抜ける。
+    expect(r.values).toEqual(['3', '在庫引当', '']);
+
+    const after = await readTsv(s, 'sheets/計算.tsv');
+    expect(after.ok).toBe(true);
+    if (!after.ok) return;
+    expect(after.rows.map((row) => row[0])).toEqual(['1', '2', '3']);
+  });
+
+  it('他の列の更新は通り、計算列は算出値のまま残る', async () => {
+    const s = computedStore();
+    const r = await updateTsvRow(s, { path: 'sheets/計算.tsv', row: 1, values: { 結果: 'OK' } });
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.values).toEqual(['2', '金額計算', 'OK']);
+  });
+
+  it('崩れている計算列は書き込みのついでに揃える', async () => {
+    // 手で番号を振り直したまま放置された状態。塞いだ後に残る唯一の壊れ方なので、
+    // 触った行だけでなく列ごと直す（1 行だけ直すと番号が飛んだままになる）。
+    const s = new MemoryDocumentStore({
+      'x.tsv': '#@ computed No. = rowNumber()\nNo.:number\t項目\n7\ta\n9\tb\n',
+    });
+    const r = await updateTsvRow(s, { path: 'x.tsv', row: 1, values: { 項目: 'b2' } });
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.values).toEqual(['2', 'b2']);
+
+    const after = await readTsv(s, 'x.tsv');
+    expect(after.ok).toBe(true);
+    if (!after.ok) return;
+    expect(after.rows.map((row) => row[0])).toEqual(['1', '2']);
+  });
+
+  it('未知の式を宣言した列は塞がない（書く手段を残す）', async () => {
+    const s = new MemoryDocumentStore({
+      'y.tsv': '#@ computed 件数 = countIn("観点.tsv")\n項目\t件数\na\t1\n',
+    });
+    const r = await updateTsvRow(s, { path: 'y.tsv', row: 0, values: { 件数: '5' } });
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.values).toEqual(['a', '5']);
+  });
+});

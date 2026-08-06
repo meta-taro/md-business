@@ -13,7 +13,12 @@
    */
   import { untrack } from 'svelte';
   import type { IdentifiedTsv } from '@md-business/schema-test-spec-tsv';
-  import { validateTsv } from '@md-business/schema-test-spec-tsv';
+  import {
+    applyComputed,
+    lockedColumns,
+    readComputedColumns,
+    validateTsv,
+  } from '@md-business/schema-test-spec-tsv';
   import {
     gridWidgets,
     setCell,
@@ -87,6 +92,7 @@
     setGroup,
   } from './gridHeaderDirectives';
   import { readRowTints, rowTintOf } from './gridStyleDirectives';
+  import { countLockedPasteCells } from './gridComputed';
   import { hideRow, hiddenRowCount, isHiddenRow, unhideRow } from './gridHidden';
 
   interface Props {
@@ -116,6 +122,12 @@
   // 条件付き書式（#@ style …）。指定列の値で行全体を薄く塗り、実施状況を縦に眺めて
   // 掴めるようにする。色は tsv 側に持つので、シートごとに凡例と塗りを揃えられる。
   const rowTints = $derived(readRowTints(doc.directives, doc.columns.map((c) => c.name)));
+
+  // 計算列（#@ computed …）。値がほかから決まる列は、人にも AI にも打たせない。
+  // 塞ぐ判定は集合で持ち、書き込み経路（編集・貼り付け・一括埋め）の入口で見る。
+  const computed = $derived(readComputedColumns(doc.directives, doc.columns.map((c) => c.name)));
+  const locked = $derived(lockedColumns(computed));
+  const isLocked = (col: number): boolean => locked.has(col);
 
   // 表の上の補足行（#@ note …）。型付きヘッダの上に全幅で敷く（表の上に補足を置く）。
   // フォーマット不変・#@ ディレクティブから読む。追加/編集/削除は
@@ -477,16 +489,41 @@
     return issueByCell.get(`${row}:${col}`);
   }
 
+  // 操作の結果を短く知らせる一行（下部バー）。落とした件数のように、黙っていると
+  // 「入ったつもり」で先へ進まれるものだけに使う。次の通知か時間経過で消える。
+  let notice = $state('');
+  let noticeTimer: ReturnType<typeof setTimeout> | undefined;
+
+  function notify(message: string): void {
+    notice = message;
+    clearTimeout(noticeTimer);
+    noticeTimer = setTimeout(() => (notice = ''), 6000);
+  }
+
+  // 親へ通知する唯一の出口。計算列をここで算出値へ揃える。書き込み経路ごとにガードを
+  // 置くと、経路が増えたときに漏れる（行の複製・一括埋め・貼り付けは列を選ばない）。
+  function emit(next: IdentifiedTsv): void {
+    onChange?.(applyComputed(next, computed));
+  }
+
+  // 開いたファイルの計算列がずれていれば直す。算出値と一致していれば applyComputed が
+  // 同じ参照を返すので、整ったファイルを開いただけでは変更扱いにならない。
+  $effect(() => {
+    const healed = applyComputed(doc, computed);
+    if (healed !== doc) onChange?.(healed);
+  });
+
   function commit(row: number, col: number, value: string): void {
+    if (isLocked(col)) return;
     // 実データ行はそのまま setCell（挙動不変）。pad 行（実データ末尾より下）への入力は
     // gridBlankRows で実体化し、pad 数を詰め直してから通知する。
     if (row < doc.rows.length) {
-      onChange?.(setCell(doc, row, col, value));
+      emit(setCell(doc, row, col, value));
       return;
     }
     const res = editPaddedCell(doc.rows, doc.rowIds, padRows, row, col, value);
     padRows = res.padRows;
-    onChange?.({ ...doc, rows: res.rows, rowIds: res.rowIds });
+    emit({ ...doc, rows: res.rows, rowIds: res.rowIds });
   }
 
   // datetime-local 入力は `YYYY-MM-DDTHH:MM`（T 区切り）を期待する。正本セルは
@@ -646,7 +683,7 @@
       ctrl: event.ctrlKey || event.metaKey,
       collapsed: isSingleCell(selection),
       active: isActive(row, col),
-      editable,
+      editable: editable && !isLocked(col),
       mode,
     };
     if (opensOnSingleClick(widgets[col]?.kind, intent)) enterEdit();
@@ -674,7 +711,9 @@
   }
 
   function enterEdit(): void {
-    if (editable) mode = 'edit';
+    // 計算列は編集へ入れない。ダブルクリック / Enter / F2 / 印字キー / Alt+↓ /
+    // シングルクリックの入口はすべてここを通るので、塞ぐのは 1 か所で足りる。
+    if (editable && !isLocked(activeCell.col)) mode = 'edit';
   }
 
   function onGridKeydown(row: number, col: number, event: KeyboardEvent): void {
@@ -756,6 +795,8 @@
         // 場合はその文字を種として控え、ウィジェット生成後の effect で置換して流し込む。
         // Enter / F2 は種なし＝既存値を全選択して編集へ入る。
         event.preventDefault();
+        // 計算列は種も控えない（控えたまま入れないと、次に別の列へ入ったとき流れ込む）。
+        if (isLocked(col)) break;
         pendingSeed = seedFromKey(widgets[col]?.kind, event.key, event.ctrlKey || event.metaKey);
         enterEdit();
         break;
@@ -797,7 +838,16 @@
     event.preventDefault();
     // 範囲選択中は左上を起点に流し込む（単一セル選択では focus と同じ）。
     const { r0, c0 } = rangeBounds(selection);
-    onChange?.(applyPaste(doc, { row: r0, col: c0 }, text));
+    // 計算列へ入ってきたぶんは emit の applyComputed が算出値へ戻す＝結果として落ちる。
+    // 黙って落とすと貼れたつもりのまま先へ進むので、件数だけ出す。
+    const dropped = countLockedPasteCells(
+      parseClipboardMatrix(text),
+      { row: r0, col: c0 },
+      locked,
+      doc.columns.length,
+    );
+    emit(applyPaste(doc, { row: r0, col: c0 }, text));
+    if (dropped > 0) notify(`計算列の ${dropped} セルは貼り付けていません`);
   }
 
   // ── 行操作（下部アクションバー）。対象は「選択中の行」＝アンカーセルの行。 ──
@@ -821,7 +871,7 @@
 
   function fillSelectionDown(): void {
     if (!editable) return;
-    onChange?.(fillDown(doc, rangeBounds(selection)));
+    emit(fillDown(doc, rangeBounds(selection)));
   }
 
   function addRow(): void {
@@ -829,14 +879,14 @@
     padRows += 1;
   }
   function duplicateActiveRow(): void {
-    if (activeIsData) onChange?.(duplicateRow(doc, activeCell.row));
+    if (activeIsData) emit(duplicateRow(doc, activeCell.row));
   }
   function deleteActiveRow(): void {
-    if (activeIsData) onChange?.(deleteRow(doc, activeCell.row));
+    if (activeIsData) emit(deleteRow(doc, activeCell.row));
     else if (padRows > 0) padRows -= 1; // pad 行の削除はローカル pad を 1 減らす
   }
   function clearActiveRow(): void {
-    if (activeIsData) onChange?.(clearRow(doc, activeCell.row));
+    if (activeIsData) emit(clearRow(doc, activeCell.row));
   }
 
   // ── 控え行（`#@ hidden`）。書き直した元の文言を、消していいか悩まずに残しておくための
@@ -847,7 +897,7 @@
 
   function toggleActiveRowHidden(): void {
     if (!activeIsData) return;
-    onChange?.(
+    emit(
       activeIsHidden ? unhideRow(doc, activeCell.row) : hideRow(doc, activeCell.row),
     );
   }
@@ -1107,7 +1157,8 @@
                 class:active
                 class:selected={inSelection(r, c)}
                 class:editing={active && mode === 'edit'}
-                title={issue}
+                class:computed={isLocked(c)}
+                title={issue ?? (isLocked(c) ? '計算列（値は自動で決まる）' : undefined)}
                 data-cell={`${r}-${c}`}
                 onkeydown={(e) => onGridKeydown(r, c, e)}
                 onpointerdown={(e) => onCellPointerDown(r, c, e)}
@@ -1327,6 +1378,8 @@
       <span class="active-row" aria-live="polite">
         {modeLabel}中: {activeRowLabel}{#if selectionLabel} · {selectionLabel}{/if}
       </span>
+      <!-- 落とした件数のように、黙っていると気づかれない結果だけをここへ出す。 -->
+      <span class="notice" aria-live="polite">{notice}</span>
     </div>
   {/if}
 
@@ -1458,6 +1511,11 @@
     background: var(--accent-subtle);
     color: var(--text-primary);
     border-color: var(--accent);
+  }
+
+  .notice {
+    font-size: var(--text-2xs-size, var(--text-sm-size));
+    color: var(--text-secondary);
   }
 
   .active-row {
@@ -1826,6 +1884,16 @@
   .req {
     color: var(--danger-fg);
     margin-left: 2px;
+  }
+
+  /* 計算列＝人が打たない列。地を沈めて「打つ場所ではない」ことを見た目で先に伝える。
+     選択・エラーの地は下の規則が上書きする（塞がれていても選択位置は見えるべき）。 */
+  td.computed {
+    background: var(--bg-sunken);
+  }
+
+  td.computed .cell-view {
+    color: var(--text-tertiary);
   }
 
   /* 検証エラー: 左内側マーカー + 淡い赤地。選択枠とは併存する。 */
