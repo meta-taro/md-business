@@ -2,7 +2,13 @@ import { describe, it, expect } from 'vitest';
 import { parseTsv, validateTsv, ROW_ID_COLUMN } from '@md-business/schema-test-spec-tsv';
 import { isTsvSource } from './detect';
 import { readRowTints } from './gridStyleDirectives';
-import { TSV_PRESETS, buildPresetTsv, findPreset, presetFileName } from './tsvPresets';
+import {
+  TSV_PRESETS,
+  buildPresetTsv,
+  findPreset,
+  presetFileName,
+  validateSheetName,
+} from './tsvPresets';
 
 /**
  * 検証シートの列プリセット（新規作成の雛形）の検査。
@@ -121,5 +127,25 @@ describe('presetFileName', () => {
   });
   it('空のままなら拡張子だけの名前にしない', () => {
     expect(presetFileName('   ')).toBe('');
+  });
+});
+
+describe('validateSheetName', () => {
+  // 新規作成の入力は、改名と同じ規則で弾く。ここが素通りすると、書き込みの可否が
+  // Rust 側の生のエラー文字列でしか分からない（入力中に理由が出ない）。
+  it('通る名前は null', () => {
+    expect(validateSheetName('001-login')).toBeNull();
+    expect(validateSheetName('001-login.tsv')).toBeNull();
+  });
+  it('区切り文字を含む名前は separator', () => {
+    expect(validateSheetName('sub/001-login')).toBe('separator');
+    expect(validateSheetName('sub\\001-login')).toBe('separator');
+    expect(validateSheetName('../001-login')).toBe('separator');
+  });
+  it('使えない記号は invalidChar', () => {
+    expect(validateSheetName('001:login')).toBe('invalidChar');
+  });
+  it('空入力は empty', () => {
+    expect(validateSheetName('   ')).toBe('empty');
   });
 });

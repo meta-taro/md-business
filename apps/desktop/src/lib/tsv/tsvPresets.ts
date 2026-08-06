@@ -21,6 +21,8 @@ import {
   type TsvDocument,
 } from '@md-business/schema-test-spec-tsv';
 import type { MessageKey } from '$lib/i18n/messages';
+// 名前の規則は改名と 1 か所に持つ（新規作成だけ別の規則になると、通る名前が導線で変わる）。
+import { validateNewName, type NewNameError } from '../components/fileTreeMenu';
 import { TSV_FORMAT_ID } from './detect';
 
 /** 検証シートのファイル拡張子。 */
@@ -131,4 +133,17 @@ export function presetFileName(input: string): string {
   if (trimmed === '') return '';
   if (trimmed.toLowerCase().endsWith(TSV_EXTENSION)) return trimmed;
   return `${trimmed}${TSV_EXTENSION}`;
+}
+
+/**
+ * 新規作成で入力された名前を、書き込む前にその場で判定する。改名と同じ規則を使う。
+ *
+ * 最終ゲートは Rust 側（親フォルダを実パスで解決し、ルート外なら書かない）で、ここはその手前。
+ * 区切り文字を弾くのは、新規作成をフォルダ移動の手段にしないため。判定は拡張子を補ってから
+ * 行う（`.tsv` を付けた形が最終的に書き込まれる名前であり、そちらを検査しないと意味がない）。
+ */
+export function validateSheetName(input: string): NewNameError | null {
+  const name = presetFileName(input);
+  // 空入力では拡張子を付けないので、空のまま validateNewName へ渡って empty になる。
+  return validateNewName(name, 'file');
 }
