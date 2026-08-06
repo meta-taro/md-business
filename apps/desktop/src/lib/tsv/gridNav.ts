@@ -19,11 +19,13 @@ export interface GridDims {
   cols: number;
 }
 
-/** キーボード由来の移動意図（DOM KeyboardEvent から key/shift/ctrl を写す）。 */
+/** キーボード由来の移動意図（DOM KeyboardEvent から key/shift/ctrl/alt を写す）。 */
 export interface NavIntent {
   key: string;
   shift?: boolean;
   ctrl?: boolean;
+  /** Alt / Option 併用。Alt+↓ は移動ではなく候補リストを開く合図。 */
+  alt?: boolean;
 }
 
 function clamp(value: number, max: number): number {
