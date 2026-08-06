@@ -6,6 +6,8 @@
 [![pnpm](https://img.shields.io/badge/pnpm-required-F69220.svg)](https://pnpm.io/)
 [![Chrome Web Store](https://img.shields.io/badge/Chrome%20Web%20Store-published-4285F4.svg)](https://chromewebstore.google.com/detail/lmdplkkfmgapnhombimeohjliinifgjh)
 
+**[⬇ Download the desktop app](https://meta-taro.github.io/md-business/download/)** (Windows / macOS) — installers, no build step. Or add the [Chrome extension](https://chromewebstore.google.com/detail/lmdplkkfmgapnhombimeohjliinifgjh) to read and print Markdown business documents in the browser.
+
 > **English** | [日本語](./README.ja.md)
 
 > AI-native business documents, powered by Markdown as the source of truth.
@@ -243,10 +245,52 @@ The desktop app is where the source-of-truth layer becomes operable by an AI age
 
 ## Quick Start
 
+### Use it
+
+No build step, no Node.js, no package manager.
+
+1. **[Download the desktop app](https://meta-taro.github.io/md-business/download/)** (Windows `.msi` / `.exe`, macOS `.dmg`) and install it. Or add the [Chrome extension](https://chromewebstore.google.com/detail/lmdplkkfmgapnhombimeohjliinifgjh) if you only need to read and print documents in the browser.
+2. Open a folder. Any `.md` file with a `schema:` frontmatter key opens in the viewer for that document type; `.tsv` test sheets open in the grid editor.
+3. Start from a template — copy one out of [`templates/`](./templates/), or create a test sheet from a column preset with the ＋ button in the file list.
+4. Print to A4 PDF from the preview.
+
+The [user guide](https://meta-taro.github.io/md-business/manual/) ([日本語](https://meta-taro.github.io/md-business/manual/ja/)) covers the rest.
+
+To let an AI agent edit those documents, point your MCP client at the server the desktop app runs. Open the `MCP` tab in the right-hand panel: **Add settings to the open folder** writes `.mcp.json` there — clients that read it (Claude Code among them) pick it up on their own — or **Copy client settings** puts the same entry on the clipboard for a client configured elsewhere. Either way it looks like this, with the port and token already filled in:
+
+```json
+{
+  "mcpServers": {
+    "md-business": {
+      "type": "http",
+      "url": "http://127.0.0.1:<PORT>/mcp",
+      "headers": { "Authorization": "Bearer <TOKEN>" }
+    }
+  }
+}
+```
+
+`<PORT>` and `<TOKEN>` are shown in that panel and persist across restarts, so the settings you paste once keep working. The token is an access credential: in a Git repository the app adds `.mcp.json` to `.gitignore` when it writes it. The server binds to loopback, rejects requests without the matching token, and reaches no further than the folder you have open.
+
+To run the server standalone instead — without the desktop app — see [packages/mcp-server/](./packages/mcp-server/README.md).
+
+### Develop
+
+Requires [Node.js 24+](https://nodejs.org/) and pnpm (via corepack). npm and yarn are not supported. Building the desktop app additionally needs the [Tauri 2 prerequisites](https://v2.tauri.app/start/prerequisites/) (Rust toolchain and the platform WebView).
+
 ```bash
 corepack enable
 pnpm install
 pnpm dev
+```
+
+Checks — all of these must pass before a change lands:
+
+```bash
+pnpm lint       # svelte-check (desktop) / tsc --noEmit (everything else)
+pnpm typecheck  # same checkers, run as their own task
+pnpm test:run   # Vitest, with coverage where it is configured
+pnpm build      # every package and app
 ```
 
 See [CONTRIBUTING.md](./CONTRIBUTING.md) for details.
