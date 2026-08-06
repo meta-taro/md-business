@@ -1,0 +1,35 @@
+# md-business
+
+> Business documents as Markdown. Frontmatter carries the structured fields, the body stays readable, a JSON Schema validates both, and Git keeps the history. Purpose-built viewers render each document type for humans — A4 PDF, Chrome, Google Sheets, a desktop app. MIT licensed.
+
+The point of the project is that the `.md` file is the canonical record, not an export of one. An AI agent can create, validate, edit, diff and commit these documents directly, and a human reads the result in a familiar form without either side converting anything.
+
+Seven schemas ship today: `invoice/v1` (Japanese qualified invoices, quotes and receipts), `spec/v1` (design documents), `test-spec/v1` (test specifications), `db-spec/v1`, `nosql-db-spec/v1`, `api-spec/v1`, and a tab-separated variant of the test specification for grid editing (`#! md-business:test-spec-tsv/v1`).
+
+## Start here
+
+- [README](https://github.com/meta-taro/md-business/blob/main/README.md): what it is, what it is not, and the Quick Start split into using it and developing it
+- [Download the desktop app](https://meta-taro.github.io/md-business/download/): Windows and macOS installers — no build step
+- [User guide](https://meta-taro.github.io/md-business/manual/): how the app is operated ([日本語](https://meta-taro.github.io/md-business/manual/ja/))
+- [CONTRIBUTING](https://github.com/meta-taro/md-business/blob/main/CONTRIBUTING.md): development setup, the four quality-gate commands, and how to add a schema
+
+## Document formats
+
+- [invoice/v1](https://github.com/meta-taro/md-business/blob/main/docs/spec/invoice-v1.md): fields, tax rounding, and the `種別` key that switches between invoice, quote and receipt
+- [spec/v1](https://github.com/meta-taro/md-business/blob/main/docs/spec/spec-v1.md): design documents
+- [test-spec/v1](https://github.com/meta-taro/md-business/blob/main/docs/spec/test-spec-v1.md): test specifications in Markdown
+- [test-spec-tsv/v1](https://github.com/meta-taro/md-business/blob/main/docs/spec/test-spec-tsv-v1.md): the tab-separated form the desktop grid editor reads and writes. Where this document and the implementation in `packages/schema-test-spec-tsv/src/` disagree, the implementation is correct
+- [Templates](https://github.com/meta-taro/md-business/tree/main/templates): working files for invoice, spec, test-spec and api-spec — the fastest way to see the frontmatter shape. The two database schemas have no template yet; their JSON Schema lives in `packages/schema-db-spec/` and `packages/schema-nosql-db-spec/`
+- [Data cell convention](https://github.com/meta-taro/md-business/blob/main/docs/data-cell-conventions.md): an unfilled cell stays empty. Do not write `—`, `N/A` or `TBD` into data cells
+
+## For AI agents
+
+- [MCP server](https://github.com/meta-taro/md-business/blob/main/packages/mcp-server/README.md): the tools (`list_schemas`, `get_schema`, `read_document`, `validate_document`, `create_document`, `update_document`, `search_documents`, `read_tsv`, `append_tsv_row`, `update_tsv_row`, `git_status`, `git_diff`, `git_commit`, `export_pdf`), how the workspace root is resolved, and which filenames are refused. The desktop app runs this server on launch and can write the client settings into the folder you have open.
+
+Two things are deliberately absent: `git push` is not exposed as a tool, and the server never receives secrets or API keys. Reach is limited to the open folder, the listener binds to loopback, and requests without the matching token are rejected.
+
+## Optional
+
+- [Chrome extension](https://chromewebstore.google.com/detail/lmdplkkfmgapnhombimeohjliinifgjh): read and print these documents in the browser
+- [Desktop changelog](https://github.com/meta-taro/md-business/blob/main/apps/desktop/CHANGELOG.md): what changed in each release
+- [Issues](https://github.com/meta-taro/md-business/issues): bug reports and feature requests

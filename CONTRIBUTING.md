@@ -14,6 +14,32 @@ corepack enable
 pnpm install
 ```
 
+デスクトップアプリ（`apps/desktop`）をビルドする場合は、加えて [Tauri 2 の前提条件](https://v2.tauri.app/start/prerequisites/)（Rust ツールチェーンとプラットフォームの WebView）が要ります。他のパッケージだけを触る場合は不要です。
+
+## 品質ゲート
+
+変更を入れる前に、次の 4 つがすべて通ることを確認します。**このリポジトリではここが正本です。**
+
+```bash
+pnpm lint       # svelte-check（apps/desktop）/ tsc --noEmit（それ以外）
+pnpm typecheck  # 同じ検査を独立したタスクとして実行
+pnpm test:run   # Vitest（設定のあるパッケージはカバレッジ付き）
+pnpm build      # 全パッケージ・全アプリ
+```
+
+パッケージ単位で回す場合はスコープ付きの名前で指定します（例: `pnpm --filter @md-business/desktop test:run`）。
+
+`pnpm lint` / `pnpm typecheck` / `pnpm test:run` は commit 時に、`pnpm build` は push 時に hook が実行します（`.husky/`）。フォーマッタは導入していないので、整形は既存ファイルの書き方に合わせてください。
+
+**Rust 側（`apps/desktop/src-tauri`）を触った場合は、手元で追加して回してください。** hook には入っていませんが CI では走ります。
+
+```bash
+cargo clippy --all-targets --locked -- -D warnings
+cargo test --locked
+```
+
+CI（`.github/workflows/ci.yml`）は上記に加えて `pnpm test:scripts`（`scripts/` 配下の node:test）も実行します。
+
 ## 設計原則
 
 - **Markdown ファースト**: 原本は常に `.md`。frontmatter = 機械可読、本文 = 人間可読プレビュー。
