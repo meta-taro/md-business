@@ -50,6 +50,18 @@ describe('planGridKey / nav モード', () => {
     });
   });
 
+  it('Alt+↓ は編集開始（コンボボックスを開く合図）', () => {
+    expect(
+      planGridKey({ key: 'ArrowDown', alt: true }, at(1, 1), dims, { mode: 'nav', multiline: false }),
+    ).toEqual({ kind: 'edit' });
+  });
+
+  it('Alt+↑ は移動のまま（開く合図は ↓ だけ）', () => {
+    expect(
+      planGridKey({ key: 'ArrowUp', alt: true }, at(1, 1), dims, { mode: 'nav', multiline: false }),
+    ).toEqual({ kind: 'move', to: at(0, 1) });
+  });
+
   it('印字文字は編集開始（タイプで入る）', () => {
     expect(planGridKey({ key: 'a' }, at(1, 1), dims, { mode: 'nav', multiline: false })).toEqual({
       kind: 'edit',
@@ -103,6 +115,12 @@ describe('planGridKey / edit モード', () => {
     expect(planGridKey({ key: 'Escape' }, at(1, 1), dims, { mode: 'edit', multiline: false })).toEqual({
       kind: 'cancel',
     });
+  });
+
+  it('編集中の Alt+↓ はウィジェットへ委ねる（pass）', () => {
+    expect(
+      planGridKey({ key: 'ArrowDown', alt: true }, at(1, 1), dims, { mode: 'edit', multiline: false }),
+    ).toEqual({ kind: 'pass' });
   });
 
   it('単行セルの Enter は確定して下へ、Shift+Enter は上へ', () => {
