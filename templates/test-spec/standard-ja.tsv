@@ -6,6 +6,7 @@
 # 凡例: 結果は OK / NG / 保留 / 未実施 から選択。未入力セルは空のまま（—/N/A で埋めない）。
 # 仕様: docs/spec/test-spec-tsv-v1.md
 #@ rowid _id
+#@ computed No. = rowNumber()
 #@ style 結果 OK=#e7f6ec NG=#fcebec 保留=#fdf3e2
 No.:number	項目	手順:multiline	期待結果:multiline	結果:enum(OK|NG|保留|未実施)	実施日:date	担当	備考:multiline	_id
 1	新規受注登録（正常系）	受注画面で顧客・商品・数量を入力し「確定」	受注番号が採番され受注一覧に表示	OK	2026-06-22	山田		r2868ecb4739a
