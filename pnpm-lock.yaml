@@ -288,6 +288,21 @@ importers:
         specifier: ^2.1.8
         version: 2.1.9(@types/node@22.19.21)(happy-dom@20.10.5)(jsdom@29.1.1)
 
+  packages/data-tree:
+    devDependencies:
+      '@types/node':
+        specifier: ^22.10.0
+        version: 22.20.1
+      '@vitest/coverage-v8':
+        specifier: ^2.1.8
+        version: 2.1.9(vitest@2.1.9(@types/node@22.20.1)(happy-dom@20.10.5)(jsdom@29.1.1))
+      typescript:
+        specifier: ^5.6.3
+        version: 5.9.3
+      vitest:
+        specifier: ^2.1.8
+        version: 2.1.9(@types/node@22.20.1)(happy-dom@20.10.5)(jsdom@29.1.1)
+
   packages/mcp-server:
     dependencies:
       '@md-business/core':
@@ -4181,11 +4196,10 @@ snapshots:
   '@types/node@22.20.1':
     dependencies:
       undici-types: 6.21.0
-    optional: true
 
   '@types/pdf-parse@1.1.5':
     dependencies:
-      '@types/node': 22.19.21
+      '@types/node': 22.20.1
 
   '@types/trusted-types@2.0.7': {}
 
@@ -4221,6 +4235,24 @@ snapshots:
       test-exclude: 7.0.2
       tinyrainbow: 1.2.0
       vitest: 2.1.9(@types/node@22.19.21)(happy-dom@20.10.5)(jsdom@29.1.1)
+    transitivePeerDependencies:
+      - supports-color
+
+  '@vitest/coverage-v8@2.1.9(vitest@2.1.9(@types/node@22.20.1)(happy-dom@20.10.5)(jsdom@29.1.1))':
+    dependencies:
+      '@ampproject/remapping': 2.3.0
+      '@bcoe/v8-coverage': 0.2.3
+      debug: 4.4.3
+      istanbul-lib-coverage: 3.2.2
+      istanbul-lib-report: 3.0.1
+      istanbul-lib-source-maps: 5.0.6
+      istanbul-reports: 3.2.0
+      magic-string: 0.30.21
+      magicast: 0.3.5
+      std-env: 3.10.0
+      test-exclude: 7.0.2
+      tinyrainbow: 1.2.0
+      vitest: 2.1.9(@types/node@22.20.1)(happy-dom@20.10.5)(jsdom@29.1.1)
     transitivePeerDependencies:
       - supports-color
 
