@@ -18,9 +18,16 @@ export {
   setHiddenIds,
   splitHiddenRows,
 } from './hiddenRows.js';
+export {
+  applyComputed,
+  computedCellValue,
+  lockedColumns,
+  readComputedColumns,
+} from './computed.js';
 export type { ColumnType, ColumnUiHint, ParsedHeader } from './types.js';
 export type { IdentifiedTsv } from './rowId.js';
 export type { HiddenRow } from './hiddenRows.js';
+export type { ComputedColumn, ComputedFormula } from './computed.js';
 export type { LineKind } from './classify.js';
 export type { TsvDocument } from './parse.js';
 export type { ValidationCode, ValidationIssue } from './validate.js';
