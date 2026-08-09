@@ -10,3 +10,10 @@ onlyBuiltDependencies: []
 
 # Quarantine packages released within the last 24h to mitigate compromised-version attacks.
 minimumReleaseAge: 1440
+
+# 間接依存のバージョン下限を固定する。package.json の pnpm.overrides は新しい pnpm が
+# 読まなくなったため、両方に置いて版差で固定が外れないようにする。
+overrides:
+  "@codemirror/language": ^6.12.4
+  fast-uri: ^3.1.5
+  ip-address: ^10.3.1
