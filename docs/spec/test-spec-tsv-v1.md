@@ -24,6 +24,7 @@
 - 型別バリデーション: [`packages/schema-test-spec-tsv/src/validate.ts`](../../packages/schema-test-spec-tsv/src/validate.ts)
 - シリアライズ（書き戻し）: [`packages/schema-test-spec-tsv/src/serialize.ts`](../../packages/schema-test-spec-tsv/src/serialize.ts)
 - 控え行の抜き差し（hidden）: [`packages/schema-test-spec-tsv/src/hiddenRows.ts`](../../packages/schema-test-spec-tsv/src/hiddenRows.ts)
+- 計算列（computed）: [`packages/schema-test-spec-tsv/src/computed.ts`](../../packages/schema-test-spec-tsv/src/computed.ts)
 - 列型 / UI ヒントの型: [`packages/schema-test-spec-tsv/src/types.ts`](../../packages/schema-test-spec-tsv/src/types.ts)
 - グリッド出し分けの判定: [`apps/desktop/src/lib/tsv/detect.ts`](../../apps/desktop/src/lib/tsv/detect.ts)
 - 表ヘッダ拡張ディレクティブ（note / group）: [`apps/desktop/src/lib/tsv/gridHeaderDirectives.ts`](../../apps/desktop/src/lib/tsv/gridHeaderDirectives.ts)
@@ -88,7 +89,7 @@ data 行は tab 区切りで分割する。最初に現れた data 行を **型�
 
 ## 4. `#@` ディレクティブ
 
-`#@` 行は表示・レイアウトの拡張レイヤー。列定義（型付きヘッダ）とは別に、グリッドの見た目や補足を TSV に永続化する。パーサは `#@` を剥がした生文字列を順番に保持し、書き戻し時に復元する（round-trip）。
+`#@` 行は列定義（型付きヘッダ）の外側にある拡張レイヤー。グリッドの見た目や補足、行の指し方、値の決まり方を TSV に永続化する。パーサは `#@` を剥がした生文字列を順番に保持し、書き戻し時に復元する（round-trip）ので、宣言を増やしてもフォーマットの契約は変わらない。
 
 | ディレクティブ | 記法 | 効果 |
 |---|---|---|
@@ -101,6 +102,7 @@ data 行は tab 区切りで分割する。最初に現れた data 行を **型�
 | colmode | `#@ colmode <i>=<mode> …` | 列 `i`（0 始まり）の表示モード（折り返し等）を指定。 |
 | align | `#@ align <i>=<left\|center\|right> …` | 列 `i`（0 始まり）の寄せを指定。列名（型付きヘッダ）・データセル・グループ見出しに効く。 |
 | style | `#@ style <列名> <値>=<色> …` | 条件付き書式。指定列のセル値に応じて**行全体**へ背景色を敷く。 |
+| computed | `#@ computed <列名> = <式>` | 値がほかから決まる列。人にも AI にも打たせない（書き込みは塞がれる）。 |
 
 レイアウト系（colwidth / rowheight / colmode / align）は **sparse** に書き出される。既定値と同じ列 / 行は出力されないため、未調整のファイルにはレイアウト行が現れない（差分を最小化する）。範囲外インデックス・非数値・不正な値（未知のモード / 寄せ）の指定は読み込み時に捨てられ、同種が複数あれば後勝ち。
 
@@ -159,6 +161,22 @@ ID 列を持たないファイルはそのまま扱える。**読み手が勝手
 - 壊れた指定はその断片だけを捨て、表の描画は続行する。
 
 書式は元のシートの意図なので、レイアウト系と違って **sparse 化されず、書いたとおりに round-trip される**。デスクトップアプリはダークテーマでは指定色をそのままではなく薄い被膜に落として敷く（明るいパステルを暗い地に置くと文字が読めなくなるため）。色相は保たれる。
+
+### `#@ computed`（計算列）
+
+```
+#@ computed No. = rowNumber()
+```
+
+値がほかから決まる列を宣言する。宣言された列は**書き込みそのものを塞ぐ**。編集に入れず、貼り付けても入らず、MCP の `append_tsv_row` / `update_tsv_row` は失敗を返す。
+
+色分けや注記で「触らないでください」と伝える形にしていないのは、それが守られなかった実例があるため。「実数で埋めて」の一声で集計列が上書きされ、数字の合わない検証シートがそのまま提出物として出た。手間で済む欠落と違い、**間違った成果物が出る**。
+
+- 区切りは `=`。`#@ style` の空白区切りと違うのは、列名に空白を含められるようにするため。左辺は型付きヘッダの**列名**（インデックスではない）。
+- 使える式は現在 `rowNumber()` のみ（1 始まりの通し番号）。**未知の式を書いた宣言は捨てられ、その列は普通の編集可能な列のまま**になる。塞いだのに値を出せないと、その列は編集不可のまま空で固定され、書く手段が消えるため。
+- 同じ列への重複宣言は後勝ち。列定義に無い列名・`=` を欠く行は捨てられる。
+- **算出値はセルに書かれる**（空欄のままにしない）。表計算へ貼ったときに欠けないようにするため。「未入力は空のまま」の規約は人が記入する欄のものであって、機械が決めた値には当たらない。
+- 値のずれは**列ごと**直る。書き込みのたびに全行を算出値へ揃えるので、行の追加・削除で番号が飛んだ状態が残らない。既に揃っているファイルは開いても保存対象にならない。
 
 ## 5. 型付きヘッダ（列定義）
 

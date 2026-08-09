@@ -16,16 +16,20 @@
  * fs には触れず DocumentStore 越しに動くので、純ロジックとして単体テストできる。
  */
 import {
+  applyComputed,
   generateRowId,
   hasRowIdColumn,
   isRowId,
+  lockedColumns,
   mergeHiddenRows,
   parseTsv,
+  readComputedColumns,
   serializeTsv,
   splitHiddenRows,
   validateTsv,
   withRowIds,
   withoutRowIds,
+  type ComputedColumn,
   type HiddenRow,
   type IdentifiedTsv,
   type ParsedHeader,
@@ -196,6 +200,7 @@ function applyValues(
   columns: ParsedHeader[],
   base: string[],
   values: TsvRowValues,
+  locked: ReadonlySet<number>,
 ): string[] | ToolError {
   const byName = indexColumns(columns);
   const next = columns.map((_, index) => base[index] ?? '');
@@ -219,6 +224,13 @@ function applyValues(
       return {
         ok: false,
         error: `列名が重複しているため列を特定できません: ${name}（ヘッダの列名を一意にしてください）`,
+      };
+    }
+    if (locked.has(index)) {
+      // 黙って落とすと、埋めたつもりのまま完了報告される。書き込み自体を失敗させる。
+      return {
+        ok: false,
+        error: `計算列には書き込めません: ${name}（値はシートの宣言から決まります）`,
       };
     }
     next[index] = value;
@@ -251,24 +263,44 @@ function toWritable(loaded: LoadedTsv, doc: IdentifiedTsv): TsvDocument {
   return rest;
 }
 
-/** 更新後の文書を書き出し、対象行の検証結果を添えて返す。 */
+/**
+ * そのシートの計算列（`#@ computed <列名> = <式>`）。
+ *
+ * 値がほかから決まる列は、人にも AI にも打たせない。**アプリのグリッドだけを塞いでも
+ * ここから同じことができる**（事故は人の指示で AI が集計列を潰した経路で起きた）。
+ */
+function computedOf(doc: TsvDocument): ComputedColumn[] {
+  return readComputedColumns(
+    doc.directives,
+    doc.columns.map((column) => column.name),
+  );
+}
+
+/**
+ * 更新後の文書を書き出し、対象行の検証結果を添えて返す。
+ *
+ * 計算列はここで算出値へ揃える。**触った行だけでなく列ごと**直すのは、行の追加・削除で
+ * 番号が飛んだ状態が塞いだ後に残る唯一の壊れ方で、1 行ずつでは直せないため。
+ * 書き込み経路ごとに揃えると、経路が増えたときに漏れる。
+ */
 async function persist(
   store: DocumentStore,
   loaded: LoadedTsv,
   doc: IdentifiedTsv,
   rowIndex: number,
 ): Promise<TsvRowOk> {
-  const next = serializeTsv(toWritable(loaded, doc));
+  const healed = applyComputed(doc, computedOf(doc));
+  const next = serializeTsv(toWritable(loaded, healed));
   await store.write(loaded.relative, preserveTrailingEol(next, loaded.source));
   // 検証は ID 列を抜いた形で行う。列 index が read_tsv の columns と揃う。
-  const issues = validateTsv(doc);
-  const rowId = loaded.tracksIds ? doc.rowIds[rowIndex] : undefined;
+  const issues = validateTsv(healed);
+  const rowId = loaded.tracksIds ? healed.rowIds[rowIndex] : undefined;
   return {
     ok: true,
     path: loaded.relative,
     row: rowIndex,
     ...(rowId === undefined ? {} : { rowId }),
-    values: doc.rows[rowIndex] as string[],
+    values: healed.rows[rowIndex] as string[],
     issues: issues.filter((issue) => issue.row === rowIndex),
     totalIssues: issues.length,
   };
@@ -341,7 +373,12 @@ export async function appendTsvRow(
   input: AppendTsvRowInput,
 ): Promise<TsvRowOk | ToolError> {
   return withLoaded(store, input.path, async (loaded) => {
-    const row = applyValues(loaded.doc.columns, [], input.values);
+    const row = applyValues(
+      loaded.doc.columns,
+      [],
+      input.values,
+      lockedColumns(computedOf(loaded.doc)),
+    );
     if (!Array.isArray(row)) return row;
 
     const doc: IdentifiedTsv = {
@@ -366,7 +403,12 @@ export async function updateTsvRow(
     if (typeof at !== 'number') return at;
 
     const { rows } = loaded.doc;
-    const row = applyValues(loaded.doc.columns, rows[at] as string[], input.values);
+    const row = applyValues(
+      loaded.doc.columns,
+      rows[at] as string[],
+      input.values,
+      lockedColumns(computedOf(loaded.doc)),
+    );
     if (!Array.isArray(row)) return row;
 
     const nextRows = [...rows];
