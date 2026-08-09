@@ -1,7 +1,9 @@
 //! 文書ワークスペースの Tauri コマンド（DOC-SPEC-DESKTOP-2026-0001 §5 / §8）。
 //!
-//! `scan_documents` … ルート配下を再帰走査し `.md` / `.tsv` のみを相対パスで返す。
-//! `read_document`  … ルート配下の単一 md/tsv を UTF-8 で読む（パストラバーサル防止）。
+//! `scan_documents` … ルート配下を再帰走査し、正本（`.md` / `.tsv`）と参考データ
+//!                     （`.json` / `.xml`）を相対パスで返す。
+//! `read_document`  … 上記の単一ファイルを UTF-8 で読む（パストラバーサル防止）。
+//! 書き込み（`write_document` / `create_document`）は正本の `.md` / `.tsv` のみ。
 //!
 //! Tauri ランタイムに依存しない純関数（`*_impl`）へロジックを寄せ、`#[cfg(test)]`
 //! から実 FS（temp ディレクトリ）に対して単体テストする。`#[tauri::command]` 側は
@@ -31,9 +33,12 @@ pub struct ScanResult {
     pub truncated: bool,
 }
 
-/// 走査対象の拡張子（小文字比較）。範囲は `.md` + `.tsv` に限定（設計書 §1.3）。
+/// 書き込める拡張子（小文字比較）。正本は `.md` + `.tsv` だけ（設計書 §1.3）。
+const WRITABLE_EXTS: [&str; 2] = ["md", "tsv"];
+/// 走査・読み取りの対象拡張子（小文字比較）。正本に加えて、参考データの `.json` / `.xml`。
+/// 読めるが書けない——書き込みは `WRITABLE_EXTS` が別に塞ぐ。
 /// ファイル監視（watch_logic）でも同じ対象範囲を共有する。
-pub(crate) const ALLOWED_EXTS: [&str; 2] = ["md", "tsv"];
+pub(crate) const ALLOWED_EXTS: [&str; 4] = ["md", "tsv", "json", "xml"];
 /// ディレクトリのネスト上限（設計書 §3.2）。超過分は打ち切り truncated=true。
 const MAX_DEPTH: usize = 12;
 /// 収集ファイル数の上限（設計書 §3.2）。超過分は打ち切り truncated=true。
@@ -45,15 +50,24 @@ pub(crate) fn is_excluded_dir(name: &str) -> bool {
     name.starts_with('.') || matches!(name, "node_modules" | "dist" | "build")
 }
 
-/// パスの拡張子が許可対象なら小文字化して返す。対象外・拡張子なしは None。
-fn allowed_ext(path: &Path) -> Option<String> {
+/// パスの拡張子を小文字化して返す。拡張子なしは None。
+fn lower_ext(path: &Path) -> Option<String> {
     path.extension()
         .and_then(|e| e.to_str())
         .map(|e| e.to_ascii_lowercase())
-        .filter(|e| ALLOWED_EXTS.contains(&e.as_str()))
 }
 
-/// ルート配下を再帰走査し `.md` / `.tsv` を収集する（Tauri 非依存の実体）。
+/// パスの拡張子が走査・読み取りの対象なら小文字化して返す。対象外・拡張子なしは None。
+fn allowed_ext(path: &Path) -> Option<String> {
+    lower_ext(path).filter(|e| ALLOWED_EXTS.contains(&e.as_str()))
+}
+
+/// 書き込んでよい拡張子か。参考データ（`.json` / `.xml`）はここで落ちる。
+fn is_writable_ext(path: &Path) -> bool {
+    lower_ext(path).is_some_and(|e| WRITABLE_EXTS.contains(&e.as_str()))
+}
+
+/// ルート配下を再帰走査し、対象拡張子（`ALLOWED_EXTS`）を収集する（Tauri 非依存の実体）。
 /// 除外ディレクトリはスキップし、深さ / 件数上限で打ち切って truncated=true を返す。
 pub fn scan_documents_impl(root: &Path) -> Result<ScanResult, String> {
     if !root.is_dir() {
@@ -70,7 +84,7 @@ pub fn scan_documents_impl(root: &Path) -> Result<ScanResult, String> {
     Ok(ScanResult { entries, truncated })
 }
 
-/// `dir`（深さ `depth`）配下を再帰し、md/tsv を `out` に収集する。
+/// `dir`（深さ `depth`）配下を再帰し、対象拡張子のファイルを `out` に収集する。
 /// 除外ディレクトリはスキップ、深さ / 件数超過は `truncated` を立てて打ち切る。
 fn walk(
     root: &Path,
@@ -122,7 +136,7 @@ fn walk(
     Ok(())
 }
 
-/// ルートと相対パスを結合・正規化し、root 配下の md/tsv のみ UTF-8 で読む（Tauri 非依存の実体）。
+/// ルートと相対パスを結合・正規化し、root 配下の対象拡張子のみ UTF-8 で読む（Tauri 非依存の実体）。
 /// `canonicalize` 後に root 配下判定（`../` / シンボリックリンク脱出を封じる・設計書 §8.1）。
 pub fn read_document_impl(root: &Path, rel_path: &str) -> Result<String, String> {
     let canon_root = std::fs::canonicalize(root).map_err(|e| format!("ルート解決失敗: {}", e))?;
@@ -132,16 +146,17 @@ pub fn read_document_impl(root: &Path, rel_path: &str) -> Result<String, String>
         return Err("ルート外へのアクセスは拒否されます".to_string());
     }
     if allowed_ext(&canon).is_none() {
-        return Err("対応拡張子は .md / .tsv のみです".to_string());
+        return Err("開けるのは .md / .tsv / .json / .xml のみです".to_string());
     }
     let bytes = std::fs::read(&canon).map_err(|e| format!("読み取り失敗: {}", e))?;
     String::from_utf8(bytes).map_err(|_| "UTF-8 として不正なファイルです".to_string())
 }
 
-/// ルート配下の md/tsv へ UTF-8 本文を書き戻す（Tauri 非依存の実体）。
+/// ルート配下の正本（md/tsv）へ UTF-8 本文を書き戻す（Tauri 非依存の実体）。
 /// read と同じく canonicalize 後に root 配下判定でパストラバーサル（`../` / シンボリック
-/// リンク脱出）を封じ、対象は既存の `.md` / `.tsv` に限定する（新規作成は将来対応・
-/// canonicalize は実在ファイルにのみ成功するため、存在しない相対パスは Err）。
+/// リンク脱出）を封じ、対象は既存の `.md` / `.tsv` に限定する（参考データの `.json` / `.xml` は
+/// 読めても書けない）。新規作成は `create_document` の担当で、canonicalize は実在ファイルに
+/// のみ成功するため、存在しない相対パスは Err。
 pub fn write_document_impl(root: &Path, rel_path: &str, content: &str) -> Result<(), String> {
     let canon_root = std::fs::canonicalize(root).map_err(|e| format!("ルート解決失敗: {}", e))?;
     let canon = std::fs::canonicalize(root.join(rel_path))
@@ -149,13 +164,13 @@ pub fn write_document_impl(root: &Path, rel_path: &str, content: &str) -> Result
     if !canon.starts_with(&canon_root) {
         return Err("ルート外へのアクセスは拒否されます".to_string());
     }
-    if allowed_ext(&canon).is_none() {
-        return Err("対応拡張子は .md / .tsv のみです".to_string());
+    if !is_writable_ext(&canon) {
+        return Err("書き込めるのは .md / .tsv のみです".to_string());
     }
     std::fs::write(&canon, content).map_err(|e| format!("書き込み失敗: {}", e))
 }
 
-/// ルート配下に新規の md/tsv を作成する（Tauri 非依存の実体）。
+/// ルート配下に新規の正本（md/tsv）を作成する（Tauri 非依存の実体）。
 ///
 /// 新規ファイルは `canonicalize` できないため、**親ディレクトリ**を canonicalize して
 /// root 配下判定する（`../` / シンボリックリンク脱出を封じる）。親は既存であることを要求し
@@ -166,8 +181,8 @@ pub fn create_document_impl(root: &Path, rel_path: &str, content: &str) -> Resul
     let target = canon_root.join(rel_path);
 
     // 拡張子ゲート（作成しようとするファイル名で判定）。
-    if allowed_ext(&target).is_none() {
-        return Err("対応拡張子は .md / .tsv のみです".to_string());
+    if !is_writable_ext(&target) {
+        return Err("作成できるのは .md / .tsv のみです".to_string());
     }
 
     // 親ディレクトリを解決し root 配下か判定（新規ファイル自体は canonicalize できないため）。
@@ -197,9 +212,10 @@ pub fn create_document_impl(root: &Path, rel_path: &str, content: &str) -> Resul
 /// ルート配下のファイル / フォルダの名前を変更する（Tauri 非依存の実体）。
 ///
 /// 受け取るのは「名前だけ」で、移動には使わせない（区切り文字・`.` / `..` を拒否）。対象は
-/// `canonicalize` 後に root 配下判定してパストラバーサルを封じ、ファイルなら変更後も
-/// `.md` / `.tsv` を要求する（拡張子を変えると走査対象から外れ、ツリーから消えて行方不明に
-/// なるため）。既存の名前とぶつかる場合は上書きせず Err。戻り値は走査と同じ "/" 区切りの
+/// `canonicalize` 後に root 配下判定してパストラバーサルを封じ、ファイルなら変更後も走査対象の
+/// 拡張子を要求する（拡張子を変えると走査対象から外れ、ツリーから消えて行方不明になるため）。
+/// 正本（`.md` / `.tsv`）と参考データ（`.json` / `.xml`）をまたぐ改名も拒否する（書ける /
+/// 書けないが入れ替わるため）。既存の名前とぶつかる場合は上書きせず Err。戻り値は走査と同じ "/" 区切りの
 /// 新しい相対パス（呼び出し側が開き直しに使う）。
 pub fn rename_entry_impl(root: &Path, rel_path: &str, new_name: &str) -> Result<String, String> {
     let name = new_name.trim();
@@ -227,8 +243,16 @@ pub fn rename_entry_impl(root: &Path, rel_path: &str, new_name: &str) -> Result<
     }
 
     let is_dir = canon.is_dir();
-    if !is_dir && (allowed_ext(&canon).is_none() || allowed_ext(Path::new(name)).is_none()) {
-        return Err("対応拡張子は .md / .tsv のみです".to_string());
+    if !is_dir {
+        let new_path = Path::new(name);
+        if allowed_ext(&canon).is_none() || allowed_ext(new_path).is_none() {
+            return Err("対応拡張子は .md / .tsv / .json / .xml のみです".to_string());
+        }
+        // 正本（書ける）と参考データ（読むだけ）をまたぐ改名は拒否する。またげてしまうと、
+        // 開いたままの文書が保存できなくなったり、逆に読むだけのはずの資料が書けるようになる。
+        if is_writable_ext(&canon) != is_writable_ext(new_path) {
+            return Err("正本（.md / .tsv）と参考データ（.json / .xml）はまたげません".to_string());
+        }
     }
 
     let target = canon
@@ -378,6 +402,15 @@ mod tests {
         let result = scan_documents_impl(&root.path).expect("走査成功");
         assert_eq!(rel_paths(&result), vec!["a.md", "b.tsv"]);
         assert!(!result.truncated);
+    }
+
+    #[test]
+    fn scan_参考データのjson_xmlも収集する() {
+        let root = TempRoot::new("scan_data_ext");
+        root.file("a.json", "{}");
+        root.file("b.xml", "<r/>");
+        let result = scan_documents_impl(&root.path).expect("走査成功");
+        assert_eq!(rel_paths(&result), vec!["a.json", "b.xml"]);
     }
 
     #[test]
@@ -581,6 +614,18 @@ mod tests {
     }
 
     #[test]
+    fn write_参考データのjson_xmlは拒否する() {
+        // 読めるが書けない。参考データは正本ではないので、書き戻し経路を backend で塞ぐ。
+        let root = TempRoot::new("write_data_ext");
+        root.file("a.json", "{}");
+        root.file("b.xml", "<r/>");
+        assert!(write_document_impl(&root.path, "a.json", "{\"x\":1}").is_err());
+        assert!(write_document_impl(&root.path, "b.xml", "<r>x</r>").is_err());
+        assert_eq!(read_document_impl_raw(&root.path, "a.json"), "{}");
+        assert_eq!(read_document_impl_raw(&root.path, "b.xml"), "<r/>");
+    }
+
+    #[test]
     fn write_存在しないファイルはエラー() {
         // canonicalize は実在パスにのみ成功するため、write は既存のみ（新規は create_document）。
         let root = TempRoot::new("write_missing");
@@ -636,6 +681,16 @@ mod tests {
         let root = TempRoot::new("create_ext");
         assert!(create_document_impl(&root.path, "c.txt", "text").is_err());
         assert!(!root.path.join("c.txt").exists(), "拒否時はファイルを作らない");
+    }
+
+    #[test]
+    fn create_参考データのjson_xmlは拒否する() {
+        // 参考データは外部の資料であって、このアプリで起こす文書ではない。
+        let root = TempRoot::new("create_data_ext");
+        assert!(create_document_impl(&root.path, "a.json", "{}").is_err());
+        assert!(create_document_impl(&root.path, "b.xml", "<r/>").is_err());
+        assert!(!root.path.join("a.json").exists());
+        assert!(!root.path.join("b.xml").exists());
     }
 
     #[test]
@@ -791,6 +846,26 @@ mod tests {
         root.file("a.md", "# a");
         assert!(rename_entry_impl(&root.path, "a.md", "a.txt").is_err());
         assert!(root.path.join("a.md").is_file());
+    }
+
+    #[test]
+    fn rename_正本と参考データをまたぐ改名は拒否する() {
+        // 改名で書ける / 書けないが入れ替わると、開いたまま保存できなくなる。
+        let root = TempRoot::new("ren_cross");
+        root.file("a.md", "# a");
+        root.file("b.json", "{}");
+        assert!(rename_entry_impl(&root.path, "a.md", "a.json").is_err());
+        assert!(rename_entry_impl(&root.path, "b.json", "b.md").is_err());
+        assert!(root.path.join("a.md").is_file());
+        assert!(root.path.join("b.json").is_file());
+    }
+
+    #[test]
+    fn rename_参考データどうしの改名は通す() {
+        let root = TempRoot::new("ren_data");
+        root.file("a.json", "{}");
+        let rel = rename_entry_impl(&root.path, "a.json", "b.json").expect("改名成功");
+        assert_eq!(rel, "b.json");
     }
 
     #[test]

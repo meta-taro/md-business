@@ -25,6 +25,7 @@
     "@codemirror/view": "^6.43.1",
     "@lezer/highlight": "^1.2.3",
     "@md-business/core": "workspace:*",
+    "@md-business/data-tree": "workspace:*",
     "@md-business/renderer-pdf": "workspace:*",
     "@md-business/schema-api-spec": "workspace:*",
     "@md-business/schema-db-spec": "workspace:^",

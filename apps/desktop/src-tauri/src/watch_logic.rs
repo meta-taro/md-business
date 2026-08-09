@@ -46,8 +46,8 @@ pub enum FileChangeKind {
 
 /// 監視イベントを、フロントへ通知する [`FileChange`] 群へ分類する。
 ///
-/// - `.md` / `.tsv` 以外、除外ディレクトリ（`.git` / `node_modules` / `dist` / `build`）配下、
-///   root 外のパスは捨てる。
+/// - 対象拡張子（`workspace::ALLOWED_EXTS`）以外、除外ディレクトリ（`.git` / `node_modules` /
+///   `dist` / `build`）配下、root 外のパスは捨てる。
 /// - 作成 / 削除 / リネームは `rescan`、内容変更は `modified` に写す。
 /// - `Other` は空 Vec（何も通知しない）。
 ///
@@ -66,7 +66,7 @@ pub fn classify_event(raw: RawEvent, paths: &[PathBuf], root: &Path) -> Vec<File
         .collect()
 }
 
-/// `path` が root 配下の対象ファイル（md/tsv・除外ディレクトリ外）なら、`/` 区切りの
+/// `path` が root 配下の対象ファイル（走査対象の拡張子・除外ディレクトリ外）なら、`/` 区切りの
 /// 相対パスを返す。対象外・root 外は None。
 fn rel_under_root(path: &Path, root: &Path) -> Option<String> {
     let rel = path.strip_prefix(root).ok()?;
@@ -175,6 +175,15 @@ mod tests {
         assert!(classify_event(RawEvent::Created, &[join("img.png")], &root()).is_empty());
         // 拡張子なし（ディレクトリ等）も捨てる。
         assert!(classify_event(RawEvent::Created, &[join("subdir")], &root()).is_empty());
+    }
+
+    #[test]
+    fn 参考データのjson_xmlも通知する() {
+        for rel in ["a.json", "docs/b.xml"] {
+            let changes = classify_event(RawEvent::Modified, &[join(rel)], &root());
+            assert_eq!(changes.len(), 1, "rel={}", rel);
+            assert_eq!(changes[0].rel_path, rel);
+        }
     }
 
     #[test]

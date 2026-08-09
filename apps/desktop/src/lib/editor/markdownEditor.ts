@@ -11,7 +11,7 @@
  * 崩れやすい）、tauri dev / vite build で実機検証する。編集イベントの間引き
  * （debounce）は純ロジックとして別途 TDD 済み（[[debounce]]）。
  */
-import { EditorState, Prec, type Extension } from '@codemirror/state';
+import { Compartment, EditorState, Prec, type Extension } from '@codemirror/state';
 import { EditorView, keymap } from '@codemirror/view';
 import { basicSetup } from 'codemirror';
 import { indentWithTab } from '@codemirror/commands';
@@ -41,6 +41,8 @@ export interface MarkdownEditorOptions {
    * アプリ共通の SearchBar を開くための橋。未指定なら既定の検索キー無効化のみ。
    */
   onFind?: () => void;
+  /** 初期の読み取り専用状態。省略時は編集可。 */
+  readOnly?: boolean;
 }
 
 export interface MarkdownEditorHandle {
@@ -50,6 +52,12 @@ export interface MarkdownEditorHandle {
   setDoc(value: string): void;
   /** 現在のドキュメント全文。 */
   getDoc(): string;
+  /**
+   * 読み取り専用の入り切り。参考データ（.json / .xml）を開いている間に使う。
+   * 編集させないことが、そのまま「保存が起きない」ことの保証になる
+   * （自動保存は本文が変わったときだけ動くため）。
+   */
+  setReadOnly(flag: boolean): void;
   /** リソース破棄（onDestroy から呼ぶ）。 */
   destroy(): void;
 }
@@ -157,8 +165,16 @@ function findKeymap(onFind?: () => void): Extension {
   );
 }
 
+// 読み取り専用は後から入れ替えるので区画（Compartment）に載せる。
+// EditorState.readOnly だけだと編集用の DOM（contenteditable）が残りキャレットが立つので、
+// EditorView.editable も同時に落として「触れない」ことを見た目でも示す。
+function readOnlyExtension(flag: boolean): Extension {
+  return [EditorState.readOnly.of(flag), EditorView.editable.of(!flag)];
+}
+
 export function createMarkdownEditor(options: MarkdownEditorOptions): MarkdownEditorHandle {
-  const { parent, doc, onChange, onSync, onFind } = options;
+  const { parent, doc, onChange, onSync, onFind, readOnly = false } = options;
+  const readOnlyCompartment = new Compartment();
 
   // プログラム更新（setDoc）中は onChange を抑止し、外部差し替え→再描画の
   // 無限ループを避ける。
@@ -193,7 +209,12 @@ export function createMarkdownEditor(options: MarkdownEditorOptions): MarkdownEd
     parent,
     state: EditorState.create({
       doc,
-      extensions: [findKeymap(onFind), baseExtensions(), updateListener],
+      extensions: [
+        findKeymap(onFind),
+        baseExtensions(),
+        readOnlyCompartment.of(readOnlyExtension(readOnly)),
+        updateListener,
+      ],
     }),
   });
 
@@ -228,6 +249,12 @@ export function createMarkdownEditor(options: MarkdownEditorOptions): MarkdownEd
     },
     getDoc(): string {
       return view.state.doc.toString();
+    },
+    setReadOnly(flag: boolean): void {
+      if (view.state.readOnly === flag) return;
+      view.dispatch({
+        effects: readOnlyCompartment.reconfigure(readOnlyExtension(flag)),
+      });
     },
     destroy(): void {
       scroller?.removeEventListener('scroll', handleScroll);
