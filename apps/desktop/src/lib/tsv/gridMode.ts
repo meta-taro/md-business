@@ -57,6 +57,8 @@ export function planGridKey(
   const ctrl = intent.ctrl ?? false;
 
   if (ctx.mode === 'nav') {
+    // Alt+↓ はコンボボックスを開く一般的な合図。移動より先に見る。
+    if ((intent.alt ?? false) && intent.key === 'ArrowDown') return { kind: 'edit' };
     if (NAV_ARROW_KEYS.has(intent.key)) {
       const to = nextCell(pos, intent, dims);
       return to ? { kind: 'move', to } : { kind: 'pass' };

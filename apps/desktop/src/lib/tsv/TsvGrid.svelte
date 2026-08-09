@@ -73,6 +73,7 @@
     rowRange,
   } from './gridRange';
   import { canStartDrag, beginDrag } from './gridDrag';
+  import { opensPickerOnEdit, opensOnSingleClick } from './gridPicker';
   import { displayRowCount, editPaddedCell } from './gridBlankRows';
   import { columnLabels } from './columnLabel';
   import {
@@ -543,6 +544,19 @@
 
   const editable = $derived(onChange !== undefined);
 
+  // 候補リストを開く。showPicker は WebView によって未実装のことがあり、ユーザー操作から
+  // 離れた呼び出しでも例外になる。開けなくてもフォーカスは当たっていて ↑↓ で選べるので、
+  // 失敗はそのまま許す（検証作業を止めない）。
+  function tryShowPicker(el: HTMLElement): void {
+    const showPicker = (el as Partial<{ showPicker: () => void }>).showPicker;
+    if (typeof showPicker !== 'function') return;
+    try {
+      showPicker.call(el);
+    } catch {
+      // 非対応 / 呼び出し条件外。フォーカス済みなのでキー操作で選べる。
+    }
+  }
+
   // テキスト系のみ全選択できる（date/number/select に select() すると例外の環境がある）。
   function trySelectAll(el: HTMLElement): void {
     try {
@@ -587,6 +601,10 @@
         // date/number 等は setSelectionRange 非対応。キャレット位置は諦めてよい。
       }
       pendingSeed = null;
+    } else if (opensPickerOnEdit(widgets[col]?.kind)) {
+      // enum は編集へ入った時点で候補リストまで開く。クリック / Enter / Space / Alt+↓ の
+      // どの入口でも、そこで一度手が止まらないようにする。
+      tryShowPicker(input);
     } else {
       trySelectAll(input);
     }
@@ -616,6 +634,22 @@
   function onCellPointerEnter(row: number, col: number): void {
     if (!dragging) return;
     selection = extendRangeTo(selection, { row, col }, dims);
+  }
+
+  // enum セルはシングルクリックで編集（＝候補リスト表示）へ入る。押下ではなく離した時点で
+  // 見るのは、ドラッグでの範囲選択を先に成立させてから判断するため。click ではなく pointerup
+  // を使うのは、上の onCellPointerDown が preventDefault しており click が発火しないため。
+  function onCellPointerUp(row: number, col: number, event: PointerEvent): void {
+    const intent = {
+      button: event.button,
+      shift: event.shiftKey,
+      ctrl: event.ctrlKey || event.metaKey,
+      collapsed: isSingleCell(selection),
+      active: isActive(row, col),
+      editable,
+      mode,
+    };
+    if (opensOnSingleClick(widgets[col]?.kind, intent)) enterEdit();
   }
 
   // 離すのはグリッドの外かもしれないので window で受ける（掴んだままになるのを防ぐ）。
@@ -701,7 +735,12 @@
       }
     }
     const action = planGridKey(
-      { key: event.key, shift: event.shiftKey, ctrl: event.ctrlKey || event.metaKey },
+      {
+        key: event.key,
+        shift: event.shiftKey,
+        ctrl: event.ctrlKey || event.metaKey,
+        alt: event.altKey,
+      },
       { row, col },
       dims,
       { mode, multiline },
@@ -1073,6 +1112,7 @@
                 onkeydown={(e) => onGridKeydown(r, c, e)}
                 onpointerdown={(e) => onCellPointerDown(r, c, e)}
                 onpointerenter={() => onCellPointerEnter(r, c)}
+                onpointerup={(e) => onCellPointerUp(r, c, e)}
                 oncontextmenu={(e) => openColMenu(c, e)}
                 ondblclick={enterEdit}
               >
