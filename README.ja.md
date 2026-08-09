@@ -6,6 +6,8 @@
 [![pnpm](https://img.shields.io/badge/pnpm-required-F69220.svg)](https://pnpm.io/)
 [![Chrome Web Store](https://img.shields.io/badge/Chrome%20Web%20Store-published-4285F4.svg)](https://chromewebstore.google.com/detail/lmdplkkfmgapnhombimeohjliinifgjh)
 
+**[⬇ デスクトップアプリをダウンロード](https://meta-taro.github.io/md-business/download/)**（Windows / macOS）— インストーラです。ビルドは要りません。ブラウザで読んで印刷するだけなら [Chrome 拡張](https://chromewebstore.google.com/detail/lmdplkkfmgapnhombimeohjliinifgjh)もあります。
+
 > [English](./README.md) | **日本語**
 
 > Markdown を真の正本（source of truth）として扱う、AI ネイティブな業務文書フレームワーク。
@@ -219,10 +221,52 @@ md-business が目指すのは、**業務文書を AI agent が運用できる�
 
 ## クイックスタート
 
+### 使う
+
+ビルドも Node.js もパッケージマネージャも要りません。
+
+1. **[デスクトップアプリをダウンロード](https://meta-taro.github.io/md-business/download/)**（Windows `.msi` / `.exe`、macOS `.dmg`）してインストールします。ブラウザで読んで印刷するだけなら [Chrome 拡張](https://chromewebstore.google.com/detail/lmdplkkfmgapnhombimeohjliinifgjh)でも足ります。
+2. フォルダを開きます。frontmatter に `schema:` を持つ `.md` は種別ごとのビューワーで、`.tsv` の検証シートはグリッド編集で開きます。
+3. ひな形から始めます。[`templates/`](./templates/) からコピーするか、検証シートならファイル一覧の ＋ から列プリセットを選んで作れます。
+4. プレビューから A4 PDF を出力します。
+
+以降は[操作マニュアル](https://meta-taro.github.io/md-business/manual/ja/)にあります。
+
+これらの文書を AI に編集させるには、デスクトップアプリが動かしている MCP サーバーへ AI クライアントをつなぎます。右パネルの `MCP` タブで、**接続設定を開いているフォルダへ追加**すると `.mcp.json` が書かれ、それを読むクライアント（Claude Code など）は自分で拾います。別の場所に設定を置くクライアントなら、**接続設定を写す**でクリップボードへ写せます。どちらも中身は同じで、ポートとトークンは埋まった状態です。
+
+```json
+{
+  "mcpServers": {
+    "md-business": {
+      "type": "http",
+      "url": "http://127.0.0.1:<PORT>/mcp",
+      "headers": { "Authorization": "Bearer <TOKEN>" }
+    }
+  }
+}
+```
+
+`<PORT>` と `<TOKEN>` は同じパネルに出ていて、再起動しても変わりません。一度貼った設定を書き直さずに使い続けられます。トークンは接続の鍵なので、Git リポジトリで書き出した場合はアプリが `.mcp.json` を `.gitignore` へ追加します。サーバーはループバックにのみ待ち受け、トークンの合わない要求を拒否し、開いているフォルダの外へは届きません。
+
+デスクトップアプリを使わず単体で動かす場合は [packages/mcp-server/](./packages/mcp-server/README.md) を参照してください。
+
+### 開発する
+
+[Node.js 24 以上](https://nodejs.org/)と pnpm（corepack 経由）が要ります。npm / yarn は使えません。デスクトップアプリをビルドする場合は、加えて [Tauri 2 の前提条件](https://v2.tauri.app/start/prerequisites/)（Rust ツールチェーンとプラットフォームの WebView）が要ります。
+
 ```bash
 corepack enable
 pnpm install
 pnpm dev
+```
+
+変更を入れる前に、次がすべて通ることを確認します。
+
+```bash
+pnpm lint       # svelte-check（デスクトップ）/ tsc --noEmit（それ以外）
+pnpm typecheck  # 同じ検査を独立したタスクとして実行
+pnpm test:run   # Vitest（設定のあるパッケージはカバレッジ付き）
+pnpm build      # 全パッケージ・全アプリ
 ```
 
 詳細は [CONTRIBUTING.md](./CONTRIBUTING.md) を参照してください。
