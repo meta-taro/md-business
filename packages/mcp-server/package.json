@@ -24,6 +24,7 @@
   ],
   "dependencies": {
     "@md-business/core": "workspace:*",
+    "@md-business/data-tree": "workspace:*",
     "@md-business/schema-api-spec": "workspace:*",
     "@md-business/schema-db-spec": "workspace:*",
     "@md-business/schema-invoice": "workspace:*",

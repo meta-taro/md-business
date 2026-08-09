@@ -308,6 +308,9 @@ importers:
       '@md-business/core':
         specifier: workspace:*
         version: link:../core
+      '@md-business/data-tree':
+        specifier: workspace:*
+        version: link:../data-tree
       '@md-business/schema-api-spec':
         specifier: workspace:*
         version: link:../schema-api-spec

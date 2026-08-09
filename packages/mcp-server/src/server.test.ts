@@ -109,6 +109,7 @@ describe('createServer / MCP 配線', () => {
       'create_document',
       'get_schema',
       'list_schemas',
+      'read_data',
       'read_document',
       'read_tsv',
       'search_documents',
@@ -267,6 +268,34 @@ describe('createServer / MCP 配線', () => {
     expect(parse(res).isError).toBe(true);
   });
 
+  // JSON / XML は正本ではないが、経理の書類がその形で届く。読む口だけを繋ぐ。
+  it('read_data は JSON を木構造で返す', async () => {
+    const store = new MemoryDocumentStore();
+    await store.write('data/請求.json', '{"番号":"A-1","金額":500}');
+    const client = await connect(store);
+    const res = (await client.callTool({
+      name: 'read_data',
+      arguments: { path: 'data/請求.json' },
+    })) as CallToolResult;
+    const { text, isError } = parse(res);
+    expect(isError).toBe(false);
+    const payload = text as { ok: boolean; format: string; root: { children: Array<{ name: string }> } };
+    expect(payload.ok).toBe(true);
+    expect(payload.format).toBe('json');
+    expect(payload.root.children.map((c) => c.name)).toEqual(['番号', '金額']);
+  });
+
+  it('read_data は DTD 宣言のある XML を isError で返す', async () => {
+    const store = new MemoryDocumentStore();
+    await store.write('data/dtd.xml', '<!DOCTYPE a>\n<a/>');
+    const client = await connect(store);
+    const res = (await client.callTool({
+      name: 'read_data',
+      arguments: { path: 'data/dtd.xml' },
+    })) as CallToolResult;
+    expect(parse(res).isError).toBe(true);
+  });
+
   it('append_tsv_row は列名指定で 1 行追加する', async () => {
     const store = new MemoryDocumentStore();
     await store.write('sheets/t.tsv', SHEET_TSV);
@@ -395,6 +424,12 @@ describe('createServer / instructions', () => {
     // TSV を全文書き換えすると「1 レコード = 1 物理行」の差分の意味が壊れる。
     expect(text).toContain('read_tsv');
     expect(text).toContain('update_tsv_row');
+  });
+
+  it('JSON / XML は読むだけで正本ではないことを書く', async () => {
+    const text = await instructions();
+    // 書き戻す口が無いことを言わないと、エージェントは汎用の書き込み手段を探しに行く。
+    expect(text).toContain('read_data');
   });
 });
 
