@@ -64,6 +64,9 @@ export const SERVER_INSTRUCTIONS = `md-business は Markdown / TSV の業務文�
   1 行挿すだけでずれるので、読んでから書くまでの間に編集が入ると別の行を書き換えてしまう。
   \`directives\` の \`hidden\` は、利用者が表から外して控えにした行。read_tsv には出ないし
   書き換えもできない。控えの扱いはアプリ側の操作なので、宣言を書き換えて戻そうとしない。
+  \`directives\` の \`computed\` は、値がほかから決まる列（例 \`computed No. = rowNumber()\`）。
+  指定すると書き込みは失敗する。「その列を実数で埋めて」と言われても、それは宣言を直す話であって
+  セルを打つ話ではない。打てば集計が消えたまま提出物として出る。
 - 変更を確認して記録するのは **git_status** / **git_diff** / **git_commit**（利用可能な場合）。
 
 ## 書式の約束
@@ -244,7 +247,7 @@ export function createServer(store: DocumentStore, options: CreateServerOptions 
     'append_tsv_row',
     {
       description:
-        '検証シートの末尾に 1 行追加する。値は列名をキーに指定し、指定しなかった列は空セル（未入力）のまま残す。列型に反する値も書き込んだうえで issues として返す。',
+        '検証シートの末尾に 1 行追加する。値は列名をキーに指定し、指定しなかった列は空セル（未入力）のまま残す。列型に反する値も書き込んだうえで issues として返す。計算列（directives の computed）を指定すると失敗する。',
       inputSchema: {
         path: z.string().describe('ワークスペース相対パス'),
         values: z
@@ -263,7 +266,7 @@ export function createServer(store: DocumentStore, options: CreateServerOptions 
     'update_tsv_row',
     {
       description:
-        '検証シートの既存 1 行のうち、指定した列だけを差し替える（他の列は据え置き）。空文字を渡すとそのセルを未入力へ戻す。行は read_tsv の rowIds があれば行 ID で、無ければ行 index で指定する。',
+        '検証シートの既存 1 行のうち、指定した列だけを差し替える（他の列は据え置き）。空文字を渡すとそのセルを未入力へ戻す。行は read_tsv の rowIds があれば行 ID で、無ければ行 index で指定する。計算列（directives の computed）を指定すると失敗する。',
       inputSchema: {
         path: z.string().describe('ワークスペース相対パス'),
         row: z
