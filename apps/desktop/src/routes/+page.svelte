@@ -7,7 +7,8 @@
   import { previewReady } from '$lib/preview/previewGate';
   import CodeMirrorEditor from '$lib/editor/CodeMirrorEditor.svelte';
   import { debounce } from '$lib/util/debounce';
-  import type { IdentifiedTsv } from '@md-business/schema-test-spec-tsv';
+  import type { CellLink, IdentifiedTsv } from '@md-business/schema-test-spec-tsv';
+  import { openUrl } from '@tauri-apps/plugin-opener';
   import { isTsvSource } from '$lib/tsv/detect';
   import { loadGridDoc, saveGridDoc } from '$lib/tsv/gridDoc';
   import TsvGrid from '$lib/tsv/TsvGrid.svelte';
@@ -339,6 +340,18 @@
     applyGridSource(next.present);
   }
 
+  // グリッドのセルに書いたリンクを開く。指し先の種類は追って増やす（いまは外部 URL のみ。
+  // 追える種類の判定は gridLink 側に集めてあり、押せる見た目とここの分岐は同じ集合を見る）。
+  async function handleFollowLink(link: CellLink): Promise<void> {
+    if (link.kind !== 'external') return;
+    try {
+      // webview 内で遷移させない（アプリの画面がリンク先で上書きされる）。
+      await openUrl(link.href);
+    } catch {
+      // Tauri 外（素の vite プレビュー）。何もしない。
+    }
+  }
+
   // ── 検証グリッドの全画面 ──
   // 検証中はエディター/プレビュー分割が邪魔なので、分割を畳んでグリッドを全幅にする。
   // 全画面は TSV グリッド表示中のみ意味を持ち、条件を外れれば自動で分割へ戻る（DESIGN §5.8/§6）。
@@ -537,6 +550,7 @@
           onRedo={handleGridRedo}
           reveal={revealHidden}
           onToggleReveal={() => (revealHidden = !revealHidden)}
+          onFollowLink={handleFollowLink}
         />
       </div>
     {:else}
