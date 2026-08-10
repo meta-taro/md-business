@@ -41,7 +41,7 @@ const collector = new SpanCollector();
  */
 let flushBase: number | null = null;
 
-/** 表を組み直し終えた時刻。基準と組にして使う。 */
+/** 表を最初に組み直し終えた時刻。基準と組にして使う。 */
 let gridDrawnAt: number | null = null;
 
 function now(): number {
@@ -103,12 +103,15 @@ export const perf = {
   },
 
   /**
-   * 表を組み直し終えたことを知らせる。画面反映のうち、どこまでが表のぶんかを
-   * 分けるための目印（表の外に消えている時間を見つけるのが目的）。
-   * 反映は何度か走り直すことがあるので、最後に打たれたものを採る。
+   * 表を組み直し終えたことを知らせる目印。
+   *
+   * 反映は何度か走り直すので、採るのは **最初の 1 回** にする。最後に打たれたものを
+   * 採ると、目印は必ず反映の終わり際に来て（走り直すたび打ち直されるため）、合計と
+   * 一致してしまい何も分けられない。最初の 1 回なら「表を 1 度組み直すのにかかる時間」
+   * になり、合計との差が「そのあとに費やしている時間」として読める。
    */
   markGrid(): void {
-    if (flushBase === null) return;
+    if (flushBase === null || gridDrawnAt !== null) return;
     gridDrawnAt = now();
   },
 
