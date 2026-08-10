@@ -19,7 +19,7 @@ import {
 } from './tools.js';
 import type { UpdateDocumentInput } from './tools.js';
 import { readTsv, appendTsvRow, updateTsvRow } from './tsvTools.js';
-import { readData } from './dataTools.js';
+import { readData, type ReadDataOptions } from './dataTools.js';
 import { searchDocuments } from './search.js';
 import type { SearchQuery } from './search.js';
 import { gitStatus, gitDiff, gitCommit } from './gitTools.js';
@@ -294,13 +294,28 @@ export function createServer(store: DocumentStore, options: CreateServerOptions 
     'read_data',
     {
       description:
-        '外部から届いた JSON / XML を木構造として読む（請求書の交換形式・口座明細・会計サービスの書き出しなど）。名前 / 値 / 属性 / 子の入れ子で返す。読むだけで、このツールでは書き換えられない。DTD 宣言のある XML は読まずに断る。',
+        '外部から届いた JSON / XML を木構造として読む（請求書の交換形式・口座明細・会計サービスの書き出しなど）。名前 / 値 / 属性 / 子の入れ子で返す。既定では 2 世代までしか返さず、深さで切った節には omittedChildren（返さなかった子の数）が付くので、続きは at で降りて取る。読むだけで、このツールでは書き換えられない。DTD 宣言のある XML は読まずに断る。',
       inputSchema: {
         path: z.string().describe('ワークスペース相対パス（例 data/請求.xml）'),
+        at: z
+          .array(z.string())
+          .optional()
+          .describe(
+            '読む位置。根からたどる子の名前の並び（例 ["取引先","住所"]）。配列の要素は添字の名前（"0"）。XML の根要素は含めない。同名の兄弟が並ぶ場所は "行#1" のように 0 始まりの番号で選ぶ。省略すると根',
+          ),
+        depth: z
+          .number()
+          .int()
+          .optional()
+          .describe('返す世代数。0 は指した節だけ、-1 は下をすべて。省略時は 2'),
       },
     },
-    async ({ path }) => {
-      const r = await readData(store, path);
+    async ({ path, at, depth }) => {
+      // exactOptionalPropertyTypes 下では undefined を明示せず、指定された項目のみ渡す。
+      const options: ReadDataOptions = {};
+      if (at !== undefined) options.at = at;
+      if (depth !== undefined) options.depth = depth;
+      const r = await readData(store, path, options);
       emit('read_data', path, r);
       return jsonResult(r, !r.ok);
     },

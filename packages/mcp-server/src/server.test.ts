@@ -285,6 +285,26 @@ describe('createServer / MCP 配線', () => {
     expect(payload.root.children.map((c) => c.name)).toEqual(['番号', '金額']);
   });
 
+  it('read_data は at と depth を受け取り、部分木だけを返す', async () => {
+    const store = new MemoryDocumentStore();
+    await store.write('data/請求.json', '{"取引先":{"名称":"株式会社B","住所":{"市区":"千代田区"}}}');
+    const client = await connect(store);
+    const res = (await client.callTool({
+      name: 'read_data',
+      arguments: { path: 'data/請求.json', at: ['取引先'], depth: 1 },
+    })) as CallToolResult;
+    const { text, isError } = parse(res);
+    expect(isError).toBe(false);
+    const payload = text as {
+      at: string[];
+      root: { name: string; children: Array<{ name: string; omittedChildren?: number }> };
+    };
+    expect(payload.at).toEqual(['取引先']);
+    expect(payload.root.name).toBe('取引先');
+    // 住所の中身は 1 世代を超えるので返さず、隠れている数だけ添える。
+    expect(payload.root.children.find((c) => c.name === '住所')?.omittedChildren).toBe(1);
+  });
+
   it('read_data は DTD 宣言のある XML を isError で返す', async () => {
     const store = new MemoryDocumentStore();
     await store.write('data/dtd.xml', '<!DOCTYPE a>\n<a/>');
