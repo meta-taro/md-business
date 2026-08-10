@@ -40,6 +40,17 @@ export function pushHistory(h: GridHistory, next: string, cap: number = DEFAULT_
   return { past, present: next, future: [] };
 }
 
+/**
+ * 履歴が保持している文字数の合計。
+ *
+ * 1 手ごとにファイル全文を積むため、大きな検証シートでは上限まで貯まると相当量になる。
+ * 診断でこの数字を出せるようにしておく。
+ */
+export function historyChars(h: GridHistory): number {
+  const sum = (acc: number, s: string): number => acc + s.length;
+  return h.past.reduce(sum, 0) + h.present.length + h.future.reduce(sum, 0);
+}
+
 /** 1 つ前へ戻る。戻せなければ不変。 */
 export function undo(h: GridHistory): GridHistory {
   if (h.past.length === 0) return h;

@@ -12,11 +12,13 @@
   import TsvGrid from '$lib/tsv/TsvGrid.svelte';
   import DataTreeView from '$lib/data/DataTreeView.svelte';
   import { isDataFile, readDataDocument } from '$lib/data/dataDocument';
+  import { perf } from '$lib/diagnostics/perf.svelte';
   import {
     initHistory,
     pushHistory,
     undo as undoHistory,
     redo as redoHistory,
+    historyChars,
     type GridHistory,
   } from '$lib/tsv/gridHistory';
   import { autosave } from '$lib/workspace/autosave.svelte';
@@ -236,6 +238,12 @@
     // プレビュー iframe の検索を共通ストアへ登録（getter で現在の iframe を都度取り直す＝
     // srcdoc 再生成で contentDocument が差し替わっても最新へ届く）。
     search.register('preview', createPreviewSearchBinding(() => viewerFrame, search.report));
+    // 文書の形は診断タブを開いたときだけ取りに行く（毎編集で数えると計測へ混ざるため）。
+    perf.setProbe(() => ({
+      rows: tsvDoc?.rows.length ?? 0,
+      columns: tsvDoc?.columns.length ?? 0,
+      historyChars: historyChars(gridHistory),
+    }));
   });
   onDestroy(() => {
     pdfExport.unregister();
@@ -270,15 +278,23 @@
   // debouncedSource も即更新して doc を再導出し、グリッドを遅延なく反映する。
   // 併せて確定スナップショットを履歴へ積む（Ctrl+Z / Ctrl+Y で戻せるように）。
   // 控え行は編集中の doc に載っていないので、読み込み時に外したものをここで戻す。
+  // 区間ごとに時間を測るのは、1 セル確定するたびにファイル全文を組み直しており、
+  // どこで時間を使っているかが分からないと直す場所が決まらないため（診断タブに出る）。
   function handleGridChange(next: IdentifiedTsv): void {
-    const text = saveGridDoc(
-      next,
-      untrack(() => tsvGrid?.hidden ?? []),
-      untrack(() => workspace.source),
+    perf.startEdit();
+    const text = perf.measure('serialize', () =>
+      saveGridDoc(
+        next,
+        untrack(() => tsvGrid?.hidden ?? []),
+        untrack(() => workspace.source),
+      ),
     );
-    gridHistory = pushHistory(gridHistory, text);
+    perf.measure('history', () => {
+      gridHistory = pushHistory(gridHistory, text);
+    });
     workspace.setSource(text);
     debouncedSource = text;
+    perf.finishEdit();
   }
 
   // 履歴の present をグリッド／正本へ反映する（undo・redo 共通のグルー）。

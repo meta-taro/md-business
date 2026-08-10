@@ -152,6 +152,28 @@ export interface Messages {
   'panel.collapse': string;
   'panel.expand': string;
   'panel.hint': string;
+  'diag.tab': string;
+  'diag.scale': string;
+  'diag.chars': string;
+  'diag.rows': string;
+  'diag.columns': string;
+  'diag.domRows': string;
+  'diag.historyChars': string;
+  'diag.span': string;
+  'diag.last': string;
+  'diag.median': string;
+  'diag.max': string;
+  'diag.count': string;
+  'diag.empty': string;
+  'diag.copy': string;
+  'diag.copied': string;
+  'diag.clear': string;
+  'diag.note': string;
+  'diag.span.serialize': string;
+  'diag.span.history': string;
+  'diag.span.dirty': string;
+  'diag.span.render': string;
+  'diag.span.save': string;
   // MCP タブ（組み込みサーバーの接続状態・操作ログ）
   'mcp.starting': string;
   'mcp.copyToken': string;
@@ -379,6 +401,28 @@ const en: Messages = {
   'panel.collapse': 'Collapse panel',
   'panel.expand': 'Open panel',
   'panel.hint': 'Git diff, AI, and MCP logs\nwill appear in a later phase',
+  'diag.tab': 'Diagnostics',
+  'diag.scale': 'Size',
+  'diag.chars': 'characters',
+  'diag.rows': 'rows',
+  'diag.columns': 'columns',
+  'diag.domRows': 'Rows in the DOM',
+  'diag.historyChars': 'Characters held by undo history',
+  'diag.span': 'Step',
+  'diag.last': 'Latest',
+  'diag.median': 'Median',
+  'diag.max': 'Max',
+  'diag.count': 'Samples',
+  'diag.empty': 'Edit a test sheet and the timings will appear here',
+  'diag.copy': 'Copy the numbers',
+  'diag.copied': 'Copied',
+  'diag.clear': 'Discard records',
+  'diag.note': 'Milliseconds. Updating the screen includes the change comparison.',
+  'diag.span.serialize': 'Rebuilding the file text',
+  'diag.span.history': 'Adding to undo history',
+  'diag.span.dirty': 'Change comparison',
+  'diag.span.render': 'Updating the screen',
+  'diag.span.save': 'Save round trip',
   'mcp.starting': 'Starting…',
   'mcp.copyToken': 'Copy access token',
   'mcp.copied': 'Token copied',
@@ -609,6 +653,28 @@ const ja: Messages = {
   'panel.collapse': 'パネルを畳む',
   'panel.expand': 'パネルを開く',
   'panel.hint': 'Git 差分・AI・MCP ログは\n後続フェーズで表示されます',
+  'diag.tab': '診断',
+  'diag.scale': '規模',
+  'diag.chars': '文字',
+  'diag.rows': '行',
+  'diag.columns': '列',
+  'diag.domRows': '画面に出ている行',
+  'diag.historyChars': '履歴が持つ文字数',
+  'diag.span': '区間',
+  'diag.last': '直近',
+  'diag.median': '中央値',
+  'diag.max': '最大',
+  'diag.count': '件数',
+  'diag.empty': '検証シートを編集すると、かかった時間がここに並びます',
+  'diag.copy': '数字を写す',
+  'diag.copied': '写しました',
+  'diag.clear': '記録を捨てる',
+  'diag.note': '単位はミリ秒。画面への反映には差分判定の時間も含まれます。',
+  'diag.span.serialize': '本文の組み直し',
+  'diag.span.history': '履歴への積み増し',
+  'diag.span.dirty': '差分判定',
+  'diag.span.render': '画面への反映',
+  'diag.span.save': '保存の往復',
   'mcp.starting': '起動中…',
   'mcp.copyToken': '接続トークンを写す',
   'mcp.copied': 'トークンを写しました',
@@ -838,6 +904,28 @@ const zh: Messages = {
   'panel.collapse': '折叠面板',
   'panel.expand': '打开面板',
   'panel.hint': 'Git 差异、AI、MCP 日志\n将在后续阶段显示',
+  'diag.tab': '诊断',
+  'diag.scale': '规模',
+  'diag.chars': '字符',
+  'diag.rows': '行',
+  'diag.columns': '列',
+  'diag.domRows': '页面上的行数',
+  'diag.historyChars': '历史记录占用的字符数',
+  'diag.span': '区间',
+  'diag.last': '最近',
+  'diag.median': '中位数',
+  'diag.max': '最大',
+  'diag.count': '次数',
+  'diag.empty': '编辑验证表后，耗时会显示在这里',
+  'diag.copy': '复制数字',
+  'diag.copied': '已复制',
+  'diag.clear': '清除记录',
+  'diag.note': '单位为毫秒。更新画面包含差异判断的时间。',
+  'diag.span.serialize': '重新组合正文',
+  'diag.span.history': '写入历史记录',
+  'diag.span.dirty': '差异判断',
+  'diag.span.render': '更新画面',
+  'diag.span.save': '保存往返',
   'mcp.starting': '启动中…',
   'mcp.copyToken': '复制连接令牌',
   'mcp.copied': '已复制令牌',
@@ -1064,6 +1152,28 @@ const ko: Messages = {
   'panel.collapse': '패널 접기',
   'panel.expand': '패널 열기',
   'panel.hint': 'Git 차이・AI・MCP 로그는\n다음 단계에서 표시됩니다',
+  'diag.tab': '진단',
+  'diag.scale': '규모',
+  'diag.chars': '문자',
+  'diag.rows': '행',
+  'diag.columns': '열',
+  'diag.domRows': '화면에 표시된 행',
+  'diag.historyChars': '기록이 보유한 문자 수',
+  'diag.span': '구간',
+  'diag.last': '최근',
+  'diag.median': '중앙값',
+  'diag.max': '최대',
+  'diag.count': '건수',
+  'diag.empty': '검증 시트를 편집하면 걸린 시간이 여기에 표시됩니다',
+  'diag.copy': '숫자 복사',
+  'diag.copied': '복사했습니다',
+  'diag.clear': '기록 지우기',
+  'diag.note': '단위는 밀리초. 화면 반영에는 차이 판정 시간이 포함됩니다.',
+  'diag.span.serialize': '본문 재구성',
+  'diag.span.history': '기록에 쌓기',
+  'diag.span.dirty': '차이 판정',
+  'diag.span.render': '화면 반영',
+  'diag.span.save': '저장 왕복',
   'mcp.starting': '시작 중…',
   'mcp.copyToken': '접속 토큰 복사',
   'mcp.copied': '토큰을 복사했습니다',

@@ -6,6 +6,7 @@ import {
   redo,
   canUndo,
   canRedo,
+  historyChars,
 } from './gridHistory';
 
 describe('gridHistory', () => {
@@ -73,5 +74,17 @@ describe('gridHistory', () => {
     h = undo(undo(undo(h)));
     expect(h.present).toBe('2');
     expect(canUndo(h)).toBe(false);
+  });
+});
+
+describe('historyChars', () => {
+  it('現在値だけの履歴は present の長さ', () => {
+    expect(historyChars(initHistory('abc'))).toBe(3);
+  });
+
+  it('past・future も合わせて数える', () => {
+    const h = undo(pushHistory(pushHistory(initHistory('a'), 'bb'), 'ccc'));
+    // past='a' / present='bb' / future='ccc'
+    expect(historyChars(h)).toBe(6);
   });
 });

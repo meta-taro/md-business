@@ -5,6 +5,7 @@
   import { mcp } from '$lib/mcp/mcp.svelte';
   import { formatLogTime } from '$lib/mcp/mcpLog';
   import { workspace } from '$lib/workspace/workspace.svelte';
+  import DiagnosticsPanel from './DiagnosticsPanel.svelte';
 
   interface SidePanelProps {
     open: boolean;
@@ -13,12 +14,17 @@
 
   let { open, ontoggle }: SidePanelProps = $props();
 
-  const tabs = ['Git', 'Diff', 'AI', 'MCP'] as const;
+  const tabs = ['Git', 'Diff', 'AI', 'MCP', 'diag'] as const;
   type Tab = (typeof tabs)[number];
 
-  // 実装済みは MCP のみ。ほかは押せない状態にして、選択も MCP から始める。
-  const enabled: Tab = 'MCP';
-  let active = $state<Tab>(enabled);
+  // 実装済みのものだけ押せる。ほかは押せない状態のまま残す（予定が見えるように）。
+  const enabled: readonly Tab[] = ['MCP', 'diag'];
+  let active = $state<Tab>('MCP');
+
+  // 製品名や規格名（Git / MCP）は訳さない。訳すのは説明語である診断だけ。
+  function label(tab: Tab): string {
+    return tab === 'diag' ? t('diag.tab') : tab;
+  }
 
   /** 直近に写した対象（ボタンの手応えを 1 つずつ出し分ける）。 */
   let copied = $state<'token' | 'config' | 'ask' | null>(null);
@@ -107,10 +113,10 @@
             type="button"
             role="tab"
             aria-selected={tab === active}
-            disabled={tab !== enabled}
+            disabled={!enabled.includes(tab)}
             onclick={() => (active = tab)}
           >
-            {tab}
+            {label(tab)}
           </button>
         {/each}
       </div>
@@ -202,6 +208,8 @@
             {/each}
           </ul>
         </div>
+      {:else if active === 'diag'}
+        <DiagnosticsPanel />
       {:else}
         <div class="content">
           <p class="hint">{t('panel.hint')}</p>
