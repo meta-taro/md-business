@@ -2,6 +2,7 @@
   import { openUrl } from '@tauri-apps/plugin-opener';
   import { updater } from './updater.svelte';
   import { renderReleaseNotes, externalLinkHref } from './releaseNotes';
+  import { recentReleases, RELEASES_URL } from './releaseHistory';
 
   // 更新フローのモーダル。updater コントローラの state / visible を購読し、状態ごとに
   // 「確認中 / 最新 / 更新あり（リリースノート）/ ダウンロード中（進捗バー）/ インストール中 /
@@ -13,6 +14,12 @@
 
   // リリースノートは Markdown。素で出すと記号が本文に混ざるため HTML 化して描く。
   const notesHtml = $derived(state.status === 'available' ? renderReleaseNotes(state.notes) : '');
+
+  // 最新のときに出す「これまでの更新内容」。同梱物なので中身は変わらず、1 度作れば足りる。
+  const history = recentReleases().map((entry) => ({
+    version: entry.version,
+    html: renderReleaseNotes(entry.notes),
+  }));
 
   function onBackdrop(): void {
     if (!busy) updater.dismiss();
@@ -60,7 +67,19 @@
           <h2 class="title">最新の状態です</h2>
         </div>
         <p class="desc">お使いの md-business は最新バージョンです。</p>
+        {#if history.length > 0}
+          <!-- 更新が無いときこそ何も出ない状態を避ける。手元の版までの内容は同梱してあるので、
+               直近の数件は通信せずに出せる。それより前は Release の一覧へ送る。 -->
+          <div class="notes-label">これまでの更新内容</div>
+          <div class="notes history" use:externalLinks>
+            {#each history as entry (entry.version)}
+              <h3 class="release">v{entry.version}</h3>
+              {@html entry.html}
+            {/each}
+          </div>
+        {/if}
         <div class="actions">
+          <a class="more" href={RELEASES_URL} use:externalLinks>もっと見る</a>
           <button class="btn primary" type="button" onclick={() => updater.dismiss()}>閉じる</button>
         </div>
       {:else if state.status === 'available'}
@@ -242,6 +261,39 @@
     line-height: 1.6;
     color: var(--text-primary);
     word-break: break-word;
+  }
+
+  /* 最新のときの本文は履歴だけなので、更新ありのノートより高さを取る。 */
+  .notes.history {
+    max-height: 300px;
+  }
+
+  /* 版の見出し。中の `### 追加` と同じ大きさだと、どこで版が変わるのか分からない。
+     下の :global(h1..h4) より詳細度を上げる必要があるため .notes から書く。 */
+  .notes .release {
+    margin: var(--space-4) 0 var(--space-2);
+    padding-bottom: var(--space-1, 4px);
+    border-bottom: 1px solid var(--border);
+    font-size: var(--text-sm-size);
+    font-weight: 700;
+    color: var(--text-primary);
+  }
+
+  .notes .release:first-child {
+    margin-top: 0;
+  }
+
+  /* 「もっと見る」。閉じるボタンと同じ行の左端に置き、押すと既定のブラウザで開く。 */
+  .more {
+    margin-right: auto;
+    align-self: center;
+    font-size: var(--text-sm-size);
+    color: var(--accent);
+    text-decoration: none;
+  }
+
+  .more:hover {
+    text-decoration: underline;
   }
 
   /* 差し込んだ HTML には :global が要る（コンポーネントのスコープが付かないため）。
