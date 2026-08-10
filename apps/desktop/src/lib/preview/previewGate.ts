@@ -1,0 +1,33 @@
+/**
+ * プレビューを組み直すかどうかの判定。
+ *
+ * 右ペインは 4 つの見せ方を入れ替えて使う（差分・参考データ・検証グリッド・プレビュー）。
+ * プレビューは本文全体を HTML へ組み直して作るため、出していないときに組み直すと
+ * 丸ごと捨てるだけの作業になる。判定を画面側の条件式に散らすと並び順ひとつで戻るので、
+ * ここへ出して固定する。
+ */
+
+/** 右ペインがいま何を出しているか。 */
+export interface PaneState {
+  /** 差分表示に切り替えている。 */
+  diff: boolean;
+  /** 参考データ（.json / .xml）を出している。 */
+  data: boolean;
+  /** 検証グリッドを出している。 */
+  grid: boolean;
+}
+
+/** プレビューが画面に出るか。ほかの見せ方が 1 つでも出ていれば出ない。 */
+export function previewVisible(pane: PaneState): boolean {
+  return !pane.diff && !pane.data && !pane.grid;
+}
+
+/**
+ * プレビューが使える状態か。**出していないときは組み上がりを確かめない。**
+ *
+ * 確かめること自体が本文全体の組み直しを呼ぶため、確かめ方を関数で受け取り、
+ * 画面に出しているときだけ呼ぶ。並び順に頼らず、呼ばないことを型で示す。
+ */
+export function previewReady(pane: PaneState, isOk: () => boolean): boolean {
+  return previewVisible(pane) && isOk();
+}

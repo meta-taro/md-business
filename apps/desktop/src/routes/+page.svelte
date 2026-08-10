@@ -4,6 +4,7 @@
   import { renderPreview } from '$lib/preview/renderPreview';
   import { frontmatterMessage } from '$lib/preview/frontmatterMessage';
   import { pdfExport } from '$lib/preview/pdfExport.svelte';
+  import { previewReady } from '$lib/preview/previewGate';
   import CodeMirrorEditor from '$lib/editor/CodeMirrorEditor.svelte';
   import { debounce } from '$lib/util/debounce';
   import type { IdentifiedTsv } from '@md-business/schema-test-spec-tsv';
@@ -254,12 +255,6 @@
     if (scrollRaf !== 0) cancelAnimationFrame(scrollRaf);
     if (followRaf !== 0) cancelAnimationFrame(followRaf);
   });
-  // schema / Markdown ビューワー描画中だけ [PDF] を活性化する。TSV 編集グリッドは
-  // 印刷対象の iframe を持たないため対象外。
-  $effect(() => {
-    pdfExport.setReady(preview.ok && !isTsv && dataDoc === null && !diffView.active);
-  });
-
   // カスタム TSV 検証シートは読み取りプレビューでなく編集グリッドで開く。
   // 先頭マジック行で判定し、TSV なら表として見せる分だけをグリッドへ渡す。
   // 行 ID 列と控え行（`#@ hidden`）は読み込みで外し、保存で戻す（gridDoc）。
@@ -280,6 +275,24 @@
   // 編集させない＝本文が変わらない＝自動保存も動かない、という順で「表示のみ」を担保する。
   const dataPath = $derived(isDataFile(workspace.activePath) ? workspace.activePath : null);
   const dataDoc = $derived(dataPath === null ? null : readDataDocument(dataPath, debouncedSource));
+
+  // 右ペインがいま何を出しているか。マークアップの分岐（差分 → 参考データ → 検証グリッド
+  // → プレビュー）と同じ条件で持つ。
+  const paneState = $derived({
+    diff: diffView.active,
+    data: dataDoc !== null,
+    grid: isTsv && tsvDoc !== null,
+  });
+
+  // schema / Markdown ビューワー描画中だけ [PDF] を活性化する。TSV 編集グリッドは
+  // 印刷対象の iframe を持たないため対象外。
+  //
+  // 組み上がり（preview.ok）を確かめるのは、プレビューを出しているときだけにする。
+  // preview は本文全体を HTML へ組み直す導出値なので、出していないときに読むと
+  // 捨てるためだけの組み直しが 1 セル確定ごとに走る（2,000 行で 170ms）。
+  $effect(() => {
+    pdfExport.setReady(previewReady(paneState, () => preview.ok));
+  });
 
   // グリッド編集 → 正本ソースへ書き戻し、エディターと即同期する。
   // debouncedSource も即更新して doc を再導出し、グリッドを遅延なく反映する。
@@ -336,7 +349,7 @@
   }
 
   // プレビュー iframe を検索対象にできる状態か（TSV グリッド／差分表示中は iframe が無い）。
-  const previewSearchable = $derived(!isTsv && dataDoc === null && !diffView.active && preview.ok);
+  const previewSearchable = $derived(previewReady(paneState, () => preview.ok));
 
   // Escape で全画面を抜ける。ただしセル編集中（入力にフォーカス）の Escape は入力側へ譲る。
   // また Ctrl/Cmd+F は、エディター（CodeMirror が自前で処理）／プレビュー iframe（自前で
