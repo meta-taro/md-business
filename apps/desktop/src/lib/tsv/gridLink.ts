@@ -26,7 +26,7 @@ function staysInSheet(link: CellLink): boolean {
  * 「解釈はできるのに追えない」種類が増えても、リンクの見た目と挙動がずれない。
  */
 function followable(link: CellLink): boolean {
-  return link.kind === 'external' || staysInSheet(link);
+  return link.kind === 'external' || link.kind === 'file' || link.kind === 'row';
 }
 
 /**

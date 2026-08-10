@@ -48,11 +48,22 @@ describe('followableLink', () => {
     expect(followableLink('url', '参照メモ', true)).toBeNull();
   });
 
+  it('別のファイルの行も指せる', () => {
+    expect(followableLink('url', '../002-signup.tsv#項目=TC-012', true)).toEqual({
+      kind: 'row',
+      path: '../002-signup.tsv',
+      column: '項目',
+      value: 'TC-012',
+    });
+    expect(followableLink('url', 'docs/specs/order.md', true)).toEqual({
+      kind: 'file',
+      path: 'docs/specs/order.md',
+    });
+  });
+
   // まだ移動を実装していない指し先は、クリックできる見た目にしない。
   // 押しても何も起きないリンクは、壊れているのと見分けがつかない。
   it('まだ移動できない指し先はリンクにしない', () => {
-    expect(followableLink('url', 'docs/test-specs/001-login.tsv#項目=TC-012', true)).toBeNull();
     expect(followableLink('url', 'docs/specs/order.md#受注の登録', true)).toBeNull();
-    expect(followableLink('url', 'docs/specs/order.md', true)).toBeNull();
   });
 });

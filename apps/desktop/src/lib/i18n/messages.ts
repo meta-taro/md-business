@@ -245,6 +245,7 @@ export interface Messages {
   'page.previewHead': string;
   'page.previewTitle': string;
   'page.frontmatterHint': string;
+  'page.linkOutsideFolder': string;
   // 参考データ（.json / .xml）の表示
   'page.dataHead': string;
   'data.readOnly': string;
@@ -504,6 +505,7 @@ const en: Messages = {
   'page.previewHead': 'Preview',
   'page.previewTitle': '{label} preview',
   'page.frontmatterHint': 'Check the frontmatter format (the top block enclosed by ---)',
+  'page.linkOutsideFolder': 'This link points outside the opened folder ({path})',
   'page.dataHead': 'Reference data',
   'data.readOnly': 'Read-only',
   'data.refused': 'This file could not be opened. {detail}',
@@ -759,6 +761,7 @@ const ja: Messages = {
   'page.previewHead': 'プレビュー',
   'page.previewTitle': '{label}プレビュー',
   'page.frontmatterHint': 'frontmatter（--- で囲む先頭ブロック）の書式を確認してください',
+  'page.linkOutsideFolder': 'この指し先は、開いているフォルダの外にあります（{path}）',
   'page.dataHead': '参考データ',
   'data.readOnly': '読み取り専用',
   'data.refused': 'このファイルは開けませんでした。{detail}',
@@ -1011,6 +1014,7 @@ const zh: Messages = {
   'page.previewHead': '预览',
   'page.previewTitle': '{label}预览',
   'page.frontmatterHint': '请检查 frontmatter（由 --- 包围的开头块）的格式',
+  'page.linkOutsideFolder': '此链接指向所打开文件夹之外（{path}）',
   'page.dataHead': '参考数据',
   'data.readOnly': '只读',
   'data.refused': '无法打开该文件。{detail}',
@@ -1266,6 +1270,7 @@ const ko: Messages = {
   'page.previewHead': '미리보기',
   'page.previewTitle': '{label} 미리보기',
   'page.frontmatterHint': 'frontmatter(--- 로 감싼 첫 블록) 형식을 확인하세요',
+  'page.linkOutsideFolder': '이 링크는 열려 있는 폴더 밖을 가리킵니다({path})',
   'page.dataHead': '참고 데이터',
   'data.readOnly': '읽기 전용',
   'data.refused': '이 파일은 열 수 없었습니다. {detail}',

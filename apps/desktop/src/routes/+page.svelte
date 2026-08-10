@@ -26,6 +26,7 @@
   import { autosave } from '$lib/workspace/autosave.svelte';
   import { browser } from '$app/environment';
   import { workspace } from '$lib/workspace/workspace.svelte';
+  import { resolveRelPath } from '$lib/workspace/relPath';
   import { diffView } from '$lib/git/diffView.svelte';
   import DiffView from '$lib/components/DiffView.svelte';
   import SearchBar from '$lib/search/SearchBar.svelte';
@@ -340,15 +341,45 @@
     applyGridSource(next.present);
   }
 
-  // グリッドのセルに書いたリンクを開く。指し先の種類は追って増やす（いまは外部 URL のみ。
-  // 追える種類の判定は gridLink 側に集めてあり、押せる見た目とここの分岐は同じ集合を見る）。
+  /**
+   * 別のファイルを開いた直後に、グリッドへ渡す移動先。
+   *
+   * グリッドは同じ部品のまま doc だけ差し替わるので、「行け」という合図が要る。
+   * 同じ行を続けて指されても動くよう、連番を添える。
+   */
+  let gridJump = $state<{ column: string; value: string; seq: number } | null>(null);
+  let gridJumpSeq = 0;
+
+  // グリッドのセルに書いたリンクを開く。追える種類の判定は gridLink 側に集めてあり、
+  // 押せる見た目とここの分岐は同じ集合を見る（見た目と挙動をずらさないため）。
   async function handleFollowLink(link: CellLink): Promise<void> {
-    if (link.kind !== 'external') return;
-    try {
-      // webview 内で遷移させない（アプリの画面がリンク先で上書きされる）。
-      await openUrl(link.href);
-    } catch {
-      // Tauri 外（素の vite プレビュー）。何もしない。
+    if (link.kind === 'external') {
+      try {
+        // webview 内で遷移させない（アプリの画面がリンク先で上書きされる）。
+        await openUrl(link.href);
+      } catch {
+        // Tauri 外（素の vite プレビュー）。何もしない。
+      }
+      return;
+    }
+    if (link.kind === 'heading') return;
+    // パスの無い形は同じシートの中の移動。グリッドが自分で持つのでここへは来ない。
+    const path = link.path;
+    if (path === null) return;
+
+    // リンクは書いた人が見ているファイルからの相対。開く側はルートからの相対を取る。
+    const relPath = resolveRelPath(workspace.activePath, path);
+    if (relPath === null) {
+      workspace.reportError(t('page.linkOutsideFolder', { path }));
+      return;
+    }
+    // 開く導線は FileTree と同じ（差分表示を畳んでから開く。未保存分は自動保存が持つ）。
+    diffView.reset();
+    await workspace.select(relPath);
+    // 読めなければ activePath は変わらない。理由は workspace.error に出ている。
+    if (workspace.activePath !== relPath) return;
+    if (link.kind === 'row') {
+      gridJump = { column: link.column, value: link.value, seq: (gridJumpSeq += 1) };
     }
   }
 
@@ -551,6 +582,7 @@
           reveal={revealHidden}
           onToggleReveal={() => (revealHidden = !revealHidden)}
           onFollowLink={handleFollowLink}
+          jump={gridJump}
         />
       </div>
     {:else}

@@ -475,6 +475,16 @@ class WorkspaceStore {
     }
   }
 
+  /**
+   * ファイルを開けなかったことを画面へ出す（読み込みまで行けなかった場合）。
+   *
+   * 指し先が開いているフォルダの外にある等、invoke を呼ぶ前に分かる失敗も、
+   * 読み込み失敗と同じ場所へ出す。出さないと、押しても何も起きないリンクになる。
+   */
+  reportError(message: string): void {
+    this.error = message;
+  }
+
   /** エディター / グリッド編集からの source 書き戻し。 */
   setSource(value: string): void {
     this.source = value;

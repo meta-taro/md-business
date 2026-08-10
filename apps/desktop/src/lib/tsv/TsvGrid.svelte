@@ -115,6 +115,13 @@
     onToggleReveal?: () => void;
     /** リンクセルを押したときの指し先（省略時はリンクとして出さない）。 */
     onFollowLink?: (link: CellLink) => void;
+    /**
+     * 外から指定する移動先（別ファイルのリンクを開いた直後に使う）。
+     *
+     * `seq` は同じ行を続けて指されたときに 2 回目が無視されないための連番。値だけだと
+     * 「同じ指し先＝変化なし」になり、開き直しても動かない。
+     */
+    jump?: { column: string; value: string; seq: number } | null;
   }
 
   let {
@@ -125,6 +132,7 @@
     reveal = false,
     onToggleReveal,
     onFollowLink,
+    jump = null,
   }: Props = $props();
 
   // 列型 → 入力ウィジェット仕様。列定義の変化に追従。
@@ -810,6 +818,15 @@
     // 一致が複数あるときも動く（動かないほうが困る）。件数だけ知らせる。
     if (found.rows.length > 1) notify(`${found.rows.length} 行あります。最初の行へ移動しました`);
   }
+
+  // 外から指定された移動先へ寄せる（別ファイルのリンクを開いた直後）。
+  // doc は先に差し替わっているので、ここで引けば新しいファイルの中を探すことになる。
+  let lastJumpSeq = -1;
+  $effect(() => {
+    if (jump === null || jump.seq === lastJumpSeq) return;
+    lastJumpSeq = jump.seq;
+    jumpToRow(jump.column, jump.value);
+  });
 
   // 選択ブロックを TSV（タブ区切り × 改行）でクリップボードへ。失敗は握り潰す。
   async function copySelection(): Promise<void> {
