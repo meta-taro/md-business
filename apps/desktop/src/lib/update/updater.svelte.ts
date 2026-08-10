@@ -100,6 +100,24 @@ class UpdaterController {
     }
   }
 
+  /**
+   * 開発ビルドだけ、ダイアログを指定の状態のまま出す（見た目の確認用）。
+   *
+   * 更新ダイアログは新しい Release が公開されないと出ないので、出す前に見た目を確かめる
+   * 手段が無い。見本の状態を流し込めば、文言の折り返し・ボタンの並び・進捗表示を
+   * リリース前に見られる。
+   *
+   * 呼び出し側も開発ビルドに限っているが、ここでも締めておく。見本が使う人の画面に出ると、
+   * 更新が無いのに更新があるように見える。Update ハンドルは持たないので、この状態から
+   * 「今すぐ更新」を押しても実際のダウンロードは走らない。
+   */
+  previewState(state: UpdateState): void {
+    if (!import.meta.env.DEV) return;
+    this.#update = null;
+    this.state = state;
+    this.visible = true;
+  }
+
   /** ダイアログを閉じる（状態は idle へ戻す）。 */
   dismiss(): void {
     this.visible = false;
