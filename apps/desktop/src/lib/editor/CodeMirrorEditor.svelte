@@ -42,11 +42,10 @@
 
   // 親側で value がプログラム的に差し替わった場合のみ editor に反映（setDoc は
   // 現在値と一致すればスキップ＝ユーザー入力のエコーバックでは何もしない）。
+  // ここで getDoc と突き合わせると、本文全体の文字列化が 1 回の編集につき 2 回になる。
   $effect(() => {
     const next = value;
-    if (editor && editor.getDoc() !== next) {
-      editor.setDoc(next);
-    }
+    editor?.setDoc(next);
   });
 
   $effect(() => {
