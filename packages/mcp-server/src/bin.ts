@@ -6,17 +6,31 @@
  * 第1引数 → 環境変数 MD_BUSINESS_WORKSPACE → カレントディレクトリ の順で解決する。
  *
  * 重要: stdout は MCP プロトコルの通信路。ログ・診断出力は必ず stderr に出す
- *（stdout に 1 行でも混ぜると JSON-RPC フレーミングが壊れる）。
+ *（stdout に 1 行でも混ぜると JSON-RPC フレーミングが壊れる）。`--version` / `--health`
+ * は待ち受けに入らないので、この制約の外にあり stdout へ書く。
  */
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { resolve } from 'node:path';
 import { createServer, SERVER_NAME, SERVER_VERSION } from './server.js';
 import { FileDocumentStore } from './fileStore.js';
 import { createGitRunner } from './gitRunner.js';
+import { parseCliArgs, runInfoCommand } from './cli.js';
 
 async function main(): Promise<void> {
-  const rootArg = process.argv[2] ?? process.env['MD_BUSINESS_WORKSPACE'] ?? process.cwd();
+  const command = parseCliArgs(process.argv.slice(2));
+  const rootArg = command.root ?? process.env['MD_BUSINESS_WORKSPACE'] ?? process.cwd();
   const root = resolve(rootArg);
+
+  if (command.mode !== 'serve') {
+    process.exitCode = await runInfoCommand(command, {
+      root,
+      store: new FileDocumentStore(root),
+      versionLine: `${SERVER_NAME} ${SERVER_VERSION}`,
+      out: (text) => process.stdout.write(text),
+      err: (text) => process.stderr.write(text),
+    });
+    return;
+  }
 
   const store = new FileDocumentStore(root);
   // ワークスペースが git 管理でなければ、各 git ツールが理由付きで失敗するだけ。

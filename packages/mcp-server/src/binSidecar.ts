@@ -17,10 +17,12 @@
  */
 import { randomBytes } from 'node:crypto';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { dirname } from 'node:path';
+import { dirname, resolve } from 'node:path';
 import { startSidecar } from './sidecar.js';
 import { encodeSidecarEvent } from './control.js';
-import { SERVER_NAME } from './server.js';
+import { SERVER_NAME, SERVER_VERSION } from './server.js';
+import { FileDocumentStore } from './fileStore.js';
+import { parseCliArgs, runInfoCommand } from './cli.js';
 import {
   parseSidecarState,
   resolveSidecarIdentity,
@@ -53,8 +55,25 @@ function saveState(path: string | undefined, state: SidecarState): void {
 }
 
 async function main(): Promise<void> {
-  const root = process.argv[2] ?? process.env['MD_BUSINESS_WORKSPACE'] ?? process.cwd();
-  const statePath = process.argv[3] ?? process.env['MD_BUSINESS_MCP_STATE'];
+  // 利用者の手元にあるのはアプリへ同梱したこの 1 ファイルなので、接続できないときに
+  // 確かめる先もここになる。待ち受けに入らない指定は、親が付けることはない。
+  const command = parseCliArgs(process.argv.slice(2));
+  if (command.mode !== 'serve') {
+    const root = resolve(command.root ?? process.env['MD_BUSINESS_WORKSPACE'] ?? process.cwd());
+    process.exitCode = await runInfoCommand(command, {
+      root,
+      store: new FileDocumentStore(root),
+      versionLine: `${SERVER_NAME} ${SERVER_VERSION}`,
+      // 待ち受けに入らないので、stdout は親との制御チャネルとして使われていない。
+      out: (text) => process.stdout.write(text),
+      err: (text) => process.stderr.write(text),
+    });
+    return;
+  }
+
+  const positional = process.argv.slice(2).filter((arg) => !arg.startsWith('-'));
+  const root = positional[0] ?? process.env['MD_BUSINESS_WORKSPACE'] ?? process.cwd();
+  const statePath = positional[1] ?? process.env['MD_BUSINESS_MCP_STATE'];
   const saved = loadState(statePath);
   const identity = resolveSidecarIdentity(saved, () => randomBytes(32).toString('hex'));
 
