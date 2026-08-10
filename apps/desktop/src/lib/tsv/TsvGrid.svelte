@@ -16,6 +16,7 @@
   import type { IdentifiedTsv } from '@md-business/schema-test-spec-tsv';
   import {
     applyComputed,
+    findRowsByCell,
     lockedColumns,
     readComputedColumns,
     validateTsv,
@@ -96,6 +97,8 @@
   import { readRowTints, rowTintOf } from './gridStyleDirectives';
   import { countLockedPasteCells } from './gridComputed';
   import { hideRow, hiddenRowCount, isHiddenRow, unhideRow } from './gridHidden';
+  import { followableLink } from './gridLink';
+  import type { CellLink } from '@md-business/schema-test-spec-tsv';
 
   interface Props {
     /** 表示・編集対象の TSV ドキュメント（`parseTsv` を `withRowIds` に通した結果）。 */
@@ -110,9 +113,27 @@
     reveal?: boolean;
     /** 控えの表示／非表示の切り替えを親へ通知（省略時は切り替えボタンを出さない）。 */
     onToggleReveal?: () => void;
+    /** リンクセルを押したときの指し先（省略時はリンクとして出さない）。 */
+    onFollowLink?: (link: CellLink) => void;
+    /**
+     * 外から指定する移動先（別ファイルのリンクを開いた直後に使う）。
+     *
+     * `seq` は同じ行を続けて指されたときに 2 回目が無視されないための連番。値だけだと
+     * 「同じ指し先＝変化なし」になり、開き直しても動かない。
+     */
+    jump?: { column: string; value: string; seq: number } | null;
   }
 
-  let { doc, onChange, onUndo, onRedo, reveal = false, onToggleReveal }: Props = $props();
+  let {
+    doc,
+    onChange,
+    onUndo,
+    onRedo,
+    reveal = false,
+    onToggleReveal,
+    onFollowLink,
+    jump = null,
+  }: Props = $props();
 
   // 列型 → 入力ウィジェット仕様。列定義の変化に追従。
   const widgets = $derived(gridWidgets(doc.columns));
@@ -769,6 +790,44 @@
     mode = 'nav';
   }
 
+  // セルのリンクを押したとき。表の中で完結する移動はここで、外へ出るものは親へ渡す。
+  function followLink(link: CellLink): void {
+    if (link.kind === 'row' && link.path === null) {
+      jumpToRow(link.column, link.value);
+      return;
+    }
+    onFollowLink?.(link);
+  }
+
+  // 同じシートの中で、列の値が一致する行へ移動する。
+  // 見つからないときに黙って動かないと、リンクが壊れているのか値がまだ無いのか分からない。
+  function jumpToRow(column: string, value: string): void {
+    const found = findRowsByCell(doc, column, value);
+    if (found.column < 0) {
+      notify(`「${column}」という列がありません`);
+      return;
+    }
+    const row = found.rows[0];
+    if (row === undefined) {
+      notify(`${column} が「${value}」の行はありません`);
+      return;
+    }
+    engaged = true;
+    selection = { anchor: { row, col: found.column }, focus: { row, col: found.column } };
+    mode = 'nav';
+    // 一致が複数あるときも動く（動かないほうが困る）。件数だけ知らせる。
+    if (found.rows.length > 1) notify(`${found.rows.length} 行あります。最初の行へ移動しました`);
+  }
+
+  // 外から指定された移動先へ寄せる（別ファイルのリンクを開いた直後）。
+  // doc は先に差し替わっているので、ここで引けば新しいファイルの中を探すことになる。
+  let lastJumpSeq = -1;
+  $effect(() => {
+    if (jump === null || jump.seq === lastJumpSeq) return;
+    lastJumpSeq = jump.seq;
+    jumpToRow(jump.column, jump.value);
+  });
+
   // 選択ブロックを TSV（タブ区切り × 改行）でクリップボードへ。失敗は握り潰す。
   async function copySelection(): Promise<void> {
     try {
@@ -1234,6 +1293,7 @@
               {@const issue = issueOf(r, c)}
               {@const active = isActive(r, c)}
               {@const cellAlign = alignStyle(colAligns[c] ?? 'left')}
+              {@const link = followableLink(widget?.kind, value, onFollowLink !== undefined)}
               {@const spill =
                 colModes[c] === 'clip' &&
                 widget?.kind !== 'number' &&
@@ -1253,21 +1313,7 @@
                 oncontextmenu={(e) => openColMenu(c, e)}
                 ondblclick={enterEdit}
               >
-                {#if !active}
-                  <!-- 非アクティブ＝静的表示。選択（nav）は td の onpointerdown が持つ
-                       （クリックとドラッグを 1 か所で受けるため）。キーボード操作は
-                       td の onkeydown（nav⇄edit）で提供済み。 -->
-                  <div
-                    class="cell-view"
-                    class:num={widget?.kind === 'number'}
-                    class:wrap={colModes[c] === 'wrap'}
-                    class:overflow={colModes[c] === 'overflow'}
-                    class:spill
-                    style={cellAlign}
-                  >
-                    {cellDisplayText(widget?.kind, value)}
-                  </div>
-                {:else if editable && mode === 'edit'}
+                {#if active && editable && mode === 'edit'}
                   <!-- アクティブかつ編集モード＝実ウィジェット。ダブルクリック / Enter / F2 /
                        文字入力で入る（単一クリックは選択のまま＝静的表示のブランチへ）。 -->
                   <div class="cell-edit" style={cellAlign} role="presentation">
@@ -1342,11 +1388,14 @@
                     {/if}
                   </div>
                 {:else}
-                  <!-- アクティブだが nav（または読み取り専用）＝静的表示。値をそのまま見せ、
-                       選択リングは td.active が描く。キーボード操作のため focus 可能にし、
-                       ダブルクリック（td の ondblclick）や Enter/F2/文字入力で編集へ入る。 -->
+                  <!-- 静的表示。選択（nav）は td の onpointerdown が持つ（クリックと
+                       ドラッグを 1 か所で受けるため）。キーボード操作は td の onkeydown
+                       （nav⇄edit）。アクティブなら focus 可能にし、選択リングは td.active。
+                       アクティブかどうかで枝を分けないのは、分けると押している最中に
+                       この要素が差し替わり、リンクのクリックが成立しなくなるため。 -->
                   <div
-                    class="cell-view cell-active"
+                    class="cell-view"
+                    class:cell-active={active}
                     class:num={widget?.kind === 'number'}
                     class:wrap={colModes[c] === 'wrap'}
                     class:overflow={colModes[c] === 'overflow'}
@@ -1354,7 +1403,27 @@
                     style={cellAlign}
                     tabindex="-1"
                   >
-                    {cellDisplayText(widget?.kind, value)}
+                    {#if link !== null}
+                      <!-- a ではなく button。webview がそのまま遷移すると、アプリの画面が
+                           リンク先で上書きされて戻れなくなる（中クリックや Ctrl+クリックが
+                           特に危ない）。行き先は followLink が振り分ける。 -->
+                      <button
+                        type="button"
+                        class="cell-link"
+                        tabindex="-1"
+                        title={value}
+                        onclick={(e) => {
+                          // 素早く 2 回押しても 2 枚開かない。
+                          if (e.detail > 1) return;
+                          followLink(link);
+                        }}
+                        ondblclick={(e) => e.stopPropagation()}
+                      >
+                        {cellDisplayText(widget?.kind, value)}
+                      </button>
+                    {:else}
+                      {cellDisplayText(widget?.kind, value)}
+                    {/if}
                   </div>
                 {/if}
               </td>
@@ -2074,6 +2143,28 @@
   .cell-view.spill {
     overflow: visible;
     text-overflow: clip;
+  }
+
+  /* セルの中のリンク。文字の幅だけを占める（余白を押したときは今までどおりセル選択）。
+     見た目はリンク、実体はボタン（webview ごと遷移させないため）。 */
+  .cell-link {
+    max-width: 100%;
+    padding: 0;
+    border: none;
+    background: none;
+    font: inherit;
+    color: var(--accent);
+    text-align: inherit;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    cursor: pointer;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: inherit;
+  }
+
+  .cell-link:hover {
+    text-decoration-thickness: 2px;
   }
 
   /* アクティブセルの入力コンテナ。 */

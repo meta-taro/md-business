@@ -54,6 +54,11 @@ export interface MarkdownEditorHandle {
   /** 現在のドキュメント全文。 */
   getDoc(): string;
   /**
+   * 指定位置へカーソルを置き、画面へ入れる。別のファイルの見出しをリンクで
+   * 指されたときに使う。文書の外を指されたら何もしない。
+   */
+  revealOffset(offset: number): void;
+  /**
    * 読み取り専用の入り切り。参考データ（.json / .xml）を開いている間に使う。
    * 編集させないことが、そのまま「保存が起きない」ことの保証になる
    * （自動保存は本文が変わったときだけ動くため）。
@@ -251,6 +256,15 @@ export function createMarkdownEditor(options: MarkdownEditorOptions): MarkdownEd
     },
     getDoc(): string {
       return view.state.doc.toString();
+    },
+    revealOffset(offset: number): void {
+      if (offset < 0 || offset > view.state.doc.length) return;
+      view.dispatch({
+        selection: { anchor: offset },
+        // 上端ぴったりだと、指した見出しが画面の縁に貼り付いて前後が見えない。
+        effects: EditorView.scrollIntoView(offset, { y: 'start', yMargin: 24 }),
+      });
+      view.focus();
     },
     setReadOnly(flag: boolean): void {
       if (view.state.readOnly === flag) return;

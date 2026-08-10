@@ -6,8 +6,10 @@
   import { pdfExport } from '$lib/preview/pdfExport.svelte';
   import { previewReady } from '$lib/preview/previewGate';
   import CodeMirrorEditor from '$lib/editor/CodeMirrorEditor.svelte';
+  import { findHeadingOffset } from '$lib/editor/headingAnchor';
   import { debounce } from '$lib/util/debounce';
-  import type { IdentifiedTsv } from '@md-business/schema-test-spec-tsv';
+  import type { CellLink, IdentifiedTsv } from '@md-business/schema-test-spec-tsv';
+  import { openUrl } from '@tauri-apps/plugin-opener';
   import { isTsvSource } from '$lib/tsv/detect';
   import { loadGridDoc, saveGridDoc } from '$lib/tsv/gridDoc';
   import TsvGrid from '$lib/tsv/TsvGrid.svelte';
@@ -25,6 +27,7 @@
   import { autosave } from '$lib/workspace/autosave.svelte';
   import { browser } from '$app/environment';
   import { workspace } from '$lib/workspace/workspace.svelte';
+  import { resolveRelPath } from '$lib/workspace/relPath';
   import { diffView } from '$lib/git/diffView.svelte';
   import DiffView from '$lib/components/DiffView.svelte';
   import SearchBar from '$lib/search/SearchBar.svelte';
@@ -339,6 +342,61 @@
     applyGridSource(next.present);
   }
 
+  /**
+   * 別のファイルを開いた直後に、グリッドへ渡す移動先。
+   *
+   * グリッドは同じ部品のまま doc だけ差し替わるので、「行け」という合図が要る。
+   * 同じ行を続けて指されても動くよう、連番を添える。
+   */
+  let gridJump = $state<{ column: string; value: string; seq: number } | null>(null);
+  let gridJumpSeq = 0;
+
+  /** 同じく、エディターへ渡すカーソル位置（別ファイルの見出しを指されたとき）。 */
+  let editorCaret = $state<{ offset: number; seq: number } | null>(null);
+  let editorCaretSeq = 0;
+
+  // グリッドのセルに書いたリンクを開く。追える種類の判定は gridLink 側に集めてあり、
+  // 押せる見た目とここの分岐は同じ集合を見る（見た目と挙動をずらさないため）。
+  async function handleFollowLink(link: CellLink): Promise<void> {
+    if (link.kind === 'external') {
+      try {
+        // webview 内で遷移させない（アプリの画面がリンク先で上書きされる）。
+        await openUrl(link.href);
+      } catch {
+        // Tauri 外（素の vite プレビュー）。何もしない。
+      }
+      return;
+    }
+    // パスの無い形は同じシートの中の移動。グリッドが自分で持つのでここへは来ない。
+    const path = link.path;
+    if (path === null) return;
+
+    // リンクは書いた人が見ているファイルからの相対。開く側はルートからの相対を取る。
+    const relPath = resolveRelPath(workspace.activePath, path);
+    if (relPath === null) {
+      workspace.reportError(t('page.linkOutsideFolder', { path }));
+      return;
+    }
+    // 開く導線は FileTree と同じ（差分表示を畳んでから開く。未保存分は自動保存が持つ）。
+    diffView.reset();
+    await workspace.select(relPath);
+    // 読めなければ activePath は変わらない。理由は workspace.error に出ている。
+    if (workspace.activePath !== relPath) return;
+    if (link.kind === 'row') {
+      gridJump = { column: link.column, value: link.value, seq: (gridJumpSeq += 1) };
+      return;
+    }
+    if (link.kind !== 'heading') return;
+    // 見出しは開いた本文から引く。無ければ、開いたことと見つからなかったことを分けて伝える
+    // （黙って先頭に居ると、指し先が消えたのか元から先頭なのか分からない）。
+    const offset = findHeadingOffset(workspace.source, link.heading);
+    if (offset === null) {
+      workspace.reportError(t('page.linkHeadingMissing', { heading: link.heading }));
+      return;
+    }
+    editorCaret = { offset, seq: (editorCaretSeq += 1) };
+  }
+
   // ── 検証グリッドの全画面 ──
   // 検証中はエディター/プレビュー分割が邪魔なので、分割を畳んでグリッドを全幅にする。
   // 全画面は TSV グリッド表示中のみ意味を持ち、条件を外れれば自動で分割へ戻る（DESIGN §5.8/§6）。
@@ -476,6 +534,7 @@
       onChange={handleEditorChange}
       onSync={handleEditorSync}
       readOnly={dataDoc !== null}
+      caret={editorCaret}
     />
     <SearchBar pane="editor" />
   </section>
@@ -537,6 +596,8 @@
           onRedo={handleGridRedo}
           reveal={revealHidden}
           onToggleReveal={() => (revealHidden = !revealHidden)}
+          onFollowLink={handleFollowLink}
+          jump={gridJump}
         />
       </div>
     {:else}
