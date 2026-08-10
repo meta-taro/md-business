@@ -12,22 +12,37 @@ import { parseCellLink, type CellLink } from '@md-business/schema-test-spec-tsv'
 import type { CellWidgetKind } from './gridModel';
 
 /**
- * いま画面から追える指し先。
+ * 表の中で完結する指し先か。ここが false のものは、表の外（別のファイル・ブラウザ）へ
+ * 出るので、受け取り手が要る。
+ */
+function staysInSheet(link: CellLink): boolean {
+  return link.kind === 'row' && link.path === null;
+}
+
+/**
+ * いま追える指し先か。
  *
  * 移動の実装を足すたびにここへ 1 つ加える。判定を 1 箇所に集めてあるので、
  * 「解釈はできるのに追えない」種類が増えても、リンクの見た目と挙動がずれない。
  */
-const FOLLOWABLE = new Set<CellLink['kind']>(['external']);
+function followable(link: CellLink): boolean {
+  return link.kind === 'external' || staysInSheet(link);
+}
 
 /**
  * セルの値を、いま追えるリンクとして読む。読めなければ null。
  *
  * @param kind その列のウィジェット種別（列が無いセルは undefined）
  * @param value セルの値
+ * @param canOpenElsewhere 表の外へ出る指し先を受け取る相手がいるか
  */
-export function followableLink(kind: CellWidgetKind | undefined, value: string): CellLink | null {
+export function followableLink(
+  kind: CellWidgetKind | undefined,
+  value: string,
+  canOpenElsewhere: boolean,
+): CellLink | null {
   if (kind !== 'url') return null;
   const link = parseCellLink(value);
-  if (link === null) return null;
-  return FOLLOWABLE.has(link.kind) ? link : null;
+  if (link === null || !followable(link)) return null;
+  return canOpenElsewhere || staysInSheet(link) ? link : null;
 }

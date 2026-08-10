@@ -16,6 +16,7 @@
   import type { IdentifiedTsv } from '@md-business/schema-test-spec-tsv';
   import {
     applyComputed,
+    findRowsByCell,
     lockedColumns,
     readComputedColumns,
     validateTsv,
@@ -781,6 +782,35 @@
     mode = 'nav';
   }
 
+  // セルのリンクを押したとき。表の中で完結する移動はここで、外へ出るものは親へ渡す。
+  function followLink(link: CellLink): void {
+    if (link.kind === 'row' && link.path === null) {
+      jumpToRow(link.column, link.value);
+      return;
+    }
+    onFollowLink?.(link);
+  }
+
+  // 同じシートの中で、列の値が一致する行へ移動する。
+  // 見つからないときに黙って動かないと、リンクが壊れているのか値がまだ無いのか分からない。
+  function jumpToRow(column: string, value: string): void {
+    const found = findRowsByCell(doc, column, value);
+    if (found.column < 0) {
+      notify(`「${column}」という列がありません`);
+      return;
+    }
+    const row = found.rows[0];
+    if (row === undefined) {
+      notify(`${column} が「${value}」の行はありません`);
+      return;
+    }
+    engaged = true;
+    selection = { anchor: { row, col: found.column }, focus: { row, col: found.column } };
+    mode = 'nav';
+    // 一致が複数あるときも動く（動かないほうが困る）。件数だけ知らせる。
+    if (found.rows.length > 1) notify(`${found.rows.length} 行あります。最初の行へ移動しました`);
+  }
+
   // 選択ブロックを TSV（タブ区切り × 改行）でクリップボードへ。失敗は握り潰す。
   async function copySelection(): Promise<void> {
     try {
@@ -1246,7 +1276,7 @@
               {@const issue = issueOf(r, c)}
               {@const active = isActive(r, c)}
               {@const cellAlign = alignStyle(colAligns[c] ?? 'left')}
-              {@const link = onFollowLink ? followableLink(widget?.kind, value) : null}
+              {@const link = followableLink(widget?.kind, value, onFollowLink !== undefined)}
               {@const spill =
                 colModes[c] === 'clip' &&
                 widget?.kind !== 'number' &&
@@ -1359,7 +1389,7 @@
                     {#if link !== null}
                       <!-- a ではなく button。webview がそのまま遷移すると、アプリの画面が
                            リンク先で上書きされて戻れなくなる（中クリックや Ctrl+クリックが
-                           特に危ない）。開き先は親が決める。 -->
+                           特に危ない）。行き先は followLink が振り分ける。 -->
                       <button
                         type="button"
                         class="cell-link"
@@ -1368,7 +1398,7 @@
                         onclick={(e) => {
                           // 素早く 2 回押しても 2 枚開かない。
                           if (e.detail > 1) return;
-                          onFollowLink?.(link);
+                          followLink(link);
                         }}
                         ondblclick={(e) => e.stopPropagation()}
                       >
