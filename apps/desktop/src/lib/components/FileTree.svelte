@@ -1271,6 +1271,12 @@
     color: #3fa66a; /* TSV（表データ）= 緑系 */
   }
 
+  /* 参考データ（読むだけ）は正本より一段落として、正本と取り違えないようにする。 */
+  .ico.file.json,
+  .ico.file.xml {
+    color: var(--text-tertiary);
+  }
+
   .name {
     /* 省略記号で切らず、深い階層は横スクロールで全名を見せる。 */
     white-space: nowrap;

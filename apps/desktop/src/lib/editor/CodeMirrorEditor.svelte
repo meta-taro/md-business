@@ -11,8 +11,10 @@
     value: string;
     onChange: (value: string) => void;
     onSync?: (info: EditorFocusInfo) => void;
+    /** 参考データ（.json / .xml）を開いている間は編集させない。 */
+    readOnly?: boolean;
   }
-  const { value, onChange, onSync }: Props = $props();
+  const { value, onChange, onSync, readOnly = false }: Props = $props();
 
   let host = $state<HTMLDivElement | null>(null);
   let editor: MarkdownEditorHandle | undefined;
@@ -24,6 +26,7 @@
       doc: value,
       onChange,
       onSync,
+      readOnly,
       // Ctrl/Cmd+F で共通 SearchBar をエディター対象で開く。
       onFind: () => search.openFor('editor'),
     });
@@ -44,6 +47,10 @@
     if (editor && editor.getDoc() !== next) {
       editor.setDoc(next);
     }
+  });
+
+  $effect(() => {
+    editor?.setReadOnly(readOnly);
   });
 </script>
 

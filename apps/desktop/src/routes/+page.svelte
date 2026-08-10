@@ -10,6 +10,8 @@
   import { isTsvSource } from '$lib/tsv/detect';
   import { loadGridDoc, saveGridDoc } from '$lib/tsv/gridDoc';
   import TsvGrid from '$lib/tsv/TsvGrid.svelte';
+  import DataTreeView from '$lib/data/DataTreeView.svelte';
+  import { isDataFile, readDataDocument } from '$lib/data/dataDocument';
   import {
     initHistory,
     pushHistory,
@@ -244,7 +246,7 @@
   // schema / Markdown ビューワー描画中だけ [PDF] を活性化する。TSV 編集グリッドは
   // 印刷対象の iframe を持たないため対象外。
   $effect(() => {
-    pdfExport.setReady(preview.ok && !isTsv && !diffView.active);
+    pdfExport.setReady(preview.ok && !isTsv && dataDoc === null && !diffView.active);
   });
 
   // カスタム TSV 検証シートは読み取りプレビューでなく編集グリッドで開く。
@@ -257,6 +259,12 @@
   const isTsv = $derived(isTsvSource(debouncedSource));
   const tsvGrid = $derived(isTsv ? loadGridDoc(debouncedSource, { reveal: revealHidden }) : null);
   const tsvDoc = $derived(tsvGrid?.doc ?? null);
+
+  // 参考データ（.json / .xml）は正本ではなく、隣に置いてある資料として読むだけ。
+  // 判定は開いているファイルの拡張子だけで行う（中身を覗いて形式を当てにいかない）。
+  // 編集させない＝本文が変わらない＝自動保存も動かない、という順で「表示のみ」を担保する。
+  const dataPath = $derived(isDataFile(workspace.activePath) ? workspace.activePath : null);
+  const dataDoc = $derived(dataPath === null ? null : readDataDocument(dataPath, debouncedSource));
 
   // グリッド編集 → 正本ソースへ書き戻し、エディターと即同期する。
   // debouncedSource も即更新して doc を再導出し、グリッドを遅延なく反映する。
@@ -305,7 +313,7 @@
   }
 
   // プレビュー iframe を検索対象にできる状態か（TSV グリッド／差分表示中は iframe が無い）。
-  const previewSearchable = $derived(!isTsv && !diffView.active && preview.ok);
+  const previewSearchable = $derived(!isTsv && dataDoc === null && !diffView.active && preview.ok);
 
   // Escape で全画面を抜ける。ただしセル編集中（入力にフォーカス）の Escape は入力側へ譲る。
   // また Ctrl/Cmd+F は、エディター（CodeMirror が自前で処理）／プレビュー iframe（自前で
@@ -427,7 +435,12 @@
 >
   <section class="pane editor" aria-label={t('page.editorPaneLabel')}>
     <div class="pane-head">{t('page.editorHead')}</div>
-    <CodeMirrorEditor value={source} onChange={handleEditorChange} onSync={handleEditorSync} />
+    <CodeMirrorEditor
+      value={source}
+      onChange={handleEditorChange}
+      onSync={handleEditorSync}
+      readOnly={dataDoc !== null}
+    />
     <SearchBar pane="editor" />
   </section>
 
@@ -459,6 +472,14 @@
            「プレビューに戻る」or 別ファイルを通常オープンで解除される。 -->
       <div class="pane-head">{t('page.diffHead')}</div>
       <DiffView />
+    {:else if dataDoc}
+      <!-- 参考データ（.json / .xml）。正本ではないので読むだけ＝左のエディターも読み取り専用。 -->
+      <div class="pane-head data-head">
+        <span>{t('page.dataHead')}</span>
+        {#if dataDoc.format}<span class="chip fmt">{dataDoc.format}</span>{/if}
+        <span class="chip">{t('data.readOnly')}</span>
+      </div>
+      <DataTreeView doc={dataDoc} />
     {:else if isTsv && tsvDoc}
       <div class="pane-head grid-head">
         <span>{t('page.gridHead')}</span>
@@ -654,6 +675,24 @@
     text-transform: uppercase;
     color: var(--text-tertiary);
     border-bottom: 1px solid var(--border);
+  }
+
+  /* 参考データのペインヘッダは、見出しの右に形式と「読み取り専用」を並べる。 */
+  .data-head {
+    gap: var(--space-2);
+  }
+
+  .chip {
+    flex: none;
+    padding: 1px var(--space-2);
+    border-radius: var(--radius-full);
+    background: var(--bg-subtle);
+    color: var(--text-tertiary);
+  }
+
+  .chip.fmt {
+    background: var(--accent-subtle);
+    color: var(--accent);
   }
 
   /* グリッドのペインヘッダは右端に全画面トグルを置く。 */

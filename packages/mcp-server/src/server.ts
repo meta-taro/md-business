@@ -19,6 +19,7 @@ import {
 } from './tools.js';
 import type { UpdateDocumentInput } from './tools.js';
 import { readTsv, appendTsvRow, updateTsvRow } from './tsvTools.js';
+import { readData } from './dataTools.js';
 import { searchDocuments } from './search.js';
 import type { SearchQuery } from './search.js';
 import { gitStatus, gitDiff, gitCommit } from './gitTools.js';
@@ -67,6 +68,9 @@ export const SERVER_INSTRUCTIONS = `md-business は Markdown / TSV の業務文�
   \`directives\` の \`computed\` は、値がほかから決まる列（例 \`computed No. = rowNumber()\`）。
   指定すると書き込みは失敗する。「その列を実数で埋めて」と言われても、それは宣言を直す話であって
   セルを打つ話ではない。打てば集計が消えたまま提出物として出る。
+- 外部から届いた JSON / XML（請求書の交換形式・口座明細・会計サービスの書き出しなど）は
+  **read_data** で木構造として読む。これらは正本ではないので **書き戻す口は無い**。
+  中身を業務文書にするなら、読んだ内容をもとに create_document / append_tsv_row で作る。
 - 変更を確認して記録するのは **git_status** / **git_diff** / **git_commit**（利用可能な場合）。
 
 ## 書式の約束
@@ -280,6 +284,24 @@ export function createServer(store: DocumentStore, options: CreateServerOptions 
     async ({ path, row, values }) => {
       const r = await updateTsvRow(store, { path, row, values });
       emit('update_tsv_row', path, r);
+      return jsonResult(r, !r.ok);
+    },
+  );
+
+  // JSON / XML は正本ではないので読む口だけを出す。書き戻しを用意すると、外部から届いた
+  // ファイルが編集対象に見えてしまい、正本が Markdown / TSV であることが崩れる。
+  server.registerTool(
+    'read_data',
+    {
+      description:
+        '外部から届いた JSON / XML を木構造として読む（請求書の交換形式・口座明細・会計サービスの書き出しなど）。名前 / 値 / 属性 / 子の入れ子で返す。読むだけで、このツールでは書き換えられない。DTD 宣言のある XML は読まずに断る。',
+      inputSchema: {
+        path: z.string().describe('ワークスペース相対パス（例 data/請求.xml）'),
+      },
+    },
+    async ({ path }) => {
+      const r = await readData(store, path);
+      emit('read_data', path, r);
       return jsonResult(r, !r.ok);
     },
   );

@@ -219,6 +219,18 @@ export interface Messages {
   'page.previewHead': string;
   'page.previewTitle': string;
   'page.frontmatterHint': string;
+  // 参考データ（.json / .xml）の表示
+  'page.dataHead': string;
+  'data.readOnly': string;
+  'data.refused': string;
+  'data.atLine': string;
+  'data.size': string;
+  'data.syntax': string;
+  'data.depth': string;
+  'data.nodes': string;
+  'data.doctype': string;
+  'data.entity': string;
+  'data.unsupported': string;
   'frontmatter.failed': string;
   'frontmatter.atLine': string;
   'frontmatter.indentation': string;
@@ -440,6 +452,18 @@ const en: Messages = {
   'page.previewHead': 'Preview',
   'page.previewTitle': '{label} preview',
   'page.frontmatterHint': 'Check the frontmatter format (the top block enclosed by ---)',
+  'page.dataHead': 'Reference data',
+  'data.readOnly': 'Read-only',
+  'data.refused': 'This file could not be opened. {detail}',
+  'data.atLine': 'Line {line}: {detail}',
+  'data.size': 'The file is too large.',
+  'data.syntax': 'The format is broken.',
+  'data.depth': 'It nests too deeply.',
+  'data.nodes': 'It holds too many values.',
+  'data.doctype':
+    'Files with a document type declaration (DTD) are not opened, because reading one can pull in other files and expand a small file into a very large one.',
+  'data.entity': 'Files that reference an externally defined entity are not opened.',
+  'data.unsupported': 'This view opens .json and .xml files.',
   'frontmatter.failed': 'Could not read the frontmatter. {detail}',
   'frontmatter.atLine': 'Line {line}: {detail}',
   'frontmatter.indentation': 'the indentation does not line up with the lines above.',
@@ -657,6 +681,18 @@ const ja: Messages = {
   'page.previewHead': 'プレビュー',
   'page.previewTitle': '{label}プレビュー',
   'page.frontmatterHint': 'frontmatter（--- で囲む先頭ブロック）の書式を確認してください',
+  'page.dataHead': '参考データ',
+  'data.readOnly': '読み取り専用',
+  'data.refused': 'このファイルは開けませんでした。{detail}',
+  'data.atLine': '{line} 行目: {detail}',
+  'data.size': 'ファイルが大きすぎます。',
+  'data.syntax': '書式が壊れています。',
+  'data.depth': '入れ子が深すぎます。',
+  'data.nodes': '項目が多すぎます。',
+  'data.doctype':
+    '文書型宣言（DTD）を含むファイルは開きません。読み込むと、ほかのファイルを引き込んだり、小さなファイルが巨大に展開されたりするためです。',
+  'data.entity': '外部で定義された実体参照を含むファイルは開きません。',
+  'data.unsupported': 'この画面で開けるのは .json と .xml です。',
   'frontmatter.failed': 'frontmatter を読み取れませんでした。{detail}',
   'frontmatter.atLine': '{line} 行目: {detail}',
   'frontmatter.indentation': '行頭の字下げが、上の行とそろっていません。',
@@ -871,6 +907,18 @@ const zh: Messages = {
   'page.previewHead': '预览',
   'page.previewTitle': '{label}预览',
   'page.frontmatterHint': '请检查 frontmatter（由 --- 包围的开头块）的格式',
+  'page.dataHead': '参考数据',
+  'data.readOnly': '只读',
+  'data.refused': '无法打开该文件。{detail}',
+  'data.atLine': '第 {line} 行：{detail}',
+  'data.size': '文件过大。',
+  'data.syntax': '格式已损坏。',
+  'data.depth': '嵌套过深。',
+  'data.nodes': '项目过多。',
+  'data.doctype':
+    '不打开含文档类型声明（DTD）的文件，因为读取它可能引入其他文件，并使小文件展开为极大的内容。',
+  'data.entity': '不打开引用了外部定义实体的文件。',
+  'data.unsupported': '此视图可打开 .json 与 .xml。',
   'frontmatter.failed': '无法读取 frontmatter。{detail}',
   'frontmatter.atLine': '第 {line} 行：{detail}',
   'frontmatter.indentation': '行首缩进与上面几行没有对齐。',
@@ -1088,6 +1136,18 @@ const ko: Messages = {
   'page.previewHead': '미리보기',
   'page.previewTitle': '{label} 미리보기',
   'page.frontmatterHint': 'frontmatter(--- 로 감싼 첫 블록) 형식을 확인하세요',
+  'page.dataHead': '참고 데이터',
+  'data.readOnly': '읽기 전용',
+  'data.refused': '이 파일은 열 수 없었습니다. {detail}',
+  'data.atLine': '{line}번째 줄: {detail}',
+  'data.size': '파일이 너무 큽니다.',
+  'data.syntax': '형식이 깨져 있습니다.',
+  'data.depth': '중첩이 너무 깊습니다.',
+  'data.nodes': '항목이 너무 많습니다.',
+  'data.doctype':
+    '문서 형식 선언(DTD)이 있는 파일은 열지 않습니다. 읽어들이면 다른 파일을 끌어오거나 작은 파일이 거대하게 부풀 수 있기 때문입니다.',
+  'data.entity': '외부에서 정의된 엔터티 참조가 있는 파일은 열지 않습니다.',
+  'data.unsupported': '이 화면에서 열 수 있는 것은 .json 과 .xml 입니다.',
   'frontmatter.failed': 'frontmatter를 읽을 수 없습니다. {detail}',
   'frontmatter.atLine': '{line}번째 줄: {detail}',
   'frontmatter.indentation': '줄 앞 들여쓰기가 위 줄과 맞지 않습니다.',
