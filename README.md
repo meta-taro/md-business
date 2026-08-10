@@ -239,6 +239,10 @@ The desktop app is where the source-of-truth layer becomes operable by an AI age
 
 `git push` is deliberately not exposed as a tool, and the server never receives secrets or API keys. See [packages/mcp-server/](./packages/mcp-server/README.md) for the protocol details.
 
+### Release history
+
+The three apps are versioned independently. [CHANGELOG.md](./CHANGELOG.md) lists the current version of each and links to its own history.
+
 ### Conventions
 
 - [Data cell convention](./docs/data-cell-conventions.md) — Empty cells are the only canonical representation for unfilled data. Do not fill table cells with `—` / `–` / `―` / `N/A` / `TBD`.
