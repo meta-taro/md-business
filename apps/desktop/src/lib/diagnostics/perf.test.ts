@@ -3,12 +3,14 @@ import {
   appendSample,
   summarize,
   formatReport,
+  describeView,
   SpanCollector,
   SPAN_ORDER,
   PERF_CAP,
   STATS_WINDOW,
   type PerfSample,
   type DocScale,
+  type ViewState,
 } from './perf';
 
 function sample(at: number, spans: PerfSample['spans']): PerfSample {
@@ -93,8 +95,32 @@ describe('summarize', () => {
   });
 });
 
+describe('describeView', () => {
+  it('グリッドとエディターが両方出ている', () => {
+    expect(describeView({ grid: true, editor: true })).toContain('エディター');
+  });
+
+  it('グリッド全画面はエディターが出ていないことが分かる', () => {
+    // 同じ数字でも、エディターが画面に出ているかで読み方が変わる。
+    // 出ていない画面で測った値を「エディターも含めた時間」と読むと原因を取り違える。
+    const text = describeView({ grid: true, editor: false });
+    expect(text).toContain('グリッド');
+    expect(text).toContain('エディターは画面に無い');
+  });
+
+  it('グリッドでなければプレビュー側として書く', () => {
+    expect(describeView({ grid: false, editor: true })).toContain('プレビュー');
+  });
+});
+
 describe('formatReport', () => {
-  const ctx = { version: '0.6.0', platform: 'windows', fileName: '07_高車管理.tsv', scale };
+  const view: ViewState = { grid: true, editor: false };
+  const ctx = { version: '0.6.0', platform: 'windows', fileName: '07_高車管理.tsv', scale, view };
+
+  it('どの画面で測ったかが入る', () => {
+    // 画面の状態が分からないと、数字だけ見ても何が動いていたのか決められない。
+    expect(formatReport(ctx, [])).toContain(describeView(view));
+  });
 
   it('版・環境・ファイル・規模・数字が入る', () => {
     const text = formatReport(ctx, summarize([sample(1, { serialize: 12.34, render: 5 })]));
@@ -180,8 +206,13 @@ describe('SPAN_ORDER', () => {
       'validate',
       'layout',
       'dirty',
+      'grid',
       'render',
       'save',
     ]);
+  });
+
+  it('表の描き直しは画面反映の直前に並ぶ（内訳として読める位置）', () => {
+    expect(SPAN_ORDER.indexOf('grid')).toBe(SPAN_ORDER.indexOf('render') - 1);
   });
 });

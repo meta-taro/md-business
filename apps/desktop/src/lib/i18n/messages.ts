@@ -175,6 +175,7 @@ export interface Messages {
   'diag.span.layout': string;
   'diag.span.history': string;
   'diag.span.dirty': string;
+  'diag.span.grid': string;
   'diag.span.render': string;
   'diag.span.save': string;
   // MCP タブ（組み込みサーバーの接続状態・操作ログ）
@@ -427,6 +428,7 @@ const en: Messages = {
   'diag.span.layout': 'Laying out rows and columns',
   'diag.span.history': 'Adding to undo history',
   'diag.span.dirty': 'Change comparison',
+  'diag.span.grid': 'Redrawing the table',
   'diag.span.render': 'Updating the screen',
   'diag.span.save': 'Save round trip',
   'mcp.starting': 'Starting…',
@@ -682,6 +684,7 @@ const ja: Messages = {
   'diag.span.layout': '行と列の割りつけ',
   'diag.span.history': '履歴への積み増し',
   'diag.span.dirty': '差分判定',
+  'diag.span.grid': '表の組み直し',
   'diag.span.render': '画面への反映',
   'diag.span.save': '保存の往復',
   'mcp.starting': '起動中…',
@@ -936,6 +939,7 @@ const zh: Messages = {
   'diag.span.layout': '行列布局计算',
   'diag.span.history': '写入历史记录',
   'diag.span.dirty': '差异判断',
+  'diag.span.grid': '重新排布表格',
   'diag.span.render': '更新画面',
   'diag.span.save': '保存往返',
   'mcp.starting': '启动中…',
@@ -1187,6 +1191,7 @@ const ko: Messages = {
   'diag.span.layout': '행과 열 배치',
   'diag.span.history': '기록에 쌓기',
   'diag.span.dirty': '차이 판정',
+  'diag.span.grid': '표 다시 구성',
   'diag.span.render': '화면 반영',
   'diag.span.save': '저장 왕복',
   'mcp.starting': '시작 중…',

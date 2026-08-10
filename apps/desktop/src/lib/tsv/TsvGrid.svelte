@@ -314,6 +314,15 @@
     Array.from({ length: win.end - win.start }, (_unused, i) => win.start + i),
   );
 
+  // 表を組み直し終えた目印。effect は DOM を書き換えたあとに走るので、ここまでが
+  // 「表を描く」ぶんになる。画面反映の合計との差が、表の外に消えている時間。
+  $effect(() => {
+    // 本文と窓のどちらが変わっても表は組み直される。両方を読んで目印を打ち直す。
+    doc.rows;
+    visibleRows;
+    perf.markGrid();
+  });
+
   function onGridScroll(): void {
     if (gridEl) scrollTop = gridEl.scrollTop;
   }

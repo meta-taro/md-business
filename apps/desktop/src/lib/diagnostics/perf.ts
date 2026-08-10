@@ -9,8 +9,11 @@
 /**
  * 計測する区間。編集 1 回で順に走るものと、あとから走る保存。
  *
- * `parse` / `validate` / `layout` / `dirty` は画面へ反映する途中で走るため、
+ * `parse` / `validate` / `layout` / `dirty` / `grid` は画面へ反映する途中で走るため、
  * `render` の中に含まれる（内訳であって、足し合わせる対象ではない）。
+ *
+ * `grid` は「表を組み直し終えるまで」。`render` との差が、表の外（エディター・
+ * 他のパネル・ブラウザ側の作業）に消えている時間になる。
  */
 export type SpanName =
   | 'serialize'
@@ -19,6 +22,7 @@ export type SpanName =
   | 'validate'
   | 'layout'
   | 'dirty'
+  | 'grid'
   | 'render'
   | 'save';
 
@@ -30,6 +34,7 @@ export const SPAN_ORDER: readonly SpanName[] = [
   'validate',
   'layout',
   'dirty',
+  'grid',
   'render',
   'save',
 ] as const;
@@ -185,6 +190,25 @@ export interface DocScale {
   historyChars: number;
 }
 
+/**
+ * 測ったときに画面へ出ていたもの。
+ *
+ * 同じ数字でも、エディターが隣に出ているかどうかで意味が変わる（出ていなければ
+ * エディター側の作業は起きていない）。報告を読む側が取り違えないよう一緒に持ち出す。
+ */
+export interface ViewState {
+  /** 検証グリッドを出しているか。出していなければプレビュー側。 */
+  grid: boolean;
+  /** エディター（左ペイン）が画面に出ているか。全画面では出ない。 */
+  editor: boolean;
+}
+
+/** 画面の状態を報告テキスト用の一言にする。 */
+export function describeView(view: ViewState): string {
+  const main = view.grid ? '検証グリッド' : 'プレビュー';
+  return view.editor ? `${main} + エディター` : `${main}のみ（エディターは画面に無い）`;
+}
+
 /** 報告テキストに添える、計測結果以外の情報。 */
 export interface ReportContext {
   version: string;
@@ -192,6 +216,7 @@ export interface ReportContext {
   /** 開いているファイル名。開いていなければ null。 */
   fileName: string | null;
   scale: DocScale;
+  view: ViewState;
 }
 
 /** ミリ秒を小数第 1 位までの文字列にする。 */
@@ -213,6 +238,7 @@ export function formatReport(ctx: ReportContext, stats: readonly SpanStats[]): s
     `- 版: ${ctx.version}`,
     `- 環境: ${ctx.platform}`,
     `- ファイル: ${ctx.fileName ?? '(開いていません)'}`,
+    `- 画面: ${describeView(ctx.view)}`,
     `- 規模: ${scale.chars} 文字 / ${scale.rows} 行 / ${scale.columns} 列`,
     `- DOM の行数: ${scale.domRows}`,
     `- 履歴が保持している文字数: ${scale.historyChars}`,

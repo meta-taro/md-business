@@ -1,7 +1,7 @@
 // 編集 1 回にかかった時間の計測（副作用側）。集計・整形は純ロジック perf.ts に委譲し、
 // ここは時計を読んで記録を溜めるだけの薄い層に留める。
 import { tick } from 'svelte';
-import { appendSample, SpanCollector, type PerfSample, type SpanName } from './perf';
+import { appendSample, SpanCollector, type PerfSample, type SpanName, type ViewState } from './perf';
 
 /**
  * グリッドの行を数えるための選択子。実際に DOM へ出ている行数を測る。
@@ -9,14 +9,20 @@ import { appendSample, SpanCollector, type PerfSample, type SpanName } from './p
  */
 const ROW_SELECTOR = '.tsv-grid tbody tr:not(.pad-row)';
 
-/** 開いている文書の形。計測の外側なので、診断を見るときだけ取りに行く。 */
+/** 開いている文書の形と画面の状態。計測の外側なので、診断を見るときだけ取りに行く。 */
 export interface DocShape {
   rows: number;
   columns: number;
   historyChars: number;
+  view: ViewState;
 }
 
-const EMPTY_SHAPE: DocShape = { rows: 0, columns: 0, historyChars: 0 };
+const EMPTY_SHAPE: DocShape = {
+  rows: 0,
+  columns: 0,
+  historyChars: 0,
+  view: { grid: false, editor: true },
+};
 
 let samples = $state<PerfSample[]>([]);
 
@@ -28,6 +34,15 @@ let probe: (() => DocShape) | null = null;
 
 /** 集めかけの編集。溜め方の決まりごとは純ロジック側が持つ。 */
 const collector = new SpanCollector();
+
+/**
+ * 同期処理を終えた時刻。画面へ反映される途中の目印はここを基準に測る。
+ * 反映を待っている間に次の編集が始まると入れ替わるので、待ち手は自分の基準と突き合わせる。
+ */
+let flushBase: number | null = null;
+
+/** 表を組み直し終えた時刻。基準と組にして使う。 */
+let gridDrawnAt: number | null = null;
 
 function now(): number {
   return performance.now();
@@ -88,6 +103,16 @@ export const perf = {
   },
 
   /**
+   * 表を組み直し終えたことを知らせる。画面反映のうち、どこまでが表のぶんかを
+   * 分けるための目印（表の外に消えている時間を見つけるのが目的）。
+   * 反映は何度か走り直すことがあるので、最後に打たれたものを採る。
+   */
+  markGrid(): void {
+    if (flushBase === null) return;
+    gridDrawnAt = now();
+  },
+
+  /**
    * 同期処理の終わりを告げ、DOM への反映まで測ってから 1 件として記録する。
    *
    * 描画には差分判定も含まれる（描画中に読まれるため）。締めるのは描画を待ってから
@@ -98,7 +123,13 @@ export const perf = {
     const pending = collector.endSync();
     if (pending === null) return;
     const syncEndAt = now();
+    flushBase = syncEndAt;
+    gridDrawnAt = null;
     void tick().then(() => {
+      // 待っている間に次の編集が始まっていれば、目印は新しい編集のものになっている。
+      if (flushBase === syncEndAt && gridDrawnAt !== null) {
+        pending.grid = gridDrawnAt - syncEndAt;
+      }
       pending.render = now() - syncEndAt;
       collector.close();
       samples = appendSample(samples, { at: Date.now(), spans: pending });
@@ -114,5 +145,7 @@ export const perf = {
   clear(): void {
     samples = [];
     collector.reset();
+    flushBase = null;
+    gridDrawnAt = null;
   },
 };

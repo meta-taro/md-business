@@ -243,6 +243,9 @@
       rows: tsvDoc?.rows.length ?? 0,
       columns: tsvDoc?.columns.length ?? 0,
       historyChars: historyChars(gridHistory),
+      // グリッド全画面ではエディターを畳んでいる＝エディター側の作業は起きていない。
+      // 数字を読む側がそこを取り違えないよう、画面の状態も一緒に持ち出す。
+      view: { grid: isTsv && tsvDoc !== null, editor: !gridFullscreen },
     }));
   });
   onDestroy(() => {

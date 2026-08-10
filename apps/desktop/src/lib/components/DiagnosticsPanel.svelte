@@ -22,6 +22,7 @@
     validate: 'diag.span.validate',
     layout: 'diag.span.layout',
     dirty: 'diag.span.dirty',
+    grid: 'diag.span.grid',
     render: 'diag.span.render',
     save: 'diag.span.save',
   };
@@ -61,6 +62,7 @@
           domRows: perf.domRows,
           historyChars: shape.historyChars,
         },
+        view: shape.view,
       },
       stats,
     );
