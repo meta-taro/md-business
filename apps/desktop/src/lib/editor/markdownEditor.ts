@@ -21,6 +21,7 @@ import { HighlightStyle, syntaxHighlighting } from '@codemirror/language';
 import { tags as t } from '@lezer/highlight';
 import type { EditorFocusInfo } from '$lib/layout/scrollSync';
 import { searchHighlightField } from './editorSearchBinding';
+import { diffEdit } from './textDiff';
 
 export interface MarkdownEditorOptions {
   /** マウント先の要素。 */
@@ -240,11 +241,12 @@ export function createMarkdownEditor(options: MarkdownEditorOptions): MarkdownEd
   return {
     view,
     setDoc(value: string): void {
-      if (value === view.state.doc.toString()) return;
+      // 丸ごと差し替えると、1 セルしか変わっていなくても文書全体を読み直すことになる。
+      // 変わった範囲だけを渡す（同じなら差分が無いので何も起きない）。
+      const edit = diffEdit(view.state.doc.toString(), value);
+      if (edit === null) return;
       settingDoc = true;
-      view.dispatch({
-        changes: { from: 0, to: view.state.doc.length, insert: value },
-      });
+      view.dispatch({ changes: edit });
       settingDoc = false;
     },
     getDoc(): string {

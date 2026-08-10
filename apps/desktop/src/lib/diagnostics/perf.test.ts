@@ -1,0 +1,218 @@
+import { describe, it, expect } from 'vitest';
+import {
+  appendSample,
+  summarize,
+  formatReport,
+  describeView,
+  SpanCollector,
+  SPAN_ORDER,
+  PERF_CAP,
+  STATS_WINDOW,
+  type PerfSample,
+  type DocScale,
+  type ViewState,
+} from './perf';
+
+function sample(at: number, spans: PerfSample['spans']): PerfSample {
+  return { at, spans };
+}
+
+const scale: DocScale = {
+  chars: 120_000,
+  rows: 480,
+  columns: 12,
+  domRows: 480,
+  historyChars: 2_400_000,
+};
+
+describe('appendSample', () => {
+  it('新しいものが先頭に積まれる', () => {
+    const s = appendSample(appendSample([], sample(1, { serialize: 3 })), sample(2, { serialize: 5 }));
+    expect(s.map((x) => x.at)).toEqual([2, 1]);
+  });
+
+  it('上限を超えたぶんは古い側から落ちる', () => {
+    let s: PerfSample[] = [];
+    for (let i = 0; i < PERF_CAP + 10; i += 1) s = appendSample(s, sample(i, { serialize: i }));
+    expect(s).toHaveLength(PERF_CAP);
+    expect(s[0]?.at).toBe(PERF_CAP + 9);
+    expect(s[s.length - 1]?.at).toBe(10);
+  });
+
+  it('元の配列を書き換えない', () => {
+    const before: PerfSample[] = [sample(1, { serialize: 3 })];
+    appendSample(before, sample(2, { serialize: 5 }));
+    expect(before).toHaveLength(1);
+  });
+});
+
+describe('summarize', () => {
+  it('記録が無ければ空', () => {
+    expect(summarize([])).toEqual([]);
+  });
+
+  it('記録された区間だけを返す', () => {
+    const s = [sample(1, { serialize: 3, render: 8 })];
+    expect(summarize(s).map((x) => x.name)).toEqual(['serialize', 'render']);
+  });
+
+  it('last は最も新しい値', () => {
+    const s = [sample(2, { serialize: 9 }), sample(1, { serialize: 3 })];
+    expect(summarize(s)[0]?.last).toBe(9);
+  });
+
+  it('中央値と最大を出す（奇数件）', () => {
+    const s = [sample(3, { serialize: 1 }), sample(2, { serialize: 9 }), sample(1, { serialize: 5 })];
+    const stats = summarize(s)[0];
+    expect(stats?.median).toBe(5);
+    expect(stats?.max).toBe(9);
+    expect(stats?.count).toBe(3);
+  });
+
+  it('偶数件の中央値は中央 2 つの平均', () => {
+    const s = [sample(2, { serialize: 2 }), sample(1, { serialize: 5 })];
+    expect(summarize(s)[0]?.median).toBe(3.5);
+  });
+
+  it('区間ごとに直近 N 件だけを見る', () => {
+    // 古い側に大きな値を置く。窓から外れるので max に出てこない。
+    let s: PerfSample[] = [sample(0, { serialize: 999 })];
+    for (let i = 1; i <= STATS_WINDOW; i += 1) s = appendSample(s, sample(i, { serialize: 1 }));
+    const stats = summarize(s)[0];
+    expect(stats?.count).toBe(STATS_WINDOW);
+    expect(stats?.max).toBe(1);
+  });
+
+  it('たまにしか出ない区間も、その区間だけで直近 N 件を数える', () => {
+    // save は 10 件に 1 度しか記録されない。窓が他の区間に食われない。
+    let s: PerfSample[] = [];
+    for (let i = 0; i < 40; i += 1) {
+      s = appendSample(s, sample(i, i % 10 === 0 ? { serialize: 1, save: 20 } : { serialize: 1 }));
+    }
+    const save = summarize(s).find((x) => x.name === 'save');
+    expect(save?.count).toBe(4);
+    expect(save?.median).toBe(20);
+  });
+});
+
+describe('describeView', () => {
+  it('グリッドとエディターが両方出ている', () => {
+    expect(describeView({ grid: true, editor: true })).toContain('エディター');
+  });
+
+  it('グリッド全画面はエディターが出ていないことが分かる', () => {
+    // 同じ数字でも、エディターが画面に出ているかで読み方が変わる。
+    // 出ていない画面で測った値を「エディターも含めた時間」と読むと原因を取り違える。
+    const text = describeView({ grid: true, editor: false });
+    expect(text).toContain('グリッド');
+    expect(text).toContain('エディターは画面に無い');
+  });
+
+  it('グリッドでなければプレビュー側として書く', () => {
+    expect(describeView({ grid: false, editor: true })).toContain('プレビュー');
+  });
+});
+
+describe('formatReport', () => {
+  const view: ViewState = { grid: true, editor: false };
+  const ctx = { version: '0.6.0', platform: 'windows', fileName: '07_高車管理.tsv', scale, view };
+
+  it('どの画面で測ったかが入る', () => {
+    // 画面の状態が分からないと、数字だけ見ても何が動いていたのか決められない。
+    expect(formatReport(ctx, [])).toContain(describeView(view));
+  });
+
+  it('版・環境・ファイル・規模・数字が入る', () => {
+    const text = formatReport(ctx, summarize([sample(1, { serialize: 12.34, render: 5 })]));
+    expect(text).toContain('0.6.0');
+    expect(text).toContain('windows');
+    expect(text).toContain('07_高車管理.tsv');
+    expect(text).toContain('480');
+    expect(text).toContain('serialize');
+    expect(text).toContain('12.3');
+  });
+
+  it('記録が無くても規模だけは出る', () => {
+    const text = formatReport(ctx, []);
+    expect(text).toContain('480');
+  });
+
+  it('ファイルが開かれていなくても組める', () => {
+    expect(() => formatReport({ ...ctx, fileName: null }, [])).not.toThrow();
+  });
+});
+
+describe('SpanCollector', () => {
+  it('編集の外で足しても捨てられる', () => {
+    const c = new SpanCollector();
+    c.add('serialize', 3);
+    c.start();
+    expect(c.endSync()).toEqual({});
+  });
+
+  it('同じ区間が複数回走ったら足し合わせる', () => {
+    const c = new SpanCollector();
+    c.start();
+    c.add('dirty', 1.5);
+    c.add('dirty', 2.5);
+    expect(c.endSync()).toEqual({ dirty: 4 });
+  });
+
+  it('同期処理を終えたあとに測った区間も同じ 1 件へ入る', () => {
+    // 差分判定は描画の最中に読まれる。ここで捨てると、測ると言った区間が表から消える。
+    const c = new SpanCollector();
+    c.start();
+    c.add('serialize', 4);
+    const pending = c.endSync();
+    c.add('dirty', 0.3);
+    expect(pending).toEqual({ serialize: 4, dirty: 0.3 });
+  });
+
+  it('締めたあとに測ったぶんは入らない', () => {
+    const c = new SpanCollector();
+    c.start();
+    const pending = c.endSync();
+    c.close();
+    c.add('dirty', 0.3);
+    expect(pending).toEqual({});
+  });
+
+  it('次の編集が始まっていたら、締めても新しい方は閉じない', () => {
+    // 描画待ちの間に次の編集が入りうる。取り違えると次の編集の記録が丸ごと消える。
+    const c = new SpanCollector();
+    c.start();
+    const first = c.endSync();
+    c.start();
+    c.add('serialize', 7);
+    c.close(); // 1 件目を締めるつもりの呼び出し
+    c.add('history', 1);
+    expect(first).toEqual({});
+    expect(c.endSync()).toEqual({ serialize: 7, history: 1 });
+  });
+
+  it('始めていなければ締めるものが無い', () => {
+    const c = new SpanCollector();
+    expect(c.endSync()).toBeNull();
+  });
+});
+
+describe('SPAN_ORDER', () => {
+  it('編集 1 回の流れの順に並ぶ', () => {
+    // 表示も報告テキストもこの並びに従う。読む側は上から下へ「何が起きたか」を追う。
+    expect(SPAN_ORDER).toEqual([
+      'serialize',
+      'history',
+      'parse',
+      'validate',
+      'layout',
+      'dirty',
+      'grid',
+      'render',
+      'save',
+    ]);
+  });
+
+  it('表の描き直しは画面反映の直前に並ぶ（内訳として読める位置）', () => {
+    expect(SPAN_ORDER.indexOf('grid')).toBe(SPAN_ORDER.indexOf('render') - 1);
+  });
+});

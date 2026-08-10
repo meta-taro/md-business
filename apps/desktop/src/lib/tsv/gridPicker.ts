@@ -37,6 +37,17 @@ export function opensPickerOnEdit(kind: CellWidgetKind | undefined): boolean {
   return kind === 'select';
 }
 
+/**
+ * 立てられた「開く要求」を消費してよいか。
+ *
+ * 開くのは編集へ入った 1 回だけ。編集中かどうかで判断すると、値を選んだあとも
+ * 編集中のままなので開き直してしまい、次の操作が候補リストに吸われる。
+ * 要求は編集へ入るときに立て、開いたら降ろす（呼び出し側が降ろす）。
+ */
+export function takePickerRequest(kind: CellWidgetKind | undefined, requested: boolean): boolean {
+  return requested && opensPickerOnEdit(kind);
+}
+
 /** シングルクリックで編集（＝候補リスト表示）へ入ってよいか。 */
 export function opensOnSingleClick(
   kind: CellWidgetKind | undefined,

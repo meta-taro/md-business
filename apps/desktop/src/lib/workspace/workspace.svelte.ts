@@ -13,6 +13,7 @@ import { open } from '@tauri-apps/plugin-dialog';
 import { browser } from '$app/environment';
 import { apiSpecSample } from '$lib/samples/apiSpecSample';
 import { git } from '$lib/git/git.svelte';
+import { perf } from '$lib/diagnostics/perf.svelte';
 import { diffView } from '$lib/git/diffView.svelte';
 import { buildTree, type DocEntry, type TreeNode } from './fileTree';
 import {
@@ -479,9 +480,19 @@ class WorkspaceStore {
     this.source = value;
   }
 
-  /** 未保存編集があるか（保存ボタン活性・タイトルの dirty ドット用）。 */
+  /**
+   * 未保存編集があるか（保存ボタン活性・タイトルの dirty ドット用）。
+   *
+   * 本文どうしの比較なのでファイルが育つほど費用が増える。編集のたびに何度読まれるかが
+   * 外から見えないため、かかった時間を診断へ足す（合算されて 1 編集ぶんになる）。
+   */
   get dirty(): boolean {
-    return computeDirty(this.activePath, this.source, this.savedSource);
+    const t0 = performance.now();
+    try {
+      return computeDirty(this.activePath, this.source, this.savedSource);
+    } finally {
+      perf.add('dirty', performance.now() - t0);
+    }
   }
 
   /** 保存可能か（ファイルを開いていて、未保存差分があり、保存処理中でない）。 */
@@ -499,8 +510,10 @@ class WorkspaceStore {
     const relPath = this.activePath;
     const snapshot = this.source;
     this.saving = true;
+    const startedAt = performance.now();
     try {
       await invoke('write_document', { root: this.root, relPath, content: snapshot });
+      perf.recordSave(performance.now() - startedAt);
       this.savedSource = snapshot;
       this.savedAt = new Date();
       this.error = null;

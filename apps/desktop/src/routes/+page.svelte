@@ -4,6 +4,7 @@
   import { renderPreview } from '$lib/preview/renderPreview';
   import { frontmatterMessage } from '$lib/preview/frontmatterMessage';
   import { pdfExport } from '$lib/preview/pdfExport.svelte';
+  import { previewReady } from '$lib/preview/previewGate';
   import CodeMirrorEditor from '$lib/editor/CodeMirrorEditor.svelte';
   import { debounce } from '$lib/util/debounce';
   import type { IdentifiedTsv } from '@md-business/schema-test-spec-tsv';
@@ -12,11 +13,13 @@
   import TsvGrid from '$lib/tsv/TsvGrid.svelte';
   import DataTreeView from '$lib/data/DataTreeView.svelte';
   import { isDataFile, readDataDocument } from '$lib/data/dataDocument';
+  import { perf } from '$lib/diagnostics/perf.svelte';
   import {
     initHistory,
     pushHistory,
     undo as undoHistory,
     redo as redoHistory,
+    historyChars,
     type GridHistory,
   } from '$lib/tsv/gridHistory';
   import { autosave } from '$lib/workspace/autosave.svelte';
@@ -236,6 +239,15 @@
     // プレビュー iframe の検索を共通ストアへ登録（getter で現在の iframe を都度取り直す＝
     // srcdoc 再生成で contentDocument が差し替わっても最新へ届く）。
     search.register('preview', createPreviewSearchBinding(() => viewerFrame, search.report));
+    // 文書の形は診断タブを開いたときだけ取りに行く（毎編集で数えると計測へ混ざるため）。
+    perf.setProbe(() => ({
+      rows: tsvDoc?.rows.length ?? 0,
+      columns: tsvDoc?.columns.length ?? 0,
+      historyChars: historyChars(gridHistory),
+      // グリッド全画面ではエディターを畳んでいる＝エディター側の作業は起きていない。
+      // 数字を読む側がそこを取り違えないよう、画面の状態も一緒に持ち出す。
+      view: { grid: isTsv && tsvDoc !== null, editor: !gridFullscreen },
+    }));
   });
   onDestroy(() => {
     pdfExport.unregister();
@@ -243,12 +255,6 @@
     if (scrollRaf !== 0) cancelAnimationFrame(scrollRaf);
     if (followRaf !== 0) cancelAnimationFrame(followRaf);
   });
-  // schema / Markdown ビューワー描画中だけ [PDF] を活性化する。TSV 編集グリッドは
-  // 印刷対象の iframe を持たないため対象外。
-  $effect(() => {
-    pdfExport.setReady(preview.ok && !isTsv && dataDoc === null && !diffView.active);
-  });
-
   // カスタム TSV 検証シートは読み取りプレビューでなく編集グリッドで開く。
   // 先頭マジック行で判定し、TSV なら表として見せる分だけをグリッドへ渡す。
   // 行 ID 列と控え行（`#@ hidden`）は読み込みで外し、保存で戻す（gridDoc）。
@@ -257,7 +263,11 @@
   // 開き直しで既定（外す）へ戻す。
   let revealHidden = $state(false);
   const isTsv = $derived(isTsvSource(debouncedSource));
-  const tsvGrid = $derived(isTsv ? loadGridDoc(debouncedSource, { reveal: revealHidden }) : null);
+  // 1 セル確定するたびに本文を組み直し、それをまたここで読み直している。読み直しは
+  // 画面へ反映する途中で走るので、測らないと「画面への反映」に紛れて見えない。
+  const tsvGrid = $derived(
+    isTsv ? perf.measure('parse', () => loadGridDoc(debouncedSource, { reveal: revealHidden })) : null,
+  );
   const tsvDoc = $derived(tsvGrid?.doc ?? null);
 
   // 参考データ（.json / .xml）は正本ではなく、隣に置いてある資料として読むだけ。
@@ -266,19 +276,45 @@
   const dataPath = $derived(isDataFile(workspace.activePath) ? workspace.activePath : null);
   const dataDoc = $derived(dataPath === null ? null : readDataDocument(dataPath, debouncedSource));
 
+  // 右ペインがいま何を出しているか。マークアップの分岐（差分 → 参考データ → 検証グリッド
+  // → プレビュー）と同じ条件で持つ。
+  const paneState = $derived({
+    diff: diffView.active,
+    data: dataDoc !== null,
+    grid: isTsv && tsvDoc !== null,
+  });
+
+  // schema / Markdown ビューワー描画中だけ [PDF] を活性化する。TSV 編集グリッドは
+  // 印刷対象の iframe を持たないため対象外。
+  //
+  // 組み上がり（preview.ok）を確かめるのは、プレビューを出しているときだけにする。
+  // preview は本文全体を HTML へ組み直す導出値なので、出していないときに読むと
+  // 捨てるためだけの組み直しが 1 セル確定ごとに走る（2,000 行で 170ms）。
+  $effect(() => {
+    pdfExport.setReady(previewReady(paneState, () => preview.ok));
+  });
+
   // グリッド編集 → 正本ソースへ書き戻し、エディターと即同期する。
   // debouncedSource も即更新して doc を再導出し、グリッドを遅延なく反映する。
   // 併せて確定スナップショットを履歴へ積む（Ctrl+Z / Ctrl+Y で戻せるように）。
   // 控え行は編集中の doc に載っていないので、読み込み時に外したものをここで戻す。
+  // 区間ごとに時間を測るのは、1 セル確定するたびにファイル全文を組み直しており、
+  // どこで時間を使っているかが分からないと直す場所が決まらないため（診断タブに出る）。
   function handleGridChange(next: IdentifiedTsv): void {
-    const text = saveGridDoc(
-      next,
-      untrack(() => tsvGrid?.hidden ?? []),
-      untrack(() => workspace.source),
+    perf.startEdit();
+    const text = perf.measure('serialize', () =>
+      saveGridDoc(
+        next,
+        untrack(() => tsvGrid?.hidden ?? []),
+        untrack(() => workspace.source),
+      ),
     );
-    gridHistory = pushHistory(gridHistory, text);
+    perf.measure('history', () => {
+      gridHistory = pushHistory(gridHistory, text);
+    });
     workspace.setSource(text);
     debouncedSource = text;
+    perf.finishEdit();
   }
 
   // 履歴の present をグリッド／正本へ反映する（undo・redo 共通のグルー）。
@@ -313,7 +349,7 @@
   }
 
   // プレビュー iframe を検索対象にできる状態か（TSV グリッド／差分表示中は iframe が無い）。
-  const previewSearchable = $derived(!isTsv && dataDoc === null && !diffView.active && preview.ok);
+  const previewSearchable = $derived(previewReady(paneState, () => preview.ok));
 
   // Escape で全画面を抜ける。ただしセル編集中（入力にフォーカス）の Escape は入力側へ譲る。
   // また Ctrl/Cmd+F は、エディター（CodeMirror が自前で処理）／プレビュー iframe（自前で

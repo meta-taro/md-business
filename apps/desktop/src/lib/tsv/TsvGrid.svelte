@@ -12,6 +12,7 @@
    * Svelte 側はそれらを描画・フォーカス制御する薄いグルー（manual-verify）。
    */
   import { untrack } from 'svelte';
+  import { perf } from '$lib/diagnostics/perf.svelte';
   import type { IdentifiedTsv } from '@md-business/schema-test-spec-tsv';
   import {
     applyComputed,
@@ -44,6 +45,7 @@
     resizeRowHeight,
     setRowHeight,
   } from './gridRowLayout';
+  import { rowWindow, scrollToRow } from './gridWindow';
   import {
     type ColOverflowMode,
     defaultColModes,
@@ -78,7 +80,7 @@
     rowRange,
   } from './gridRange';
   import { canStartDrag, beginDrag } from './gridDrag';
-  import { opensPickerOnEdit, opensOnSingleClick } from './gridPicker';
+  import { takePickerRequest, opensOnSingleClick } from './gridPicker';
   import { displayRowCount, editPaddedCell } from './gridBlankRows';
   import { columnLabels } from './columnLabel';
   import {
@@ -289,6 +291,55 @@
   let padRows = $state(0);
   const displayRows = $derived(displayRowCount(doc.rows.length, padRows));
 
+  // ── 行の間引き。見えている範囲だけを DOM へ出す。
+  //    表は 1 セル確定するたびに組み直されるので、全行を出していると行数に比例して
+  //    確定が重くなる（2,000 行で 1 回 0.5 秒超）。窓の計算は gridWindow の純ロジック。 ──
+  let scrollTop = $state(0);
+  let viewportHeight = $state(0);
+  // 表示領域を測れるのは 1 フレーム後。それまでに描く高さの当て（画面に出るぶんは
+  // 足りる大きさ）。測れたら実測へ置き換わる。
+  const VIEWPORT_FALLBACK = 720;
+  const win = $derived(
+    perf.measure('layout', () =>
+      rowWindow({
+        heights: rowHeights,
+        total: displayRows,
+        defaultHeight: DEFAULT_ROW_HEIGHT,
+        scrollTop,
+        viewportHeight: viewportHeight || VIEWPORT_FALLBACK,
+      }),
+    ),
+  );
+  const visibleRows = $derived(
+    Array.from({ length: win.end - win.start }, (_unused, i) => win.start + i),
+  );
+
+  // 表を組み直し終えた目印。effect は DOM を書き換えたあとに走るので、ここまでが
+  // 「表を描く」ぶんになる。画面反映の合計との差が、表の外に消えている時間。
+  $effect(() => {
+    // 本文と窓のどちらが変わっても表は組み直される。両方を読んで目印を打ち直す。
+    doc.rows;
+    visibleRows;
+    perf.markGrid();
+  });
+
+  function onGridScroll(): void {
+    if (gridEl) scrollTop = gridEl.scrollTop;
+  }
+
+  /** 窓の外にある行を表示領域へ入れる（間引き中は DOM に無いので焦点を当てられない）。 */
+  function revealRow(row: number): void {
+    if (!gridEl) return;
+    gridEl.scrollTop = scrollToRow({
+      heights: rowHeights,
+      defaultHeight: DEFAULT_ROW_HEIGHT,
+      row,
+      scrollTop: gridEl.scrollTop,
+      viewportHeight: gridEl.clientHeight,
+    });
+    scrollTop = gridEl.scrollTop;
+  }
+
   // doc（別ファイル or 再パース）に追従してレイアウトを directives から読み直す。列参照は
   // 毎編集で変わるので ref 比較では「別ファイル」を判定できない。構造シグネチャ（列名:型:
   // 必須）で本当に列構成が変わったときだけ pad 行をリセットする（同一ファイルの再パースは維持）。
@@ -299,7 +350,9 @@
   $effect(() => {
     // readLayout / columnSignature が doc.directives・doc.columns・doc.rowIds を読むので、
     // それらの変化でこの effect が再走する（明示的な依存宣言は不要）。
-    const layout = readLayout(doc.directives, doc.rowIds, layoutDefaults());
+    const layout = perf.measure('layout', () =>
+      readLayout(doc.directives, doc.rowIds, layoutDefaults()),
+    );
     colWidths = layout.colWidths;
     rowHeights = layout.rowHeights;
     colModes = layout.colModes;
@@ -472,14 +525,16 @@
   }
 
   // 型検査。セル位置ごとの最初の違反メッセージを引けるようにする。
-  const issueByCell = $derived.by(() => {
-    const map = new Map<string, string>();
-    for (const issue of validateTsv(doc)) {
-      const key = `${issue.row}:${issue.column}`;
-      if (!map.has(key)) map.set(key, issue.message);
-    }
-    return map;
-  });
+  const issueByCell = $derived.by(() =>
+    perf.measure('validate', () => {
+      const map = new Map<string, string>();
+      for (const issue of validateTsv(doc)) {
+        const key = `${issue.row}:${issue.column}`;
+        if (!map.has(key)) map.set(key, issue.message);
+      }
+      return map;
+    }),
+  );
 
   function cellValue(row: number, col: number): string {
     return doc.rows[row]?.[col] ?? '';
@@ -565,6 +620,9 @@
   // 意図的に $state にしない＝フォーカス effect の依存に載せず、種を消す代入で effect を
   // 再実行させないため（プレーンな変数。イベント→effect の 1 回の受け渡しにだけ使う）。
   let pendingSeed: string | null = null;
+  // 候補リストを開く要求。編集へ入るときに立て、開いたら降ろす 1 回きりの受け渡し。
+  // pendingSeed と同じ理由で $state にしない（降ろす代入で effect を再実行させない）。
+  let pendingPicker = false;
 
   const isActive = (row: number, col: number): boolean =>
     activeCell.row === row && activeCell.col === col;
@@ -613,9 +671,17 @@
     const { row, col } = activeCell;
     const editing = mode === 'edit';
     if (!engaged || !gridEl) return;
+    // 間引きの外へ出たら、まず表示領域へ入れる。窓が動くとこの効果がもう一度走り、
+    // そこで焦点を当てる（窓の中にある行は焦点を当てれば自動で寄る）。
+    if (row < win.start || row >= win.end) {
+      revealRow(row);
+      return;
+    }
     const td = gridEl.querySelector<HTMLElement>(`[data-cell="${row}-${col}"]`);
     if (!td) return;
     if (!editing) {
+      // 編集から出たら要求は失効させる（次に編集へ入るときに立て直す）。
+      pendingPicker = false;
       const cell = td.querySelector<HTMLElement>('.cell-active');
       if (cell && document.activeElement !== cell) cell.focus();
       return;
@@ -638,9 +704,11 @@
         // date/number 等は setSelectionRange 非対応。キャレット位置は諦めてよい。
       }
       pendingSeed = null;
-    } else if (opensPickerOnEdit(widgets[col]?.kind)) {
+    } else if (takePickerRequest(widgets[col]?.kind, untrack(() => pendingPicker))) {
       // enum は編集へ入った時点で候補リストまで開く。クリック / Enter / Space / Alt+↓ の
       // どの入口でも、そこで一度手が止まらないようにする。
+      // 値を確定すると本文が変わりこの effect が走り直すので、開くのは 1 回きりにする。
+      pendingPicker = false;
       tryShowPicker(input);
     } else {
       trySelectAll(input);
@@ -710,10 +778,19 @@
     }
   }
 
+  // 候補を選んだら選択状態へ戻す。編集中のままだと矢印キーが候補送りになり、
+  // 下のセルへ移動したつもりで値が書き換わる。選び直したければもう一度クリックすればよい。
+  function pickOption(row: number, col: number, value: string): void {
+    commit(row, col, value);
+    mode = 'nav';
+  }
+
   function enterEdit(): void {
     // 計算列は編集へ入れない。ダブルクリック / Enter / F2 / 印字キー / Alt+↓ /
     // シングルクリックの入口はすべてここを通るので、塞ぐのは 1 か所で足りる。
-    if (editable && !isLocked(activeCell.col)) mode = 'edit';
+    if (!editable || isLocked(activeCell.col)) return;
+    mode = 'edit';
+    pendingPicker = true;
   }
 
   function onGridKeydown(row: number, col: number, event: KeyboardEvent): void {
@@ -927,6 +1004,8 @@
     role="region"
     aria-label="検証シート編集グリッド"
     bind:this={gridEl}
+    bind:clientHeight={viewportHeight}
+    onscroll={onGridScroll}
     onpaste={onGridPaste}
     onpointerdown={() => (engaged = true)}
     oncontextmenu={onGridContextMenu}
@@ -1115,8 +1194,15 @@
         </tr>
       </thead>
       <tbody>
-        <!-- 実データ行 + pad 空行を通し番号で描く。pad 行のセルは cellValue が '' を返す。 -->
-        {#each Array(displayRows) as _row, r (r)}
+        <!-- 実データ行 + pad 空行を通し番号で描く。pad 行のセルは cellValue が '' を返す。
+             描くのは見えている範囲だけで、上下の残りは高さだけの詰め物で埋める。表全体の
+             高さは間引きの有無で変わらないので、スクロールバーの長さも掴んだ位置も動かない。 -->
+        {#if win.topPad > 0}
+          <tr class="pad-row" aria-hidden="true" style={`height:${win.topPad}px`}>
+            <td colspan={doc.columns.length + 1}></td>
+          </tr>
+        {/if}
+        {#each visibleRows as r (r)}
           {@const tint = rowTintOf(rowTints, doc.rows[r] ?? [])}
           <tr
             class:hidden-row={reveal && r < doc.rows.length && isHiddenRow(doc, r)}
@@ -1194,7 +1280,7 @@
                         onchange={(e) => commit(r, c, checkboxToCell(e.currentTarget.checked))}
                       />
                     {:else if widget.kind === 'select'}
-                      <select value={value} onchange={(e) => commit(r, c, e.currentTarget.value)}>
+                      <select value={value} onchange={(e) => pickOption(r, c, e.currentTarget.value)}>
                         <option value=""></option>
                         {#each widget.options ?? [] as opt (opt)}
                           <option value={opt}>{opt}</option>
@@ -1275,6 +1361,11 @@
             {/each}
           </tr>
         {/each}
+        {#if win.bottomPad > 0}
+          <tr class="pad-row" aria-hidden="true" style={`height:${win.bottomPad}px`}>
+            <td colspan={doc.columns.length + 1}></td>
+          </tr>
+        {/if}
       </tbody>
     </table>
     {/if}
@@ -1631,6 +1722,14 @@
   tbody tr.hidden-row .rownum {
     color: var(--accent);
     box-shadow: inset 3px 0 0 var(--accent);
+  }
+
+  /* 間引いた行のぶんの詰め物。高さだけを持ち、罫線も地も出さない
+     （出すと表の途中に太い一本線が入って見える）。 */
+  .pad-row td {
+    padding: 0;
+    border: none;
+    background: none;
   }
 
   /* 行番号列＝横スクロールでも固定（sticky left）。左上隅も固定。 */
