@@ -12,6 +12,7 @@
    * Svelte 側はそれらを描画・フォーカス制御する薄いグルー（manual-verify）。
    */
   import { untrack } from 'svelte';
+  import { perf } from '$lib/diagnostics/perf.svelte';
   import type { IdentifiedTsv } from '@md-business/schema-test-spec-tsv';
   import {
     applyComputed,
@@ -299,13 +300,15 @@
   // 足りる大きさ）。測れたら実測へ置き換わる。
   const VIEWPORT_FALLBACK = 720;
   const win = $derived(
-    rowWindow({
-      heights: rowHeights,
-      total: displayRows,
-      defaultHeight: DEFAULT_ROW_HEIGHT,
-      scrollTop,
-      viewportHeight: viewportHeight || VIEWPORT_FALLBACK,
-    }),
+    perf.measure('layout', () =>
+      rowWindow({
+        heights: rowHeights,
+        total: displayRows,
+        defaultHeight: DEFAULT_ROW_HEIGHT,
+        scrollTop,
+        viewportHeight: viewportHeight || VIEWPORT_FALLBACK,
+      }),
+    ),
   );
   const visibleRows = $derived(
     Array.from({ length: win.end - win.start }, (_unused, i) => win.start + i),
@@ -338,7 +341,9 @@
   $effect(() => {
     // readLayout / columnSignature が doc.directives・doc.columns・doc.rowIds を読むので、
     // それらの変化でこの effect が再走する（明示的な依存宣言は不要）。
-    const layout = readLayout(doc.directives, doc.rowIds, layoutDefaults());
+    const layout = perf.measure('layout', () =>
+      readLayout(doc.directives, doc.rowIds, layoutDefaults()),
+    );
     colWidths = layout.colWidths;
     rowHeights = layout.rowHeights;
     colModes = layout.colModes;
@@ -511,14 +516,16 @@
   }
 
   // 型検査。セル位置ごとの最初の違反メッセージを引けるようにする。
-  const issueByCell = $derived.by(() => {
-    const map = new Map<string, string>();
-    for (const issue of validateTsv(doc)) {
-      const key = `${issue.row}:${issue.column}`;
-      if (!map.has(key)) map.set(key, issue.message);
-    }
-    return map;
-  });
+  const issueByCell = $derived.by(() =>
+    perf.measure('validate', () => {
+      const map = new Map<string, string>();
+      for (const issue of validateTsv(doc)) {
+        const key = `${issue.row}:${issue.column}`;
+        if (!map.has(key)) map.set(key, issue.message);
+      }
+      return map;
+    }),
+  );
 
   function cellValue(row: number, col: number): string {
     return doc.rows[row]?.[col] ?? '';

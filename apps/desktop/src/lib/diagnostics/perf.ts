@@ -6,13 +6,29 @@
  * 計測そのもの（performance.now の呼び出し）はストアが担う。
  */
 
-/** 計測する区間。編集 1 回で順に走る 4 つと、あとから走る保存。 */
-export type SpanName = 'serialize' | 'history' | 'dirty' | 'render' | 'save';
+/**
+ * 計測する区間。編集 1 回で順に走るものと、あとから走る保存。
+ *
+ * `parse` / `validate` / `layout` / `dirty` は画面へ反映する途中で走るため、
+ * `render` の中に含まれる（内訳であって、足し合わせる対象ではない）。
+ */
+export type SpanName =
+  | 'serialize'
+  | 'history'
+  | 'parse'
+  | 'validate'
+  | 'layout'
+  | 'dirty'
+  | 'render'
+  | 'save';
 
 /** 区間の並び順。表示と報告テキストで同じ順にするため、ここで一度だけ決める。 */
 export const SPAN_ORDER: readonly SpanName[] = [
   'serialize',
   'history',
+  'parse',
+  'validate',
+  'layout',
   'dirty',
   'render',
   'save',

@@ -265,7 +265,11 @@
   // 開き直しで既定（外す）へ戻す。
   let revealHidden = $state(false);
   const isTsv = $derived(isTsvSource(debouncedSource));
-  const tsvGrid = $derived(isTsv ? loadGridDoc(debouncedSource, { reveal: revealHidden }) : null);
+  // 1 セル確定するたびに本文を組み直し、それをまたここで読み直している。読み直しは
+  // 画面へ反映する途中で走るので、測らないと「画面への反映」に紛れて見えない。
+  const tsvGrid = $derived(
+    isTsv ? perf.measure('parse', () => loadGridDoc(debouncedSource, { reveal: revealHidden })) : null,
+  );
   const tsvDoc = $derived(tsvGrid?.doc ?? null);
 
   // 参考データ（.json / .xml）は正本ではなく、隣に置いてある資料として読むだけ。

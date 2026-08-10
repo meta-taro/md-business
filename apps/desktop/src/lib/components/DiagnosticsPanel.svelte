@@ -18,6 +18,9 @@
   const SPAN_LABEL: Record<SpanName, MessageKey> = {
     serialize: 'diag.span.serialize',
     history: 'diag.span.history',
+    parse: 'diag.span.parse',
+    validate: 'diag.span.validate',
+    layout: 'diag.span.layout',
     dirty: 'diag.span.dirty',
     render: 'diag.span.render',
     save: 'diag.span.save',

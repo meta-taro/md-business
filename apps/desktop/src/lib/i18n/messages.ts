@@ -170,6 +170,9 @@ export interface Messages {
   'diag.clear': string;
   'diag.note': string;
   'diag.span.serialize': string;
+  'diag.span.parse': string;
+  'diag.span.validate': string;
+  'diag.span.layout': string;
   'diag.span.history': string;
   'diag.span.dirty': string;
   'diag.span.render': string;
@@ -419,6 +422,9 @@ const en: Messages = {
   'diag.clear': 'Discard records',
   'diag.note': 'Milliseconds. Updating the screen includes the change comparison.',
   'diag.span.serialize': 'Rebuilding the file text',
+  'diag.span.parse': 'Re-reading the file text',
+  'diag.span.validate': 'Type checking',
+  'diag.span.layout': 'Laying out rows and columns',
   'diag.span.history': 'Adding to undo history',
   'diag.span.dirty': 'Change comparison',
   'diag.span.render': 'Updating the screen',
@@ -671,6 +677,9 @@ const ja: Messages = {
   'diag.clear': '記録を捨てる',
   'diag.note': '単位はミリ秒。画面への反映には差分判定の時間も含まれます。',
   'diag.span.serialize': '本文の組み直し',
+  'diag.span.parse': '本文の読み直し',
+  'diag.span.validate': '型検査',
+  'diag.span.layout': '行と列の割りつけ',
   'diag.span.history': '履歴への積み増し',
   'diag.span.dirty': '差分判定',
   'diag.span.render': '画面への反映',
@@ -922,6 +931,9 @@ const zh: Messages = {
   'diag.clear': '清除记录',
   'diag.note': '单位为毫秒。更新画面包含差异判断的时间。',
   'diag.span.serialize': '重新组合正文',
+  'diag.span.parse': '重新读取正文',
+  'diag.span.validate': '类型检查',
+  'diag.span.layout': '行列布局计算',
   'diag.span.history': '写入历史记录',
   'diag.span.dirty': '差异判断',
   'diag.span.render': '更新画面',
@@ -1170,6 +1182,9 @@ const ko: Messages = {
   'diag.clear': '기록 지우기',
   'diag.note': '단위는 밀리초. 화면 반영에는 차이 판정 시간이 포함됩니다.',
   'diag.span.serialize': '본문 재구성',
+  'diag.span.parse': '본문 다시 읽기',
+  'diag.span.validate': '형식 검사',
+  'diag.span.layout': '행과 열 배치',
   'diag.span.history': '기록에 쌓기',
   'diag.span.dirty': '차이 판정',
   'diag.span.render': '화면 반영',

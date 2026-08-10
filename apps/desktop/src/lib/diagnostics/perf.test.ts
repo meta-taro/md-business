@@ -4,6 +4,7 @@ import {
   summarize,
   formatReport,
   SpanCollector,
+  SPAN_ORDER,
   PERF_CAP,
   STATS_WINDOW,
   type PerfSample,
@@ -166,5 +167,21 @@ describe('SpanCollector', () => {
   it('始めていなければ締めるものが無い', () => {
     const c = new SpanCollector();
     expect(c.endSync()).toBeNull();
+  });
+});
+
+describe('SPAN_ORDER', () => {
+  it('編集 1 回の流れの順に並ぶ', () => {
+    // 表示も報告テキストもこの並びに従う。読む側は上から下へ「何が起きたか」を追う。
+    expect(SPAN_ORDER).toEqual([
+      'serialize',
+      'history',
+      'parse',
+      'validate',
+      'layout',
+      'dirty',
+      'render',
+      'save',
+    ]);
   });
 });
