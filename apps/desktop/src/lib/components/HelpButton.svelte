@@ -3,6 +3,8 @@
   import { getVersion } from '@tauri-apps/api/app';
   import { openUrl } from '@tauri-apps/plugin-opener';
   import { updater } from '$lib/update/updater.svelte';
+  import { previewStates } from '$lib/update/previewStates';
+  import type { UpdateState } from '$lib/update/updateFlow';
   import { t } from '$lib/i18n/i18n.svelte';
 
   // ヘルプ [?] ボタン + ポップオーバー。アプリ名／バージョン／操作マニュアル／
@@ -37,6 +39,16 @@
   function checkForUpdate(): void {
     close();
     void updater.check();
+  }
+
+  // 更新ダイアログの見た目は、新しい Release が無いと確かめられない。開発ビルドでだけ
+  // 見本の状態を流し込めるようにして、出す前に折り返し・ボタンの並び・進捗表示を見る。
+  // 本番ビルドでは描画も操作も起きない（updater.previewState 側でも締めてある）。
+  const devPreviews = import.meta.env.DEV ? previewStates() : [];
+
+  function showPreview(state: UpdateState): void {
+    close();
+    updater.previewState(state);
   }
 
   // 外部リンクを既定ブラウザで開く。opener プラグイン経由（webview 内遷移を避ける）。
@@ -138,6 +150,24 @@
           <span>{t('help.checkUpdate')}</span>
         </button>
       </section>
+
+      {#if devPreviews.length > 0}
+        <div class="sep"></div>
+        <section class="block">
+          <h3 class="block-title">更新ダイアログの見本（開発ビルドのみ）</h3>
+          <div class="preview-list">
+            {#each devPreviews as preview (preview.label)}
+              <button
+                class="preview-btn"
+                type="button"
+                onclick={() => showPreview(preview.state)}
+              >
+                {preview.label}
+              </button>
+            {/each}
+          </div>
+        </section>
+      {/if}
 
       <div class="sep"></div>
 
@@ -396,6 +426,34 @@
     width: 15px;
     height: 15px;
     flex: none;
+  }
+
+  /* 見本の切り替え（開発ビルドのみ）。本番の導線と紛れないよう、控えめなタグ状に置く。 */
+  .preview-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-1);
+  }
+
+  .preview-btn {
+    padding: 2px 8px;
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-full);
+    background: var(--bg-subtle);
+    color: var(--text-secondary);
+    font-family: inherit;
+    font-size: var(--text-xs-size);
+    cursor: pointer;
+  }
+
+  .preview-btn:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  .preview-btn:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px var(--accent-subtle);
   }
 
   .sc-list {
