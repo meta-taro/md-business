@@ -49,6 +49,27 @@ function waitForEvent(
   });
 }
 
+/** バンドルを指定の引数で走らせ、終わるまで待って終了コードと stdout を返す。 */
+function run(args: string[], timeoutMs = 30_000): Promise<{ code: number | null; out: string }> {
+  return new Promise((resolvePromise, rejectPromise) => {
+    const child = spawn(process.execPath, [BUNDLE, ...args], { stdio: 'pipe' });
+    let out = '';
+    const timer = setTimeout(() => {
+      child.kill();
+      rejectPromise(new Error(`終わりませんでした。受信済み: ${out}`));
+    }, timeoutMs);
+    child.stdout.on('data', (chunk: Buffer) => {
+      out += chunk.toString();
+    });
+    child.once('exit', (code) => {
+      clearTimeout(timer);
+      resolvePromise({ code, out });
+    });
+    // 待ち受けに入らない指定なので、制御チャネルは使わない。
+    child.stdin.end();
+  });
+}
+
 describe('サイドカーのバンドル', () => {
   let workspace: string;
   let other: string;
@@ -94,5 +115,41 @@ describe('サイドカーのバンドル', () => {
     child.stdin.end();
     await exited;
     expect(child.exitCode !== null || child.signalCode !== null).toBe(true);
+  });
+});
+
+/**
+ * 利用者の手元にあるのは、この 1 ファイル（アプリに同梱されたもの）だけ。
+ * 接続できないときに確かめられるのもここなので、待ち受けに入らない指定を通しておく。
+ */
+describe('サイドカーのバンドル — 手元で確かめる', () => {
+  let workspace: string;
+
+  beforeAll(async () => {
+    workspace = await mkdtemp(join(tmpdir(), 'mdbiz-bundle-c-'));
+  });
+
+  afterAll(async () => {
+    await rm(workspace, { recursive: true, force: true });
+  });
+
+  it('版を尋ねたら、待ち受けに入らず答えて終わる', async () => {
+    const { code, out } = await run(['--version']);
+    expect(code).toBe(0);
+    expect(out).toMatch(/md-business \d+\.\d+\.\d+/);
+  });
+
+  it('点検は、指した場所を読めれば通る', async () => {
+    const { code, out } = await run(['--health', workspace]);
+    expect(code).toBe(0);
+    expect(out).toContain('OK  ワークスペース');
+    expect(out).toContain('OK  スキーマ');
+    expect(out).not.toContain('NG');
+  });
+
+  it('点検は、読めない場所を指していたら理由を出して失敗する', async () => {
+    const { code, out } = await run(['--health', join(workspace, '無い')]);
+    expect(code).toBe(1);
+    expect(out).toContain('NG  ワークスペース');
   });
 });

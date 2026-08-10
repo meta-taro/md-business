@@ -84,6 +84,28 @@ node_modules を含めずに済ませるため）。
 
 Claude Desktop を再起動すると、md-business のツールが利用可能になる。
 
+### つながらないときの確認
+
+クライアント側に出るのは「接続できません」だけなので、原因はサーバーを直接動かして切り分ける。
+どちらの指定も待ち受けには入らず、結果を出して終わる。
+
+```bash
+node dist/bin.js --version           # 起動できるか・どの版か
+node dist/bin.js --health <workspace> # 設定の点検
+```
+
+`--health` は、指したフォルダを読めるか・スキーマを組み立てられるか・何件見えているかを
+1 行ずつ出す。すべて通れば終了コード 0、1 つでも駄目なら 1 で終わる。
+
+```
+OK  ワークスペース: /Users/me/docs
+OK  スキーマ: invoice/v1 / spec/v1 / test-spec/v1 / db-spec/v1 / nosql-db-spec/v1 / api-spec/v1
+OK  文書: 文書 13 件 / 検証シート 2 件
+```
+
+デスクトップアプリに同梱したサイドカー（`sidecar.cjs`）でも同じ指定が使える。
+クローンせずにアプリだけを入れた場合は、そちらで確かめる。
+
 ### ワークスペース root の解決順
 
 1. 第1引数（上記 `args` の `<workspace>`）
