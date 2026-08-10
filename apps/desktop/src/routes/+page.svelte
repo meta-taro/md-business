@@ -6,6 +6,7 @@
   import { pdfExport } from '$lib/preview/pdfExport.svelte';
   import { previewReady } from '$lib/preview/previewGate';
   import CodeMirrorEditor from '$lib/editor/CodeMirrorEditor.svelte';
+  import { findHeadingOffset } from '$lib/editor/headingAnchor';
   import { debounce } from '$lib/util/debounce';
   import type { CellLink, IdentifiedTsv } from '@md-business/schema-test-spec-tsv';
   import { openUrl } from '@tauri-apps/plugin-opener';
@@ -350,6 +351,10 @@
   let gridJump = $state<{ column: string; value: string; seq: number } | null>(null);
   let gridJumpSeq = 0;
 
+  /** 同じく、エディターへ渡すカーソル位置（別ファイルの見出しを指されたとき）。 */
+  let editorCaret = $state<{ offset: number; seq: number } | null>(null);
+  let editorCaretSeq = 0;
+
   // グリッドのセルに書いたリンクを開く。追える種類の判定は gridLink 側に集めてあり、
   // 押せる見た目とここの分岐は同じ集合を見る（見た目と挙動をずらさないため）。
   async function handleFollowLink(link: CellLink): Promise<void> {
@@ -362,7 +367,6 @@
       }
       return;
     }
-    if (link.kind === 'heading') return;
     // パスの無い形は同じシートの中の移動。グリッドが自分で持つのでここへは来ない。
     const path = link.path;
     if (path === null) return;
@@ -380,7 +384,17 @@
     if (workspace.activePath !== relPath) return;
     if (link.kind === 'row') {
       gridJump = { column: link.column, value: link.value, seq: (gridJumpSeq += 1) };
+      return;
     }
+    if (link.kind !== 'heading') return;
+    // 見出しは開いた本文から引く。無ければ、開いたことと見つからなかったことを分けて伝える
+    // （黙って先頭に居ると、指し先が消えたのか元から先頭なのか分からない）。
+    const offset = findHeadingOffset(workspace.source, link.heading);
+    if (offset === null) {
+      workspace.reportError(t('page.linkHeadingMissing', { heading: link.heading }));
+      return;
+    }
+    editorCaret = { offset, seq: (editorCaretSeq += 1) };
   }
 
   // ── 検証グリッドの全画面 ──
@@ -520,6 +534,7 @@
       onChange={handleEditorChange}
       onSync={handleEditorSync}
       readOnly={dataDoc !== null}
+      caret={editorCaret}
     />
     <SearchBar pane="editor" />
   </section>

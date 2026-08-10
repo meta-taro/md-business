@@ -5,8 +5,11 @@
  *
  * 1. **どの列を見るか** — `url` 型と宣言された列だけを見る。自由文の列まで走査すると、
  *    セルを 1 つ確定するたびに行数ぶんの解析が走る。値がたまたまリンクに見えて誤爆もする。
- * 2. **いま追える指し先か** — 移動をまだ実装していない指し先は、リンクの見た目にしない。
+ * 2. **受け取り手がいるか** — 表の外へ出る指し先は、受け取る親がいなければリンクにしない。
  *    押しても何も起きないリンクは、壊れているのと区別がつかない。
+ *
+ * {@link parseCellLink} が読める種類は、いまはすべて追える。読めるのに追えない種類を
+ * 足すときは、ここで弾いてリンクの見た目から外すこと（見た目と挙動をずらさない）。
  */
 import { parseCellLink, type CellLink } from '@md-business/schema-test-spec-tsv';
 import type { CellWidgetKind } from './gridModel';
@@ -17,16 +20,6 @@ import type { CellWidgetKind } from './gridModel';
  */
 function staysInSheet(link: CellLink): boolean {
   return link.kind === 'row' && link.path === null;
-}
-
-/**
- * いま追える指し先か。
- *
- * 移動の実装を足すたびにここへ 1 つ加える。判定を 1 箇所に集めてあるので、
- * 「解釈はできるのに追えない」種類が増えても、リンクの見た目と挙動がずれない。
- */
-function followable(link: CellLink): boolean {
-  return link.kind === 'external' || link.kind === 'file' || link.kind === 'row';
 }
 
 /**
@@ -43,6 +36,6 @@ export function followableLink(
 ): CellLink | null {
   if (kind !== 'url') return null;
   const link = parseCellLink(value);
-  if (link === null || !followable(link)) return null;
+  if (link === null) return null;
   return canOpenElsewhere || staysInSheet(link) ? link : null;
 }

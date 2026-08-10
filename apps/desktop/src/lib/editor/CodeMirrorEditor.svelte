@@ -13,8 +13,15 @@
     onSync?: (info: EditorFocusInfo) => void;
     /** 参考データ（.json / .xml）を開いている間は編集させない。 */
     readOnly?: boolean;
+    /**
+     * 外から指定するカーソル位置（別ファイルの見出しをリンクで指されたとき）。
+     *
+     * `seq` は同じ位置を続けて指されても動くための連番。位置だけだと「同じ＝変化なし」
+     * になり、開き直しても寄らない。
+     */
+    caret?: { offset: number; seq: number } | null;
   }
-  const { value, onChange, onSync, readOnly = false }: Props = $props();
+  const { value, onChange, onSync, readOnly = false, caret = null }: Props = $props();
 
   let host = $state<HTMLDivElement | null>(null);
   let editor: MarkdownEditorHandle | undefined;
@@ -50,6 +57,14 @@
 
   $effect(() => {
     editor?.setReadOnly(readOnly);
+  });
+
+  // 外から指定された位置へ寄せる。本文は先に差し替わっているので、ここでは位置だけを見る。
+  let lastCaretSeq = -1;
+  $effect(() => {
+    if (caret === null || caret.seq === lastCaretSeq) return;
+    lastCaretSeq = caret.seq;
+    editor?.revealOffset(caret.offset);
   });
 </script>
 
