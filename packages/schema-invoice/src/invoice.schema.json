@@ -195,7 +195,7 @@
     },
     "fileName": {
       "type": "string",
-      "description": "Optional PDF save filename template (ファイル名). Tokens like {請求先}, {敬称}, {発行元}, {請求書番号}, {発行日}, {YMD} are substituted at render time. When omitted, falls back to `請求書_{請求書番号}`."
+      "description": "Optional PDF save filename template (ファイル名). Tokens like {請求先}, {宛先}, {敬称}, {発行元}, {請求書番号}, {見積書番号}, {領収書番号}, {文書番号}, {発行日}, {YMD} are substituted at render time. When omitted, falls back to `<種別>_{invoiceNumber}`."
     },
     "theme": {
       "type": "string",
