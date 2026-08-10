@@ -80,7 +80,7 @@
     rowRange,
   } from './gridRange';
   import { canStartDrag, beginDrag } from './gridDrag';
-  import { opensPickerOnEdit, opensOnSingleClick } from './gridPicker';
+  import { takePickerRequest, opensOnSingleClick } from './gridPicker';
   import { displayRowCount, editPaddedCell } from './gridBlankRows';
   import { columnLabels } from './columnLabel';
   import {
@@ -611,6 +611,9 @@
   // 意図的に $state にしない＝フォーカス effect の依存に載せず、種を消す代入で effect を
   // 再実行させないため（プレーンな変数。イベント→effect の 1 回の受け渡しにだけ使う）。
   let pendingSeed: string | null = null;
+  // 候補リストを開く要求。編集へ入るときに立て、開いたら降ろす 1 回きりの受け渡し。
+  // pendingSeed と同じ理由で $state にしない（降ろす代入で effect を再実行させない）。
+  let pendingPicker = false;
 
   const isActive = (row: number, col: number): boolean =>
     activeCell.row === row && activeCell.col === col;
@@ -668,6 +671,8 @@
     const td = gridEl.querySelector<HTMLElement>(`[data-cell="${row}-${col}"]`);
     if (!td) return;
     if (!editing) {
+      // 編集から出たら要求は失効させる（次に編集へ入るときに立て直す）。
+      pendingPicker = false;
       const cell = td.querySelector<HTMLElement>('.cell-active');
       if (cell && document.activeElement !== cell) cell.focus();
       return;
@@ -690,9 +695,11 @@
         // date/number 等は setSelectionRange 非対応。キャレット位置は諦めてよい。
       }
       pendingSeed = null;
-    } else if (opensPickerOnEdit(widgets[col]?.kind)) {
+    } else if (takePickerRequest(widgets[col]?.kind, untrack(() => pendingPicker))) {
       // enum は編集へ入った時点で候補リストまで開く。クリック / Enter / Space / Alt+↓ の
       // どの入口でも、そこで一度手が止まらないようにする。
+      // 値を確定すると本文が変わりこの effect が走り直すので、開くのは 1 回きりにする。
+      pendingPicker = false;
       tryShowPicker(input);
     } else {
       trySelectAll(input);
@@ -762,10 +769,19 @@
     }
   }
 
+  // 候補を選んだら選択状態へ戻す。編集中のままだと矢印キーが候補送りになり、
+  // 下のセルへ移動したつもりで値が書き換わる。選び直したければもう一度クリックすればよい。
+  function pickOption(row: number, col: number, value: string): void {
+    commit(row, col, value);
+    mode = 'nav';
+  }
+
   function enterEdit(): void {
     // 計算列は編集へ入れない。ダブルクリック / Enter / F2 / 印字キー / Alt+↓ /
     // シングルクリックの入口はすべてここを通るので、塞ぐのは 1 か所で足りる。
-    if (editable && !isLocked(activeCell.col)) mode = 'edit';
+    if (!editable || isLocked(activeCell.col)) return;
+    mode = 'edit';
+    pendingPicker = true;
   }
 
   function onGridKeydown(row: number, col: number, event: KeyboardEvent): void {
@@ -1255,7 +1271,7 @@
                         onchange={(e) => commit(r, c, checkboxToCell(e.currentTarget.checked))}
                       />
                     {:else if widget.kind === 'select'}
-                      <select value={value} onchange={(e) => commit(r, c, e.currentTarget.value)}>
+                      <select value={value} onchange={(e) => pickOption(r, c, e.currentTarget.value)}>
                         <option value=""></option>
                         {#each widget.options ?? [] as opt (opt)}
                           <option value={opt}>{opt}</option>

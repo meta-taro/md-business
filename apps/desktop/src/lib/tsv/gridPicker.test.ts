@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { opensPickerOnEdit, opensOnSingleClick, type CellClickIntent } from './gridPicker';
+import {
+  opensPickerOnEdit,
+  opensOnSingleClick,
+  takePickerRequest,
+  type CellClickIntent,
+} from './gridPicker';
 
 /**
  * enum セルの候補リストを「いつ開くか」の決定ロジック。
@@ -70,5 +75,23 @@ describe('opensOnSingleClick', () => {
 
   it('離した先がアクティブセルでなければ入らない', () => {
     expect(opensOnSingleClick('select', click({ active: false }))).toBe(false);
+  });
+});
+
+describe('takePickerRequest', () => {
+  it('編集へ入った要求があれば開く', () => {
+    expect(takePickerRequest('select', true)).toBe(true);
+  });
+
+  it('要求が無ければ開かない', () => {
+    // 値を選んだあとも編集中のままなので、モードだけを見ると開き直してしまう。
+    // 選んだ直後に候補リストがまた開くと、次の操作が候補リストに吸われる。
+    expect(takePickerRequest('select', false)).toBe(false);
+  });
+
+  it('enum 以外は要求があっても開かない', () => {
+    expect(takePickerRequest('text', true)).toBe(false);
+    expect(takePickerRequest('radio', true)).toBe(false);
+    expect(takePickerRequest(undefined, true)).toBe(false);
   });
 });
