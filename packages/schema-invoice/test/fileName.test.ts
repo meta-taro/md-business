@@ -69,4 +69,26 @@ describe('renderInvoiceFileName', () => {
     const name = renderInvoiceFileName(build(), '{請求書番号}_{unknown}_x');
     expect(name).toBe('INV-2026-0042_x');
   });
+
+  // 見積書に「{請求書番号}」と書かせるのは、書き手から見て種別と合わない。
+  // 番号の入れ物は 1 つなので、どの言い方で書いても同じ値を差す。
+  it('種別に合わせた番号トークンでも同じ番号を差す', () => {
+    const quote = build({ documentType: '見積書', invoiceNumber: 'EST-2026-0042' });
+    expect(renderInvoiceFileName(quote, '{見積書番号}')).toBe('EST-2026-0042');
+    const receipt = build({ documentType: '領収書', invoiceNumber: 'RCP-2026-0042' });
+    expect(renderInvoiceFileName(receipt, '{領収書番号}')).toBe('RCP-2026-0042');
+    expect(renderInvoiceFileName(build(), '{文書番号}')).toBe('INV-2026-0042');
+  });
+
+  it('宛先も種別に合わせた言い方で書ける', () => {
+    const quote = build({ documentType: '見積書' });
+    expect(renderInvoiceFileName(quote, '{宛先}{敬称}')).toBe('株式会社B御中');
+  });
+
+  it('種別ごとの既定のファイル名は、その種別の番号の言い方で書ける', () => {
+    const quote = build({ documentType: '見積書', invoiceNumber: 'EST-2026-0042' });
+    expect(renderInvoiceFileName(quote)).toBe('見積書_EST-2026-0042');
+    const receipt = build({ documentType: '領収書', invoiceNumber: 'RCP-2026-0042' });
+    expect(renderInvoiceFileName(receipt)).toBe('領収書_RCP-2026-0042');
+  });
 });

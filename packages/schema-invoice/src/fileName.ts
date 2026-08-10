@@ -5,10 +5,11 @@ import type { Invoice } from './types.js';
  * Render a PDF save-file name from a template string. Tokens are written in
  * curly braces and refer to invoice fields:
  *
- *   {請求先} {recipient}                 — recipient.name
+ *   {請求先} {宛先} {recipient}           — recipient.name（種別の言い方で書ける）
  *   {敬称}   {honorific}                 — recipient.honorific
  *   {発行元} {issuer}                    — issuer.name
- *   {請求書番号} {番号} {invoiceNumber}   — invoiceNumber
+ *   {請求書番号} {見積書番号} {領収書番号}  — invoiceNumber（種別の言い方で書ける）
+ *   {文書番号} {番号} {invoiceNumber}     — invoiceNumber
  *   {発行日} {issueDate}                 — issueDate (YYYY-MM-DD)
  *   {発行日YMD} {issueYMD}               — issueDate as YYYYMMDD
  *   {YMD}                                — today as YYYYMMDD (local time)
@@ -18,23 +19,30 @@ import type { Invoice } from './types.js';
  * absent), so a template like `{請求先}{敬称}_{YMD}` cleanly degrades when
  * the recipient has no honorific.
  *
- * Falls back to the default rule `<種別>_{請求書番号}` when no template is
- * provided (請求書 / 見積書 / 領収書).
+ * Falls back to the default rule `<種別>_<番号>` when no template is provided
+ * (請求書 / 見積書 / 領収書).
  *
  * Windows-forbidden characters (/ \ : * ? " < > |) are replaced with `_`
  * after substitution so the resulting name is always safe to save.
  */
 export function renderInvoiceFileName(invoice: Invoice, template?: string): string {
-  const tpl = template?.trim() || `${invoiceDocumentLabels(invoice).fileNamePrefix}_{請求書番号}`;
+  // 既定はトークンのまま組む。番号を直に埋めると、番号自体に `{}` が入っていたとき
+  // トークンとして読み直されてしまう。
+  const tpl = template?.trim() || `${invoiceDocumentLabels(invoice).fileNamePrefix}_{invoiceNumber}`;
   const now = todayLocal();
   const tokens: Record<string, string> = {
     '請求先': invoice.recipient.name ?? '',
+    '宛先': invoice.recipient.name ?? '',
     'recipient': invoice.recipient.name ?? '',
     '敬称': invoice.recipient.honorific ?? '',
     'honorific': invoice.recipient.honorific ?? '',
     '発行元': invoice.issuer.name ?? '',
     'issuer': invoice.issuer.name ?? '',
+    // 番号の入れ物は 1 つ。種別ごとの言い方は、どれも同じ値を差す。
     '請求書番号': invoice.invoiceNumber ?? '',
+    '見積書番号': invoice.invoiceNumber ?? '',
+    '領収書番号': invoice.invoiceNumber ?? '',
+    '文書番号': invoice.invoiceNumber ?? '',
     '番号': invoice.invoiceNumber ?? '',
     'invoiceNumber': invoice.invoiceNumber ?? '',
     '発行日': invoice.issueDate ?? '',
