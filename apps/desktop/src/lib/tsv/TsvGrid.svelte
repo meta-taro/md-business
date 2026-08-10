@@ -44,6 +44,7 @@
     resizeRowHeight,
     setRowHeight,
   } from './gridRowLayout';
+  import { rowWindow, scrollToRow } from './gridWindow';
   import {
     type ColOverflowMode,
     defaultColModes,
@@ -288,6 +289,44 @@
   //    表示行数・実体化・空行判定は gridBlankRows の純ロジックへ委譲。 ──
   let padRows = $state(0);
   const displayRows = $derived(displayRowCount(doc.rows.length, padRows));
+
+  // ── 行の間引き。見えている範囲だけを DOM へ出す。
+  //    表は 1 セル確定するたびに組み直されるので、全行を出していると行数に比例して
+  //    確定が重くなる（2,000 行で 1 回 0.5 秒超）。窓の計算は gridWindow の純ロジック。 ──
+  let scrollTop = $state(0);
+  let viewportHeight = $state(0);
+  // 表示領域を測れるのは 1 フレーム後。それまでに描く高さの当て（画面に出るぶんは
+  // 足りる大きさ）。測れたら実測へ置き換わる。
+  const VIEWPORT_FALLBACK = 720;
+  const win = $derived(
+    rowWindow({
+      heights: rowHeights,
+      total: displayRows,
+      defaultHeight: DEFAULT_ROW_HEIGHT,
+      scrollTop,
+      viewportHeight: viewportHeight || VIEWPORT_FALLBACK,
+    }),
+  );
+  const visibleRows = $derived(
+    Array.from({ length: win.end - win.start }, (_unused, i) => win.start + i),
+  );
+
+  function onGridScroll(): void {
+    if (gridEl) scrollTop = gridEl.scrollTop;
+  }
+
+  /** 窓の外にある行を表示領域へ入れる（間引き中は DOM に無いので焦点を当てられない）。 */
+  function revealRow(row: number): void {
+    if (!gridEl) return;
+    gridEl.scrollTop = scrollToRow({
+      heights: rowHeights,
+      defaultHeight: DEFAULT_ROW_HEIGHT,
+      row,
+      scrollTop: gridEl.scrollTop,
+      viewportHeight: gridEl.clientHeight,
+    });
+    scrollTop = gridEl.scrollTop;
+  }
 
   // doc（別ファイル or 再パース）に追従してレイアウトを directives から読み直す。列参照は
   // 毎編集で変わるので ref 比較では「別ファイル」を判定できない。構造シグネチャ（列名:型:
@@ -613,6 +652,12 @@
     const { row, col } = activeCell;
     const editing = mode === 'edit';
     if (!engaged || !gridEl) return;
+    // 間引きの外へ出たら、まず表示領域へ入れる。窓が動くとこの効果がもう一度走り、
+    // そこで焦点を当てる（窓の中にある行は焦点を当てれば自動で寄る）。
+    if (row < win.start || row >= win.end) {
+      revealRow(row);
+      return;
+    }
     const td = gridEl.querySelector<HTMLElement>(`[data-cell="${row}-${col}"]`);
     if (!td) return;
     if (!editing) {
@@ -927,6 +972,8 @@
     role="region"
     aria-label="検証シート編集グリッド"
     bind:this={gridEl}
+    bind:clientHeight={viewportHeight}
+    onscroll={onGridScroll}
     onpaste={onGridPaste}
     onpointerdown={() => (engaged = true)}
     oncontextmenu={onGridContextMenu}
@@ -1115,8 +1162,15 @@
         </tr>
       </thead>
       <tbody>
-        <!-- 実データ行 + pad 空行を通し番号で描く。pad 行のセルは cellValue が '' を返す。 -->
-        {#each Array(displayRows) as _row, r (r)}
+        <!-- 実データ行 + pad 空行を通し番号で描く。pad 行のセルは cellValue が '' を返す。
+             描くのは見えている範囲だけで、上下の残りは高さだけの詰め物で埋める。表全体の
+             高さは間引きの有無で変わらないので、スクロールバーの長さも掴んだ位置も動かない。 -->
+        {#if win.topPad > 0}
+          <tr class="pad-row" aria-hidden="true" style={`height:${win.topPad}px`}>
+            <td colspan={doc.columns.length + 1}></td>
+          </tr>
+        {/if}
+        {#each visibleRows as r (r)}
           {@const tint = rowTintOf(rowTints, doc.rows[r] ?? [])}
           <tr
             class:hidden-row={reveal && r < doc.rows.length && isHiddenRow(doc, r)}
@@ -1275,6 +1329,11 @@
             {/each}
           </tr>
         {/each}
+        {#if win.bottomPad > 0}
+          <tr class="pad-row" aria-hidden="true" style={`height:${win.bottomPad}px`}>
+            <td colspan={doc.columns.length + 1}></td>
+          </tr>
+        {/if}
       </tbody>
     </table>
     {/if}
@@ -1631,6 +1690,14 @@
   tbody tr.hidden-row .rownum {
     color: var(--accent);
     box-shadow: inset 3px 0 0 var(--accent);
+  }
+
+  /* 間引いた行のぶんの詰め物。高さだけを持ち、罫線も地も出さない
+     （出すと表の途中に太い一本線が入って見える）。 */
+  .pad-row td {
+    padding: 0;
+    border: none;
+    background: none;
   }
 
   /* 行番号列＝横スクロールでも固定（sticky left）。左上隅も固定。 */
