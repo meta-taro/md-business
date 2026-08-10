@@ -101,6 +101,62 @@ export function summarize(
   return stats;
 }
 
+/**
+ * 編集 1 回ぶんの計測を溜める入れ物。
+ *
+ * 同期処理が終わったあとにも測りたい区間がある（差分判定は描画の最中に読まれる）。
+ * 同期の終わりで締めてしまうとその区間が記録から丸ごと消えるため、「同期の終わり」と
+ * 「1 件として締める」を別の操作にしてある。
+ */
+export class SpanCollector {
+  /** いま足し先になっている編集。編集の外では null。 */
+  private active: Partial<Record<SpanName, number>> | null = null;
+  /** 同期処理を終えたか。次の編集が始まると false へ戻る。 */
+  private syncEnded = false;
+
+  /** 編集 1 回の計測を始める。前の編集が締まっていなければ捨てて取り直す。 */
+  start(): void {
+    this.active = {};
+    this.syncEnded = false;
+  }
+
+  /**
+   * 測った時間を足す。編集の外では捨てる（呼び出し側が計測の有無を気にしなくて
+   * 済むようにする）。同じ区間が 1 回の編集で複数回走ることがあるため加算する。
+   */
+  add(name: SpanName, ms: number): void {
+    if (this.active === null) return;
+    this.active[name] = (this.active[name] ?? 0) + ms;
+  }
+
+  /**
+   * 同期処理の終わりを告げ、溜めてきた入れ物を返す。返した入れ物は締めるまで
+   * 足し先のままなので、描画中に測った区間も同じ 1 件へ入る。
+   * 始まっていなければ null。
+   */
+  endSync(): Partial<Record<SpanName, number>> | null {
+    if (this.active === null) return null;
+    this.syncEnded = true;
+    return this.active;
+  }
+
+  /**
+   * 1 件として締める。描画を待つ間に次の編集が始まっていた場合は何もしない
+   * （締めると新しい編集の記録が丸ごと落ちるため）。
+   */
+  close(): void {
+    if (!this.syncEnded) return;
+    this.active = null;
+    this.syncEnded = false;
+  }
+
+  /** 集めかけを捨てる。 */
+  reset(): void {
+    this.active = null;
+    this.syncEnded = false;
+  }
+}
+
 /** 開いている文書の規模。遅さはここに比例するので、数字と一緒に持ち出す。 */
 export interface DocScale {
   /** 本文の文字数。 */

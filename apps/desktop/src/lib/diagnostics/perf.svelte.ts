@@ -1,10 +1,13 @@
 // 編集 1 回にかかった時間の計測（副作用側）。集計・整形は純ロジック perf.ts に委譲し、
 // ここは時計を読んで記録を溜めるだけの薄い層に留める。
 import { tick } from 'svelte';
-import { appendSample, type PerfSample, type SpanName } from './perf';
+import { appendSample, SpanCollector, type PerfSample, type SpanName } from './perf';
 
-/** グリッドの行を数えるための選択子。実際に DOM へ出ている行数を測る。 */
-const ROW_SELECTOR = '.tsv-grid tbody tr';
+/**
+ * グリッドの行を数えるための選択子。実際に DOM へ出ている行数を測る。
+ * 間引いたぶんを埋める詰め物の行は、中身を持たないので数から外す。
+ */
+const ROW_SELECTOR = '.tsv-grid tbody tr:not(.pad-row)';
 
 /** 開いている文書の形。計測の外側なので、診断を見るときだけ取りに行く。 */
 export interface DocShape {
@@ -23,22 +26,11 @@ let samples = $state<PerfSample[]>([]);
  */
 let probe: (() => DocShape) | null = null;
 
-/** いま集めている途中の編集。編集の外では null。 */
-let current: Partial<Record<SpanName, number>> | null = null;
-/** 同期処理を終えた時刻。ここから DOM へ反映されるまでを描画として測る。 */
-let syncEndAt = 0;
+/** 集めかけの編集。溜め方の決まりごとは純ロジック側が持つ。 */
+const collector = new SpanCollector();
 
 function now(): number {
   return performance.now();
-}
-
-/**
- * 測った時間を足す。同じ区間が 1 回の編集で複数回走ることがあるため（差分判定など）、
- * 上書きではなく加算する。
- */
-function addSpan(name: SpanName, ms: number): void {
-  if (current === null) return;
-  current[name] = (current[name] ?? 0) + ms;
 }
 
 export const perf = {
@@ -74,7 +66,7 @@ export const perf = {
 
   /** 編集 1 回の計測を始める。前の編集が終わっていなければ捨てて取り直す。 */
   startEdit(): void {
-    current = {};
+    collector.start();
   },
 
   /**
@@ -82,33 +74,33 @@ export const perf = {
    * （呼び出し側が計測の有無を気にしなくて済むようにする）。
    */
   measure<T>(name: SpanName, fn: () => T): T {
-    if (current === null) return fn();
     const t0 = now();
     try {
       return fn();
     } finally {
-      addSpan(name, now() - t0);
+      collector.add(name, now() - t0);
     }
   },
 
   /** 外で測った時間を足す（呼び出し側で時計を読む必要がある場合）。 */
   add(name: SpanName, ms: number): void {
-    addSpan(name, ms);
+    collector.add(name, ms);
   },
 
   /**
    * 同期処理の終わりを告げ、DOM への反映まで測ってから 1 件として記録する。
    *
-   * 描画には差分判定も含まれる（描画中に読まれるため）。両方を出すのは、描画の
-   * どれだけを差分判定が占めているかを読み取れるようにするため。
+   * 描画には差分判定も含まれる（描画中に読まれるため）。締めるのは描画を待ってから
+   * にして、その間に測った区間も同じ 1 件へ入れる。両方を出すのは、描画のどれだけを
+   * 差分判定が占めているかを読み取れるようにするため。
    */
   finishEdit(): void {
-    if (current === null) return;
-    syncEndAt = now();
-    const pending = current;
-    current = null;
+    const pending = collector.endSync();
+    if (pending === null) return;
+    const syncEndAt = now();
     void tick().then(() => {
       pending.render = now() - syncEndAt;
+      collector.close();
       samples = appendSample(samples, { at: Date.now(), spans: pending });
     });
   },
@@ -121,6 +113,6 @@ export const perf = {
   /** 記録を捨てる。 */
   clear(): void {
     samples = [];
-    current = null;
+    collector.reset();
   },
 };

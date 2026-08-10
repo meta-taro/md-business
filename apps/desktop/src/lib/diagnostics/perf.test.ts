@@ -3,6 +3,7 @@ import {
   appendSample,
   summarize,
   formatReport,
+  SpanCollector,
   PERF_CAP,
   STATS_WINDOW,
   type PerfSample,
@@ -111,5 +112,59 @@ describe('formatReport', () => {
 
   it('ファイルが開かれていなくても組める', () => {
     expect(() => formatReport({ ...ctx, fileName: null }, [])).not.toThrow();
+  });
+});
+
+describe('SpanCollector', () => {
+  it('編集の外で足しても捨てられる', () => {
+    const c = new SpanCollector();
+    c.add('serialize', 3);
+    c.start();
+    expect(c.endSync()).toEqual({});
+  });
+
+  it('同じ区間が複数回走ったら足し合わせる', () => {
+    const c = new SpanCollector();
+    c.start();
+    c.add('dirty', 1.5);
+    c.add('dirty', 2.5);
+    expect(c.endSync()).toEqual({ dirty: 4 });
+  });
+
+  it('同期処理を終えたあとに測った区間も同じ 1 件へ入る', () => {
+    // 差分判定は描画の最中に読まれる。ここで捨てると、測ると言った区間が表から消える。
+    const c = new SpanCollector();
+    c.start();
+    c.add('serialize', 4);
+    const pending = c.endSync();
+    c.add('dirty', 0.3);
+    expect(pending).toEqual({ serialize: 4, dirty: 0.3 });
+  });
+
+  it('締めたあとに測ったぶんは入らない', () => {
+    const c = new SpanCollector();
+    c.start();
+    const pending = c.endSync();
+    c.close();
+    c.add('dirty', 0.3);
+    expect(pending).toEqual({});
+  });
+
+  it('次の編集が始まっていたら、締めても新しい方は閉じない', () => {
+    // 描画待ちの間に次の編集が入りうる。取り違えると次の編集の記録が丸ごと消える。
+    const c = new SpanCollector();
+    c.start();
+    const first = c.endSync();
+    c.start();
+    c.add('serialize', 7);
+    c.close(); // 1 件目を締めるつもりの呼び出し
+    c.add('history', 1);
+    expect(first).toEqual({});
+    expect(c.endSync()).toEqual({ serialize: 7, history: 1 });
+  });
+
+  it('始めていなければ締めるものが無い', () => {
+    const c = new SpanCollector();
+    expect(c.endSync()).toBeNull();
   });
 });
