@@ -108,6 +108,7 @@ describe('createServer / MCP 配線', () => {
       'append_tsv_row',
       'create_document',
       'data_to_table',
+      'filter_records',
       'get_schema',
       'list_schemas',
       'read_data',

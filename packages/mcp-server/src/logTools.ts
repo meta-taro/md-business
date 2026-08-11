@@ -10,7 +10,8 @@
  * 3. **返す直前に必ず伏せ字をかける**。この層を通らない戻り値を作らない
  */
 import { safeRelativePath } from './workspacePath.js';
-import { maskSecrets, type SecretKind } from './maskSecrets.js';
+import { maskSecrets } from './maskSecrets.js';
+import { addCounts, clamp, type MaskCounts } from './toolLimits.js';
 import type { DocumentStore } from './store.js';
 import type { ToolError } from './tools.js';
 
@@ -31,21 +32,6 @@ const MAX_LINE_LENGTH_CEILING = 20000;
  * 「探す範囲」であって「隠す範囲」ではない。
  */
 const MATCH_WINDOW = 100_000;
-
-/** 伏せた件数の合計（種別ごと）。 */
-type MaskCounts = Partial<Record<SecretKind, number>>;
-
-function addCounts(into: MaskCounts, from: MaskCounts): void {
-  for (const [kind, count] of Object.entries(from)) {
-    const key = kind as SecretKind;
-    into[key] = (into[key] ?? 0) + count;
-  }
-}
-
-function clamp(value: number | undefined, fallback: number, min: number, max: number): number {
-  if (value === undefined || !Number.isFinite(value)) return fallback;
-  return Math.min(Math.max(Math.trunc(value), min), max);
-}
 
 export interface SearchLinesInput {
   /** ワークスペース相対パス。 */

@@ -22,6 +22,7 @@ import { readTsv, appendTsvRow, updateTsvRow } from './tsvTools.js';
 import { readData, type ReadDataOptions } from './dataTools.js';
 import { dataToTable, type DataToTableOptions } from './dataToTable.js';
 import { searchLines, readLines, type SearchLinesInput, type ReadLinesInput } from './logTools.js';
+import { filterRecords, type FilterRecordsInput, type ConditionOp } from './records.js';
 import { searchDocuments } from './search.js';
 import type { SearchQuery } from './search.js';
 import { gitStatus, gitDiff, gitCommit } from './gitTools.js';
@@ -76,7 +77,8 @@ export const SERVER_INSTRUCTIONS = `md-business は Markdown / TSV の業務文�
   明細のような繰り返しを表として引用するなら **data_to_table** を使う。木から自前で
   表を組むと列の抜けや \`|\` による桁ずれが起きるが、壊れた表は読める形をしているので気づけない。
 - ログ（\`.log\` / \`.jsonl\` など）は業務文書ではないが、**全文を読み込まない**。
-  **search_lines** で当たりを付け、**read_lines** で周辺だけ読む。全文を開くと調べる前に
+  **search_lines** で当たりを付け、**read_lines** で周辺だけ読む。1 行 1 レコードの形
+  （JSONL / TSV）なら **filter_records** で条件を付けて絞る。全文を開くと調べる前に
   文脈が埋まるうえ、Authorization / Cookie / token / メールアドレスが伏せ字を通らずに入る。
   これらのツールの戻り値は必ず伏せ字がかかり、上限で切ったときは切ったと返る。
 - 変更を確認して記録するのは **git_status** / **git_diff** / **git_commit**（利用可能な場合）。
@@ -421,6 +423,87 @@ export function createServer(store: DocumentStore, options: CreateServerOptions 
       if (maxLineLength !== undefined) input.maxLineLength = maxLineLength;
       const r = await readLines(store, input);
       emit('read_lines', path, r);
+      return jsonResult(r, !r.ok);
+    },
+  );
+
+  // 条件は列挙した演算子の組み合わせだけで書かせる。式を文字列で受け取って評価する作りは、
+  // ツールの権限がそのまま任意コード実行になるので用意しない。
+  server.registerTool(
+    'filter_records',
+    {
+      description:
+        '1 行 1 レコードのログ（JSONL / TSV）を条件で絞り、行番号つきで返す。条件は field と演算子の組み合わせで指定する（式は受け付けない）。絞り込みは元の値に当たるので伏せ字対象の値でも探せるが、**返る値には必ず伏せ字がかかる**。読めない行は skipped に数えて読み進め、上限に達したら truncated: true で返る。形式は拡張子（.jsonl / .ndjson / .tsv）から判り、判らなければ format を指定する（推測はしない）。',
+      inputSchema: {
+        path: z.string().describe('ワークスペース相対パス（例 logs/app.jsonl）'),
+        format: z
+          .enum(['jsonl', 'tsv'])
+          .optional()
+          .describe('形式。省略時は拡張子から判別し、判別できなければエラーにする'),
+        where: z
+          .array(
+            z.object({
+              field: z.string().describe('項目名。入れ子は `.` で辿る（例 user.id）'),
+              op: z
+                .enum([
+                  'eq',
+                  'ne',
+                  'contains',
+                  'startsWith',
+                  'endsWith',
+                  'gt',
+                  'gte',
+                  'lt',
+                  'lte',
+                  'exists',
+                  'missing',
+                  'matches',
+                ])
+                .describe('演算子。matches は JavaScript の正規表現'),
+              value: z
+                .string()
+                .optional()
+                .describe('比べる値。exists / missing 以外では必須。数どうしなら数として比べる'),
+            }),
+          )
+          .optional()
+          .describe('条件。省略すると全件'),
+        match: z.enum(['all', 'any']).optional().describe('条件の結び方。省略時は all'),
+        fields: z
+          .array(z.string())
+          .optional()
+          .describe('返す項目（`.` 区切り）。省略するとレコード全体'),
+        maxRecords: z
+          .number()
+          .int()
+          .optional()
+          .describe('返すレコード数の上限。省略時は 200・上限 2000'),
+        maxValueLength: z
+          .number()
+          .int()
+          .optional()
+          .describe('文字列 1 つあたりの文字数上限。省略時は 2000・上限 20000'),
+      },
+    },
+    async ({ path, format, where, match, fields, maxRecords, maxValueLength }) => {
+      const input: FilterRecordsInput = { path };
+      if (format !== undefined) input.format = format;
+      if (where !== undefined) {
+        input.where = where.map((condition) => {
+          const out: { field: string; op: ConditionOp; value?: string } = {
+            field: condition.field,
+            op: condition.op,
+          };
+          if (condition.value !== undefined) out.value = condition.value;
+          return out;
+        });
+      }
+      if (match !== undefined) input.match = match;
+      if (fields !== undefined) input.fields = fields;
+      if (maxRecords !== undefined) input.maxRecords = maxRecords;
+      if (maxValueLength !== undefined) input.maxValueLength = maxValueLength;
+      const r = await filterRecords(store, input);
+      emit('filter_records', path, r);
       return jsonResult(r, !r.ok);
     },
   );

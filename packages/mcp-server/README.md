@@ -20,6 +20,9 @@ md-business の **MCP（Model Context Protocol）サーバー**。Claude Desktop
 | `update_tsv_row` | 検証シートの既存 1 行のうち、指定した列だけを差し替える |
 | `read_data` | 外部から届いた JSON / XML を木構造として読む（読むだけ）。`at` で節を指し、`depth` で世代数を絞れる |
 | `data_to_table` | JSON / XML の繰り返し（配列・同名要素の並び）を Markdown の表に写す。出典行つきの文字列を返すだけで、ファイルには書かない |
+| `search_lines` | ログなどを正規表現で行検索し、一致行を行番号つきで返す（前後の行も取れる）。全文は読み込まない |
+| `read_lines` | 行範囲（1 始まり・両端含む）を行番号つきで返す。`search_lines` で見つけた箇所の周辺を読む |
+| `filter_records` | 1 行 1 レコードのログ（JSONL / TSV）を条件で絞る。条件は演算子の組み合わせで指定し、式は受け付けない |
 | `git_status` | ワークスペースの変更状況（ブランチ・upstream との差・変更ファイル一覧）を返す |
 | `git_diff` | HEAD と作業ツリーの差分を unified diff で返す。パス指定で 1 ファイルに絞れる |
 | `git_commit` | 変更をステージしてコミットする（push はしない）。コミットハッシュと最新の変更状況を返す |
@@ -48,6 +51,18 @@ JSON / XML は正本ではないので `read_data` は読む口だけを出す�
 （さらに子を持つ項目）/ `multiValuedColumns`（1 行に複数現れ先頭だけ載せた項目）/ `truncated`
 （上限で載せなかった行数）で返す。木から自前で表を組むと列の抜けや桁ずれが起きるが、
 壊れた表は読める形をしているので気づかれない。
+
+ログは業務文書ではないので、文書ツールとは別の口（`search_lines` / `read_lines` / `filter_records`）で扱う。
+共通の約束が 3 つある。**戻り値には必ず伏せ字がかかる**（Authorization / Cookie / token / api_key /
+password / メールアドレス / カード番号らしき数字列。外す指定は用意しない。生の値が要るなら人がファイルを
+開く）。**上限で切ったら切ったと返す**（`truncated`）。**全文はメモリに載せない**（1 行ずつ流す）。
+
+`filter_records` の条件は `field` と演算子（`eq` / `ne` / `contains` / `startsWith` / `endsWith` /
+`gt` / `gte` / `lt` / `lte` / `exists` / `missing` / `matches`）の組み合わせで書く。**式は受け付けない**
+（文字列を評価する作りにすると、ツールの権限がそのまま任意コード実行になる）。絞り込みは伏せ字の**前**の
+値に当たるので、メールアドレスのような伏せ字対象の値でも探せる。両辺が数として読めるときだけ数として比べ、
+それ以外は文字列として比べる。読めなかった行は落とさず `skipped` に数える。形式は拡張子
+（`.jsonl` / `.ndjson` / `.tsv`）から決め、判らなければ推測せず `format` の指定を求める。
 
 git 系ツールはワークスペースが git 管理されているときだけ意味を持つ（管理外なら理由付きで失敗する）。
 未追跡ファイルは HEAD との差分が出ないため、`git_diff` は `untracked: true` を返す（中身は `read_document` で読む）。
