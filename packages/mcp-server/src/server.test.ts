@@ -105,6 +105,7 @@ describe('createServer / MCP 配線', () => {
     const client = await connect(new MemoryDocumentStore());
     const { tools } = await client.listTools();
     expect(tools.map((t) => t.name).sort()).toEqual([
+      'aggregate',
       'append_tsv_row',
       'create_document',
       'data_to_table',

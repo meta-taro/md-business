@@ -22,7 +22,8 @@ import { readTsv, appendTsvRow, updateTsvRow } from './tsvTools.js';
 import { readData, type ReadDataOptions } from './dataTools.js';
 import { dataToTable, type DataToTableOptions } from './dataToTable.js';
 import { searchLines, readLines, type SearchLinesInput, type ReadLinesInput } from './logTools.js';
-import { filterRecords, type FilterRecordsInput, type ConditionOp } from './records.js';
+import { filterRecords, type FilterRecordsInput, type Condition } from './records.js';
+import { aggregate, type AggregateInput } from './aggregate.js';
 import { searchDocuments } from './search.js';
 import type { SearchQuery } from './search.js';
 import { gitStatus, gitDiff, gitCommit } from './gitTools.js';
@@ -78,8 +79,9 @@ export const SERVER_INSTRUCTIONS = `md-business は Markdown / TSV の業務文�
   表を組むと列の抜けや \`|\` による桁ずれが起きるが、壊れた表は読める形をしているので気づけない。
 - ログ（\`.log\` / \`.jsonl\` など）は業務文書ではないが、**全文を読み込まない**。
   **search_lines** で当たりを付け、**read_lines** で周辺だけ読む。1 行 1 レコードの形
-  （JSONL / TSV）なら **filter_records** で条件を付けて絞る。全文を開くと調べる前に
-  文脈が埋まるうえ、Authorization / Cookie / token / メールアドレスが伏せ字を通らずに入る。
+  （JSONL / TSV）なら **filter_records** で条件を付けて絞り、**aggregate** で
+  「いつ・何が・何件」を先に掴む。全文を開くと調べる前に文脈が埋まるうえ、
+  Authorization / Cookie / token / メールアドレスが伏せ字を通らずに入る。
   これらのツールの戻り値は必ず伏せ字がかかり、上限で切ったときは切ったと返る。
 - 変更を確認して記録するのは **git_status** / **git_diff** / **git_commit**（利用可能な場合）。
 
@@ -116,6 +118,41 @@ function jsonResult(payload: unknown, isError = false) {
 
 /** 業務文書の任意 frontmatter（キー文字列・値は任意）。 */
 const frontmatterShape = z.record(z.string(), z.unknown());
+
+/** 条件の演算子（filter_records / aggregate 共通）。式は受け付けない。 */
+const conditionOps = [
+  'eq',
+  'ne',
+  'contains',
+  'startsWith',
+  'endsWith',
+  'gt',
+  'gte',
+  'lt',
+  'lte',
+  'exists',
+  'missing',
+  'matches',
+] as const;
+
+/** 条件 1 つの受け口。 */
+const conditionShape = z.object({
+  field: z.string().describe('項目名。入れ子は `.` で辿る（例 user.id）'),
+  op: z.enum(conditionOps).describe('演算子。matches は JavaScript の正規表現'),
+  value: z
+    .string()
+    .optional()
+    .describe('比べる値。exists / missing 以外では必須。数どうしなら数として比べる'),
+});
+
+/** 受け取った条件を、value 未指定を落とした形へ直す（exactOptionalPropertyTypes 対応）。 */
+function toConditions(where: z.infer<typeof conditionShape>[]): Condition[] {
+  return where.map((condition) => {
+    const out: Condition = { field: condition.field, op: condition.op };
+    if (condition.value !== undefined) out.value = condition.value;
+    return out;
+  });
+}
 
 /**
  * ツール一式を登録した McpServer を組み立てて返す。connect は呼び出し側の責務
@@ -440,34 +477,7 @@ export function createServer(store: DocumentStore, options: CreateServerOptions 
           .enum(['jsonl', 'tsv'])
           .optional()
           .describe('形式。省略時は拡張子から判別し、判別できなければエラーにする'),
-        where: z
-          .array(
-            z.object({
-              field: z.string().describe('項目名。入れ子は `.` で辿る（例 user.id）'),
-              op: z
-                .enum([
-                  'eq',
-                  'ne',
-                  'contains',
-                  'startsWith',
-                  'endsWith',
-                  'gt',
-                  'gte',
-                  'lt',
-                  'lte',
-                  'exists',
-                  'missing',
-                  'matches',
-                ])
-                .describe('演算子。matches は JavaScript の正規表現'),
-              value: z
-                .string()
-                .optional()
-                .describe('比べる値。exists / missing 以外では必須。数どうしなら数として比べる'),
-            }),
-          )
-          .optional()
-          .describe('条件。省略すると全件'),
+        where: z.array(conditionShape).optional().describe('条件。省略すると全件'),
         match: z.enum(['all', 'any']).optional().describe('条件の結び方。省略時は all'),
         fields: z
           .array(z.string())
@@ -488,22 +498,64 @@ export function createServer(store: DocumentStore, options: CreateServerOptions 
     async ({ path, format, where, match, fields, maxRecords, maxValueLength }) => {
       const input: FilterRecordsInput = { path };
       if (format !== undefined) input.format = format;
-      if (where !== undefined) {
-        input.where = where.map((condition) => {
-          const out: { field: string; op: ConditionOp; value?: string } = {
-            field: condition.field,
-            op: condition.op,
-          };
-          if (condition.value !== undefined) out.value = condition.value;
-          return out;
-        });
-      }
+      if (where !== undefined) input.where = toConditions(where);
       if (match !== undefined) input.match = match;
       if (fields !== undefined) input.fields = fields;
       if (maxRecords !== undefined) input.maxRecords = maxRecords;
       if (maxValueLength !== undefined) input.maxValueLength = maxValueLength;
       const r = await filterRecords(store, input);
       emit('filter_records', path, r);
+      return jsonResult(r, !r.ok);
+    },
+  );
+
+  server.registerTool(
+    'aggregate',
+    {
+      description:
+        '1 行 1 レコードのログ（JSONL / TSV）を、キー別・時間帯別に数える。件数だけを返すので、全文を読まずに「いつ・何が・何件」を掴める。時刻は読めた形式（ISO 8601 など）だけを読み、読めなかった分は捨てずに「時刻不明」として数える。数値の時刻は epoch を指定したときだけ読む（桁数から推測しない）。キーの値には返す直前に伏せ字がかかる。',
+      inputSchema: {
+        path: z.string().describe('ワークスペース相対パス（例 logs/app.jsonl）'),
+        format: z
+          .enum(['jsonl', 'tsv'])
+          .optional()
+          .describe('形式。省略時は拡張子から判別し、判別できなければエラーにする'),
+        where: z.array(conditionShape).optional().describe('数える前に絞る条件。省略すると全件'),
+        match: z.enum(['all', 'any']).optional().describe('条件の結び方。省略時は all'),
+        groupBy: z
+          .array(z.string())
+          .optional()
+          .describe('キーにする項目（`.` 区切り）。省略すると全体で 1 件に数える'),
+        timeField: z.string().optional().describe('時間帯のキーにする項目（例 ts）'),
+        bucket: z
+          .enum(['day', 'hour', 'minute', 'second'])
+          .optional()
+          .describe('時間帯の単位。省略時は hour。timeField と一緒に指定する'),
+        epoch: z
+          .enum(['seconds', 'milliseconds'])
+          .optional()
+          .describe('数値の時刻の単位。指定しない限り数値は時刻として読まない'),
+        maxGroups: z
+          .number()
+          .int()
+          .optional()
+          .describe('返すキーの数の上限。省略時は 50・上限 1000'),
+        sort: z.enum(['count', 'key']).optional().describe('並べ方。省略時は count（多い順）'),
+      },
+    },
+    async ({ path, format, where, match, groupBy, timeField, bucket, epoch, maxGroups, sort }) => {
+      const input: AggregateInput = { path };
+      if (format !== undefined) input.format = format;
+      if (where !== undefined) input.where = toConditions(where);
+      if (match !== undefined) input.match = match;
+      if (groupBy !== undefined) input.groupBy = groupBy;
+      if (timeField !== undefined) input.timeField = timeField;
+      if (bucket !== undefined) input.bucket = bucket;
+      if (epoch !== undefined) input.epoch = epoch;
+      if (maxGroups !== undefined) input.maxGroups = maxGroups;
+      if (sort !== undefined) input.sort = sort;
+      const r = await aggregate(store, input);
+      emit('aggregate', path, r);
       return jsonResult(r, !r.ok);
     },
   );
