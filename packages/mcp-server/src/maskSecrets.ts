@@ -112,6 +112,82 @@ function passesLuhn(digits: string): boolean {
   return sum % 10 === 0;
 }
 
+/** 名前から種別を決める。秘密の名前でなければ undefined。 */
+function classifyName(name: string): SecretKind | undefined {
+  const lower = name.trim().toLowerCase();
+  if (/^(?:proxy-)?authorization$/.test(lower)) return 'authorization';
+  if (/^(?:set-)?cookie$/.test(lower)) return 'cookie';
+  if (!new RegExp(`^${SECRET_KEY}$`, 'i').test(lower)) return undefined;
+  if (/api[_-]?key/.test(lower)) return 'apiKey';
+  if (/password|passwd|pwd/.test(lower)) return 'password';
+  return 'token';
+}
+
+export interface MaskRecordResult {
+  /** 伏せ字をかけた値（入力とは別の値。入力は書き換えない）。 */
+  value: unknown;
+  counts: Partial<Record<SecretKind, number>>;
+}
+
+/**
+ * 入れ子の深さの上限。壊れた入力や循環に近い構造で止まらないための頭打ち。
+ * 実データでこの深さに達することは無いので、超えた分は文字列化して行の規則だけをかける。
+ */
+const MAX_DEPTH = 32;
+
+/**
+ * 解析済みの値（JSON など）を構造として歩き、秘密を伏せ字にする。
+ *
+ * 行単位の `maskSecrets` は「名前がキーの位置にあり、後ろに `:` か `=` が続く」形しか
+ * 拾えない。調査で扱うデータには**名前が値の位置にいる**形が普通に出てくるため
+ *（HAR のヘッダ配列 `{"name":"Authorization","value":"..."}` が代表例。行として読むと
+ * 名前の後ろは `,` なので規則が 1 つも発火しない）、構造を歩く側でも塞ぐ。
+ * どちらか一方ではなく**両方**を通す。
+ */
+export function maskRecord(value: unknown): MaskRecordResult {
+  const counts: Partial<Record<SecretKind, number>> = {};
+
+  const addFrom = (from: Partial<Record<SecretKind, number>>): void => {
+    for (const [kind, count] of Object.entries(from)) {
+      const key = kind as SecretKind;
+      counts[key] = (counts[key] ?? 0) + count;
+    }
+  };
+
+  const walk = (node: unknown, depth: number): unknown => {
+    if (typeof node === 'string') {
+      const masked = maskSecrets(node);
+      addFrom(masked.counts);
+      return masked.text;
+    }
+    if (node === null || typeof node !== 'object') return node;
+    if (depth >= MAX_DEPTH) return walk(JSON.stringify(node) ?? '', MAX_DEPTH);
+    if (Array.isArray(node)) return node.map((item) => walk(item, depth + 1));
+
+    const entries = Object.entries(node as Record<string, unknown>);
+    // 名前が値の位置にいる組（`{name, value}`）。HAR のヘッダ・クエリ・Cookie 配列がこの形。
+    const nameField = (node as Record<string, unknown>)['name'];
+    const pairKind =
+      typeof nameField === 'string' && 'value' in (node as Record<string, unknown>)
+        ? classifyName(nameField)
+        : undefined;
+
+    const out: Record<string, unknown> = {};
+    for (const [key, child] of entries) {
+      const kind = key === 'value' && pairKind !== undefined ? pairKind : classifyName(key);
+      if (kind !== undefined && typeof child === 'string') {
+        counts[kind] = (counts[kind] ?? 0) + 1;
+        out[key] = MASK;
+        continue;
+      }
+      out[key] = walk(child, depth + 1);
+    }
+    return out;
+  };
+
+  return { value: walk(value, 0), counts };
+}
+
 /**
  * 秘密らしき値を伏せ字にする。行数は変えない（抽出結果は行番号で参照するため）。
  */

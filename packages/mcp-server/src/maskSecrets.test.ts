@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { maskSecrets } from './maskSecrets.js';
+import { maskSecrets, maskRecord } from './maskSecrets.js';
 
 /**
  * ログ・通信の抽出結果はそのままモデルへ渡る。ここで確かめるのは
@@ -102,5 +102,67 @@ describe('maskSecrets', () => {
   it('同じ種別が複数あれば件数を数える', () => {
     const r = maskSecrets('a@example.com と b@example.com');
     expect(r.counts.email).toBe(2);
+  });
+});
+
+/**
+ * 行単位の規則は「名前がキーの位置にいて、その後ろに `:` か `=` が続く」形しか当たらない。
+ * ところが調査で扱うデータには、名前が**値の位置**にいる形が普通に出てくる
+ *（HAR のヘッダ配列 `{"name":"Authorization","value":"Bearer ..."}` が代表例）。
+ * この形は行として読むと `"name":"Authorization",` で、名前の後ろは `,` なので規則が
+ * 1 つも発火しない。構造として歩く側で塞ぐ。
+ */
+describe('maskRecord', () => {
+  it('秘密の名前を持つキーの値を残さない', () => {
+    const r = maskRecord({ authorization: 'Bearer eyJhbGciOi.abc', status: 200 });
+    expect(JSON.stringify(r.value)).not.toContain('eyJhbGciOi');
+    expect(JSON.stringify(r.value)).toContain('200');
+    expect(r.counts.authorization).toBe(1);
+  });
+
+  it('名前が値の位置にいる組（name / value）でも伏せる', () => {
+    const r = maskRecord({ name: 'Authorization', value: 'Bearer eyJhbGciOi.abc' });
+    expect(JSON.stringify(r.value)).not.toContain('eyJhbGciOi');
+    expect((r.value as { name: string }).name).toBe('Authorization');
+    expect(r.counts.authorization).toBe(1);
+  });
+
+  it('入れ子の配列の中まで歩く', () => {
+    const r = maskRecord({
+      request: { headers: [{ name: 'Cookie', value: 'sid=abc123' }] },
+    });
+    expect(JSON.stringify(r.value)).not.toContain('abc123');
+    expect(r.counts.cookie).toBe(1);
+  });
+
+  it('キーの名前で分かるものは種別を分ける', () => {
+    const r = maskRecord({ api_key: 'ak_1', password: 'p@ss', access_token: 'tk_1' });
+    expect(r.counts.apiKey).toBe(1);
+    expect(r.counts.password).toBe(1);
+    expect(r.counts.token).toBe(1);
+  });
+
+  it('秘密でないキーの文字列にも行の規則をかける（メール・カード番号）', () => {
+    const r = maskRecord({ note: 'contact taro@example.com' });
+    expect(JSON.stringify(r.value)).not.toContain('taro@example.com');
+    expect(r.counts.email).toBe(1);
+  });
+
+  it('数値・真偽値・null は形を変えない', () => {
+    const r = maskRecord({ status: 500, ok: false, next: null });
+    expect(r.value).toEqual({ status: 500, ok: false, next: null });
+    expect(Object.keys(r.counts)).toHaveLength(0);
+  });
+
+  it('元の値を書き換えない（呼び出し側が生データを持ち続けられるように）', () => {
+    const src = { token: 'tk_abc' };
+    maskRecord(src);
+    expect(src.token).toBe('tk_abc');
+  });
+
+  it('深すぎる入れ子は打ち切る（壊れた入力で止まらないため）', () => {
+    let deep: unknown = 'taro@example.com';
+    for (let i = 0; i < 200; i += 1) deep = { nest: deep };
+    expect(() => maskRecord(deep)).not.toThrow();
   });
 });
