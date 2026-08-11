@@ -9,6 +9,7 @@ import {
   groupAlign,
   alignStyle,
 } from './gridColumnAlign';
+import { messages } from '../i18n/messages';
 
 /**
  * 検証グリッドの列寄せ（右クリックで左／中央／右を選べるようにする）。
@@ -68,9 +69,11 @@ describe('colAlignMenuItems', () => {
     expect(items.filter((i) => i.checked).map((i) => i.align)).toEqual(['center']);
   });
 
-  it('ラベルは空でない日本語（メニュー表示用）', () => {
+  // 文言キーを持たせただけでは、綴りを間違えてもメニューが出るまで気づけない
+  // （辞書に無いキーはキー文字列そのものが表示される）。辞書側に実在することまで見る。
+  it('どの寄せの文言キーも辞書にある', () => {
     for (const item of colAlignMenuItems('left')) {
-      expect(item.label.length).toBeGreaterThan(0);
+      expect(messages.ja[item.labelKey], item.align).toBeTruthy();
     }
   });
 });

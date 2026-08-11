@@ -288,6 +288,63 @@ export interface Messages {
   'update.readyDesc': string;
   'update.relaunch': string;
   'update.errorTitle': string;
+  // 検証シート編集グリッド（表本体・行操作バー・列の右クリックメニュー）
+  'grid.regionLabel': string;
+  'grid.emptyColumns': string;
+  'grid.rowNumber': string;
+  'grid.required': string;
+  'grid.defaultGroupLabel': string;
+  'grid.computedCell': string;
+  'grid.jumpNoColumn': string;
+  'grid.jumpNoRow': string;
+  'grid.jumpMultiple': string;
+  'grid.pasteDroppedComputed': string;
+  'grid.rowLabel': string;
+  'grid.modeEditing': string;
+  'grid.modeSelecting': string;
+  'grid.selectionSize': string;
+  'grid.noteEdit': string;
+  'grid.noteDelete': string;
+  'grid.notePlaceholder': string;
+  'grid.groupRename': string;
+  'grid.groupDelete': string;
+  'grid.colResizeLabel': string;
+  'grid.colResizeTitle': string;
+  'grid.rowResizeLabel': string;
+  'grid.rowResizeTitle': string;
+  'grid.addRow': string;
+  'grid.addRowTitle': string;
+  'grid.duplicateRow': string;
+  'grid.duplicateRowTitle': string;
+  'grid.copyRow': string;
+  'grid.copyRowTitle': string;
+  'grid.clearRow': string;
+  'grid.clearRowTitle': string;
+  'grid.fillDown': string;
+  'grid.fillDownTitle': string;
+  'grid.deleteRow': string;
+  'grid.deleteRowTitle': string;
+  'grid.hideRow': string;
+  'grid.hideRowTitle': string;
+  'grid.unhideRow': string;
+  'grid.unhideRowTitle': string;
+  'grid.addNote': string;
+  'grid.addNoteTitle': string;
+  'grid.addGroup': string;
+  'grid.addGroupTitle': string;
+  'grid.revealShow': string;
+  'grid.revealShowTitle': string;
+  'grid.revealHide': string;
+  'grid.revealHideTitle': string;
+  'grid.menuClose': string;
+  'grid.colMenuText': string;
+  'grid.colMenuAlign': string;
+  'grid.colModeClip': string;
+  'grid.colModeWrap': string;
+  'grid.colModeOverflow': string;
+  'grid.colAlignLeft': string;
+  'grid.colAlignCenter': string;
+  'grid.colAlignRight': string;
 }
 
 /** 翻訳キー型（t() の引数に使う）。 */
@@ -566,6 +623,64 @@ const en: Messages = {
   'update.readyDesc': 'Restart the app to apply v{version}.',
   'update.relaunch': 'Restart now',
   'update.errorTitle': 'Could not update',
+  'grid.regionLabel': 'Test sheet editing grid',
+  'grid.emptyColumns': 'No columns are defined (open a TSV that has a header row)',
+  'grid.rowNumber': 'Row number',
+  'grid.required': 'Required',
+  'grid.defaultGroupLabel': 'Group',
+  'grid.computedCell': 'Computed column (the value is filled in for you)',
+  'grid.jumpNoColumn': 'There is no column named “{column}”',
+  'grid.jumpNoRow': 'No row has {column} set to “{value}”',
+  'grid.jumpMultiple': '{count} rows match. Moved to the first one',
+  'grid.pasteDroppedComputed': '{count} cells in computed columns were not pasted',
+  'grid.rowLabel': 'Row {row}',
+  'grid.modeEditing': 'Editing',
+  'grid.modeSelecting': 'Selecting',
+  'grid.selectionSize': '{rows}×{cols} selected',
+  'grid.noteEdit': 'Click to edit this note',
+  'grid.noteDelete': 'Delete this note',
+  'grid.notePlaceholder': 'Type a note… (Enter to confirm, Esc to cancel)',
+  'grid.groupRename': 'Click to rename this group',
+  'grid.groupDelete': 'Delete this group',
+  'grid.colResizeLabel': 'Change the width of the {name} column',
+  'grid.colResizeTitle': 'Drag to resize / double-click to fit the contents',
+  'grid.rowResizeLabel': 'Change the height of row {row}',
+  'grid.rowResizeTitle': 'Drag to resize / double-click to restore the default',
+  'grid.addRow': '＋ Add a row at the end',
+  'grid.addRowTitle': 'Add one empty row at the bottom of the sheet',
+  'grid.duplicateRow': 'Duplicate below',
+  'grid.duplicateRowTitle': 'Add a row with the same contents directly below the selected row',
+  'grid.copyRow': 'Copy row',
+  'grid.copyRowTitle': 'Copy the selected row to the clipboard',
+  'grid.clearRow': 'Clear row',
+  'grid.clearRowTitle': 'Erase only the contents of the selected row (the row stays)',
+  'grid.fillDown': 'Fill down',
+  'grid.fillDownTitle':
+    'Copy the first row of the selection into the rows below (Ctrl+D). For a single cell, take the value directly above',
+  'grid.deleteRow': 'Delete row',
+  'grid.deleteRowTitle':
+    'Remove the selected row from the sheet (cannot be undone; keep it aside if unsure)',
+  'grid.hideRow': 'Keep row aside',
+  'grid.hideRowTitle': 'Take the row out of the sheet while keeping it in the file',
+  'grid.unhideRow': 'Bring row back',
+  'grid.unhideRowTitle': 'Stop keeping it aside and make it a normal row again',
+  'grid.addNote': '＋ Note row',
+  'grid.addNoteTitle': 'Add one note line above the sheet',
+  'grid.addGroup': '＋ Group',
+  'grid.addGroupTitle': 'Create a group heading over the selected columns',
+  'grid.revealShow': 'Show {count} rows kept aside',
+  'grid.revealShowTitle': 'Show the rows kept aside so you can check what is in them',
+  'grid.revealHide': 'Hide {count} rows kept aside',
+  'grid.revealHideTitle': 'Take the rows kept aside back out of the sheet',
+  'grid.menuClose': 'Close the menu',
+  'grid.colMenuText': 'Text display for the {name} column',
+  'grid.colMenuAlign': 'Alignment',
+  'grid.colModeClip': 'Cut off (ellipsis)',
+  'grid.colModeWrap': 'Wrap',
+  'grid.colModeOverflow': 'Spill over',
+  'grid.colAlignLeft': 'Left',
+  'grid.colAlignCenter': 'Center',
+  'grid.colAlignRight': 'Right',
 };
 
 const ja: Messages = {
@@ -840,6 +955,62 @@ const ja: Messages = {
   'update.readyDesc': 'v{version} を適用するにはアプリを再起動してください。',
   'update.relaunch': '再起動して完了',
   'update.errorTitle': '更新できませんでした',
+  'grid.regionLabel': '検証シート編集グリッド',
+  'grid.emptyColumns': '列定義がありません（ヘッダ行のある TSV を開いてください）',
+  'grid.rowNumber': '行番号',
+  'grid.required': '必須',
+  'grid.defaultGroupLabel': 'グループ',
+  'grid.computedCell': '計算列（値は自動で決まる）',
+  'grid.jumpNoColumn': '「{column}」という列がありません',
+  'grid.jumpNoRow': '{column} が「{value}」の行はありません',
+  'grid.jumpMultiple': '{count} 行あります。最初の行へ移動しました',
+  'grid.pasteDroppedComputed': '計算列の {count} セルは貼り付けていません',
+  'grid.rowLabel': '{row} 行目',
+  'grid.modeEditing': '編集中',
+  'grid.modeSelecting': '選択中',
+  'grid.selectionSize': '{rows}×{cols} 選択',
+  'grid.noteEdit': 'クリックで補足を編集',
+  'grid.noteDelete': 'この補足を削除',
+  'grid.notePlaceholder': '補足を入力…（Enter で確定・Esc で取消）',
+  'grid.groupRename': 'クリックで大分類を改名',
+  'grid.groupDelete': 'この大分類を削除',
+  'grid.colResizeLabel': '{name} 列の幅を変更',
+  'grid.colResizeTitle': 'ドラッグで幅変更／ダブルクリックで自動幅',
+  'grid.rowResizeLabel': '{row} 行目の高さを変更',
+  'grid.rowResizeTitle': 'ドラッグで高さ変更／ダブルクリックで既定に戻す',
+  'grid.addRow': '＋ 末尾に行を追加',
+  'grid.addRowTitle': '表の一番下に空の行を 1 本足す',
+  'grid.duplicateRow': '選択行の下に複製',
+  'grid.duplicateRowTitle': '選択行と同じ内容の行を、そのすぐ下に足す',
+  'grid.copyRow': '選択行をコピー',
+  'grid.copyRowTitle': '選択行をクリップボードへ写す',
+  'grid.clearRow': '選択行をクリア',
+  'grid.clearRowTitle': '選択行の中身だけを消す（行は残る）',
+  'grid.fillDown': '下へ埋める',
+  'grid.fillDownTitle': '選択範囲の先頭行の値を下の行へ配る（Ctrl+D）。単一セルなら直上の値を引く',
+  'grid.deleteRow': '選択行を削除',
+  'grid.deleteRowTitle': '選択行を表から取り除く（戻せない。迷うなら控えに）',
+  'grid.hideRow': '選択行を控えに',
+  'grid.hideRowTitle': '行をファイルに残したまま表から外す',
+  'grid.unhideRow': '控えから戻す',
+  'grid.unhideRowTitle': '控えをやめて通常の行に戻す',
+  'grid.addNote': '＋ 補足行',
+  'grid.addNoteTitle': '表の上に置く補足の 1 行を足す',
+  'grid.addGroup': '＋ グループ',
+  'grid.addGroupTitle': '選択中の列に大分類（グループ見出し）を作成',
+  'grid.revealShow': '控え {count} 行を表示',
+  'grid.revealShowTitle': '控え行を表に出して中身を確かめる',
+  'grid.revealHide': '控え {count} 行を隠す',
+  'grid.revealHideTitle': '控え行を表から外す',
+  'grid.menuClose': 'メニューを閉じる',
+  'grid.colMenuText': '{name} 列のテキスト表示',
+  'grid.colMenuAlign': '寄せ',
+  'grid.colModeClip': '見切れる（省略）',
+  'grid.colModeWrap': '折り返す',
+  'grid.colModeOverflow': '突き抜ける',
+  'grid.colAlignLeft': '左寄せ',
+  'grid.colAlignCenter': '中央寄せ',
+  'grid.colAlignRight': '右寄せ',
 };
 
 const zh: Messages = {
@@ -1111,6 +1282,62 @@ const zh: Messages = {
   'update.readyDesc': '重新启动应用即可应用 v{version}。',
   'update.relaunch': '重新启动',
   'update.errorTitle': '无法更新',
+  'grid.regionLabel': '验证表编辑网格',
+  'grid.emptyColumns': '没有列定义（请打开带表头行的 TSV）',
+  'grid.rowNumber': '行号',
+  'grid.required': '必填',
+  'grid.defaultGroupLabel': '分组',
+  'grid.computedCell': '计算列（数值自动确定）',
+  'grid.jumpNoColumn': '没有名为「{column}」的列',
+  'grid.jumpNoRow': '没有 {column} 为「{value}」的行',
+  'grid.jumpMultiple': '共有 {count} 行，已移动到第一行',
+  'grid.pasteDroppedComputed': '计算列的 {count} 个单元格未粘贴',
+  'grid.rowLabel': '第 {row} 行',
+  'grid.modeEditing': '编辑中',
+  'grid.modeSelecting': '选择中',
+  'grid.selectionSize': '已选 {rows}×{cols}',
+  'grid.noteEdit': '点击编辑备注',
+  'grid.noteDelete': '删除此备注',
+  'grid.notePlaceholder': '输入备注…（Enter 确定・Esc 取消）',
+  'grid.groupRename': '点击重命名分组',
+  'grid.groupDelete': '删除此分组',
+  'grid.colResizeLabel': '更改 {name} 列的宽度',
+  'grid.colResizeTitle': '拖动更改宽度／双击自动宽度',
+  'grid.rowResizeLabel': '更改第 {row} 行的高度',
+  'grid.rowResizeTitle': '拖动更改高度／双击恢复默认',
+  'grid.addRow': '＋ 在末尾添加行',
+  'grid.addRowTitle': '在表格最下方添加 1 个空行',
+  'grid.duplicateRow': '在选中行下方复制',
+  'grid.duplicateRowTitle': '在选中行正下方添加内容相同的行',
+  'grid.copyRow': '复制选中行',
+  'grid.copyRowTitle': '将选中行复制到剪贴板',
+  'grid.clearRow': '清空选中行',
+  'grid.clearRowTitle': '仅清除选中行的内容（保留行）',
+  'grid.fillDown': '向下填充',
+  'grid.fillDownTitle': '把选区首行的值填到下方各行（Ctrl+D）。单个单元格则取正上方的值',
+  'grid.deleteRow': '删除选中行',
+  'grid.deleteRowTitle': '从表格中移除选中行（无法撤销。拿不准就先留存）',
+  'grid.hideRow': '留存选中行',
+  'grid.hideRowTitle': '将行保留在文件中，但从表格移出',
+  'grid.unhideRow': '从留存恢复',
+  'grid.unhideRowTitle': '取消留存，恢复为普通行',
+  'grid.addNote': '＋ 备注行',
+  'grid.addNoteTitle': '在表格上方添加 1 行备注',
+  'grid.addGroup': '＋ 分组',
+  'grid.addGroupTitle': '为选中的列创建分组标题',
+  'grid.revealShow': '显示留存的 {count} 行',
+  'grid.revealShowTitle': '把留存行显示出来确认内容',
+  'grid.revealHide': '隐藏留存的 {count} 行',
+  'grid.revealHideTitle': '把留存行从表格移出',
+  'grid.menuClose': '关闭菜单',
+  'grid.colMenuText': '{name} 列的文本显示',
+  'grid.colMenuAlign': '对齐',
+  'grid.colModeClip': '截断（省略号）',
+  'grid.colModeWrap': '换行',
+  'grid.colModeOverflow': '溢出显示',
+  'grid.colAlignLeft': '左对齐',
+  'grid.colAlignCenter': '居中',
+  'grid.colAlignRight': '右对齐',
 };
 
 const ko: Messages = {
@@ -1385,6 +1612,63 @@ const ko: Messages = {
   'update.readyDesc': 'v{version}을(를) 적용하려면 앱을 다시 시작하세요.',
   'update.relaunch': '다시 시작하기',
   'update.errorTitle': '업데이트하지 못했습니다',
+  'grid.regionLabel': '검증 시트 편집 그리드',
+  'grid.emptyColumns': '열 정의가 없습니다(헤더 행이 있는 TSV를 열어 주세요)',
+  'grid.rowNumber': '행 번호',
+  'grid.required': '필수',
+  'grid.defaultGroupLabel': '그룹',
+  'grid.computedCell': '계산 열(값이 자동으로 정해집니다)',
+  'grid.jumpNoColumn': '「{column}」이라는 열이 없습니다',
+  'grid.jumpNoRow': '{column}이(가) 「{value}」인 행이 없습니다',
+  'grid.jumpMultiple': '{count}개 행이 있습니다. 첫 행으로 이동했습니다',
+  'grid.pasteDroppedComputed': '계산 열의 {count}개 셀은 붙여넣지 않았습니다',
+  'grid.rowLabel': '{row}번째 행',
+  'grid.modeEditing': '편집 중',
+  'grid.modeSelecting': '선택 중',
+  'grid.selectionSize': '{rows}×{cols} 선택',
+  'grid.noteEdit': '클릭하여 메모 편집',
+  'grid.noteDelete': '이 메모 삭제',
+  'grid.notePlaceholder': '메모 입력…(Enter로 확정・Esc로 취소)',
+  'grid.groupRename': '클릭하여 그룹 이름 변경',
+  'grid.groupDelete': '이 그룹 삭제',
+  'grid.colResizeLabel': '{name} 열의 너비 변경',
+  'grid.colResizeTitle': '드래그로 너비 변경／더블클릭으로 자동 너비',
+  'grid.rowResizeLabel': '{row}번째 행의 높이 변경',
+  'grid.rowResizeTitle': '드래그로 높이 변경／더블클릭으로 기본값 복원',
+  'grid.addRow': '＋ 끝에 행 추가',
+  'grid.addRowTitle': '표 맨 아래에 빈 행을 1개 추가',
+  'grid.duplicateRow': '선택 행 아래에 복제',
+  'grid.duplicateRowTitle': '선택 행과 같은 내용의 행을 바로 아래에 추가',
+  'grid.copyRow': '선택 행 복사',
+  'grid.copyRowTitle': '선택 행을 클립보드로 복사',
+  'grid.clearRow': '선택 행 비우기',
+  'grid.clearRowTitle': '선택 행의 내용만 지웁니다(행은 남습니다)',
+  'grid.fillDown': '아래로 채우기',
+  'grid.fillDownTitle':
+    '선택 범위 첫 행의 값을 아래 행에 채웁니다(Ctrl+D). 단일 셀이면 바로 위의 값을 가져옵니다',
+  'grid.deleteRow': '선택 행 삭제',
+  'grid.deleteRowTitle': '선택 행을 표에서 제거합니다(되돌릴 수 없습니다. 망설여지면 보관으로)',
+  'grid.hideRow': '선택 행을 보관',
+  'grid.hideRowTitle': '행을 파일에 남긴 채 표에서 제외',
+  'grid.unhideRow': '보관에서 되돌리기',
+  'grid.unhideRowTitle': '보관을 해제하고 일반 행으로 되돌립니다',
+  'grid.addNote': '＋ 메모 행',
+  'grid.addNoteTitle': '표 위에 놓는 메모 1행을 추가',
+  'grid.addGroup': '＋ 그룹',
+  'grid.addGroupTitle': '선택한 열에 그룹 머리글을 작성',
+  'grid.revealShow': '보관 {count}행 표시',
+  'grid.revealShowTitle': '보관 행을 표에 표시해 내용을 확인',
+  'grid.revealHide': '보관 {count}행 숨기기',
+  'grid.revealHideTitle': '보관 행을 표에서 제외',
+  'grid.menuClose': '메뉴 닫기',
+  'grid.colMenuText': '{name} 열의 텍스트 표시',
+  'grid.colMenuAlign': '정렬',
+  'grid.colModeClip': '잘림(생략)',
+  'grid.colModeWrap': '줄바꿈',
+  'grid.colModeOverflow': '넘쳐 표시',
+  'grid.colAlignLeft': '왼쪽 정렬',
+  'grid.colAlignCenter': '가운데 정렬',
+  'grid.colAlignRight': '오른쪽 정렬',
 };
 
 /** ロケール→文言辞書。i18n.svelte.ts が現ロケールと fallback(ja) を引く。 */

@@ -8,6 +8,7 @@ import {
   reconcileColModes,
   colModeMenuItems,
 } from './gridColumnMode';
+import { messages } from '../i18n/messages';
 
 /**
  * 検証グリッドの列表示モード（右クリックで折り返す／突き抜ける／
@@ -78,14 +79,21 @@ describe('colModeMenuItems', () => {
   it('3 つの選択肢を返し、現在モードに check を付ける', () => {
     const items = colModeMenuItems('wrap');
     expect(items.map((i) => i.mode)).toEqual(COL_OVERFLOW_MODES);
-    expect(items.every((i) => typeof i.label === 'string' && i.label.length > 0)).toBe(true);
     const checked = items.filter((i) => i.checked);
     expect(checked).toHaveLength(1);
     expect(checked[0]?.mode).toBe('wrap');
   });
 
-  it('モードごとにラベルが異なる', () => {
-    const labels = colModeMenuItems('clip').map((i) => i.label);
-    expect(new Set(labels).size).toBe(labels.length);
+  // 文言キーを持たせただけでは、綴りを間違えてもメニューが出るまで気づけない
+  // （辞書に無いキーはキー文字列そのものが表示される）。辞書側に実在することまで見る。
+  it('どのモードの文言キーも辞書にある', () => {
+    for (const item of colModeMenuItems('clip')) {
+      expect(messages.ja[item.labelKey], item.mode).toBeTruthy();
+    }
+  });
+
+  it('モードごとに文言キーが異なる', () => {
+    const keys = colModeMenuItems('clip').map((i) => i.labelKey);
+    expect(new Set(keys).size).toBe(keys.length);
   });
 });
