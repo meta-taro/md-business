@@ -4,6 +4,14 @@ Changes to this app. Versions follow [Semantic Versioning](https://semver.org/).
 
 Japanese is the source of truth for this file; see [CHANGELOG.md](./CHANGELOG.md).
 
+## 0.7.1
+
+### Fixed
+
+- **Fixed the places that stayed in Japanese when the display language was set to something else**. The test sheet grid itself, the row toolbar below it, and the menu you get by right-clicking a column all came out in Japanese even after choosing English, Chinese, or Korean. This is the app's main screen, so for anyone not reading Japanese, picking a language did almost nothing.
+  - The default name for a column group still keeps the language it was created in. That name is written into the file, so changing it when the display language changes would look like a name you chose being rewritten behind your back.
+- **The three recent entries in the update notice now follow the display language too**. 0.7.0 started showing them, but their text was Japanese only.
+
 ## 0.7.0
 
 ### Added
