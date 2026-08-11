@@ -21,6 +21,7 @@ import type { UpdateDocumentInput } from './tools.js';
 import { readTsv, appendTsvRow, updateTsvRow } from './tsvTools.js';
 import { readData, type ReadDataOptions } from './dataTools.js';
 import { dataToTable, type DataToTableOptions } from './dataToTable.js';
+import { searchLines, readLines, type SearchLinesInput, type ReadLinesInput } from './logTools.js';
 import { searchDocuments } from './search.js';
 import type { SearchQuery } from './search.js';
 import { gitStatus, gitDiff, gitCommit } from './gitTools.js';
@@ -74,6 +75,10 @@ export const SERVER_INSTRUCTIONS = `md-business は Markdown / TSV の業務文�
   中身を業務文書にするなら、読んだ内容をもとに create_document / append_tsv_row で作る。
   明細のような繰り返しを表として引用するなら **data_to_table** を使う。木から自前で
   表を組むと列の抜けや \`|\` による桁ずれが起きるが、壊れた表は読める形をしているので気づけない。
+- ログ（\`.log\` / \`.jsonl\` など）は業務文書ではないが、**全文を読み込まない**。
+  **search_lines** で当たりを付け、**read_lines** で周辺だけ読む。全文を開くと調べる前に
+  文脈が埋まるうえ、Authorization / Cookie / token / メールアドレスが伏せ字を通らずに入る。
+  これらのツールの戻り値は必ず伏せ字がかかり、上限で切ったときは切ったと返る。
 - 変更を確認して記録するのは **git_status** / **git_diff** / **git_commit**（利用可能な場合）。
 
 ## 書式の約束
@@ -350,6 +355,72 @@ export function createServer(store: DocumentStore, options: CreateServerOptions 
       if (limit !== undefined) options.limit = limit;
       const r = await dataToTable(store, path, options);
       emit('data_to_table', path, r);
+      return jsonResult(r, !r.ok);
+    },
+  );
+
+  // ログは業務文書ではないので、文書ツールとは別の口にする。全文は返さず、
+  // 探した結果だけを返す（そのまま渡すと調査以前にコンテキストが埋まる）。
+  server.registerTool(
+    'search_lines',
+    {
+      description:
+        'ログなどのテキストファイルを正規表現で行検索し、一致行を行番号つきで返す（before / after で前後の行も取れる）。ファイル全体は読み込まず、行単位で流して探す。戻り値には伏せ字がかかり、Authorization / Cookie / token / api_key / password / メールアドレス / カード番号らしき数字列は残らない（外す指定は無い。生の値が要るなら人がファイルを開く）。上限に達したら truncated: true、長すぎて切った行は truncatedLines で返るので、切られたことに気づかないまま結論を出さないこと。',
+      inputSchema: {
+        path: z.string().describe('ワークスペース相対パス（例 logs/app.log）'),
+        pattern: z.string().describe('正規表現（JavaScript の構文）'),
+        ignoreCase: z.boolean().optional().describe('大文字小文字を無視する。省略時は区別する'),
+        before: z.number().int().optional().describe('一致行の前を何行付けるか。省略時は 0・上限 20'),
+        after: z.number().int().optional().describe('一致行の後を何行付けるか。省略時は 0・上限 20'),
+        maxMatches: z
+          .number()
+          .int()
+          .optional()
+          .describe('返す一致の上限。省略時は 100・上限 1000。達したら truncated: true で返る'),
+        maxLineLength: z
+          .number()
+          .int()
+          .optional()
+          .describe('1 行あたりの文字数上限。省略時は 2000・上限 20000'),
+      },
+    },
+    async ({ path, pattern, ignoreCase, before, after, maxMatches, maxLineLength }) => {
+      // exactOptionalPropertyTypes 下では undefined を明示せず、指定された項目のみ渡す。
+      const input: SearchLinesInput = { path, pattern };
+      if (ignoreCase !== undefined) input.ignoreCase = ignoreCase;
+      if (before !== undefined) input.before = before;
+      if (after !== undefined) input.after = after;
+      if (maxMatches !== undefined) input.maxMatches = maxMatches;
+      if (maxLineLength !== undefined) input.maxLineLength = maxLineLength;
+      const r = await searchLines(store, input);
+      emit('search_lines', path, r);
+      return jsonResult(r, !r.ok);
+    },
+  );
+
+  server.registerTool(
+    'read_lines',
+    {
+      description:
+        'テキストファイルの行範囲（from 〜 to・1 始まり・両端含む）を行番号つきで返す。search_lines で見つけた箇所の周辺を読むためのもの。戻り値には search_lines と同じ伏せ字がかかる。上限を超える範囲は truncated: true で切って返す。',
+      inputSchema: {
+        path: z.string().describe('ワークスペース相対パス（例 logs/app.log）'),
+        from: z.number().int().describe('開始行（1 始まり・この行を含む）'),
+        to: z.number().int().describe('終了行（この行を含む）'),
+        maxLines: z.number().int().optional().describe('返す行数の上限。省略時は 500・上限 5000'),
+        maxLineLength: z
+          .number()
+          .int()
+          .optional()
+          .describe('1 行あたりの文字数上限。省略時は 2000・上限 20000'),
+      },
+    },
+    async ({ path, from, to, maxLines, maxLineLength }) => {
+      const input: ReadLinesInput = { path, from, to };
+      if (maxLines !== undefined) input.maxLines = maxLines;
+      if (maxLineLength !== undefined) input.maxLineLength = maxLineLength;
+      const r = await readLines(store, input);
+      emit('read_lines', path, r);
       return jsonResult(r, !r.ok);
     },
   );

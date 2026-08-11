@@ -15,6 +15,8 @@ import {
   rm,
   realpath,
 } from 'node:fs/promises';
+import { createReadStream } from 'node:fs';
+import { createInterface } from 'node:readline';
 import { randomBytes } from 'node:crypto';
 import { join, resolve, dirname, basename, relative, sep } from 'node:path';
 import type { DocumentStore } from './store.js';
@@ -84,6 +86,24 @@ export class FileDocumentStore implements DocumentStore {
 
   async read(relativePath: string): Promise<string> {
     return readFile(await this.realPathWithin(this.absolute(relativePath)), 'utf8');
+  }
+
+  /**
+   * 行単位で流す。読み終えた行は捨てながら進むので、ファイル全体はメモリに載らない。
+   *
+   * 呼び出し側が途中で離脱しても（上限に達して break する）、finally でストリームを
+   * 破棄してファイルハンドルを閉じる。close だけでは入力側が開いたまま残る。
+   */
+  async *lines(relativePath: string): AsyncIterable<string> {
+    const abs = await this.realPathWithin(this.absolute(relativePath));
+    const stream = createReadStream(abs, { encoding: 'utf8' });
+    const reader = createInterface({ input: stream, crlfDelay: Infinity });
+    try {
+      yield* reader;
+    } finally {
+      reader.close();
+      stream.destroy();
+    }
   }
 
   /**

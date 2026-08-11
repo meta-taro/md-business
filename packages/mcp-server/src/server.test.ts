@@ -112,8 +112,10 @@ describe('createServer / MCP 配線', () => {
       'list_schemas',
       'read_data',
       'read_document',
+      'read_lines',
       'read_tsv',
       'search_documents',
+      'search_lines',
       'update_document',
       'update_tsv_row',
       'validate_document',
@@ -306,6 +308,49 @@ describe('createServer / MCP 配線', () => {
     expect(payload.root.children.find((c) => c.name === '住所')?.omittedChildren).toBe(1);
   });
 
+  // ログ調査の戻り値はそのままモデルへ渡る。配線の段でも伏せ字が効いていることを見る。
+  it('search_lines は一致行を行番号つきで返し、秘密を伏せる', async () => {
+    const store = new MemoryDocumentStore();
+    await store.write('logs/app.log', 'ok\nAuthorization: Bearer tk_live_abc\nERROR failed\n');
+    const client = await connect(store);
+    const res = (await client.callTool({
+      name: 'search_lines',
+      arguments: { path: 'logs/app.log', pattern: 'Bearer' },
+    })) as CallToolResult;
+    const { text, isError } = parse(res);
+    expect(isError).toBe(false);
+    const payload = text as { matches: Array<{ line: number; text: string }>; truncated: boolean };
+    expect(payload.matches[0]?.line).toBe(2);
+    expect(payload.matches[0]?.text).not.toContain('tk_live_abc');
+    expect(payload.truncated).toBe(false);
+  });
+
+  it('read_lines は行範囲を返し、秘密を伏せる', async () => {
+    const store = new MemoryDocumentStore();
+    await store.write('logs/app.log', 'a\nCookie: sid=zzz\nc\n');
+    const client = await connect(store);
+    const res = (await client.callTool({
+      name: 'read_lines',
+      arguments: { path: 'logs/app.log', from: 2, to: 3 },
+    })) as CallToolResult;
+    const { text, isError } = parse(res);
+    expect(isError).toBe(false);
+    const payload = text as { lines: Array<{ line: number; text: string }> };
+    expect(payload.lines.map((l) => l.line)).toEqual([2, 3]);
+    expect(payload.lines[0]?.text).not.toContain('sid=zzz');
+  });
+
+  it('search_lines は壊れた正規表現を isError で返す', async () => {
+    const store = new MemoryDocumentStore();
+    await store.write('logs/app.log', 'a\n');
+    const client = await connect(store);
+    const res = (await client.callTool({
+      name: 'search_lines',
+      arguments: { path: 'logs/app.log', pattern: '(' },
+    })) as CallToolResult;
+    expect(parse(res).isError).toBe(true);
+  });
+
   it('read_data は DTD 宣言のある XML を isError で返す', async () => {
     const store = new MemoryDocumentStore();
     await store.write('data/dtd.xml', '<!DOCTYPE a>\n<a/>');
@@ -487,6 +532,14 @@ describe('createServer / instructions', () => {
     const text = await instructions();
     // 木から自前で組んだ表は、列が抜けても壊れた形には見えないので気づかれない。
     expect(text).toContain('data_to_table');
+  });
+
+  it('ログは全文を読まず search_lines / read_lines で必要箇所だけ見ることを書く', async () => {
+    const text = await instructions();
+    // 汎用の読み込み手段でログを開くと、調べる前にコンテキストが埋まり、
+    // しかも Authorization や token が伏せ字を通らないまま入る。
+    expect(text).toContain('search_lines');
+    expect(text).toContain('read_lines');
   });
 });
 

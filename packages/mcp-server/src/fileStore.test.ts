@@ -245,6 +245,66 @@ describe('FileDocumentStore — 上書きの原子性', () => {
     expect(written.endsWith('.md')).toBe(false);
     expect(written.endsWith('.tsv')).toBe(false);
   });
+
+  /**
+   * 調査対象のログは全文を文字列にできない大きさになりうる。lines は行単位で流し、
+   * 読み終えた行を捨てながら進む。ここで見るのは fs 特有の点（改行の扱いと root 逸脱）。
+   */
+  describe('lines', () => {
+    async function collect(source: AsyncIterable<string>): Promise<string[]> {
+      const out: string[] = [];
+      for await (const line of source) out.push(line);
+      return out;
+    }
+
+    it('改行文字を含まない行を順に流す（末尾の改行で空行を増やさない）', async () => {
+      const store = new FileDocumentStore(root);
+      await writeFile(join(root, 'app.log'), 'one\ntwo\nthree\n', 'utf8');
+      expect(await collect(store.lines('app.log'))).toEqual(['one', 'two', 'three']);
+    });
+
+    it('CRLF でも同じ結果になる', async () => {
+      const store = new FileDocumentStore(root);
+      await writeFile(join(root, 'win.log'), 'one\r\ntwo\r\n', 'utf8');
+      expect(await collect(store.lines('win.log'))).toEqual(['one', 'two']);
+    });
+
+    it('root 逸脱を拒否する', async () => {
+      const store = new FileDocumentStore(root);
+      await expect(collect(store.lines('../outside.log'))).rejects.toThrow(/ワークスペース外/);
+    });
+
+    it('シンボリックリンク越しの読み出しも拒否する', async () => {
+      const store = new FileDocumentStore(root);
+      const outside = await mkdtemp(join(tmpdir(), 'mdbiz-outside-'));
+      await writeFile(join(outside, 'secret.log'), 'token=abc', 'utf8');
+      try {
+        await symlink(outside, join(root, 'link'), 'junction');
+      } catch {
+        return; // リンクを作れない環境（権限なし）ではこの観点を検証できない
+      }
+      try {
+        await expect(collect(store.lines('link/secret.log'))).rejects.toThrow(/ワークスペース外/);
+      } finally {
+        await rm(outside, { recursive: true, force: true });
+      }
+    });
+
+    it('全文を文字列にせずに流す（大きなファイルでも読み進められる）', async () => {
+      const store = new FileDocumentStore(root);
+      const line = 'x'.repeat(1000);
+      await writeFile(join(root, 'big.log'), `${`${line}\n`.repeat(20000)}last\n`, 'utf8');
+
+      // 先頭 3 行だけ見て離脱する。読み切らずに抜けても後続に影響しないことを確かめる。
+      const seen: string[] = [];
+      for await (const value of store.lines('big.log')) {
+        seen.push(value);
+        if (seen.length === 3) break;
+      }
+      expect(seen).toEqual([line, line, line]);
+      expect(await collect(store.lines('big.log'))).toHaveLength(20001);
+    });
+  });
 });
 
 /**
