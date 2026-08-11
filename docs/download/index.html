@@ -28,6 +28,15 @@
   .asset-list { font-size: 0.92rem; }
   .asset-list td.size { color: var(--muted); white-space: nowrap; text-align: right; }
   .spin { color: var(--muted); }
+  /* 画面キャプチャ。画像が 1 枚も置かれていない間は節ごと出さない（下部のスクリプトが開閉する）。 */
+  .shots { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
+  .shots figure { margin: 0; }
+  .shots img {
+    display: block; width: 100%; height: auto;
+    border: 1px solid var(--line); border-radius: 8px; background: var(--bg);
+  }
+  .shots figcaption { margin-top: 8px; font-size: 0.9rem; color: var(--muted); }
+  @media (max-width: 720px) { .shots { grid-template-columns: 1fr; } }
 </style>
 </head>
 <body>
@@ -47,6 +56,35 @@
     <div class="version" id="version"></div>
     <div class="dl-sub" id="sub"></div>
   </div>
+
+  <!-- 画面キャプチャ。画像を置くまで hidden のままで、置いた時点で自動的に出る（HTML の再編集は不要）。
+       404 になった figure は個別に伏せるので、5 枚のうち一部だけ揃った状態でも壊れない。 -->
+  <section id="shots" hidden>
+    <h2>画面を見る</h2>
+    <p>入れる前に、何ができるアプリなのかをご覧ください。</p>
+    <div class="shots">
+      <figure>
+        <img src="../screenshots/desktop-invoice.png" alt="適格請求書を開いた画面。左にファイル一覧、右に請求書ビュー" loading="lazy" width="1600" height="1000">
+        <figcaption>適格請求書を開いたところ。金額と税区分は Markdown から組み立てられます</figcaption>
+      </figure>
+      <figure>
+        <img src="../screenshots/desktop-editor.png" alt="Markdown を左右 2 画面でライブ編集している画面" loading="lazy" width="1600" height="1000">
+        <figcaption>左で書くと右がすぐ追いつきます。保存の前から仕上がりが見えます</figcaption>
+      </figure>
+      <figure>
+        <img src="../screenshots/desktop-test-spec-grid.png" alt="検証シートのグリッド。結果列が OK / NG / 保留 で色分けされている" loading="lazy" width="1600" height="1000">
+        <figcaption>検証シートは表として編集できます。結果は行ごとに色が付きます</figcaption>
+      </figure>
+      <figure>
+        <img src="../screenshots/desktop-mcp.png" alt="MCP タブ。AI アシスタントが実行した操作の履歴が並んでいる" loading="lazy" width="1600" height="1000">
+        <figcaption>AI アシスタントをつないだところ。実行された操作は履歴として残ります</figcaption>
+      </figure>
+      <figure>
+        <img src="../screenshots/desktop-pdf.png" alt="PDF 出力プレビュー。A4 の紙面が表示されている" loading="lazy" width="1600" height="1000">
+        <figcaption>そのまま A4 の PDF に出せます。画面で見えているとおりに出ます</figcaption>
+      </figure>
+    </div>
+  </section>
 
   <section>
     <h2>インストール手順</h2>
@@ -132,6 +170,27 @@
 </footer>
 
 <script>
+  // 画面キャプチャ節の開閉。画像がまだ置かれていない段階で節ごと出すと空欄が並ぶので、
+  // 「1 枚でも読めたら節を出す / 読めなかった図版は個別に伏せる」で判断する。
+  // キャッシュ済みの画像では load / error が発火しないため complete を先に見る。
+  (function () {
+    const section = document.getElementById('shots');
+    if (!section) return;
+    section.querySelectorAll('figure').forEach(function (figure) {
+      const img = figure.querySelector('img');
+      if (!img) return;
+      const settle = function () {
+        if (img.naturalWidth > 0) section.hidden = false;
+        else figure.hidden = true;
+      };
+      if (img.complete) settle();
+      else {
+        img.addEventListener('load', settle);
+        img.addEventListener('error', settle);
+      }
+    });
+  })();
+
   // 最新リリースを GitHub API から取得し、OS 判定してダウンロードボタンを組み立てる。
   // 公開リポの匿名 API を使うため、バージョンが上がってもこのページの編集は不要。
   const REPO = 'meta-taro/md-business';
