@@ -124,6 +124,41 @@ export interface Messages {
   'tree.renameErrorInvalidChar': string;
   'tree.renameErrorExtension': string;
   'tree.menuNewTestSheet': string;
+  'tree.menuFileInfo': string;
+  // ファイル情報ダイアログ
+  'fileInfo.title': string;
+  'fileInfo.path': string;
+  'fileInfo.size': string;
+  'fileInfo.modified': string;
+  'fileInfo.lines': string;
+  'fileInfo.encoding': string;
+  'fileInfo.lineEnding': string;
+  'fileInfo.sha256': string;
+  'fileInfo.git': string;
+  'fileInfo.measuring': string;
+  'fileInfo.unknown': string;
+  'fileInfo.failed': string;
+  'fileInfo.copy': string;
+  'fileInfo.copied': string;
+  'fileInfo.encUtf8': string;
+  'fileInfo.encUtf8Bom': string;
+  'fileInfo.encUtf16Le': string;
+  'fileInfo.encUtf16Be': string;
+  'fileInfo.encUnknown': string;
+  'fileInfo.eolLf': string;
+  'fileInfo.eolCrlf': string;
+  'fileInfo.eolCr': string;
+  'fileInfo.eolMixed': string;
+  'fileInfo.eolNone': string;
+  'fileInfo.gitNotRepo': string;
+  'fileInfo.gitIgnored': string;
+  'fileInfo.gitUntracked': string;
+  'fileInfo.gitTracked': string;
+  'fileInfo.gitModified': string;
+  'fileInfo.gitAdded': string;
+  'fileInfo.gitDeleted': string;
+  'fileInfo.gitRenamed': string;
+  'fileInfo.gitConflicted': string;
   // 検証シートの新規作成ダイアログ
   'newSheet.title': string;
   'newSheet.folder': string;
@@ -457,6 +492,40 @@ const en: Messages = {
   'tree.renameErrorInvalidChar': 'That name contains characters that cannot be used',
   'tree.renameErrorExtension': 'The extension must stay .md or .tsv',
   'tree.menuNewTestSheet': 'New test sheet',
+  'tree.menuFileInfo': 'File info',
+  'fileInfo.title': 'File info',
+  'fileInfo.path': 'Path',
+  'fileInfo.size': 'Size',
+  'fileInfo.modified': 'Last modified',
+  'fileInfo.lines': 'Lines',
+  'fileInfo.encoding': 'Encoding',
+  'fileInfo.lineEnding': 'Line endings',
+  'fileInfo.sha256': 'SHA-256',
+  'fileInfo.git': 'Git status',
+  'fileInfo.measuring': 'Measuring…',
+  'fileInfo.unknown': 'Cannot be determined',
+  'fileInfo.failed': 'Could not be read',
+  'fileInfo.copy': 'Copy',
+  'fileInfo.copied': 'Copied',
+  'fileInfo.encUtf8': 'UTF-8',
+  'fileInfo.encUtf8Bom': 'UTF-8 (with BOM)',
+  'fileInfo.encUtf16Le': 'UTF-16 LE',
+  'fileInfo.encUtf16Be': 'UTF-16 BE',
+  'fileInfo.encUnknown': 'Cannot be determined',
+  'fileInfo.eolLf': 'LF (Unix)',
+  'fileInfo.eolCrlf': 'CRLF (Windows)',
+  'fileInfo.eolCr': 'CR (classic Mac)',
+  'fileInfo.eolMixed': 'Mixed',
+  'fileInfo.eolNone': 'No line breaks',
+  'fileInfo.gitNotRepo': 'Not in a Git repository',
+  'fileInfo.gitIgnored': 'Ignored (.gitignore)',
+  'fileInfo.gitUntracked': 'Untracked',
+  'fileInfo.gitTracked': 'No changes',
+  'fileInfo.gitModified': 'Modified',
+  'fileInfo.gitAdded': 'Added (not committed)',
+  'fileInfo.gitDeleted': 'Deleted',
+  'fileInfo.gitRenamed': 'Renamed',
+  'fileInfo.gitConflicted': 'Conflicted',
   'newSheet.title': 'New test sheet',
   'newSheet.folder': 'Location',
   'newSheet.folderRoot': 'Top of the open folder',
@@ -790,6 +859,40 @@ const ja: Messages = {
   'tree.renameErrorInvalidChar': '名前に使えない文字が含まれています',
   'tree.renameErrorExtension': '拡張子は .md / .tsv のままにしてください',
   'tree.menuNewTestSheet': '検証シートを新規作成',
+  'tree.menuFileInfo': 'ファイル情報',
+  'fileInfo.title': 'ファイル情報',
+  'fileInfo.path': 'パス',
+  'fileInfo.size': '容量',
+  'fileInfo.modified': '更新日時',
+  'fileInfo.lines': '行数',
+  'fileInfo.encoding': '文字コード',
+  'fileInfo.lineEnding': '改行コード',
+  'fileInfo.sha256': 'SHA-256',
+  'fileInfo.git': 'Git 管理状態',
+  'fileInfo.measuring': '測定中…',
+  'fileInfo.unknown': '判定できません',
+  'fileInfo.failed': '取得できませんでした',
+  'fileInfo.copy': 'コピー',
+  'fileInfo.copied': 'コピーしました',
+  'fileInfo.encUtf8': 'UTF-8',
+  'fileInfo.encUtf8Bom': 'UTF-8（BOM 付き）',
+  'fileInfo.encUtf16Le': 'UTF-16 LE',
+  'fileInfo.encUtf16Be': 'UTF-16 BE',
+  'fileInfo.encUnknown': '判定できません',
+  'fileInfo.eolLf': 'LF（Unix）',
+  'fileInfo.eolCrlf': 'CRLF（Windows）',
+  'fileInfo.eolCr': 'CR（旧 Mac）',
+  'fileInfo.eolMixed': '混在',
+  'fileInfo.eolNone': '改行なし',
+  'fileInfo.gitNotRepo': 'Git 管理外',
+  'fileInfo.gitIgnored': '除外設定（.gitignore）',
+  'fileInfo.gitUntracked': '未追跡',
+  'fileInfo.gitTracked': '変更なし',
+  'fileInfo.gitModified': '変更あり',
+  'fileInfo.gitAdded': '追加（未コミット）',
+  'fileInfo.gitDeleted': '削除',
+  'fileInfo.gitRenamed': '名前の変更',
+  'fileInfo.gitConflicted': '衝突',
   'newSheet.title': '検証シートを新規作成',
   'newSheet.folder': '作成先',
   'newSheet.folderRoot': '開いているフォルダの直下',
@@ -1120,6 +1223,40 @@ const zh: Messages = {
   'tree.renameErrorInvalidChar': '名称中包含无法使用的字符',
   'tree.renameErrorExtension': '扩展名必须保持为 .md 或 .tsv',
   'tree.menuNewTestSheet': '新建验证表',
+  'tree.menuFileInfo': '文件信息',
+  'fileInfo.title': '文件信息',
+  'fileInfo.path': '路径',
+  'fileInfo.size': '大小',
+  'fileInfo.modified': '修改时间',
+  'fileInfo.lines': '行数',
+  'fileInfo.encoding': '字符编码',
+  'fileInfo.lineEnding': '换行符',
+  'fileInfo.sha256': 'SHA-256',
+  'fileInfo.git': 'Git 状态',
+  'fileInfo.measuring': '正在计算…',
+  'fileInfo.unknown': '无法判定',
+  'fileInfo.failed': '无法读取',
+  'fileInfo.copy': '复制',
+  'fileInfo.copied': '已复制',
+  'fileInfo.encUtf8': 'UTF-8',
+  'fileInfo.encUtf8Bom': 'UTF-8（含 BOM）',
+  'fileInfo.encUtf16Le': 'UTF-16 LE',
+  'fileInfo.encUtf16Be': 'UTF-16 BE',
+  'fileInfo.encUnknown': '无法判定',
+  'fileInfo.eolLf': 'LF（Unix）',
+  'fileInfo.eolCrlf': 'CRLF（Windows）',
+  'fileInfo.eolCr': 'CR（旧版 Mac）',
+  'fileInfo.eolMixed': '混合',
+  'fileInfo.eolNone': '无换行',
+  'fileInfo.gitNotRepo': '不在 Git 仓库中',
+  'fileInfo.gitIgnored': '已忽略（.gitignore）',
+  'fileInfo.gitUntracked': '未跟踪',
+  'fileInfo.gitTracked': '无更改',
+  'fileInfo.gitModified': '已修改',
+  'fileInfo.gitAdded': '已添加（未提交）',
+  'fileInfo.gitDeleted': '已删除',
+  'fileInfo.gitRenamed': '已重命名',
+  'fileInfo.gitConflicted': '有冲突',
   'newSheet.title': '新建验证表',
   'newSheet.folder': '创建位置',
   'newSheet.folderRoot': '当前文件夹根目录',
@@ -1447,6 +1584,40 @@ const ko: Messages = {
   'tree.renameErrorInvalidChar': '이름에 사용할 수 없는 문자가 있습니다',
   'tree.renameErrorExtension': '확장자는 .md 또는 .tsv 여야 합니다',
   'tree.menuNewTestSheet': '검증 시트 새로 만들기',
+  'tree.menuFileInfo': '파일 정보',
+  'fileInfo.title': '파일 정보',
+  'fileInfo.path': '경로',
+  'fileInfo.size': '크기',
+  'fileInfo.modified': '수정 일시',
+  'fileInfo.lines': '줄 수',
+  'fileInfo.encoding': '문자 인코딩',
+  'fileInfo.lineEnding': '줄바꿈 문자',
+  'fileInfo.sha256': 'SHA-256',
+  'fileInfo.git': 'Git 상태',
+  'fileInfo.measuring': '측정 중…',
+  'fileInfo.unknown': '판정할 수 없습니다',
+  'fileInfo.failed': '읽을 수 없습니다',
+  'fileInfo.copy': '복사',
+  'fileInfo.copied': '복사했습니다',
+  'fileInfo.encUtf8': 'UTF-8',
+  'fileInfo.encUtf8Bom': 'UTF-8(BOM 있음)',
+  'fileInfo.encUtf16Le': 'UTF-16 LE',
+  'fileInfo.encUtf16Be': 'UTF-16 BE',
+  'fileInfo.encUnknown': '판정할 수 없습니다',
+  'fileInfo.eolLf': 'LF(Unix)',
+  'fileInfo.eolCrlf': 'CRLF(Windows)',
+  'fileInfo.eolCr': 'CR(구형 Mac)',
+  'fileInfo.eolMixed': '혼재',
+  'fileInfo.eolNone': '줄바꿈 없음',
+  'fileInfo.gitNotRepo': 'Git 관리 대상 아님',
+  'fileInfo.gitIgnored': '제외 설정(.gitignore)',
+  'fileInfo.gitUntracked': '추적되지 않음',
+  'fileInfo.gitTracked': '변경 없음',
+  'fileInfo.gitModified': '변경됨',
+  'fileInfo.gitAdded': '추가됨(커밋 전)',
+  'fileInfo.gitDeleted': '삭제됨',
+  'fileInfo.gitRenamed': '이름 변경됨',
+  'fileInfo.gitConflicted': '충돌',
   'newSheet.title': '검증 시트 새로 만들기',
   'newSheet.folder': '만들 위치',
   'newSheet.folderRoot': '열려 있는 폴더 바로 아래',

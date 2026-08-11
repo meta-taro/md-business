@@ -30,6 +30,7 @@
     type FileTreeMenuAction,
   } from './fileTreeMenu';
   import NewSheetDialog from './NewSheetDialog.svelte';
+  import FileInfoDialog from './FileInfoDialog.svelte';
 
   // git 状態 → ホバー説明（バッジ title）。色マークの意味を言葉でも補う。
   // t() はロケール反応なので関数で都度引く（キーは git.state.<state>）。
@@ -138,6 +139,7 @@
     copyRelPath: 'tree.menuCopyRelPath',
     copyPath: 'tree.menuCopyPath',
     openForge: 'tree.menuOpenForge',
+    fileInfo: 'tree.menuFileInfo',
   };
 
   const menuLabel = (action: FileTreeMenuAction): string => t(MENU_LABEL_KEYS[action]);
@@ -180,8 +182,14 @@
       await navigator.clipboard.writeText(abs).catch(() => undefined);
     } else if (action === 'openForge' && m.forgeUrl !== null) {
       await openUrl(m.forgeUrl).catch(() => undefined);
+    } else if (action === 'fileInfo') {
+      fileInfoPath = m.path;
     }
   }
+
+  // ── ファイル情報 ──────────────────────────────────────────────
+  // 対象ファイルの相対パス。null の間はダイアログを出さない。測定はダイアログ側が持つ。
+  let fileInfoPath = $state<string | null>(null);
 
   // ── 検証シートの新規作成 ──────────────────────────────────────
   // 作成先フォルダの相対パス（ルート直下は空文字）。null の間はダイアログを出さない。
@@ -641,6 +649,14 @@
     folderPath={newSheetFolder}
     onclose={() => (newSheetFolder = null)}
     oncreate={createSheet}
+  />
+{/if}
+
+{#if fileInfoPath !== null && workspace.root !== null}
+  <FileInfoDialog
+    root={workspace.root}
+    relPath={fileInfoPath}
+    onclose={() => (fileInfoPath = null)}
   />
 {/if}
 

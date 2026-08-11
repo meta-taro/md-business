@@ -361,6 +361,69 @@ pub fn forge_file_url(root: String, rel_path: String) -> Option<String> {
     forge_file_url_impl(Path::new(&root), &rel_path)
 }
 
+/// 1 ファイルに絞った `git status --porcelain=v2 --ignored=matching -z -- <path>` の
+/// stdout を、ファイル情報ダイアログ用の管理状態へ写像する（Tauri 非依存の純関数）。
+///
+/// 出力が空＝そのファイルに差分が無い、つまり追跡済みで未変更。`?` は未追跡、`!` は
+/// 除外設定、`u` はコンフリクト、`1`/`2` は変更で `classify_xy` に合わせる。
+pub fn parse_file_state(stdout: &str) -> String {
+    let field = match stdout.split('\0').find(|f| !f.is_empty()) {
+        Some(f) => f,
+        // 差分レコードが 1 つも出ない＝追跡済みで変更なし。
+        None => return "tracked".to_string(),
+    };
+    if field.starts_with("? ") {
+        "untracked".to_string()
+    } else if field.starts_with("! ") {
+        "ignored".to_string()
+    } else if field.starts_with("u ") {
+        "conflicted".to_string()
+    } else if field.starts_with("1 ") {
+        parse_entry_1(field).map_or_else(|| "modified".to_string(), |(xy, _)| classify_xy(xy))
+    } else if field.starts_with("2 ") {
+        parse_entry_2(field).map_or_else(|| "renamed".to_string(), |(xy, _)| classify_xy(xy))
+    } else {
+        "tracked".to_string()
+    }
+}
+
+/// 1 ファイルの git 管理状態を取得する（Tauri 非依存の実体）。
+///
+/// 全体の `git_status` と別に 1 ファイルだけ引くのは、ファイル情報ダイアログが
+/// 「除外設定（.gitignore）」「追跡されていない」まで区別して出すため。`git_status` は
+/// 表示しないファイル（ignored / 未変更）を落としており、この 2 つを見分けられない。
+/// git 未導入・非リポジトリ・失敗時は "notRepo" へ無害に劣化する。
+pub fn git_file_state_impl(root: &Path, rel_path: &str) -> String {
+    // repo root 基準へ直してから引く（サブディレクトリを開いている場合の整合）。
+    let prefix = run_git(root, &["rev-parse", "--show-prefix"])
+        .map(|s| normalize_prefix(&s))
+        .unwrap_or_default();
+    let rel = rel_path.trim().replace('\\', "/");
+    let full_rel = format!("{prefix}{}", rel.trim_start_matches('/'));
+    // `:(literal)` でグロブ文字（* ? [ ]）を含むファイル名をパターンとして解釈させない。
+    let pathspec = format!(":(literal){full_rel}");
+    match run_git(
+        root,
+        &[
+            "status",
+            "--porcelain=v2",
+            "--ignored=matching",
+            "-z",
+            "--",
+            &pathspec,
+        ],
+    ) {
+        Some(stdout) => parse_file_state(&stdout),
+        None => "notRepo".to_string(),
+    }
+}
+
+/// フロントから `invoke("git_file_state", { root, relPath })` で呼ぶ薄いラッパ。
+#[tauri::command]
+pub fn git_file_state(root: String, rel_path: String) -> String {
+    git_file_state_impl(Path::new(&root), &rel_path)
+}
+
 /// `run_git` の Result 版。失敗時は stderr（無ければ終了コード）を Err で返す。
 /// switch のようにユーザーへ失敗理由を見せたい操作で使う。
 fn run_git_result(root: &Path, args: &[&str]) -> Result<String, String> {
@@ -941,5 +1004,60 @@ mod tests {
         let r = git_diff_impl(&dir, "notes.md");
         let _ = std::fs::remove_dir_all(&dir);
         assert!(r.is_err());
+    }
+
+    // ── parse_file_state（ファイル情報ダイアログ用の 1 ファイル状態）─────────
+
+    #[test]
+    fn ファイル状態_出力が空なら追跡済みで未変更() {
+        assert_eq!(parse_file_state(""), "tracked");
+    }
+
+    #[test]
+    fn ファイル状態_未追跡と除外設定を見分ける() {
+        assert_eq!(parse_file_state(&nul("? notes.md\n")), "untracked");
+        assert_eq!(parse_file_state(&nul("! build/out.md\n")), "ignored");
+    }
+
+    #[test]
+    fn ファイル状態_変更種別はxyから決まる() {
+        assert_eq!(
+            parse_file_state(&nul("1 .M N... 100644 100644 100644 aaa bbb notes.md\n")),
+            "modified"
+        );
+        assert_eq!(
+            parse_file_state(&nul("1 A. N... 000000 100644 100644 000 ccc new.md\n")),
+            "added"
+        );
+        assert_eq!(
+            parse_file_state(&nul("1 .D N... 100644 100644 000000 aaa bbb gone.md\n")),
+            "deleted"
+        );
+    }
+
+    #[test]
+    fn ファイル状態_リネームはrenamed() {
+        let out = nul("2 R. N... 100644 100644 100644 aaa bbb R100 new.md\0old.md\n");
+        assert_eq!(parse_file_state(&out), "renamed");
+    }
+
+    #[test]
+    fn ファイル状態_未マージはconflicted() {
+        let out = nul("u UU N... 100644 100644 100644 100644 aaa bbb ccc conflict.md\n");
+        assert_eq!(parse_file_state(&out), "conflicted");
+    }
+
+    #[test]
+    fn ファイル状態_非リポジトリはnotrepo() {
+        // git 管理外の temp ディレクトリ。status が失敗し notRepo へ劣化する。
+        use std::sync::atomic::{AtomicU32, Ordering};
+        static N: AtomicU32 = AtomicU32::new(0);
+        let n = N.fetch_add(1, Ordering::SeqCst);
+        let dir =
+            std::env::temp_dir().join(format!("mdbiz_gitfsnone_{}_{}", std::process::id(), n));
+        std::fs::create_dir_all(&dir).expect("temp 作成");
+        let state = git_file_state_impl(&dir, "notes.md");
+        let _ = std::fs::remove_dir_all(&dir);
+        assert_eq!(state, "notRepo");
     }
 }

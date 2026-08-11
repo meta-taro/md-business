@@ -30,6 +30,9 @@ serde_json = "1"
 # 収まる。debouncer-full は短時間の連続イベントを束ね、リネームの From/To も解決する。
 notify = "6.1"
 notify-debouncer-full = "0.3"
+# ファイル情報の SHA-256（RustCrypto・MIT/Apache-2.0）。MSRV 1.41 で本クレート(1.77.2)に収まる。
+# 自前実装すると検証コストの割に得るものが無いので、標準的な実装を使う。
+sha2 = "0.10"
 
 # 自動アップデートはデスクトップ専用（モバイルは対象外）。GitHub Releases の
 # 署名付き成果物を取得・検証・適用する。ターゲット cfg でデスクトップに限定する。

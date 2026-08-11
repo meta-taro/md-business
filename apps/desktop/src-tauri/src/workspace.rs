@@ -67,6 +67,23 @@ fn is_writable_ext(path: &Path) -> bool {
     lower_ext(path).is_some_and(|e| WRITABLE_EXTS.contains(&e.as_str()))
 }
 
+/// ルート配下の既存ファイルを解決する（読み取り系コマンドの入口ゲート）。
+///
+/// `canonicalize` 後に root 配下判定して `../` / シンボリックリンク脱出を封じ、拡張子を
+/// 走査対象（`ALLOWED_EXTS`）に限る。ツリーに出ていないファイルを相対パス指定で読ませない。
+pub(crate) fn resolve_in_root(root: &Path, rel_path: &str) -> Result<PathBuf, String> {
+    let canon_root = std::fs::canonicalize(root).map_err(|e| format!("ルート解決失敗: {}", e))?;
+    let canon = std::fs::canonicalize(root.join(rel_path))
+        .map_err(|e| format!("ファイル解決失敗: {}", e))?;
+    if !canon.starts_with(&canon_root) {
+        return Err("ルート外へのアクセスは拒否されます".to_string());
+    }
+    if allowed_ext(&canon).is_none() {
+        return Err("対象は .md / .tsv / .json / .xml のみです".to_string());
+    }
+    Ok(canon)
+}
+
 /// ルート配下を再帰走査し、対象拡張子（`ALLOWED_EXTS`）を収集する（Tauri 非依存の実体）。
 /// 除外ディレクトリはスキップし、深さ / 件数上限で打ち切って truncated=true を返す。
 pub fn scan_documents_impl(root: &Path) -> Result<ScanResult, String> {
