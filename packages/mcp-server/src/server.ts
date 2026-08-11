@@ -24,6 +24,7 @@ import { dataToTable, type DataToTableOptions } from './dataToTable.js';
 import { searchLines, readLines, type SearchLinesInput, type ReadLinesInput } from './logTools.js';
 import { filterRecords, type FilterRecordsInput, type Condition } from './records.js';
 import { aggregate, type AggregateInput } from './aggregate.js';
+import { buildTimeline, type BuildTimelineInput, type TimelineSource } from './timeline.js';
 import { searchDocuments } from './search.js';
 import type { SearchQuery } from './search.js';
 import { gitStatus, gitDiff, gitCommit } from './gitTools.js';
@@ -80,7 +81,9 @@ export const SERVER_INSTRUCTIONS = `md-business は Markdown / TSV の業務文�
 - ログ（\`.log\` / \`.jsonl\` など）は業務文書ではないが、**全文を読み込まない**。
   **search_lines** で当たりを付け、**read_lines** で周辺だけ読む。1 行 1 レコードの形
   （JSONL / TSV）なら **filter_records** で条件を付けて絞り、**aggregate** で
-  「いつ・何が・何件」を先に掴む。全文を開くと調べる前に文脈が埋まるうえ、
+  「いつ・何が・何件」を先に掴む。別々のファイルを突き合わせるなら **build_timeline** で
+  時刻順に混ぜる（どの行も出どころと行番号を持ったまま並ぶ）。
+  全文を開くと調べる前に文脈が埋まるうえ、
   Authorization / Cookie / token / メールアドレスが伏せ字を通らずに入る。
   これらのツールの戻り値は必ず伏せ字がかかり、上限で切ったときは切ったと返る。
 - 変更を確認して記録するのは **git_status** / **git_diff** / **git_commit**（利用可能な場合）。
@@ -556,6 +559,66 @@ export function createServer(store: DocumentStore, options: CreateServerOptions 
       if (sort !== undefined) input.sort = sort;
       const r = await aggregate(store, input);
       emit('aggregate', path, r);
+      return jsonResult(r, !r.ok);
+    },
+  );
+
+  server.registerTool(
+    'build_timeline',
+    {
+      description:
+        '複数のログ（JSONL / TSV）の行を時刻順に 1 本へ混ぜて返す。どの行も「どのファイルの何行目か」を持ったまま並ぶ。時刻は読めた形式（ISO 8601 など）だけを読み、読めなかった行は捨てずに time=null として末尾に付ける。数値の時刻は epoch を指定したときだけ読む（桁数から推測しない）。レコードには返す直前に伏せ字がかかる。',
+      inputSchema: {
+        sources: z
+          .array(
+            z.object({
+              path: z.string().describe('ワークスペース相対パス（例 logs/app.jsonl）'),
+              format: z.enum(['jsonl', 'tsv']).optional().describe('形式。省略時は拡張子から判別'),
+              timeField: z.string().describe('時刻にする項目（`.` 区切り。例 ts）'),
+              label: z.string().optional().describe('出どころの表示名。省略するとパス'),
+            }),
+          )
+          .describe('混ぜるファイル（1〜20 件）。時刻の項目名はファイルごとに指定する'),
+        where: z.array(conditionShape).optional().describe('混ぜる前に絞る条件（全ファイル共通）'),
+        match: z.enum(['all', 'any']).optional().describe('条件の結び方。省略時は all'),
+        from: z.string().optional().describe('この時刻以降だけを混ぜる。読めた時刻にだけ効く'),
+        to: z.string().optional().describe('この時刻以前だけを混ぜる。読めた時刻にだけ効く'),
+        epoch: z
+          .enum(['seconds', 'milliseconds'])
+          .optional()
+          .describe('数値の時刻の単位。指定しない限り数値は時刻として読まない'),
+        fields: z.array(z.string()).optional().describe('返す項目（`.` 区切り）。省略すると全体'),
+        maxEvents: z
+          .number()
+          .int()
+          .optional()
+          .describe('返す出来事の数の上限。省略時は 200・上限 2000'),
+        maxValueLength: z
+          .number()
+          .int()
+          .optional()
+          .describe('文字列 1 つの文字数上限。省略時は 2000・上限 20000'),
+      },
+    },
+    async ({ sources, where, match, from, to, epoch, fields, maxEvents, maxValueLength }) => {
+      const input: BuildTimelineInput = {
+        sources: sources.map((source) => {
+          const one: TimelineSource = { path: source.path, timeField: source.timeField };
+          if (source.format !== undefined) one.format = source.format;
+          if (source.label !== undefined) one.label = source.label;
+          return one;
+        }),
+      };
+      if (where !== undefined) input.where = toConditions(where);
+      if (match !== undefined) input.match = match;
+      if (from !== undefined) input.from = from;
+      if (to !== undefined) input.to = to;
+      if (epoch !== undefined) input.epoch = epoch;
+      if (fields !== undefined) input.fields = fields;
+      if (maxEvents !== undefined) input.maxEvents = maxEvents;
+      if (maxValueLength !== undefined) input.maxValueLength = maxValueLength;
+      const r = await buildTimeline(store, input);
+      emit('build_timeline', sources[0]?.path, r);
       return jsonResult(r, !r.ok);
     },
   );

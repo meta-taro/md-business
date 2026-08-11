@@ -107,6 +107,7 @@ describe('createServer / MCP 配線', () => {
     expect(tools.map((t) => t.name).sort()).toEqual([
       'aggregate',
       'append_tsv_row',
+      'build_timeline',
       'create_document',
       'data_to_table',
       'filter_records',
