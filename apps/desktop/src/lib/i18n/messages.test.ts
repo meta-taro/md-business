@@ -43,6 +43,31 @@ describe('ソース管理パネルの文言', () => {
   });
 });
 
+describe('検証グリッドの文言', () => {
+  const GRID_KEYS = KEYS.filter((key) => key.startsWith('grid.'));
+
+  it('グリッドの表示文言が辞書にある', () => {
+    expect(GRID_KEYS.length).toBeGreaterThan(0);
+  });
+
+  // 控えた行があること自体を忘れられると「消えた」と受け取られる。件数が出る必要がある。
+  it('控え行の切り替えは件数を差し込める', () => {
+    for (const locale of LOCALES) {
+      expect(messages[locale]['grid.revealShow'], locale).toContain('{count}');
+      expect(messages[locale]['grid.revealHide'], locale).toContain('{count}');
+    }
+  });
+
+  // 移動先が無いとき、リンクが壊れているのか値がまだ無いのかを利用者が切り分けられるよう、
+  // 探した列と値の両方を出す。
+  it('行の移動先が無いときは、どの列のどの値かが分かる', () => {
+    for (const locale of LOCALES) {
+      expect(messages[locale]['grid.jumpNoRow'], locale).toContain('{column}');
+      expect(messages[locale]['grid.jumpNoRow'], locale).toContain('{value}');
+    }
+  });
+});
+
 // Node 未検出は、利用者が自分で直せる唯一の劣化理由。「入れてください」だけだと
 // どの版を入れればいいか分からず、入れた後もアプリを起動し直さないと PATH が更新されず
 // 同じ表示のままになる（実運用で発生した）。文言そのものは変わりうるので、

@@ -13,6 +13,7 @@
    */
   import { untrack } from 'svelte';
   import { perf } from '$lib/diagnostics/perf.svelte';
+  import { t } from '$lib/i18n/i18n.svelte';
   import type { IdentifiedTsv } from '@md-business/schema-test-spec-tsv';
   import {
     applyComputed,
@@ -262,7 +263,9 @@
   // 選択中の列範囲に新規グループを張る。既定ラベルで即 setGroup 永続化し、
   // そのまま改名モードへ入れる（既定ラベルは選択済みなのでタイプで置換できる）。単一セル
   // 選択なら 1 列グループ。重なる既存は setGroup が置き換える。取消は × 削除で。
-  const DEFAULT_GROUP_LABEL = 'グループ';
+  // 既定ラベルは作った時点の表示言語で入る。中身はファイルへ書かれる値なので、
+  // 後から言語を切り替えても書き換わらない（利用者が付けた名前と同じ扱い）。
+  const DEFAULT_GROUP_LABEL = t('grid.defaultGroupLabel');
   function createGroupFromSelection(): void {
     if (!editable) return;
     const b = rangeBounds(selection);
@@ -804,19 +807,19 @@
   function jumpToRow(column: string, value: string): void {
     const found = findRowsByCell(doc, column, value);
     if (found.column < 0) {
-      notify(`「${column}」という列がありません`);
+      notify(t('grid.jumpNoColumn', { column }));
       return;
     }
     const row = found.rows[0];
     if (row === undefined) {
-      notify(`${column} が「${value}」の行はありません`);
+      notify(t('grid.jumpNoRow', { column, value }));
       return;
     }
     engaged = true;
     selection = { anchor: { row, col: found.column }, focus: { row, col: found.column } };
     mode = 'nav';
     // 一致が複数あるときも動く（動かないほうが困る）。件数だけ知らせる。
-    if (found.rows.length > 1) notify(`${found.rows.length} 行あります。最初の行へ移動しました`);
+    if (found.rows.length > 1) notify(t('grid.jumpMultiple', { count: found.rows.length }));
   }
 
   // 外から指定された移動先へ寄せる（別ファイルのリンクを開いた直後）。
@@ -983,18 +986,18 @@
       doc.columns.length,
     );
     emit(applyPaste(doc, { row: r0, col: c0 }, text));
-    if (dropped > 0) notify(`計算列の ${dropped} セルは貼り付けていません`);
+    if (dropped > 0) notify(t('grid.pasteDroppedComputed', { count: dropped }));
   }
 
   // ── 行操作（下部アクションバー）。対象は「選択中の行」＝アンカーセルの行。 ──
   const hasRows = $derived(doc.rows.length > 0);
-  const activeRowLabel = $derived(hasRows ? `${activeCell.row + 1} 行目` : '—');
-  const modeLabel = $derived(mode === 'edit' ? '編集' : '選択');
+  const activeRowLabel = $derived(hasRows ? t('grid.rowLabel', { row: activeCell.row + 1 }) : '—');
+  const modeLabel = $derived(t(mode === 'edit' ? 'grid.modeEditing' : 'grid.modeSelecting'));
   // 複数セル選択時だけ「行×列」を出す（単一セルは空＝ノイズにしない）。
   const selectionLabel = $derived.by(() => {
     if (isSingleCell(selection)) return '';
     const b = rangeBounds(selection);
-    return `${b.r1 - b.r0 + 1}×${b.c1 - b.c0 + 1} 選択`;
+    return t('grid.selectionSize', { rows: b.r1 - b.r0 + 1, cols: b.c1 - b.c0 + 1 });
   });
 
   // 実データ末尾より下＝pad 行（まだファイルに焼けない空行）。複製/削除/クリア/コピーは
@@ -1061,7 +1064,7 @@
   <div
     class="tsv-grid"
     role="region"
-    aria-label="検証シート編集グリッド"
+    aria-label={t('grid.regionLabel')}
     bind:this={gridEl}
     bind:clientHeight={viewportHeight}
     onscroll={onGridScroll}
@@ -1070,7 +1073,7 @@
     oncontextmenu={onGridContextMenu}
   >
     {#if doc.columns.length === 0}
-      <p class="empty">列定義がありません（ヘッダ行のある TSV を開いてください）</p>
+      <p class="empty">{t('grid.emptyColumns')}</p>
     {:else}
       <table style={`width:${tableWidth}px; --head-top:${headTop}px`}>
       <colgroup>
@@ -1127,14 +1130,14 @@
                   <button
                     type="button"
                     class="note-text"
-                    title="クリックで補足を編集"
+                    title={t('grid.noteEdit')}
                     onclick={() => startNoteEdit(ni)}
                   >{note}</button>
                   <button
                     type="button"
                     class="note-del"
-                    title="この補足を削除"
-                    aria-label="この補足を削除"
+                    title={t('grid.noteDelete')}
+                    aria-label={t('grid.noteDelete')}
                     onclick={() => deleteNote(ni)}
                   >×</button>
                 {:else}
@@ -1164,7 +1167,7 @@
                   class="note-input"
                   value={noteDraft}
                   use:noteAutofocus
-                  placeholder="補足を入力…（Enter で確定・Esc で取消）"
+                  placeholder={t('grid.notePlaceholder')}
                   oninput={(e) => (noteDraft = e.currentTarget.value)}
                   onblur={commitNoteEdit}
                   onkeydown={onNoteKeydown}
@@ -1207,14 +1210,14 @@
                     <button
                       type="button"
                       class="group-text"
-                      title="クリックで大分類を改名"
+                      title={t('grid.groupRename')}
                       onclick={() => startGroupRename(cell)}
                     >{cell.label}</button>
                     <button
                       type="button"
                       class="group-del"
-                      title="この大分類を削除"
-                      aria-label="この大分類を削除"
+                      title={t('grid.groupDelete')}
+                      aria-label={t('grid.groupDelete')}
                       onclick={() => deleteGroup(cell)}
                     >×</button>
                   {:else}<span class="group-text-ro">{cell.label}</span>{/if}
@@ -1224,7 +1227,7 @@
           </tr>
         {/if}
         <tr class="head-row">
-          <th class="rownum" scope="col" aria-label="行番号"></th>
+          <th class="rownum" scope="col" aria-label={t('grid.rowNumber')}></th>
           {#each doc.columns as column, col (col)}
             <th
               scope="col"
@@ -1233,7 +1236,7 @@
               oncontextmenu={(e) => openColMenu(col, e)}
             >
               <span class="colname">{column.name}</span>
-              {#if column.required}<span class="req" aria-label="必須">*</span>{/if}
+              {#if column.required}<span class="req" aria-label={t('grid.required')}>*</span>{/if}
               <!-- 列幅リサイズのグリップ。掴んで左右ドラッグで列幅を変える（スプレ同様）。
                    ダブルクリックで内容に合わせた自動幅。キーボード列幅調整は未提供。 -->
               <!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -1241,8 +1244,8 @@
                 class="col-resize"
                 role="separator"
                 aria-orientation="vertical"
-                aria-label={`${column.name} 列の幅を変更`}
-                title="ドラッグで幅変更／ダブルクリックで自動幅"
+                aria-label={t('grid.colResizeLabel', { name: column.name })}
+                title={t('grid.colResizeTitle')}
                 onpointerdown={(e) => onResizeStart(col, e)}
                 onpointermove={onResizeMove}
                 onpointerup={onResizeEnd}
@@ -1279,8 +1282,8 @@
                 class="row-resize"
                 role="separator"
                 aria-orientation="horizontal"
-                aria-label={`${r + 1} 行目の高さを変更`}
-                title="ドラッグで高さ変更／ダブルクリックで既定に戻す"
+                aria-label={t('grid.rowResizeLabel', { row: r + 1 })}
+                title={t('grid.rowResizeTitle')}
                 onpointerdown={(e) => onRowResizeStart(r, e)}
                 onpointermove={onRowResizeMove}
                 onpointerup={onRowResizeEnd}
@@ -1304,7 +1307,7 @@
                 class:selected={inSelection(r, c)}
                 class:editing={active && mode === 'edit'}
                 class:computed={isLocked(c)}
-                title={issue ?? (isLocked(c) ? '計算列（値は自動で決まる）' : undefined)}
+                title={issue ?? (isLocked(c) ? t('grid.computedCell') : undefined)}
                 data-cell={`${r}-${c}`}
                 onkeydown={(e) => onGridKeydown(r, c, e)}
                 onpointerdown={(e) => onCellPointerDown(r, c, e)}
@@ -1444,35 +1447,35 @@
     <!-- 行操作バー。対象は「選択中の行」＝アクティブセルの行。 -->
     <div class="grid-actions">
       <!-- 足す位置・複製先を label に書く。「行を追加」だけだと選択行の隣に入ると読まれる。 -->
-      <button type="button" class="row-btn" onclick={addRow} title="表の一番下に空の行を 1 本足す">
-        ＋ 末尾に行を追加
+      <button type="button" class="row-btn" onclick={addRow} title={t('grid.addRowTitle')}>
+        {t('grid.addRow')}
       </button>
       <button
         type="button"
         class="row-btn"
         onclick={duplicateActiveRow}
         disabled={!activeIsData}
-        title="選択行と同じ内容の行を、そのすぐ下に足す"
+        title={t('grid.duplicateRowTitle')}
       >
-        選択行の下に複製
+        {t('grid.duplicateRow')}
       </button>
       <button
         type="button"
         class="row-btn"
         onclick={copyActiveRow}
         disabled={!activeIsData}
-        title="選択行をクリップボードへ写す"
+        title={t('grid.copyRowTitle')}
       >
-        選択行をコピー
+        {t('grid.copyRow')}
       </button>
       <button
         type="button"
         class="row-btn"
         onclick={clearActiveRow}
         disabled={!activeIsData}
-        title="選択行の中身だけを消す（行は残る）"
+        title={t('grid.clearRowTitle')}
       >
-        選択行をクリア
+        {t('grid.clearRow')}
       </button>
       <!-- 結果・実施日・担当を同じ値で何十行も埋める作業を 1 操作にする（Ctrl+D）。 -->
       <button
@@ -1480,18 +1483,18 @@
         class="row-btn"
         onclick={fillSelectionDown}
         disabled={!fillableDown}
-        title="選択範囲の先頭行の値を下の行へ配る（Ctrl+D）。単一セルなら直上の値を引く"
+        title={t('grid.fillDownTitle')}
       >
-        下へ埋める
+        {t('grid.fillDown')}
       </button>
       <button
         type="button"
         class="row-btn danger"
         onclick={deleteActiveRow}
         disabled={!activeIsData && padRows === 0}
-        title="選択行を表から取り除く（戻せない。迷うなら控えに）"
+        title={t('grid.deleteRowTitle')}
       >
-        選択行を削除
+        {t('grid.deleteRow')}
       </button>
       <!-- 書き直した元の文言を、消していいか悩まずに退避する（#@ hidden …）。
            表示中なら同じボタンが戻す側になる。 -->
@@ -1500,28 +1503,21 @@
         class="row-btn"
         onclick={toggleActiveRowHidden}
         disabled={!activeIsData}
-        title={activeIsHidden
-          ? '控えをやめて通常の行に戻す'
-          : '行をファイルに残したまま表から外す'}
+        title={activeIsHidden ? t('grid.unhideRowTitle') : t('grid.hideRowTitle')}
       >
-        {activeIsHidden ? '控えから戻す' : '選択行を控えに'}
+        {activeIsHidden ? t('grid.unhideRow') : t('grid.hideRow')}
       </button>
       <!-- 表の上の補足行を 1 本追加（#@ note …）。「表の上に補足」の編集導線。 -->
-      <button
-        type="button"
-        class="row-btn"
-        onclick={startNewNote}
-        title="表の上に置く補足の 1 行を足す"
-      >
-        ＋ 補足行
+      <button type="button" class="row-btn" onclick={startNewNote} title={t('grid.addNoteTitle')}>
+        {t('grid.addNote')}
       </button>
       <!-- 選択中の列範囲に肉厚グループ（大分類）を張る（#@ group …）。既定名で作って即改名。 -->
       <button
         type="button"
         class="row-btn"
         onclick={createGroupFromSelection}
-        title="選択中の列に大分類（グループ見出し）を作成"
-      >＋ グループ</button>
+        title={t('grid.addGroupTitle')}
+      >{t('grid.addGroup')}</button>
       <!-- 控えを預かっていることは常に見えるようにする。件数を出さないと、外した行が
            あること自体を忘れて「消えた」と受け取られる。 -->
       {#if hiddenCount > 0 && onToggleReveal}
@@ -1530,13 +1526,15 @@
           class="row-btn"
           class:on={reveal}
           onclick={onToggleReveal}
-          title={reveal ? '控え行を表から外す' : '控え行を表に出して中身を確かめる'}
+          title={reveal ? t('grid.revealHideTitle') : t('grid.revealShowTitle')}
         >
-          控え {hiddenCount} 行{reveal ? 'を隠す' : 'を表示'}
+          {reveal
+            ? t('grid.revealHide', { count: hiddenCount })
+            : t('grid.revealShow', { count: hiddenCount })}
         </button>
       {/if}
       <span class="active-row" aria-live="polite">
-        {modeLabel}中: {activeRowLabel}{#if selectionLabel} · {selectionLabel}{/if}
+        {modeLabel}: {activeRowLabel}{#if selectionLabel} · {selectionLabel}{/if}
       </span>
       <!-- 落とした件数のように、黙っていると気づかれない結果だけをここへ出す。 -->
       <span class="notice" aria-live="polite">{notice}</span>
@@ -1549,13 +1547,13 @@
     <button
       type="button"
       class="menu-backdrop"
-      aria-label="メニューを閉じる"
+      aria-label={t('grid.menuClose')}
       onclick={closeColMenu}
       oncontextmenu={(e) => { e.preventDefault(); closeColMenu(); }}
     ></button>
     <ul class="col-menu" role="menu" style={`left:${colMenu.x}px; top:${colMenu.y}px`}>
       <li class="col-menu-head" role="presentation">
-        {doc.columns[colMenu.col]?.name} 列のテキスト表示
+        {t('grid.colMenuText', { name: doc.columns[colMenu.col]?.name ?? '' })}
       </li>
       {#each colMenuItems as item (item.mode)}
         <li role="none">
@@ -1568,12 +1566,12 @@
             onclick={() => chooseColMode(item.mode)}
           >
             <span class="check" aria-hidden="true">{item.checked ? '✓' : ''}</span>
-            {item.label}
+            {t(item.labelKey)}
           </button>
         </li>
       {/each}
       <!-- 寄せは型付きヘッダ・データセル・大分類（所属列の指定に従う）へ同時に効く。 -->
-      <li class="col-menu-head" role="presentation">寄せ</li>
+      <li class="col-menu-head" role="presentation">{t('grid.colMenuAlign')}</li>
       {#each colAlignItems as item (item.align)}
         <li role="none">
           <button
@@ -1585,7 +1583,7 @@
             onclick={() => chooseColAlign(item.align)}
           >
             <span class="check" aria-hidden="true">{item.checked ? '✓' : ''}</span>
-            {item.label}
+            {t(item.labelKey)}
           </button>
         </li>
       {/each}

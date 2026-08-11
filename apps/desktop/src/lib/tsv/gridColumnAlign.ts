@@ -9,6 +9,7 @@
  * 選択肢生成・寄せ状態・CSS 値への写像を DOM 非依存の純関数として切り出す。
  */
 import type { ParsedHeader } from '@md-business/schema-test-spec-tsv';
+import type { MessageKey } from '$lib/i18n/messages';
 import { widgetForColumn } from './gridModel';
 
 /** 列テキストの寄せ。 */
@@ -17,11 +18,11 @@ export type ColAlign = 'left' | 'center' | 'right';
 /** メニュー・反復用の寄せ並び（表示順）。 */
 export const COL_ALIGNS: readonly ColAlign[] = ['left', 'center', 'right'];
 
-/** 寄せごとの日本語ラベル（右クリックメニュー表示）。 */
-const ALIGN_LABELS: Record<ColAlign, string> = {
-  left: '左寄せ',
-  center: '中央寄せ',
-  right: '右寄せ',
+/** 寄せごとの文言キー（表示は呼び出し側で表示言語に合わせて解決する）。 */
+const ALIGN_LABEL_KEYS: Record<ColAlign, MessageKey> = {
+  left: 'grid.colAlignLeft',
+  center: 'grid.colAlignCenter',
+  right: 'grid.colAlignRight',
 };
 
 /** 寄せごとの CSS 値（1 行表示は flex・折り返し表示は block なので両方を与える）。 */
@@ -50,7 +51,7 @@ export function setColAlign(aligns: ColAlign[], index: number, align: ColAlign):
 /** 右クリックメニュー 1 項目。 */
 export interface ColAlignMenuItem {
   align: ColAlign;
-  label: string;
+  labelKey: MessageKey;
   /** 現在の列の寄せと一致するか（チェック表示用）。 */
   checked: boolean;
 }
@@ -59,7 +60,7 @@ export interface ColAlignMenuItem {
 export function colAlignMenuItems(current: ColAlign): ColAlignMenuItem[] {
   return COL_ALIGNS.map((align) => ({
     align,
-    label: ALIGN_LABELS[align],
+    labelKey: ALIGN_LABEL_KEYS[align],
     checked: align === current,
   }));
 }

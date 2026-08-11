@@ -9,6 +9,7 @@
  * 右クリックメニューの選択肢生成と列モード状態を DOM 非依存の純関数として切り出す。
  */
 import type { ParsedHeader } from '@md-business/schema-test-spec-tsv';
+import type { MessageKey } from '$lib/i18n/messages';
 import { widgetForColumn } from './gridModel';
 
 /** 列テキストの表示モード。 */
@@ -17,11 +18,11 @@ export type ColOverflowMode = 'clip' | 'wrap' | 'overflow';
 /** メニュー・反復用のモード並び（表示順）。 */
 export const COL_OVERFLOW_MODES: readonly ColOverflowMode[] = ['clip', 'wrap', 'overflow'];
 
-/** モードごとの日本語ラベル（右クリックメニュー表示）。 */
-const MODE_LABELS: Record<ColOverflowMode, string> = {
-  clip: '見切れる（省略）',
-  wrap: '折り返す',
-  overflow: '突き抜ける',
+/** モードごとの文言キー（表示は呼び出し側で表示言語に合わせて解決する）。 */
+const MODE_LABEL_KEYS: Record<ColOverflowMode, MessageKey> = {
+  clip: 'grid.colModeClip',
+  wrap: 'grid.colModeWrap',
+  overflow: 'grid.colModeOverflow',
 };
 
 /** 1 列分の既定モードを型から決める（複数行列は折り返し、他は見切れ）。 */
@@ -61,7 +62,7 @@ export function reconcileColModes(
 /** 右クリックメニュー 1 項目。 */
 export interface ColModeMenuItem {
   mode: ColOverflowMode;
-  label: string;
+  labelKey: MessageKey;
   /** 現在の列モードと一致するか（チェック表示用）。 */
   checked: boolean;
 }
@@ -70,7 +71,7 @@ export interface ColModeMenuItem {
 export function colModeMenuItems(current: ColOverflowMode): ColModeMenuItem[] {
   return COL_OVERFLOW_MODES.map((mode) => ({
     mode,
-    label: MODE_LABELS[mode],
+    labelKey: MODE_LABEL_KEYS[mode],
     checked: mode === current,
   }));
 }
