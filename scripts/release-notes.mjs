@@ -1,8 +1,11 @@
 #!/usr/bin/env node
-// CHANGELOG.md から、指定したバージョンの節だけを取り出す。
+// CHANGELOG から、指定したバージョンの節だけを取り出す。
 // GitHub Releases の本文に流し込むために使う（リリースのたびに本文を手で書き写さないため）。
 //
-//   node scripts/release-notes.mjs apps/desktop/CHANGELOG.md v0.4.0
+//   node scripts/release-notes.mjs v0.4.0 apps/desktop/CHANGELOG.md apps/desktop/CHANGELOG.en.md
+//
+// CHANGELOG を複数渡すと、目印を挟んで 1 本にまとめる。Release の本文は 1 つしか持てないが、
+// アプリ側はこの目印で表示言語のぶんだけを取り出す。
 //
 // 該当する節が無ければ何も出力せず、終了コード 0 で終わる（リリース自体は止めない）。
 
@@ -34,21 +37,34 @@ export function extractReleaseNotes(changelog, tag) {
   return body.join('\n').trim();
 }
 
+/**
+ * 言語ごとの本文を、目印を挟んで 1 本にする（1 本目が日本語、2 本目が英語）。
+ * 空の本文は目印ごと落とす。目印だけあって中身が無いと、その言語の利用者に空の本文が出る。
+ */
+export function joinLocaleNotes([ja = '', en = '']) {
+  const parts = [ja.trim()];
+  if (en.trim()) parts.push('<!-- lang:en -->', en.trim());
+  return parts.filter(Boolean).join('\n\n');
+}
+
 async function main() {
-  const [changelogPath, tag] = process.argv.slice(2);
-  if (!changelogPath || !tag) {
-    process.stderr.write('usage: node scripts/release-notes.mjs <changelog-path> <tag>\n');
+  const [tag, ...changelogPaths] = process.argv.slice(2);
+  if (!tag || changelogPaths.length === 0) {
+    process.stderr.write('usage: node scripts/release-notes.mjs <tag> <changelog-path...>\n');
     process.exit(2);
   }
 
-  const changelog = await readFile(changelogPath, 'utf8');
-  const notes = extractReleaseNotes(changelog, tag);
-  if (!notes) {
-    process.stderr.write(`no changelog section for ${tag} in ${changelogPath}\n`);
-    return;
+  const sections = [];
+  for (const path of changelogPaths) {
+    const notes = extractReleaseNotes(await readFile(path, 'utf8'), tag);
+    if (!notes) process.stderr.write(`no changelog section for ${tag} in ${path}\n`);
+    sections.push(notes);
   }
 
-  process.stdout.write(`${notes}\n`);
+  const body = joinLocaleNotes(sections);
+  if (!body) return;
+
+  process.stdout.write(`${body}\n`);
 }
 
 // テストから import されたときは実行しない。

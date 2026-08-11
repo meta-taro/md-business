@@ -1,7 +1,8 @@
 <script lang="ts">
   import { openUrl } from '@tauri-apps/plugin-opener';
+  import { i18n, t } from '$lib/i18n/i18n.svelte';
   import { updater } from './updater.svelte';
-  import { renderReleaseNotes, externalLinkHref } from './releaseNotes';
+  import { renderReleaseNotes, externalLinkHref, pickReleaseNotes } from './releaseNotes';
   import { recentReleases, RELEASES_URL } from './releaseHistory';
 
   // 更新フローのモーダル。updater コントローラの state / visible を購読し、状態ごとに
@@ -13,13 +14,19 @@
   const busy = $derived(state.status === 'downloading' || state.status === 'installing');
 
   // リリースノートは Markdown。素で出すと記号が本文に混ざるため HTML 化して描く。
-  const notesHtml = $derived(state.status === 'available' ? renderReleaseNotes(state.notes) : '');
+  const notesHtml = $derived(
+    state.status === 'available'
+      ? renderReleaseNotes(pickReleaseNotes(state.notes, i18n.locale))
+      : '',
+  );
 
-  // 最新のときに出す「これまでの更新内容」。同梱物なので中身は変わらず、1 度作れば足りる。
-  const history = recentReleases().map((entry) => ({
-    version: entry.version,
-    html: renderReleaseNotes(entry.notes),
-  }));
+  // 最新のときに出す「これまでの更新内容」。表示言語を変えたら本文も切り替わる。
+  const history = $derived(
+    recentReleases(i18n.locale).map((entry) => ({
+      version: entry.version,
+      html: renderReleaseNotes(entry.notes),
+    })),
+  );
 
   function onBackdrop(): void {
     if (!busy) updater.dismiss();
@@ -45,12 +52,12 @@
 </script>
 
 {#if updater.visible && state.status !== 'idle'}
-  <div class="overlay" role="dialog" aria-modal="true" aria-label="アプリの更新">
+  <div class="overlay" role="dialog" aria-modal="true" aria-label={t('update.dialogLabel')}>
     <!-- 背景。処理中でなければクリックで閉じる。 -->
     <button
       class="backdrop"
       type="button"
-      aria-label="閉じる"
+      aria-label={t('common.close')}
       disabled={busy}
       onclick={onBackdrop}
     ></button>
@@ -59,18 +66,18 @@
       {#if state.status === 'checking'}
         <div class="head">
           <span class="spinner" aria-hidden="true"></span>
-          <h2 class="title">更新を確認しています…</h2>
+          <h2 class="title">{t('update.checkingTitle')}</h2>
         </div>
       {:else if state.status === 'up-to-date'}
         <div class="head">
           <span class="badge ok" aria-hidden="true">✓</span>
-          <h2 class="title">最新の状態です</h2>
+          <h2 class="title">{t('update.upToDateTitle')}</h2>
         </div>
-        <p class="desc">お使いの md-business は最新バージョンです。</p>
+        <p class="desc">{t('update.upToDateDesc')}</p>
         {#if history.length > 0}
           <!-- 更新が無いときこそ何も出ない状態を避ける。手元の版までの内容は同梱してあるので、
                直近の数件は通信せずに出せる。それより前は Release の一覧へ送る。 -->
-          <div class="notes-label">これまでの更新内容</div>
+          <div class="notes-label">{t('update.historyLabel')}</div>
           <div class="notes history" use:externalLinks>
             {#each history as entry (entry.version)}
               <h3 class="release">v{entry.version}</h3>
@@ -79,29 +86,33 @@
           </div>
         {/if}
         <div class="actions">
-          <a class="more" href={RELEASES_URL} use:externalLinks>もっと見る</a>
-          <button class="btn primary" type="button" onclick={() => updater.dismiss()}>閉じる</button>
+          <a class="more" href={RELEASES_URL} use:externalLinks>{t('update.more')}</a>
+          <button class="btn primary" type="button" onclick={() => updater.dismiss()}>
+            {t('common.close')}
+          </button>
         </div>
       {:else if state.status === 'available'}
         <div class="head">
           <span class="badge new" aria-hidden="true">↑</span>
-          <h2 class="title">新しいバージョン v{state.version} があります</h2>
+          <h2 class="title">{t('update.availableTitle', { version: state.version })}</h2>
         </div>
         {#if notesHtml.length > 0}
-          <div class="notes-label">更新内容</div>
+          <div class="notes-label">{t('update.notesLabel')}</div>
           <!-- 本文は sanitize 済み（renderReleaseNotes）。リンクだけ外部ブラウザへ逃がす。 -->
           <div class="notes" use:externalLinks>{@html notesHtml}</div>
         {/if}
         <div class="actions">
-          <button class="btn ghost" type="button" onclick={() => updater.dismiss()}>後で</button>
+          <button class="btn ghost" type="button" onclick={() => updater.dismiss()}>
+            {t('update.later')}
+          </button>
           <button class="btn primary" type="button" onclick={() => updater.downloadAndInstall()}>
-            今すぐ更新
+            {t('update.installNow')}
           </button>
         </div>
       {:else if state.status === 'downloading'}
         <div class="head">
           <span class="spinner" aria-hidden="true"></span>
-          <h2 class="title">ダウンロード中… {state.percent}%</h2>
+          <h2 class="title">{t('update.downloadingTitle', { percent: state.percent })}</h2>
         </div>
         <div
           class="progress"
@@ -115,29 +126,33 @@
       {:else if state.status === 'installing'}
         <div class="head">
           <span class="spinner" aria-hidden="true"></span>
-          <h2 class="title">インストール中…</h2>
+          <h2 class="title">{t('update.installingTitle')}</h2>
         </div>
-        <p class="desc">更新を適用しています。しばらくお待ちください。</p>
+        <p class="desc">{t('update.installingDesc')}</p>
       {:else if state.status === 'ready'}
         <div class="head">
           <span class="badge ok" aria-hidden="true">✓</span>
-          <h2 class="title">更新の準備ができました</h2>
+          <h2 class="title">{t('update.readyTitle')}</h2>
         </div>
-        <p class="desc">v{state.version} を適用するにはアプリを再起動してください。</p>
+        <p class="desc">{t('update.readyDesc', { version: state.version })}</p>
         <div class="actions">
-          <button class="btn ghost" type="button" onclick={() => updater.dismiss()}>後で</button>
+          <button class="btn ghost" type="button" onclick={() => updater.dismiss()}>
+            {t('update.later')}
+          </button>
           <button class="btn primary" type="button" onclick={() => updater.relaunch()}>
-            再起動して完了
+            {t('update.relaunch')}
           </button>
         </div>
       {:else if state.status === 'error'}
         <div class="head">
           <span class="badge err" aria-hidden="true">!</span>
-          <h2 class="title">更新できませんでした</h2>
+          <h2 class="title">{t('update.errorTitle')}</h2>
         </div>
         <p class="desc">{state.message}</p>
         <div class="actions">
-          <button class="btn primary" type="button" onclick={() => updater.dismiss()}>閉じる</button>
+          <button class="btn primary" type="button" onclick={() => updater.dismiss()}>
+            {t('common.close')}
+          </button>
         </div>
       {/if}
     </div>

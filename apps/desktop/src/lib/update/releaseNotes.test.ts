@@ -3,7 +3,28 @@
 // リリースノートは HTML 化して sanitize（DOMPurify）するため window が要る。
 // よって markdownFallback.test と同じく jsdom に切り替える。
 import { describe, it, expect } from 'vitest';
-import { renderReleaseNotes, externalLinkHref } from './releaseNotes';
+import { renderReleaseNotes, externalLinkHref, pickReleaseNotes } from './releaseNotes';
+
+describe('pickReleaseNotes — 配信元の本文から、読める言語のぶんを取る', () => {
+  // 配信元（GitHub Release）の本文は 1 つしか持てないため、日本語と英語を目印で
+  // 続けて入れてある。目印はコメントなので、GitHub 上では見えない。
+  const NOTES = ['- 直したこと。', '', '<!-- lang:en -->', '', '- What was fixed.'].join('\n');
+
+  it('日本語のときは目印より前を返す', () => {
+    expect(pickReleaseNotes(NOTES, 'ja')).toBe('- 直したこと。');
+  });
+
+  it('日本語以外のときは目印より後を返す', () => {
+    for (const locale of ['en', 'zh', 'ko'] as const) {
+      expect(pickReleaseNotes(NOTES, locale), locale).toBe('- What was fixed.');
+    }
+  });
+
+  it('目印が無い本文は、そのまま返す', () => {
+    // 目印を入れる前に出した版の更新が届いたとき、本文ごと消えては困る。
+    expect(pickReleaseNotes('- 古い版の本文。', 'en')).toBe('- 古い版の本文。');
+  });
+});
 
 describe('renderReleaseNotes — 更新ダイアログのリリースノート', () => {
   it('Markdown を HTML にする', () => {

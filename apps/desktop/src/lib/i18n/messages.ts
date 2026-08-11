@@ -270,6 +270,24 @@ export interface Messages {
   'frontmatter.tooManyAnchors': string;
   'frontmatter.tooManyAliases': string;
   'frontmatter.unknown': string;
+  // 更新のお知らせ（7 状態 + 変更履歴）
+  'update.dialogLabel': string;
+  'update.checkingTitle': string;
+  'update.upToDateTitle': string;
+  'update.upToDateDesc': string;
+  'update.historyLabel': string;
+  'update.more': string;
+  'update.availableTitle': string;
+  'update.notesLabel': string;
+  'update.later': string;
+  'update.installNow': string;
+  'update.downloadingTitle': string;
+  'update.installingTitle': string;
+  'update.installingDesc': string;
+  'update.readyTitle': string;
+  'update.readyDesc': string;
+  'update.relaunch': string;
+  'update.errorTitle': string;
 }
 
 /** 翻訳キー型（t() の引数に使う）。 */
@@ -531,6 +549,23 @@ const en: Messages = {
   'frontmatter.tooManyAnchors': 'too many YAML anchors (&name) are declared.',
   'frontmatter.tooManyAliases': 'too many YAML references (*name) are used.',
   'frontmatter.unknown': 'reading stopped here ({raw}).',
+  'update.dialogLabel': 'Application update',
+  'update.checkingTitle': 'Checking for updates…',
+  'update.upToDateTitle': 'You are up to date',
+  'update.upToDateDesc': 'You are running the latest version of md-business.',
+  'update.historyLabel': "What's changed so far",
+  'update.more': 'See more',
+  'update.availableTitle': 'Version {version} is available',
+  'update.notesLabel': "What's changed",
+  'update.later': 'Later',
+  'update.installNow': 'Update now',
+  'update.downloadingTitle': 'Downloading… {percent}%',
+  'update.installingTitle': 'Installing…',
+  'update.installingDesc': 'Applying the update. This will take a moment.',
+  'update.readyTitle': 'Ready to update',
+  'update.readyDesc': 'Restart the app to apply v{version}.',
+  'update.relaunch': 'Restart now',
+  'update.errorTitle': 'Could not update',
 };
 
 const ja: Messages = {
@@ -788,6 +823,23 @@ const ja: Messages = {
   'frontmatter.tooManyAnchors': 'YAML のアンカー（&名前）が多すぎます。',
   'frontmatter.tooManyAliases': 'YAML の参照（*名前）が多すぎます。',
   'frontmatter.unknown': 'ここで読み取りが止まりました（{raw}）。',
+  'update.dialogLabel': 'アプリの更新',
+  'update.checkingTitle': '更新を確認しています…',
+  'update.upToDateTitle': '最新の状態です',
+  'update.upToDateDesc': 'お使いの md-business は最新バージョンです。',
+  'update.historyLabel': 'これまでの更新内容',
+  'update.more': 'もっと見る',
+  'update.availableTitle': '新しいバージョン v{version} があります',
+  'update.notesLabel': '更新内容',
+  'update.later': '後で',
+  'update.installNow': '今すぐ更新',
+  'update.downloadingTitle': 'ダウンロード中… {percent}%',
+  'update.installingTitle': 'インストール中…',
+  'update.installingDesc': '更新を適用しています。しばらくお待ちください。',
+  'update.readyTitle': '更新の準備ができました',
+  'update.readyDesc': 'v{version} を適用するにはアプリを再起動してください。',
+  'update.relaunch': '再起動して完了',
+  'update.errorTitle': '更新できませんでした',
 };
 
 const zh: Messages = {
@@ -1042,6 +1094,23 @@ const zh: Messages = {
   'frontmatter.tooManyAnchors': 'YAML 锚点（&名称）过多。',
   'frontmatter.tooManyAliases': 'YAML 引用（*名称）过多。',
   'frontmatter.unknown': '读取在此处中断（{raw}）。',
+  'update.dialogLabel': '应用更新',
+  'update.checkingTitle': '正在检查更新…',
+  'update.upToDateTitle': '已是最新版本',
+  'update.upToDateDesc': '您使用的 md-business 已是最新版本。',
+  'update.historyLabel': '历次更新内容',
+  'update.more': '查看更多',
+  'update.availableTitle': '有新版本 v{version}',
+  'update.notesLabel': '更新内容',
+  'update.later': '稍后',
+  'update.installNow': '立即更新',
+  'update.downloadingTitle': '正在下载… {percent}%',
+  'update.installingTitle': '正在安装…',
+  'update.installingDesc': '正在应用更新，请稍候。',
+  'update.readyTitle': '更新已准备就绪',
+  'update.readyDesc': '重新启动应用即可应用 v{version}。',
+  'update.relaunch': '重新启动',
+  'update.errorTitle': '无法更新',
 };
 
 const ko: Messages = {
@@ -1299,6 +1368,23 @@ const ko: Messages = {
   'frontmatter.tooManyAnchors': 'YAML 앵커(&이름)가 너무 많습니다.',
   'frontmatter.tooManyAliases': 'YAML 참조(*이름)가 너무 많습니다.',
   'frontmatter.unknown': '여기에서 읽기가 중단되었습니다({raw}).',
+  'update.dialogLabel': '앱 업데이트',
+  'update.checkingTitle': '업데이트를 확인하는 중…',
+  'update.upToDateTitle': '최신 상태입니다',
+  'update.upToDateDesc': '사용 중인 md-business는 최신 버전입니다.',
+  'update.historyLabel': '지금까지의 업데이트 내용',
+  'update.more': '더 보기',
+  'update.availableTitle': '새 버전 v{version}이(가) 있습니다',
+  'update.notesLabel': '업데이트 내용',
+  'update.later': '나중에',
+  'update.installNow': '지금 업데이트',
+  'update.downloadingTitle': '다운로드 중… {percent}%',
+  'update.installingTitle': '설치 중…',
+  'update.installingDesc': '업데이트를 적용하고 있습니다. 잠시 기다려 주세요.',
+  'update.readyTitle': '업데이트 준비가 끝났습니다',
+  'update.readyDesc': 'v{version}을(를) 적용하려면 앱을 다시 시작하세요.',
+  'update.relaunch': '다시 시작하기',
+  'update.errorTitle': '업데이트하지 못했습니다',
 };
 
 /** ロケール→文言辞書。i18n.svelte.ts が現ロケールと fallback(ja) を引く。 */
