@@ -35,7 +35,7 @@ describe('toAbsolutePath', () => {
 });
 
 describe('menuActionsForKind', () => {
-  it('ファイルは openForge まで含む全項目を持つ', () => {
+  it('ファイルは openForge・ファイル情報まで含む全項目を持つ', () => {
     expect(menuActionsForKind('file')).toEqual([
       'rename',
       'reveal',
@@ -43,6 +43,7 @@ describe('menuActionsForKind', () => {
       'copyRelPath',
       'copyPath',
       'openForge',
+      'fileInfo',
     ]);
   });
 
@@ -59,6 +60,12 @@ describe('menuActionsForKind', () => {
 
   it('ファイルには新規作成を出さない（作る先はフォルダで指す）', () => {
     expect(menuActionsForKind('file')).not.toContain('newTestSheet');
+  });
+
+  // 容量・行数・文字コード・SHA-256 はファイル 1 本を読んで測る値で、
+  // フォルダに対しては意味が変わる（合計なのか代表値なのか）。出さない。
+  it('フォルダにはファイル情報を出さない', () => {
+    expect(menuActionsForKind('folder')).not.toContain('fileInfo');
   });
 });
 

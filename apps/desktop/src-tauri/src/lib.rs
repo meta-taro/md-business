@@ -1,3 +1,4 @@
+mod fileinfo;
 mod git;
 mod mcp;
 mod mcp_logic;
@@ -47,6 +48,9 @@ pub fn run() {
             git::git_pull,
             git::git_diff,
             git::forge_file_url,
+            git::git_file_state,
+            fileinfo::file_stat,
+            fileinfo::file_digest,
             mcp::mcp_status,
             mcp::mcp_set_root,
             mcp::mcp_respond,

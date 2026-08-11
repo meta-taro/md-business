@@ -12,7 +12,8 @@ export type FileTreeMenuAction =
   | 'copyName'
   | 'copyRelPath'
   | 'copyPath'
-  | 'openForge';
+  | 'openForge'
+  | 'fileInfo';
 
 /**
  * ノードの絶対 OS パス。root の区切り文字（バックスラッシュを含めば Windows・他は "/"）へ
@@ -35,7 +36,8 @@ export function toAbsolutePath(root: string, relPath: string): string {
 export function menuActionsForKind(kind: 'file' | 'folder'): FileTreeMenuAction[] {
   const common: FileTreeMenuAction[] = ['rename', 'reveal', 'copyName', 'copyRelPath', 'copyPath'];
   // 新規作成は「どこに作るか」をフォルダで指す操作なので、フォルダにだけ出す。
-  return kind === 'file' ? [...common, 'openForge'] : ['newTestSheet', ...common];
+  // ファイル情報は 1 本のファイルを読んで測る値なので、逆にファイルにだけ出す。
+  return kind === 'file' ? [...common, 'openForge', 'fileInfo'] : ['newTestSheet', ...common];
 }
 
 /** 相対パスの末尾の名前（改名の初期値・ファイル名のコピーで使う）。 */
