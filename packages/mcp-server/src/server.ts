@@ -20,6 +20,7 @@ import {
 import type { UpdateDocumentInput } from './tools.js';
 import { readTsv, appendTsvRow, updateTsvRow } from './tsvTools.js';
 import { readData, type ReadDataOptions } from './dataTools.js';
+import { dataToTable, type DataToTableOptions } from './dataToTable.js';
 import { searchDocuments } from './search.js';
 import type { SearchQuery } from './search.js';
 import { gitStatus, gitDiff, gitCommit } from './gitTools.js';
@@ -71,6 +72,8 @@ export const SERVER_INSTRUCTIONS = `md-business は Markdown / TSV の業務文�
 - 外部から届いた JSON / XML（請求書の交換形式・口座明細・会計サービスの書き出しなど）は
   **read_data** で木構造として読む。これらは正本ではないので **書き戻す口は無い**。
   中身を業務文書にするなら、読んだ内容をもとに create_document / append_tsv_row で作る。
+  明細のような繰り返しを表として引用するなら **data_to_table** を使う。木から自前で
+  表を組むと列の抜けや \`|\` による桁ずれが起きるが、壊れた表は読める形をしているので気づけない。
 - 変更を確認して記録するのは **git_status** / **git_diff** / **git_commit**（利用可能な場合）。
 
 ## 書式の約束
@@ -317,6 +320,36 @@ export function createServer(store: DocumentStore, options: CreateServerOptions 
       if (depth !== undefined) options.depth = depth;
       const r = await readData(store, path, options);
       emit('read_data', path, r);
+      return jsonResult(r, !r.ok);
+    },
+  );
+
+  server.registerTool(
+    'data_to_table',
+    {
+      description:
+        'JSON / XML の繰り返し（配列・同名要素の並び）を Markdown の表に写す。at で指した節の子が 1 行になる。列は行に現れた順の和で、その行に無い項目は空セルのまま。セルの | は退避し、改行とタブは空白に畳む。表に出せないものは黙って落とさず、nestedColumns（さらに子を持つ項目）/ multiValuedColumns（1 行に複数現れ先頭だけ載せた項目）/ truncated（上限で載せなかった行数）で返すので、続きは read_data で取る。返るのは Markdown 文字列で、ファイルには書かない。',
+      inputSchema: {
+        path: z.string().describe('ワークスペース相対パス（例 data/請求.xml）'),
+        at: z
+          .array(z.string())
+          .optional()
+          .describe(
+            '表にする並びの親。指した節の子が 1 行ずつになる（例 ["明細"]）。XML の根要素は含めない。省略すると根',
+          ),
+        limit: z
+          .number()
+          .int()
+          .optional()
+          .describe('載せる行数の上限。省略時は 200。超えた分は truncated に件数で返る'),
+      },
+    },
+    async ({ path, at, limit }) => {
+      const options: DataToTableOptions = {};
+      if (at !== undefined) options.at = at;
+      if (limit !== undefined) options.limit = limit;
+      const r = await dataToTable(store, path, options);
+      emit('data_to_table', path, r);
       return jsonResult(r, !r.ok);
     },
   );

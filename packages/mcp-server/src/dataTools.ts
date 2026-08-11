@@ -39,7 +39,7 @@ const PROBLEM_LABEL: Record<DataProblemKind, string> = {
   unsupported: '扱わない拡張子です',
 };
 
-function describeProblem(problem: DataProblem): string {
+export function describeProblem(problem: DataProblem): string {
   const where = problem.line === undefined ? '' : `・${problem.line} 行目`;
   return `${PROBLEM_LABEL[problem.kind]}${where}: ${problem.message}`;
 }
@@ -89,7 +89,7 @@ function listNames(node: DataTreeNode, limit = 20): string {
   return names.length > limit ? `${shown} ほか ${names.length - limit} 件` : shown;
 }
 
-function describeAt(segments: string[]): string {
+export function describeAt(segments: string[]): string {
   return segments.length === 0 ? '根' : segments.join('/');
 }
 
@@ -133,7 +133,11 @@ function selectChild(
   };
 }
 
-function resolveAt(root: DataTreeNode, at: string[]): { ok: true; node: DataTreeNode } | ToolError {
+/** 位置指定をたどって 1 節を選ぶ。表化（dataToTable）も同じ道順と同じ言い回しで断る。 */
+export function resolveAt(
+  root: DataTreeNode,
+  at: string[],
+): { ok: true; node: DataTreeNode } | ToolError {
   let node = root;
   const walked: string[] = [];
   for (const segment of at) {
