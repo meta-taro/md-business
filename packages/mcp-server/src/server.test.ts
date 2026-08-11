@@ -107,6 +107,7 @@ describe('createServer / MCP 配線', () => {
     expect(tools.map((t) => t.name).sort()).toEqual([
       'append_tsv_row',
       'create_document',
+      'data_to_table',
       'get_schema',
       'list_schemas',
       'read_data',
@@ -316,6 +317,36 @@ describe('createServer / MCP 配線', () => {
     expect(parse(res).isError).toBe(true);
   });
 
+  it('data_to_table は繰り返しを Markdown の表にし、載せなかった行数を添える', async () => {
+    const store = new MemoryDocumentStore();
+    await store.write(
+      'data/請求.json',
+      JSON.stringify({ 明細: [{ 品名: '作業', 数量: 2 }, { 品名: '部材' }] }),
+    );
+    const client = await connect(store);
+    const res = (await client.callTool({
+      name: 'data_to_table',
+      arguments: { path: 'data/請求.json', at: ['明細'], limit: 1 },
+    })) as CallToolResult;
+    const { text, isError } = parse(res);
+    expect(isError).toBe(false);
+    const payload = text as { columns: string[]; truncated: number; markdown: string };
+    expect(payload.columns).toEqual(['品名', '数量']);
+    expect(payload.truncated).toBe(1);
+    expect(payload.markdown).toContain('| 作業 | 2 |');
+  });
+
+  it('data_to_table は行にできない位置を isError で返す', async () => {
+    const store = new MemoryDocumentStore();
+    await store.write('data/請求.json', '{"番号":"A-1"}');
+    const client = await connect(store);
+    const res = (await client.callTool({
+      name: 'data_to_table',
+      arguments: { path: 'data/請求.json', at: ['番号'] },
+    })) as CallToolResult;
+    expect(parse(res).isError).toBe(true);
+  });
+
   it('append_tsv_row は列名指定で 1 行追加する', async () => {
     const store = new MemoryDocumentStore();
     await store.write('sheets/t.tsv', SHEET_TSV);
@@ -450,6 +481,12 @@ describe('createServer / instructions', () => {
     const text = await instructions();
     // 書き戻す口が無いことを言わないと、エージェントは汎用の書き込み手段を探しに行く。
     expect(text).toContain('read_data');
+  });
+
+  it('繰り返しの引用に data_to_table を使うことを書く', async () => {
+    const text = await instructions();
+    // 木から自前で組んだ表は、列が抜けても壊れた形には見えないので気づかれない。
+    expect(text).toContain('data_to_table');
   });
 });
 
