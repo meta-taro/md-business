@@ -4,6 +4,15 @@ Changes to this app. Versions follow [Semantic Versioning](https://semver.org/).
 
 Japanese is the source of truth for this file; see [CHANGELOG.md](./CHANGELOG.md).
 
+## 0.8.0
+
+### Added
+
+- **Right-click a file to see what it actually is** ("File info"). Size, modification time, line count, character encoding, line endings, SHA-256, and how Git sees it, all in one place. You can check whether a file someone sent you is really what they said it was, where garbled text is coming from, or whether a change is still uncommitted — without opening another tool.
+  - Size and modification time appear first; the values that require reading the whole file (line count, encoding, SHA-256) catch up afterwards. Right-clicking a large file should not freeze the window.
+  - Encoding is only reported as far as a BOM and UTF-8 validity can tell. Guessing "probably Shift_JIS" would get believed, converted, and the file destroyed.
+- **AI can now quote a repeating part of JSON or XML as a Markdown table**. A list of line items copies into a document without losing a column or shifting the alignment. Anything that could not be put in the table — items that branch further, items appearing more than once in a row, rows past the limit — is reported by name or count rather than dropped in silence. A broken table still looks like a table, so a missed value is hard for a person to spot.
+
 ## 0.7.1
 
 ### Fixed
