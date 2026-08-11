@@ -2,6 +2,8 @@
 
 このアプリの変更履歴。バージョンは [Semantic Versioning](https://semver.org/lang/ja/) に従う。
 
+英語版は [CHANGELOG.en.md](./CHANGELOG.en.md)。版を足すときは両方に足す（片方だけだとテストで落ちる）。
+
 ## 0.7.0
 
 ### 追加

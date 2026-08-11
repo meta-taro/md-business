@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { extractReleaseNotes, normalizeVersion } from './release-notes.mjs';
+import { extractReleaseNotes, normalizeVersion, joinLocaleNotes } from './release-notes.mjs';
 
 const CHANGELOG = `# Changelog
 
@@ -57,6 +57,19 @@ test('最後の版は末尾まで取り出す', () => {
 
 test('該当する版が無ければ空文字を返す', () => {
   assert.equal(extractReleaseNotes(CHANGELOG, 'v9.9.9'), '');
+});
+
+test('日本語と英語を、目印を挟んで 1 本にする', () => {
+  // Release の本文は 1 つしか持てない。アプリ側はこの目印で読める言語のぶんを取り出す。
+  const joined = joinLocaleNotes(['- 直したこと。', '- What was fixed.']);
+  assert.match(joined, /^- 直したこと。/);
+  assert.match(joined, /<!-- lang:en -->/);
+  assert.equal(joined.endsWith('- What was fixed.'), true);
+});
+
+test('英語が無ければ、目印を入れない', () => {
+  // 目印だけあって中身が無いと、英語の利用者に空の本文が出る。
+  assert.equal(joinLocaleNotes(['- 直したこと。', '']), '- 直したこと。');
 });
 
 test('版の見出しを前方一致で拾わない', () => {

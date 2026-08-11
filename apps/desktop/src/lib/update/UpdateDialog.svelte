@@ -1,8 +1,8 @@
 <script lang="ts">
   import { openUrl } from '@tauri-apps/plugin-opener';
-  import { t } from '$lib/i18n/i18n.svelte';
+  import { i18n, t } from '$lib/i18n/i18n.svelte';
   import { updater } from './updater.svelte';
-  import { renderReleaseNotes, externalLinkHref } from './releaseNotes';
+  import { renderReleaseNotes, externalLinkHref, pickReleaseNotes } from './releaseNotes';
   import { recentReleases, RELEASES_URL } from './releaseHistory';
 
   // 更新フローのモーダル。updater コントローラの state / visible を購読し、状態ごとに
@@ -14,13 +14,19 @@
   const busy = $derived(state.status === 'downloading' || state.status === 'installing');
 
   // リリースノートは Markdown。素で出すと記号が本文に混ざるため HTML 化して描く。
-  const notesHtml = $derived(state.status === 'available' ? renderReleaseNotes(state.notes) : '');
+  const notesHtml = $derived(
+    state.status === 'available'
+      ? renderReleaseNotes(pickReleaseNotes(state.notes, i18n.locale))
+      : '',
+  );
 
-  // 最新のときに出す「これまでの更新内容」。同梱物なので中身は変わらず、1 度作れば足りる。
-  const history = recentReleases().map((entry) => ({
-    version: entry.version,
-    html: renderReleaseNotes(entry.notes),
-  }));
+  // 最新のときに出す「これまでの更新内容」。表示言語を変えたら本文も切り替わる。
+  const history = $derived(
+    recentReleases(i18n.locale).map((entry) => ({
+      version: entry.version,
+      html: renderReleaseNotes(entry.notes),
+    })),
+  );
 
   function onBackdrop(): void {
     if (!busy) updater.dismiss();

@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import changelog from '../../../CHANGELOG.md?raw';
+import changelogEn from '../../../CHANGELOG.en.md?raw';
 import tauriConf from '../../../src-tauri/tauri.conf.json?raw';
+import { LOCALES } from '../i18n/locales';
 import {
   parseChangelog,
   recentReleases,
@@ -89,7 +91,7 @@ describe('parseChangelog — 変更履歴を版ごとに切り出す', () => {
 
 describe('recentReleases — 同梱した変更履歴', () => {
   it('直近の数件を、本文つきで返す', () => {
-    const entries = recentReleases();
+    const entries = recentReleases('ja');
     expect(entries).toHaveLength(RELEASE_HISTORY_LIMIT);
     expect(entries.every((e) => /^\d+\.\d+\.\d+$/.test(e.version))).toBe(true);
     expect(entries.every((e) => e.notes.length > 0)).toBe(true);
@@ -98,12 +100,46 @@ describe('recentReleases — 同梱した変更履歴', () => {
   it('先頭の版が、配布するアプリの版と一致する', () => {
     // ここがずれていると、使っている版より古い内容を「これまでの更新内容」として見せることになる。
     const version = (JSON.parse(tauriConf) as { version: string }).version;
-    expect(recentReleases()[0]?.version).toBe(version);
+    expect(recentReleases('ja')[0]?.version).toBe(version);
     expect(parseChangelog(changelog, 1)[0]?.version).toBe(version);
   });
 
   it('続きの行き先は Release の一覧', () => {
     // 直近数件より前は、同梱物ではなく配信元を見てもらう。
     expect(RELEASES_URL).toMatch(/^https:\/\/github\.com\/.+\/releases$/);
+  });
+});
+
+describe('recentReleases — 表示言語ごとの変更履歴', () => {
+  const KANA = /[ぁ-んァ-ヶ]/;
+
+  it('日本語のときは日本語の本文を返す', () => {
+    expect(recentReleases('ja').some((e) => KANA.test(e.notes))).toBe(true);
+  });
+
+  it('日本語以外のときは英語の本文を返す', () => {
+    // 中国語・韓国語の変更履歴は持たない。読めない日本語を出すより、
+    // 読める見込みの高い英語へ寄せる。
+    for (const locale of LOCALES.filter((l) => l !== 'ja')) {
+      const entries = recentReleases(locale);
+      expect(entries, locale).toHaveLength(RELEASE_HISTORY_LIMIT);
+      expect(
+        entries.every((e) => !KANA.test(e.notes)),
+        locale,
+      ).toBe(true);
+    }
+  });
+
+  it('日本語と英語で、載っている版が揃っている', () => {
+    // 訳し忘れた版があると、言語を切り替えた人にだけ更新が無かったことになる。
+    // 覚えておく約束ではなく、ここで落として気づけるようにする。
+    const ja = parseChangelog(changelog, Number.MAX_SAFE_INTEGER).map((e) => e.version);
+    const en = parseChangelog(changelogEn, Number.MAX_SAFE_INTEGER).map((e) => e.version);
+    expect(en).toEqual(ja);
+  });
+
+  it('英語側の先頭の版も、配布するアプリの版と一致する', () => {
+    const version = (JSON.parse(tauriConf) as { version: string }).version;
+    expect(recentReleases('en')[0]?.version).toBe(version);
   });
 });

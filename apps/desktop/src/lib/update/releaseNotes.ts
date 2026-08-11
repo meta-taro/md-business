@@ -14,6 +14,22 @@
  */
 import { renderMarkdownToHtml } from '@md-business/core';
 import { sanitizeViewerHtml } from '../preview/sanitizeHtml';
+import type { Locale } from '../i18n/locales';
+
+/** 配信元の本文で、日本語と英語を分けている目印（Markdown のコメント＝画面には出ない）。 */
+const LOCALE_MARKER = '<!-- lang:en -->';
+
+/**
+ * 配信元の本文から、表示言語で読めるぶんを取り出す。
+ *
+ * Release の本文は 1 つしか持てないので、日本語と英語を目印で続けて入れてある。
+ * 目印が無い本文（それを入れる前に出した版）は、丸ごと返す。消してしまうより読めたほうがよい。
+ */
+export function pickReleaseNotes(notes: string, locale: Locale): string {
+  const at = notes.indexOf(LOCALE_MARKER);
+  if (at === -1) return notes.trim();
+  return (locale === 'ja' ? notes.slice(0, at) : notes.slice(at + LOCALE_MARKER.length)).trim();
+}
 
 /** リリースノート（Markdown）を、そのまま差し込める HTML にする。空なら空文字。 */
 export function renderReleaseNotes(notes: string): string {
