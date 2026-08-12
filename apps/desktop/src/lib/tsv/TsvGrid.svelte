@@ -99,6 +99,7 @@
   import { countLockedPasteCells } from './gridComputed';
   import { hideRow, hiddenRowCount, isHiddenRow, unhideRow } from './gridHidden';
   import { followableLink } from './gridLink';
+  import type { SheetLinkIssue } from './linkCheck';
   import type { CellLink } from '@md-business/schema-test-spec-tsv';
 
   interface Props {
@@ -123,6 +124,13 @@
      * 「同じ指し先＝変化なし」になり、開き直しても動かない。
      */
     jump?: { column: string; value: string; seq: number } | null;
+    /**
+     * 別シートを指す列（`#@ link`）の照合結果。参照先を読む必要があるので親が渡す。
+     *
+     * 空でも「問題なし」とは限らない（まだ照合していない / 参照先を開いていない）。
+     * 照合できなかったこと自体も 1 件として入ってくる。
+     */
+    linkIssues?: SheetLinkIssue[];
   }
 
   let {
@@ -134,6 +142,7 @@
     onToggleReveal,
     onFollowLink,
     jump = null,
+    linkIssues = [],
   }: Props = $props();
 
   // 列型 → 入力ウィジェット仕様。列定義の変化に追従。
@@ -549,6 +558,8 @@
   }
 
   // 型検査。セル位置ごとの最初の違反メッセージを引けるようにする。
+  // このシートの中にあるリンク違反（参照先に無い値）も、型の違反と同じ場所へ出す。
+  // 利用者から見れば「そのセルの値が通らない」で同じことなので、見え方を分けない。
   const issueByCell = $derived.by(() =>
     perf.measure('validate', () => {
       const map = new Map<string, string>();
@@ -556,8 +567,22 @@
         const key = `${issue.row}:${issue.column}`;
         if (!map.has(key)) map.set(key, issue.message);
       }
+      for (const issue of linkIssues) {
+        if (issue.side !== 'source') continue;
+        const key = `${issue.row}:${issue.column}`;
+        if (!map.has(key)) map.set(key, issue.message);
+      }
       return map;
     }),
+  );
+
+  // 参照先の側にあるもの（取りこぼした行・読めなかった参照先）。相手ファイルの中なので
+  // このグリッドには赤が出ない。件数を出さないと、見えていないことが「無い」に化ける。
+  const targetLinkIssues = $derived(linkIssues.filter((issue) => issue.side === 'target'));
+
+  // 下部バーの吹き出し。どのファイルの何かが分からないと開きに行けない。
+  const targetLinkDetail = $derived(
+    targetLinkIssues.map((issue) => `${issue.targetPath}: ${issue.message}`).join('\n'),
   );
 
   function cellValue(row: number, col: number): string {
@@ -1536,6 +1561,17 @@
       <span class="active-row" aria-live="polite">
         {modeLabel}: {activeRowLabel}{#if selectionLabel} · {selectionLabel}{/if}
       </span>
+      {#if targetLinkIssues.length > 0}
+        <!-- 参照先の取りこぼしは相手ファイルの中にあり、この画面のどこにも赤が出ない。
+             消える通知にすると見逃されるので、直るまで出したままにする。 -->
+        <span
+          class="link-gaps"
+          title={`${t('grid.linkGapsTitle')}\n${targetLinkDetail}`}
+          aria-live="polite"
+        >
+          {t('grid.linkGaps', { count: targetLinkIssues.length })}
+        </span>
+      {/if}
       <!-- 落とした件数のように、黙っていると気づかれない結果だけをここへ出す。 -->
       <span class="notice" aria-live="polite">{notice}</span>
     </div>
@@ -1674,6 +1710,17 @@
   .notice {
     font-size: var(--text-2xs-size, var(--text-sm-size));
     color: var(--text-secondary);
+  }
+
+  /* 消えない表示なので、通知より弱く出す。赤にすると常時警告の見た目になり、
+     セルの違反（本当に直せるもの）が埋もれる。 */
+  .link-gaps {
+    font-size: var(--text-2xs-size, var(--text-sm-size));
+    color: var(--text-secondary);
+    border: 1px solid var(--border-subtle, var(--border));
+    border-radius: 999px;
+    padding: 0 0.5em;
+    cursor: help;
   }
 
   .active-row {

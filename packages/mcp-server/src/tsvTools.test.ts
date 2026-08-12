@@ -629,3 +629,91 @@ describe('計算列を持つ検証シート', () => {
     expect(r.values).toEqual(['a', '5']);
   });
 });
+
+describe('リンク定義を持つ検証シート', () => {
+  /** ケース側（参照元）と観点側（参照先）が別ファイルに分かれている状態。 */
+  function linkedStore(): MemoryDocumentStore {
+    return new MemoryDocumentStore({
+      'sheets/ケース.tsv':
+        [
+          '#! md-business:test-spec-tsv/v1',
+          '#@ link 観点 -> 観点.tsv#観点#',
+          'No.:number\t項目!\t観点',
+          '1\t新規登録\tA-1, A-2',
+          '2\t金額計算\tA-1',
+        ].join('\n') + '\n',
+      'sheets/観点.tsv':
+        ['#! md-business:test-spec-tsv/v1', '観点#!\t内容', 'A-1\t必須項目', 'A-2\t重複', 'A-3\t桁あふれ'].join(
+          '\n',
+        ) + '\n',
+    });
+  }
+
+  it('参照先に無い値を error として返す', async () => {
+    const s = linkedStore();
+    await updateTsvRow(s, { path: 'sheets/ケース.tsv', row: 1, values: { 観点: 'A-9' } });
+
+    const r = await readTsv(s, 'sheets/ケース.tsv');
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.linkIssues).toContainEqual(
+      expect.objectContaining({
+        code: 'link_unknown_value',
+        severity: 'error',
+        side: 'source',
+        row: 1,
+        column: 2,
+        value: 'A-9',
+        targetPath: 'sheets/観点.tsv',
+      }),
+    );
+  });
+
+  it('誰も参照していない参照先の行を warning として返す', async () => {
+    const r = await readTsv(linkedStore(), 'sheets/ケース.tsv');
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    // A-1 / A-2 は参照済み。A-3 だけが取りこぼし。
+    expect(r.linkIssues).toEqual([
+      expect.objectContaining({
+        code: 'link_unreferenced_row',
+        severity: 'warning',
+        side: 'target',
+        row: 2,
+        value: 'A-3',
+        targetPath: 'sheets/観点.tsv',
+      }),
+    ]);
+  });
+
+  it('参照先はシートのある場所からの相対で解決する', async () => {
+    const s = new MemoryDocumentStore({
+      'sheets/case/ケース.tsv':
+        ['#@ link 観点 -> ../観点.tsv#観点', '観点', 'A-1'].join('\n') + '\n',
+      'sheets/観点.tsv': ['観点', 'A-1'].join('\n') + '\n',
+    });
+    const r = await readTsv(s, 'sheets/case/ケース.tsv');
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.linkIssues).toEqual([]);
+  });
+
+  it('参照先を読めないときは警告 1 件だけ返す（開いていないだけのことがある）', async () => {
+    const s = new MemoryDocumentStore({
+      'ケース.tsv': ['#@ link 観点 -> 観点.tsv#観点', '観点', 'A-1'].join('\n') + '\n',
+    });
+    const r = await readTsv(s, 'ケース.tsv');
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.linkIssues).toEqual([
+      expect.objectContaining({ code: 'link_target_missing', severity: 'warning' }),
+    ]);
+  });
+
+  it('リンク定義が無ければ空配列', async () => {
+    const r = await readTsv(store(), 'sheets/受注.tsv');
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.linkIssues).toEqual([]);
+  });
+});

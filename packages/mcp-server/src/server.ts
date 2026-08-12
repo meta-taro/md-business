@@ -291,7 +291,7 @@ export function createServer(store: DocumentStore, options: CreateServerOptions 
     'read_tsv',
     {
       description:
-        '検証シート（カスタム TSV）を読み、メタ情報・列定義（型 / 必須 / 選択肢）・データ行・行 ID・列型の検証結果を返す。行を書き込む前に列名を確認するために使う。rowIds が空でなければ、update_tsv_row の宛先は行 index ではなくその ID。',
+        '検証シート（カスタム TSV）を読み、メタ情報・列定義（型 / 必須 / 選択肢）・データ行・行 ID・列型の検証結果を返す。行を書き込む前に列名を確認するために使う。rowIds が空でなければ、update_tsv_row の宛先は行 index ではなくその ID。linkIssues は別シートを指す列（directives の link）の照合結果で、targetPath が指す相手ファイル側の取りこぼしも含む。',
       inputSchema: { path: z.string().describe('ワークスペース相対パス（例 sheets/受注.tsv）') },
     },
     async ({ path }) => {

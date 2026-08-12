@@ -25,6 +25,7 @@
 - シリアライズ（書き戻し）: [`packages/schema-test-spec-tsv/src/serialize.ts`](../../packages/schema-test-spec-tsv/src/serialize.ts)
 - 控え行の抜き差し（hidden）: [`packages/schema-test-spec-tsv/src/hiddenRows.ts`](../../packages/schema-test-spec-tsv/src/hiddenRows.ts)
 - 計算列（computed）: [`packages/schema-test-spec-tsv/src/computed.ts`](../../packages/schema-test-spec-tsv/src/computed.ts)
+- 別シートを指す列（link）: [`packages/schema-test-spec-tsv/src/columnLink.ts`](../../packages/schema-test-spec-tsv/src/columnLink.ts)
 - 列型 / UI ヒントの型: [`packages/schema-test-spec-tsv/src/types.ts`](../../packages/schema-test-spec-tsv/src/types.ts)
 - グリッド出し分けの判定: [`apps/desktop/src/lib/tsv/detect.ts`](../../apps/desktop/src/lib/tsv/detect.ts)
 - 表ヘッダ拡張ディレクティブ（note / group）: [`apps/desktop/src/lib/tsv/gridHeaderDirectives.ts`](../../apps/desktop/src/lib/tsv/gridHeaderDirectives.ts)
@@ -103,6 +104,7 @@ data 行は tab 区切りで分割する。最初に現れた data 行を **型�
 | align | `#@ align <i>=<left\|center\|right> …` | 列 `i`（0 始まり）の寄せを指定。列名（型付きヘッダ）・データセル・グループ見出しに効く。 |
 | style | `#@ style <列名> <値>=<色> …` | 条件付き書式。指定列のセル値に応じて**行全体**へ背景色を敷く。 |
 | computed | `#@ computed <列名> = <式>` | 値がほかから決まる列。人にも AI にも打たせない（書き込みは塞がれる）。 |
+| link | `#@ link <列名> -> <ファイル>#<列名> [sep=<区切り>]` | 別シートの列を指す列。値の突き合わせを**両方向**（無い値・取りこぼした行）で見る。 |
 
 レイアウト系（colwidth / rowheight / colmode / align）は **sparse** に書き出される。既定値と同じ列 / 行は出力されないため、未調整のファイルにはレイアウト行が現れない（差分を最小化する）。範囲外インデックス・非数値・不正な値（未知のモード / 寄せ）の指定は読み込み時に捨てられ、同種が複数あれば後勝ち。
 
@@ -177,6 +179,32 @@ ID 列を持たないファイルはそのまま扱える。**読み手が勝手
 - 同じ列への重複宣言は後勝ち。列定義に無い列名・`=` を欠く行は捨てられる。
 - **算出値はセルに書かれる**（空欄のままにしない）。表計算へ貼ったときに欠けないようにするため。「未入力は空のまま」の規約は人が記入する欄のものであって、機械が決めた値には当たらない。
 - 値のずれは**列ごと**直る。書き込みのたびに全行を算出値へ揃えるので、行の追加・削除で番号が飛んだ状態が残らない。既に揃っているファイルは開いても保存対象にならない。
+
+### `#@ link`（別シートを指す列）
+
+```
+#@ link 観点 -> 観点.tsv#観点#
+#@ link 提出物 -> ../共通/提出物.tsv#名称 sep=;
+```
+
+ある列の値が、別のシートのある列に載っている値であることを宣言する。表計算で
+`SPLIT(…, ",")` と `COUNTIF` を並べて手で保っていた突き合わせを、宣言 1 行に置き換える。
+
+- 参照先は **最初の `#` で切る**。左がファイル、右が列名。列名側の `#` はそのまま列名の一部になる（`観点#` のような列名が実在する）。
+- 参照先パスは**そのシートのある場所からの相対**（ワークスペースのルート基準ではない）。隣のシートを `観点.tsv` と書けるようにするため。シートをまとめて別の場所へ移しても、相対関係が保たれていれば壊れない。
+- 値は**多値**。既定の区切りは `,`（前後の空白は落とす）。`sep=` で変えられる。同じ値を 2 回書いても 1 回として数える。
+- 照合は**両方向**に走る。
+
+| 見つかるもの | 重さ | 出る場所 |
+|---|---|---|
+| 参照先に無い値を書いている | error | そのセル |
+| 参照先の行を誰も参照していない（取りこぼし） | warning | 参照先のファイル |
+| 参照先を読めない | warning | 参照先のファイル |
+| 参照先に指定した列が無い | warning | 参照先のファイル |
+
+- **参照先を読めないことを失敗にしない**。ワークスペースの一部だけを開いている状態は普通にあり、そこで全部を止めると「開くたびに赤い」になって本物の欠落が埋もれる。
+- 未知のオプションキーを書いた宣言は捨てられる（`#@ computed` と同じ）。列定義に無い列名・`->` を欠く行も捨てられ、同じ列への重複宣言は後勝ち。
+- MCP の `read_tsv` は結果を `linkIssues` として返す。列型の検査結果（`issues`）と分けてあるのは、こちらが**他のファイルを読んだ結果**だから。参照先を開いていなければ照合できず、**空でも「問題なし」を意味しない**。
 
 ## 5. 型付きヘッダ（列定義）
 
