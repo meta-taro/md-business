@@ -4,6 +4,13 @@ Changes to this app. Versions follow [Semantic Versioning](https://semver.org/).
 
 Japanese is the source of truth for this file; see [CHANGELOG.md](./CHANGELOG.md).
 
+## 0.8.1
+
+### Fixed
+
+- **Links inside the app did nothing when clicked.** "See more" in the update notice, the pointers in Help, external links written in a preview or a test sheet, and "Show in folder" from a file's right-click menu were all unresponsive. The permission to open a browser or a file explorer was missing the list of destinations it was allowed to open, so the app itself refused the request. Nothing was shown when it was refused, so from the outside there was no way to tell whether the app was broken or the click was wrong.
+  - A test now fails if the same gap reappears. A gap like this passes both the build and the type check, so nobody finds it until a person clicks.
+
 ## 0.8.0
 
 ### Added
