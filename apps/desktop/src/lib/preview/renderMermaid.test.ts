@@ -5,7 +5,7 @@
 // ここでは「文書のどこを・いつ・何回書き換えるか」だけを確かめる。
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { renderMermaidInDocument, _resetMermaidCacheForTest } from './renderMermaid';
+import { renderMermaidInDocument, mermaidConfig, _resetMermaidCacheForTest } from './renderMermaid';
 
 function docWith(html: string): Document {
   const doc = document.implementation.createHTMLDocument('t');
@@ -66,6 +66,28 @@ describe('プレビュー内の図', () => {
       },
     });
     expect(doc.querySelector('code.language-mermaid')?.textContent).toBe('graph LR; A-->B');
+  });
+
+  it('ラベルは HTML ではなく文字として描かせる', () => {
+    // ER 図とフローチャートは、既定ではラベルを <foreignObject>（SVG の中の HTML）
+    // で描く。プレビューの無害化はこの箱を落とすため、枠だけ出て文字が消える。
+    // シーケンス図だけ無事だったのは、そちらが最初から <text> で描くため。
+    // 無害化を緩めるのではなく、図の側を <text> に寄せて合わせる。
+    for (const theme of ['light', 'dark'] as const) {
+      const config = mermaidConfig(theme);
+      expect(config.htmlLabels).toBe(false);
+      expect(config.flowchart?.htmlLabels).toBe(false);
+      expect(config.class?.htmlLabels).toBe(false);
+    }
+  });
+
+  it('テーマ設定は明暗で切り替わる', () => {
+    expect(mermaidConfig('dark').theme).toBe('dark');
+    expect(mermaidConfig('light').theme).toBe('default');
+  });
+
+  it('図から script を動かせないようにする', () => {
+    expect(mermaidConfig('light').securityLevel).toBe('strict');
   });
 
   it('描画結果に紛れ込んだスクリプトは落とす', async () => {

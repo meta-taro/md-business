@@ -119,6 +119,17 @@ describe('sanitizeViewerHtml — inline SVG', () => {
     expect(out).not.toContain('<svg');
     expect(out).not.toContain('<rect');
   });
+
+  it('drops <foreignObject>', () => {
+    // SVG の中に HTML を持ち込む箱で、既知の回避経路のため落とす。
+    // 図（Mermaid）の側はこれに合わせて、ラベルを HTML ではなく <text> で
+    // 描かせる設定にしてある（renderMermaid.ts の mermaidConfig）。
+    // ここを緩めると、図のラベルという通り道から任意の HTML が入る。
+    const out = sanitizeViewerHtml(
+      '<svg><foreignObject width="10" height="10"><div>ラベル</div></foreignObject></svg>',
+    );
+    expect(out).not.toContain('foreignObject');
+  });
 });
 
 describe('sanitizeViewerHtml — Mermaid code block survives intact', () => {

@@ -16,6 +16,8 @@
  */
 import { sanitizeViewerHtml } from './sanitizeHtml';
 import type { PreviewTheme } from './previewDocument';
+// 設定の形だけを借りる型の取り込み。実体は描画のときまで読み込まない。
+import type { MermaidConfig } from 'mermaid';
 
 /** 図 1 つを SVG 文字列にする関数。既定は Mermaid 本体（テストでは差し替える）。 */
 export type MermaidRenderer = (source: string, theme: PreviewTheme) => Promise<string>;
@@ -36,6 +38,30 @@ const CACHE_LIMIT = 50;
 let seq = 0;
 let mermaidPromise: Promise<typeof import('mermaid').default> | null = null;
 
+/**
+ * 描画時の設定。
+ *
+ * `htmlLabels: false` が要点。Mermaid は既定で、ER 図・フローチャート・クラス図の
+ * ラベルを `<foreignObject>`（SVG の中に HTML を埋める箱）で描く。プレビューの
+ * 無害化はこの箱を落とすため、そのままだと枠だけ出て文字が消える
+ * （シーケンス図だけ無事なのは、そちらが最初から `<text>` で描くため）。
+ *
+ * 直し方は 2 つあり、無害化側で箱を通すこともできるが、それは図のラベルを
+ * 任意の HTML の入口にすることになる。図の側を `<text>` に寄せるほうを採った。
+ */
+export function mermaidConfig(theme: PreviewTheme): MermaidConfig {
+  return {
+    startOnLoad: false,
+    theme: theme === 'dark' ? 'dark' : 'default',
+    securityLevel: 'strict',
+    fontFamily: 'Noto Sans JP, Hiragino Sans, Yu Gothic, Meiryo, system-ui, sans-serif',
+    // 図の種類ごとに設定の読み先が違うため、全部そろえて指定する。
+    htmlLabels: false,
+    flowchart: { htmlLabels: false },
+    class: { htmlLabels: false },
+  };
+}
+
 async function defaultRenderer(source: string, theme: PreviewTheme): Promise<string> {
   if (!mermaidPromise) {
     mermaidPromise = import('mermaid').then((m) => m.default);
@@ -43,12 +69,7 @@ async function defaultRenderer(source: string, theme: PreviewTheme): Promise<str
   const mermaid = await mermaidPromise;
   // テーマは文書ごとに変わりうるので描画のたびに与える。initialize は設定の
   // 差し替えのみで、本体の読み直しは起きない。
-  mermaid.initialize({
-    startOnLoad: false,
-    theme: theme === 'dark' ? 'dark' : 'default',
-    securityLevel: 'strict',
-    fontFamily: 'Noto Sans JP, Hiragino Sans, Yu Gothic, Meiryo, system-ui, sans-serif',
-  });
+  mermaid.initialize(mermaidConfig(theme));
   seq += 1;
   const { svg } = await mermaid.render(`mdb-mermaid-${seq}`, source);
   return svg;
