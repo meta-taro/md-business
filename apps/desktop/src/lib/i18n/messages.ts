@@ -376,6 +376,7 @@ export interface Messages {
   'grid.menuClose': string;
   'grid.colMenuText': string;
   'grid.colMenuAlign': string;
+  'grid.rowMenuHead': string;
   'grid.colModeClip': string;
   'grid.colModeWrap': string;
   'grid.colModeOverflow': string;
@@ -748,6 +749,7 @@ const en: Messages = {
   'grid.menuClose': 'Close the menu',
   'grid.colMenuText': 'Text display for the {name} column',
   'grid.colMenuAlign': 'Alignment',
+  'grid.rowMenuHead': 'Row {row}',
   'grid.colModeClip': 'Cut off (ellipsis)',
   'grid.colModeWrap': 'Wrap',
   'grid.colModeOverflow': 'Spill over',
@@ -1114,6 +1116,7 @@ const ja: Messages = {
   'grid.menuClose': 'メニューを閉じる',
   'grid.colMenuText': '{name} 列のテキスト表示',
   'grid.colMenuAlign': '寄せ',
+  'grid.rowMenuHead': '{row} 行目',
   'grid.colModeClip': '見切れる（省略）',
   'grid.colModeWrap': '折り返す',
   'grid.colModeOverflow': '突き抜ける',
@@ -1477,6 +1480,7 @@ const zh: Messages = {
   'grid.menuClose': '关闭菜单',
   'grid.colMenuText': '{name} 列的文本显示',
   'grid.colMenuAlign': '对齐',
+  'grid.rowMenuHead': '第 {row} 行',
   'grid.colModeClip': '截断（省略号）',
   'grid.colModeWrap': '换行',
   'grid.colModeOverflow': '溢出显示',
@@ -1844,6 +1848,7 @@ const ko: Messages = {
   'grid.menuClose': '메뉴 닫기',
   'grid.colMenuText': '{name} 열의 텍스트 표시',
   'grid.colMenuAlign': '정렬',
+  'grid.rowMenuHead': '{row}번째 행',
   'grid.colModeClip': '잘림(생략)',
   'grid.colModeWrap': '줄바꿈',
   'grid.colModeOverflow': '넘쳐 표시',

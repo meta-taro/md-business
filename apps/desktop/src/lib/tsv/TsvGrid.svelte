@@ -81,6 +81,7 @@
     rangeToTsv,
     rowRange,
   } from './gridRange';
+  import { rowMenuItems, rowMenuSelection, type RowMenuAction } from './gridRowMenu';
   import { canStartDrag, beginDrag } from './gridDrag';
   import { takePickerRequest, opensOnSingleClick } from './gridPicker';
   import { displayRowCount, editPaddedCell } from './gridBlankRows';
@@ -557,6 +558,46 @@
   }
   function closeColMenu(): void {
     colMenu = null;
+  }
+
+  // ── 行の右クリックメニュー。行操作バーは窓を狭めると後ろから「…」へ畳まれるので、
+  //    よく使う 5 つを行番号セルの右クリックからも出す（バーは残す＝発見しやすさ）。 ──
+  let rowMenu = $state<{ row: number; x: number; y: number } | null>(null);
+  const rowMenuList = $derived(
+    rowMenu ? rowMenuItems(rowMenu.row < doc.rows.length && isHiddenRow(doc, rowMenu.row)) : [],
+  );
+  function openRowMenu(row: number, event: MouseEvent): void {
+    // 読み取り専用と、まだファイルに無い pad 行には出す中身が無い。既定メニューの抑止は
+    // グリッド全体の右クリックハンドラが引き受けるので、ここは何もせず戻ってよい。
+    if (!editable || row >= doc.rows.length) return;
+    event.preventDefault(); // WebView2 ネイティブメニューを抑止しカスタムメニューを出す
+    // 対象は右クリックした 1 行。選択をそこへ寄せ、どの行に効くかを押す前に見せる。
+    selection = rowMenuSelection(row, doc.columns.length);
+    rowMenu = { row, x: event.clientX, y: event.clientY };
+  }
+  function closeRowMenu(): void {
+    rowMenu = null;
+  }
+  function chooseRowAction(action: RowMenuAction): void {
+    rowMenu = null;
+    // 対象行は選択済み（openRowMenu で寄せてある）ので、バーと同じ関数をそのまま使う。
+    switch (action) {
+      case 'duplicate':
+        duplicateActiveRow();
+        return;
+      case 'copy':
+        void copyActiveRow();
+        return;
+      case 'clear':
+        clearActiveRow();
+        return;
+      case 'toggleHidden':
+        toggleActiveRowHidden();
+        return;
+      case 'delete':
+        deleteActiveRow();
+        return;
+    }
   }
 
   /**
@@ -1098,6 +1139,7 @@
 <svelte:window
   onkeydown={(e) => {
     if (e.key === 'Escape' && colMenu) closeColMenu();
+    if (e.key === 'Escape' && rowMenu) closeRowMenu();
   }}
   onpointerup={endDrag}
   onpointercancel={endDrag}
@@ -1316,7 +1358,12 @@
             <!-- 行番号クリックで行全体を選択（スプレ同様）。下端のグリップは行高リサイズ。 -->
             <!-- svelte-ignore a11y_click_events_have_key_events -->
             <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-            <th class="rownum rownum-select" scope="row" onclick={() => selectWholeRow(r)}>
+            <th
+              class="rownum rownum-select"
+              scope="row"
+              onclick={() => selectWholeRow(r)}
+              oncontextmenu={(e) => openRowMenu(r, e)}
+            >
               {r + 1}
               <!-- 行高リサイズのグリップ（行番号セル下端）。ドラッグで高さ変更、
                    ダブルクリックで既定高に戻す。キーボード操作は未提供。 -->
@@ -1637,6 +1684,36 @@
             onclick={() => chooseColAlign(item.align)}
           >
             <span class="check" aria-hidden="true">{item.checked ? '✓' : ''}</span>
+            {t(item.labelKey)}
+          </button>
+        </li>
+      {/each}
+    </ul>
+  {/if}
+
+  {#if rowMenu}
+    <!-- 行の右クリックメニュー。中身は行操作バーと同じ 5 つで、ラベルも共用する。 -->
+    <button
+      type="button"
+      class="menu-backdrop"
+      aria-label={t('grid.menuClose')}
+      onclick={closeRowMenu}
+      oncontextmenu={(e) => { e.preventDefault(); closeRowMenu(); }}
+    ></button>
+    <ul class="col-menu" role="menu" style={`left:${rowMenu.x}px; top:${rowMenu.y}px`}>
+      <li class="col-menu-head" role="presentation">
+        {t('grid.rowMenuHead', { row: rowMenu.row + 1 })}
+      </li>
+      {#each rowMenuList as item (item.action)}
+        <li role="none">
+          <button
+            type="button"
+            role="menuitem"
+            class="col-menu-item"
+            class:danger={item.danger}
+            onclick={() => chooseRowAction(item.action)}
+          >
+            <span class="check" aria-hidden="true"></span>
             {t(item.labelKey)}
           </button>
         </li>
@@ -2404,6 +2481,11 @@
 
   .col-menu-item.checked {
     color: var(--accent);
+  }
+
+  /* 戻せない操作だけ色を変える（行操作バーの danger と同じ扱い）。 */
+  .col-menu-item.danger {
+    color: var(--danger, #c0392b);
   }
 
   .col-menu-item .check {
