@@ -52,8 +52,15 @@ export function serializeHeader(header: ParsedHeader): string {
   if (keyword !== undefined) {
     cell += `:${keyword}`;
     if (header.type === 'enum') {
-      const values = (header.enumValues ?? []).map((value) => escapeCell(value)).join('|');
-      cell += `(${values})`;
+      // 参照先を宣言している列は、引いた選択肢ではなく宣言そのものを書き戻す。
+      // 引いた値を書くと、参照が選択肢の写しに化けて元へ戻せなくなる。
+      const source = header.enumSource;
+      if (source !== undefined) {
+        cell += `(-> ${source.path}#${source.column})`;
+      } else {
+        const values = (header.enumValues ?? []).map((value) => escapeCell(value)).join('|');
+        cell += `(${values})`;
+      }
     }
   }
 

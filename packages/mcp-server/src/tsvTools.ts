@@ -18,6 +18,7 @@
 import {
   applyComputed,
   checkColumnLink,
+  collectEnumChoices,
   countReferences,
   generateRowId,
   hasRowIdColumn,
@@ -34,6 +35,7 @@ import {
   withoutRowIds,
   type ComputedColumn,
   type ComputedCounts,
+  type EnumChoices,
   type HiddenRow,
   type ColumnLink,
   type IdentifiedTsv,
@@ -376,6 +378,35 @@ async function countsOf(
 }
 
 /**
+ * 選択肢を別シートから引く列（`enum(-> <ファイル>#<列名>)`）の選択肢を集める。
+ *
+ * 引けなかった列は結果に載せない（＝その列の選択肢検査を飛ばす）。空の選択肢として
+ * 扱うと、参照先を開いていないだけで既存の値が一斉に不正になる。
+ */
+async function choicesOf(
+  store: DocumentStore,
+  sourceRelative: string,
+  doc: TsvDocument,
+): Promise<EnumChoices> {
+  const choices = new Map<number, readonly string[]>();
+
+  for (const [index, column] of doc.columns.entries()) {
+    const source = column.enumSource;
+    if (source === undefined) continue;
+
+    const otherPath = resolveLinkPath(sourceRelative, source.path);
+    if (otherPath === null) continue;
+    const loaded = await load(store, otherPath);
+    if ('ok' in loaded) continue;
+
+    const collected = collectEnumChoices(loaded.doc, source.column);
+    if (collected !== null) choices.set(index, collected);
+  }
+
+  return choices;
+}
+
+/**
  * 更新後の文書を書き出し、対象行の検証結果を添えて返す。
  *
  * 計算列はここで算出値へ揃える。**触った行だけでなく列ごと**直すのは、行の追加・削除で
@@ -393,7 +424,7 @@ async function persist(
   const next = serializeTsv(toWritable(loaded, healed));
   await store.write(loaded.relative, preserveTrailingEol(next, loaded.source));
   // 検証は ID 列を抜いた形で行う。列 index が read_tsv の columns と揃う。
-  const issues = validateTsv(healed);
+  const issues = validateTsv(healed, await choicesOf(store, loaded.relative, healed));
   const rowId = loaded.tracksIds ? healed.rowIds[rowIndex] : undefined;
   return {
     ok: true,
@@ -458,7 +489,7 @@ export async function readTsv(
     columns: doc.columns,
     rows: doc.rows,
     rowIds: tracksIds ? [...doc.rowIds] : [],
-    issues: validateTsv(doc),
+    issues: validateTsv(doc, await choicesOf(store, relative, doc)),
     linkIssues: await linkIssuesOf(store, relative, doc),
   }));
 }

@@ -1,4 +1,5 @@
 import type { ColumnType } from '@md-business/schema-test-spec';
+import type { EnumSource } from './enumSource.js';
 
 /**
  * 列型語彙は姉妹パッケージ `@md-business/schema-test-spec` の {@link ColumnType} を
@@ -31,6 +32,13 @@ export interface ParsedHeader {
    * `type === 'enum'` のときのみ存在する。
    */
   enumValues?: string[];
+  /**
+   * 選択肢を別シートの列から引く宣言（`(-> ファイル#列名)`）。指定時のみ存在する。
+   *
+   * これがあるときの `enumValues` は**参照先を読んで初めて決まる**。読む前は入らない
+   * （空配列を入れると「選択肢が 0 個」と区別がつかず、既存の値が一斉に不正になる）。
+   */
+  enumSource?: EnumSource;
   /** 基底型では表せない Desktop UI 差異（`radio` / `datetime`）。指定時のみ存在。 */
   ui?: ColumnUiHint;
 }

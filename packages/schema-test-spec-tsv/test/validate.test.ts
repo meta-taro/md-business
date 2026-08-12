@@ -88,6 +88,27 @@ describe('validateTsv', () => {
     expect(validateTsv(d)[0]).toMatchObject({ code: 'enum_value', columnName: '結果' });
   });
 
+  it('does not flag a column whose choices come from a sheet that was not read', () => {
+    // 参照先を開いていないだけで全行が赤くなると、直しようのない赤が並ぶ。
+    const d = doc(
+      [col('種別', 'enum', { enumSource: { path: '提出物.tsv', column: '種別' } })],
+      [['仕様書']],
+    );
+
+    expect(validateTsv(d)).toEqual([]);
+  });
+
+  it('flags against the choices that were read from the referenced sheet', () => {
+    const d = doc(
+      [col('種別', 'enum', { enumSource: { path: '提出物.tsv', column: '種別' } })],
+      [['仕様書'], ['絵日記']],
+    );
+
+    expect(validateTsv(d, new Map([[0, ['仕様書', '議事録']]]))).toEqual([
+      expect.objectContaining({ row: 1, code: 'enum_value', columnName: '種別' }),
+    ]);
+  });
+
   it('accepts a valid ISO date and rejects a malformed / non-existent one', () => {
     const c = [col('実施日', 'date')];
     expect(validateTsv(doc(c, [['2026-06-22']]))).toEqual([]);

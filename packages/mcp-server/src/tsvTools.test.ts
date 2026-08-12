@@ -782,3 +782,56 @@ describe('リンク定義を持つ検証シート', () => {
     expect(r.linkIssues).toEqual([]);
   });
 });
+
+describe('選択肢を別シートから引く検証シート', () => {
+  /** 種別の一覧は提出物側が正本で、こちらは参照するだけの状態。 */
+  function enumStore(): MemoryDocumentStore {
+    return new MemoryDocumentStore({
+      'sheets/受付.tsv':
+        [
+          '#! md-business:test-spec-tsv/v1',
+          'No.:number\t種別:enum(-> 提出物.tsv#種別)',
+          '1\t仕様書',
+          '2\t絵日記',
+        ].join('\n') + '\n',
+      'sheets/提出物.tsv':
+        ['#! md-business:test-spec-tsv/v1', '種別!\t期限', '仕様書\t月末', '議事録\t翌日', '仕様書\t月末'].join(
+          '\n',
+        ) + '\n',
+    });
+  }
+
+  it('参照先に無い値を選択肢違反として返す', async () => {
+    const r = await readTsv(enumStore(), 'sheets/受付.tsv');
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.issues).toEqual([expect.objectContaining({ row: 1, column: 1, code: 'enum_value' })]);
+  });
+
+  it('参照先を読めないときは検査しない（既存の値を保つ）', async () => {
+    // 参照先を開いていないだけで全行が赤くなると、直しようのない赤で本物の違反が埋もれる。
+    const s = new MemoryDocumentStore({
+      'sheets/受付.tsv':
+        ['No.:number\t種別:enum(-> 提出物.tsv#種別)', '1\t仕様書', '2\t絵日記'].join('\n') + '\n',
+    });
+    const r = await readTsv(s, 'sheets/受付.tsv');
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.issues).toEqual([]);
+  });
+
+  it('書き込み後の検証でも参照先の選択肢を使う', async () => {
+    const s = enumStore();
+    const r = await updateTsvRow(s, { path: 'sheets/受付.tsv', row: 0, values: { 種別: '議事録' } });
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.issues).toEqual([]);
+    expect(r.totalIssues).toBe(1);
+  });
+
+  it('参照の宣言は書き戻しても選択肢の写しに化けない', async () => {
+    const s = enumStore();
+    await updateTsvRow(s, { path: 'sheets/受付.tsv', row: 0, values: { 種別: '議事録' } });
+    expect(await s.read('sheets/受付.tsv')).toContain('種別:enum(-> 提出物.tsv#種別)');
+  });
+});

@@ -25,6 +25,7 @@ export {
   readComputedColumns,
 } from './computed.js';
 export { countReferences, parseCountInSource } from './countIn.js';
+export { collectEnumChoices, parseEnumSource } from './enumSource.js';
 export { findRowsByCell, parseCellLink } from './link.js';
 export { checkColumnLink, readColumnLinks, splitLinkedValues } from './columnLink.js';
 export type { ColumnType, ColumnUiHint, ParsedHeader } from './types.js';
@@ -33,6 +34,7 @@ export type { HiddenRow } from './hiddenRows.js';
 export type { ComputedColumn, ComputedCounts, ComputedFormula } from './computed.js';
 export type { CellLink, RowLookup } from './link.js';
 export type { ColumnLink, LinkIssue, LinkIssueCode } from './columnLink.js';
+export type { EnumChoices, EnumSource } from './enumSource.js';
 export type { LineKind } from './classify.js';
 export type { TsvDocument } from './parse.js';
 export type { ValidationCode, ValidationIssue } from './validate.js';
