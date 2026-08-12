@@ -1,6 +1,6 @@
 # @md-business/mcp-server
 
-md-business の **MCP（Model Context Protocol）サーバー**。Claude Desktop / Claude Code / Cursor / Cline などの AI エージェントが、Markdown 業務文書（適格請求書・基本設計書・検証シート・DB 設計書・API 詳細設計書）を**正本として直接**読み書き・検証・検索できるようにする Node sidecar（stdio 接続）。
+md-business の **MCP（Model Context Protocol）サーバー**。Claude Desktop / Claude Code / Cursor / Cline などの AI エージェントが、Markdown 業務文書（適格請求書・基本設計書・検証シート・DB 設計書・API 詳細設計書・調査報告書）を**正本として直接**読み書き・検証・検索できるようにする Node sidecar（stdio 接続）。
 
 アーキテクチャは Tauri Desktop から起動する Node sidecar（stdio 接続）。
 
@@ -25,7 +25,7 @@ md-business の **MCP（Model Context Protocol）サーバー**。Claude Desktop
 | `git_commit` | 変更をステージしてコミットする（push はしない）。コミットハッシュと最新の変更状況を返す |
 | `export_pdf` | デスクトップアプリで対象文書を開き、PDF 出力（印刷）ダイアログを表示する |
 
-対応スキーマ: `invoice/v1` / `spec/v1` / `test-spec/v1` / `db-spec/v1` / `nosql-db-spec/v1` / `api-spec/v1`。
+対応スキーマ: `invoice/v1` / `spec/v1` / `test-spec/v1` / `db-spec/v1` / `nosql-db-spec/v1` / `api-spec/v1` / `investigation/v1`。
 
 検証シートは Markdown ではなくカスタム TSV（1 レコード = 1 物理行）なので、`read_document` 系ではなく
 TSV 系ツールで扱う。どのシートがあるかは `search_documents` の `kind: "sheet"` で分かる
@@ -107,7 +107,7 @@ node dist/bin.js --health <workspace> # 設定の点検
 
 ```
 OK  ワークスペース: /Users/me/docs
-OK  スキーマ: invoice/v1 / spec/v1 / test-spec/v1 / db-spec/v1 / nosql-db-spec/v1 / api-spec/v1
+OK  スキーマ: invoice/v1 / spec/v1 / test-spec/v1 / db-spec/v1 / nosql-db-spec/v1 / api-spec/v1 / investigation/v1
 OK  文書: 文書 13 件 / 検証シート 2 件
 ```
 

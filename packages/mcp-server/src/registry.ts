@@ -1,8 +1,8 @@
 /**
  * MCP スキーマ・レジストリ。
  * -----------------------------------------------------------------------------
- * 6 つの schema パッケージ（invoice / spec / test-spec / db-spec / nosql-db-spec /
- * api-spec）の公開 export だけを束ね、schema id → 検証器・JSON Schema・表示名を
+ * 7 つの schema パッケージ（invoice / spec / test-spec / db-spec / nosql-db-spec /
+ * api-spec / investigation）の公開 export だけを束ね、schema id → 検証器・JSON Schema・表示名を
  * 解決する。各パッケージの実装には一切触れず、薄い config を並べるだけに留める。
  * MCP は描画を持たないので validate と JSON Schema のみを保持する。
  *
@@ -50,6 +50,12 @@ import {
   autofillApiSpec,
   SCHEMA_VERSION as API_ID,
 } from '@md-business/schema-api-spec';
+import {
+  investigationSchema,
+  normalizeInvestigationFrontmatter,
+  autofillInvestigation,
+  SCHEMA_VERSION as INVESTIGATION_ID,
+} from '@md-business/schema-investigation';
 
 /*
  * validator は各 schema パッケージの JSON Schema から実行時に Ajv でコンパイルする。
@@ -106,6 +112,11 @@ const validateNosqlDbSpec = compile(
   autofillNosqlDbSpec,
 );
 const validateApiSpec = compile(apiSpecSchema, normalizeApiSpecFrontmatter, autofillApiSpec);
+const validateInvestigation = compile(
+  investigationSchema,
+  normalizeInvestigationFrontmatter,
+  autofillInvestigation,
+);
 
 /** レジストリ 1 エントリ。MCP ツールが必要とする最小限（描画は持たない）。 */
 export interface SchemaEntry {
@@ -168,6 +179,14 @@ export const SCHEMA_REGISTRY: readonly SchemaEntry[] = [
     label: 'API 詳細設計書',
     validate: validateApiSpec,
     schema: apiSpecSchema,
+    schemaKey: 'schema',
+  },
+  {
+    id: INVESTIGATION_ID,
+    // ログ調査・ネットワーク調査の両方を 1 スキーマで扱う（`種別` で切り替え）。
+    label: '調査報告書',
+    validate: validateInvestigation,
+    schema: investigationSchema,
     schemaKey: 'schema',
   },
 ];

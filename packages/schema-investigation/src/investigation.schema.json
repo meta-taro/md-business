@@ -1,0 +1,134 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://md-business.dev/schemas/investigation/v1.json",
+  "title": "md-business investigation frontmatter",
+  "description": "Frontmatter schema for investigation reports (調査報告書). One schema covers log and network investigations — the shape of an investigation is the same, only the data source differs.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "kind",
+    "documentNumber",
+    "title",
+    "createdAt",
+    "status",
+    "authors",
+    "targets",
+    "tools",
+    "window"
+  ],
+  "properties": {
+    "schema": {
+      "const": "investigation/v1"
+    },
+    "kind": {
+      "enum": ["log", "network"]
+    },
+    "documentNumber": {
+      "type": "string",
+      "minLength": 1
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "status": {
+      "enum": ["investigating", "concluded", "suspended"]
+    },
+    "authors": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/person" }
+    },
+    "reviewers": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/person" }
+    },
+    "targets": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/target" }
+    },
+    "tools": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/tool" }
+    },
+    "window": { "$ref": "#/$defs/window" },
+    "findings": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/finding" }
+    },
+    "summary": {
+      "type": "string"
+    },
+    "relatedDocs": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "theme": {
+      "type": "string"
+    },
+    "fileName": {
+      "type": "string"
+    }
+  },
+  "$defs": {
+    "person": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "role": { "type": "string" }
+      }
+    },
+    "target": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256"],
+      "properties": {
+        "path": { "type": "string", "minLength": 1 },
+        "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "note": { "type": "string" }
+      }
+    },
+    "tool": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "version"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "version": { "type": "string", "minLength": 1 }
+      }
+    },
+    "window": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["from", "to"],
+      "properties": {
+        "from": { "type": "string", "format": "date-time" },
+        "to": { "type": "string", "format": "date-time" }
+      }
+    },
+    "finding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "summary", "evidence"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^F-\\d{2,}$" },
+        "summary": { "type": "string", "minLength": 1 },
+        "severity": { "enum": ["high", "medium", "low", "info"] },
+        "evidence": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "pattern": "^evidence/EV-\\d{3,}\\.md$" }
+        }
+      }
+    }
+  }
+}
