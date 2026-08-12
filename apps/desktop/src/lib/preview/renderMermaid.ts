@@ -62,17 +62,60 @@ export function mermaidConfig(theme: PreviewTheme): MermaidConfig {
   };
 }
 
+/** Mermaid 本体のうち、ここで使う分だけ。テストでは偽物を渡す。 */
+export interface MermaidLike {
+  initialize(config: MermaidConfig): void;
+  // 読めなかったときだけ false が返る。読めた場合の中身（図の種類など）は使わない。
+  parse(source: string, options: { suppressErrors: true }): Promise<unknown>;
+  render(id: string, source: string): Promise<{ svg: string }>;
+}
+
+/**
+ * Mermaid が採寸のために画面へ足した入れ物を片付ける。
+ *
+ * 図の描画は文字幅の実測を要するため、プレビューの iframe ではなくアプリ本体側で
+ * 行っている。そのぶん、置き土産が出るのは本体の画面になる。
+ */
+function removeScratch(doc: Document, id: string): void {
+  for (const candidate of [`d${id}`, id]) {
+    doc.getElementById(candidate)?.remove();
+  }
+}
+
+/**
+ * 図 1 つを SVG にする。本体を受け取る形にしてあるのは、後始末をテストで
+ * 確かめられるようにするため。
+ */
+export async function renderWithMermaid(
+  mermaid: MermaidLike,
+  id: string,
+  source: string,
+  theme: PreviewTheme,
+  doc: Document,
+): Promise<string> {
+  // テーマは文書ごとに変わりうるので描画のたびに与える。initialize は設定の
+  // 差し替えのみで、本体の読み直しは起きない。
+  mermaid.initialize(mermaidConfig(theme));
+  try {
+    // 構文を先に確かめる。描画に入ってから壊れていると分かった場合、Mermaid は
+    // エラーを知らせる絵を画面に貼ってから投げるので、それが本体の画面に残る。
+    if ((await mermaid.parse(source, { suppressErrors: true })) === false) {
+      throw new Error('mermaid: 図の構文が読めない');
+    }
+    const { svg } = await mermaid.render(id, source);
+    return svg;
+  } finally {
+    removeScratch(doc, id);
+  }
+}
+
 async function defaultRenderer(source: string, theme: PreviewTheme): Promise<string> {
   if (!mermaidPromise) {
     mermaidPromise = import('mermaid').then((m) => m.default);
   }
   const mermaid = await mermaidPromise;
-  // テーマは文書ごとに変わりうるので描画のたびに与える。initialize は設定の
-  // 差し替えのみで、本体の読み直しは起きない。
-  mermaid.initialize(mermaidConfig(theme));
   seq += 1;
-  const { svg } = await mermaid.render(`mdb-mermaid-${seq}`, source);
-  return svg;
+  return renderWithMermaid(mermaid, `mdb-mermaid-${seq}`, source, theme, document);
 }
 
 function remember(key: string, svg: string): void {
