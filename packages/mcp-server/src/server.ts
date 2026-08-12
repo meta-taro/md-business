@@ -21,6 +21,11 @@ import type { UpdateDocumentInput } from './tools.js';
 import { readTsv, appendTsvRow, updateTsvRow } from './tsvTools.js';
 import { readData, type ReadDataOptions } from './dataTools.js';
 import { dataToTable, type DataToTableOptions } from './dataToTable.js';
+import { searchLines, readLines, type SearchLinesInput, type ReadLinesInput } from './logTools.js';
+import { filterRecords, type FilterRecordsInput, type Condition } from './records.js';
+import { aggregate, type AggregateInput } from './aggregate.js';
+import { buildTimeline, type BuildTimelineInput, type TimelineSource } from './timeline.js';
+import { saveEvidence, type SaveEvidenceInput } from './evidence.js';
 import { searchDocuments } from './search.js';
 import type { SearchQuery } from './search.js';
 import { gitStatus, gitDiff, gitCommit } from './gitTools.js';
@@ -74,6 +79,17 @@ export const SERVER_INSTRUCTIONS = `md-business は Markdown / TSV の業務文�
   中身を業務文書にするなら、読んだ内容をもとに create_document / append_tsv_row で作る。
   明細のような繰り返しを表として引用するなら **data_to_table** を使う。木から自前で
   表を組むと列の抜けや \`|\` による桁ずれが起きるが、壊れた表は読める形をしているので気づけない。
+- ログ（\`.log\` / \`.jsonl\` など）は業務文書ではないが、**全文を読み込まない**。
+  **search_lines** で当たりを付け、**read_lines** で周辺だけ読む。1 行 1 レコードの形
+  （JSONL / TSV）なら **filter_records** で条件を付けて絞り、**aggregate** で
+  「いつ・何が・何件」を先に掴む。別々のファイルを突き合わせるなら **build_timeline** で
+  時刻順に混ぜる（どの行も出どころと行番号を持ったまま並ぶ）。
+  全文を開くと調べる前に文脈が埋まるうえ、
+  Authorization / Cookie / token / メールアドレスが伏せ字を通らずに入る。
+  これらのツールの戻り値は必ず伏せ字がかかり、上限で切ったときは切ったと返る。
+- 調べて取り出した中身のうち、報告書の根拠にするものは **save_evidence** で残す。
+  返ってきた参照（\`evidence/EV-001.md\`）を所見から指す。会話の中だけに残した抜粋は、
+  後から確かめられないので根拠にならない。
 - 変更を確認して記録するのは **git_status** / **git_diff** / **git_commit**（利用可能な場合）。
 
 ## 書式の約束
@@ -109,6 +125,41 @@ function jsonResult(payload: unknown, isError = false) {
 
 /** 業務文書の任意 frontmatter（キー文字列・値は任意）。 */
 const frontmatterShape = z.record(z.string(), z.unknown());
+
+/** 条件の演算子（filter_records / aggregate 共通）。式は受け付けない。 */
+const conditionOps = [
+  'eq',
+  'ne',
+  'contains',
+  'startsWith',
+  'endsWith',
+  'gt',
+  'gte',
+  'lt',
+  'lte',
+  'exists',
+  'missing',
+  'matches',
+] as const;
+
+/** 条件 1 つの受け口。 */
+const conditionShape = z.object({
+  field: z.string().describe('項目名。入れ子は `.` で辿る（例 user.id）'),
+  op: z.enum(conditionOps).describe('演算子。matches は JavaScript の正規表現'),
+  value: z
+    .string()
+    .optional()
+    .describe('比べる値。exists / missing 以外では必須。数どうしなら数として比べる'),
+});
+
+/** 受け取った条件を、value 未指定を落とした形へ直す（exactOptionalPropertyTypes 対応）。 */
+function toConditions(where: z.infer<typeof conditionShape>[]): Condition[] {
+  return where.map((condition) => {
+    const out: Condition = { field: condition.field, op: condition.op };
+    if (condition.value !== undefined) out.value = condition.value;
+    return out;
+  });
+}
 
 /**
  * ツール一式を登録した McpServer を組み立てて返す。connect は呼び出し側の責務
@@ -350,6 +401,263 @@ export function createServer(store: DocumentStore, options: CreateServerOptions 
       if (limit !== undefined) options.limit = limit;
       const r = await dataToTable(store, path, options);
       emit('data_to_table', path, r);
+      return jsonResult(r, !r.ok);
+    },
+  );
+
+  // ログは業務文書ではないので、文書ツールとは別の口にする。全文は返さず、
+  // 探した結果だけを返す（そのまま渡すと調査以前にコンテキストが埋まる）。
+  server.registerTool(
+    'search_lines',
+    {
+      description:
+        'ログなどのテキストファイルを正規表現で行検索し、一致行を行番号つきで返す（before / after で前後の行も取れる）。ファイル全体は読み込まず、行単位で流して探す。戻り値には伏せ字がかかり、Authorization / Cookie / token / api_key / password / メールアドレス / カード番号らしき数字列は残らない（外す指定は無い。生の値が要るなら人がファイルを開く）。上限に達したら truncated: true、長すぎて切った行は truncatedLines で返るので、切られたことに気づかないまま結論を出さないこと。',
+      inputSchema: {
+        path: z.string().describe('ワークスペース相対パス（例 logs/app.log）'),
+        pattern: z.string().describe('正規表現（JavaScript の構文）'),
+        ignoreCase: z.boolean().optional().describe('大文字小文字を無視する。省略時は区別する'),
+        before: z.number().int().optional().describe('一致行の前を何行付けるか。省略時は 0・上限 20'),
+        after: z.number().int().optional().describe('一致行の後を何行付けるか。省略時は 0・上限 20'),
+        maxMatches: z
+          .number()
+          .int()
+          .optional()
+          .describe('返す一致の上限。省略時は 100・上限 1000。達したら truncated: true で返る'),
+        maxLineLength: z
+          .number()
+          .int()
+          .optional()
+          .describe('1 行あたりの文字数上限。省略時は 2000・上限 20000'),
+      },
+    },
+    async ({ path, pattern, ignoreCase, before, after, maxMatches, maxLineLength }) => {
+      // exactOptionalPropertyTypes 下では undefined を明示せず、指定された項目のみ渡す。
+      const input: SearchLinesInput = { path, pattern };
+      if (ignoreCase !== undefined) input.ignoreCase = ignoreCase;
+      if (before !== undefined) input.before = before;
+      if (after !== undefined) input.after = after;
+      if (maxMatches !== undefined) input.maxMatches = maxMatches;
+      if (maxLineLength !== undefined) input.maxLineLength = maxLineLength;
+      const r = await searchLines(store, input);
+      emit('search_lines', path, r);
+      return jsonResult(r, !r.ok);
+    },
+  );
+
+  server.registerTool(
+    'read_lines',
+    {
+      description:
+        'テキストファイルの行範囲（from 〜 to・1 始まり・両端含む）を行番号つきで返す。search_lines で見つけた箇所の周辺を読むためのもの。戻り値には search_lines と同じ伏せ字がかかる。上限を超える範囲は truncated: true で切って返す。',
+      inputSchema: {
+        path: z.string().describe('ワークスペース相対パス（例 logs/app.log）'),
+        from: z.number().int().describe('開始行（1 始まり・この行を含む）'),
+        to: z.number().int().describe('終了行（この行を含む）'),
+        maxLines: z.number().int().optional().describe('返す行数の上限。省略時は 500・上限 5000'),
+        maxLineLength: z
+          .number()
+          .int()
+          .optional()
+          .describe('1 行あたりの文字数上限。省略時は 2000・上限 20000'),
+      },
+    },
+    async ({ path, from, to, maxLines, maxLineLength }) => {
+      const input: ReadLinesInput = { path, from, to };
+      if (maxLines !== undefined) input.maxLines = maxLines;
+      if (maxLineLength !== undefined) input.maxLineLength = maxLineLength;
+      const r = await readLines(store, input);
+      emit('read_lines', path, r);
+      return jsonResult(r, !r.ok);
+    },
+  );
+
+  // 条件は列挙した演算子の組み合わせだけで書かせる。式を文字列で受け取って評価する作りは、
+  // ツールの権限がそのまま任意コード実行になるので用意しない。
+  server.registerTool(
+    'filter_records',
+    {
+      description:
+        '1 行 1 レコードのログ（JSONL / TSV）を条件で絞り、行番号つきで返す。条件は field と演算子の組み合わせで指定する（式は受け付けない）。絞り込みは元の値に当たるので伏せ字対象の値でも探せるが、**返る値には必ず伏せ字がかかる**。読めない行は skipped に数えて読み進め、上限に達したら truncated: true で返る。形式は拡張子（.jsonl / .ndjson / .tsv）から判り、判らなければ format を指定する（推測はしない）。',
+      inputSchema: {
+        path: z.string().describe('ワークスペース相対パス（例 logs/app.jsonl）'),
+        format: z
+          .enum(['jsonl', 'tsv'])
+          .optional()
+          .describe('形式。省略時は拡張子から判別し、判別できなければエラーにする'),
+        where: z.array(conditionShape).optional().describe('条件。省略すると全件'),
+        match: z.enum(['all', 'any']).optional().describe('条件の結び方。省略時は all'),
+        fields: z
+          .array(z.string())
+          .optional()
+          .describe('返す項目（`.` 区切り）。省略するとレコード全体'),
+        maxRecords: z
+          .number()
+          .int()
+          .optional()
+          .describe('返すレコード数の上限。省略時は 200・上限 2000'),
+        maxValueLength: z
+          .number()
+          .int()
+          .optional()
+          .describe('文字列 1 つあたりの文字数上限。省略時は 2000・上限 20000'),
+      },
+    },
+    async ({ path, format, where, match, fields, maxRecords, maxValueLength }) => {
+      const input: FilterRecordsInput = { path };
+      if (format !== undefined) input.format = format;
+      if (where !== undefined) input.where = toConditions(where);
+      if (match !== undefined) input.match = match;
+      if (fields !== undefined) input.fields = fields;
+      if (maxRecords !== undefined) input.maxRecords = maxRecords;
+      if (maxValueLength !== undefined) input.maxValueLength = maxValueLength;
+      const r = await filterRecords(store, input);
+      emit('filter_records', path, r);
+      return jsonResult(r, !r.ok);
+    },
+  );
+
+  server.registerTool(
+    'aggregate',
+    {
+      description:
+        '1 行 1 レコードのログ（JSONL / TSV）を、キー別・時間帯別に数える。件数だけを返すので、全文を読まずに「いつ・何が・何件」を掴める。時刻は読めた形式（ISO 8601 など）だけを読み、読めなかった分は捨てずに「時刻不明」として数える。数値の時刻は epoch を指定したときだけ読む（桁数から推測しない）。キーの値には返す直前に伏せ字がかかる。',
+      inputSchema: {
+        path: z.string().describe('ワークスペース相対パス（例 logs/app.jsonl）'),
+        format: z
+          .enum(['jsonl', 'tsv'])
+          .optional()
+          .describe('形式。省略時は拡張子から判別し、判別できなければエラーにする'),
+        where: z.array(conditionShape).optional().describe('数える前に絞る条件。省略すると全件'),
+        match: z.enum(['all', 'any']).optional().describe('条件の結び方。省略時は all'),
+        groupBy: z
+          .array(z.string())
+          .optional()
+          .describe('キーにする項目（`.` 区切り）。省略すると全体で 1 件に数える'),
+        timeField: z.string().optional().describe('時間帯のキーにする項目（例 ts）'),
+        bucket: z
+          .enum(['day', 'hour', 'minute', 'second'])
+          .optional()
+          .describe('時間帯の単位。省略時は hour。timeField と一緒に指定する'),
+        epoch: z
+          .enum(['seconds', 'milliseconds'])
+          .optional()
+          .describe('数値の時刻の単位。指定しない限り数値は時刻として読まない'),
+        maxGroups: z
+          .number()
+          .int()
+          .optional()
+          .describe('返すキーの数の上限。省略時は 50・上限 1000'),
+        sort: z.enum(['count', 'key']).optional().describe('並べ方。省略時は count（多い順）'),
+      },
+    },
+    async ({ path, format, where, match, groupBy, timeField, bucket, epoch, maxGroups, sort }) => {
+      const input: AggregateInput = { path };
+      if (format !== undefined) input.format = format;
+      if (where !== undefined) input.where = toConditions(where);
+      if (match !== undefined) input.match = match;
+      if (groupBy !== undefined) input.groupBy = groupBy;
+      if (timeField !== undefined) input.timeField = timeField;
+      if (bucket !== undefined) input.bucket = bucket;
+      if (epoch !== undefined) input.epoch = epoch;
+      if (maxGroups !== undefined) input.maxGroups = maxGroups;
+      if (sort !== undefined) input.sort = sort;
+      const r = await aggregate(store, input);
+      emit('aggregate', path, r);
+      return jsonResult(r, !r.ok);
+    },
+  );
+
+  server.registerTool(
+    'build_timeline',
+    {
+      description:
+        '複数のログ（JSONL / TSV）の行を時刻順に 1 本へ混ぜて返す。どの行も「どのファイルの何行目か」を持ったまま並ぶ。時刻は読めた形式（ISO 8601 など）だけを読み、読めなかった行は捨てずに time=null として末尾に付ける。数値の時刻は epoch を指定したときだけ読む（桁数から推測しない）。レコードには返す直前に伏せ字がかかる。',
+      inputSchema: {
+        sources: z
+          .array(
+            z.object({
+              path: z.string().describe('ワークスペース相対パス（例 logs/app.jsonl）'),
+              format: z.enum(['jsonl', 'tsv']).optional().describe('形式。省略時は拡張子から判別'),
+              timeField: z.string().describe('時刻にする項目（`.` 区切り。例 ts）'),
+              label: z.string().optional().describe('出どころの表示名。省略するとパス'),
+            }),
+          )
+          .describe('混ぜるファイル（1〜20 件）。時刻の項目名はファイルごとに指定する'),
+        where: z.array(conditionShape).optional().describe('混ぜる前に絞る条件（全ファイル共通）'),
+        match: z.enum(['all', 'any']).optional().describe('条件の結び方。省略時は all'),
+        from: z.string().optional().describe('この時刻以降だけを混ぜる。読めた時刻にだけ効く'),
+        to: z.string().optional().describe('この時刻以前だけを混ぜる。読めた時刻にだけ効く'),
+        epoch: z
+          .enum(['seconds', 'milliseconds'])
+          .optional()
+          .describe('数値の時刻の単位。指定しない限り数値は時刻として読まない'),
+        fields: z.array(z.string()).optional().describe('返す項目（`.` 区切り）。省略すると全体'),
+        maxEvents: z
+          .number()
+          .int()
+          .optional()
+          .describe('返す出来事の数の上限。省略時は 200・上限 2000'),
+        maxValueLength: z
+          .number()
+          .int()
+          .optional()
+          .describe('文字列 1 つの文字数上限。省略時は 2000・上限 20000'),
+      },
+    },
+    async ({ sources, where, match, from, to, epoch, fields, maxEvents, maxValueLength }) => {
+      const input: BuildTimelineInput = {
+        sources: sources.map((source) => {
+          const one: TimelineSource = { path: source.path, timeField: source.timeField };
+          if (source.format !== undefined) one.format = source.format;
+          if (source.label !== undefined) one.label = source.label;
+          return one;
+        }),
+      };
+      if (where !== undefined) input.where = toConditions(where);
+      if (match !== undefined) input.match = match;
+      if (from !== undefined) input.from = from;
+      if (to !== undefined) input.to = to;
+      if (epoch !== undefined) input.epoch = epoch;
+      if (fields !== undefined) input.fields = fields;
+      if (maxEvents !== undefined) input.maxEvents = maxEvents;
+      if (maxValueLength !== undefined) input.maxValueLength = maxValueLength;
+      const r = await buildTimeline(store, input);
+      emit('build_timeline', sources[0]?.path, r);
+      return jsonResult(r, !r.ok);
+    },
+  );
+
+  server.registerTool(
+    'save_evidence',
+    {
+      description:
+        '調べて取り出した中身を Evidence として 1 件 1 ファイルに保存し、報告書から書く参照（evidence/EV-001.md）を返す。番号は空いている次のものを自動で振る。既にある Evidence は上書きしない。保存する前に伏せ字がかかるので、伏せた値は成果物にも残らない。',
+      inputSchema: {
+        title: z.string().describe('何の証拠か（1 行）'),
+        tool: z
+          .enum([
+            'search_lines',
+            'read_lines',
+            'filter_records',
+            'aggregate',
+            'build_timeline',
+            'manual',
+          ])
+          .describe('どのツールで取り出したか'),
+        sources: z
+          .array(z.string())
+          .describe('元にしたファイルのワークスペース相対パス（1 件以上）'),
+        body: z.string().describe('取り出した中身そのもの'),
+        note: z.string().optional().describe('なぜ残すか（所見との対応など）'),
+        id: z.string().optional().describe('番号（例 EV-042）。省略すると空いている次の番号'),
+      },
+    },
+    async ({ title, tool, sources, body, note, id }) => {
+      const input: SaveEvidenceInput = { title, tool, sources, body };
+      if (note !== undefined) input.note = note;
+      if (id !== undefined) input.id = id;
+      const r = await saveEvidence(store, input, now);
+      emit('save_evidence', r.ok ? r.path : undefined, r);
       return jsonResult(r, !r.ok);
     },
   );

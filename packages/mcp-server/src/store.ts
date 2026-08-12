@@ -18,6 +18,23 @@ export interface DocumentStore {
   list(): Promise<string[]>;
   /** 検証シート（`.tsv`）の全相対パス（ソート済み）。 */
   listSheets(): Promise<string[]>;
+  /**
+   * 相対パスを 1 行ずつ流す。存在しなければ最初の取り出しで reject する。
+   *
+   * 調査対象のログは全文を文字列にできない大きさになりうるので、read とは別に
+   * 行単位の読み口を持つ。流す行に改行文字は含まず、CRLF と LF は同じ結果になる。
+   * 末尾の改行で空行は増えない（行番号が実ファイルとずれないため）。
+   */
+  lines(relativePath: string): AsyncIterable<string>;
+}
+
+/**
+ * 文字列を行へ切る。fs 実装（readline）と同じ切り方に揃えるための共通処理。
+ * 末尾の改行 1 つは行の終わりであって次の行の始まりではない。
+ */
+export function splitLines(text: string): string[] {
+  if (text === '') return [];
+  return text.replace(/\r?\n$/, '').split(/\r?\n/);
 }
 
 /** 走査対象として扱う拡張子（文書 / 検証シート）。 */
@@ -52,5 +69,9 @@ export class MemoryDocumentStore implements DocumentStore {
 
   async listSheets(): Promise<string[]> {
     return [...this.files.keys()].filter((p) => p.endsWith(SHEET_EXT)).sort();
+  }
+
+  async *lines(relativePath: string): AsyncIterable<string> {
+    yield* splitLines(await this.read(relativePath));
   }
 }

@@ -42,4 +42,42 @@ describe('MemoryDocumentStore', () => {
     const store = new MemoryDocumentStore({ 'z.tsv': '', 'a.md': '', 'sheets/s.tsv': '' });
     expect(await store.listSheets()).toEqual(['sheets/s.tsv', 'z.tsv']);
   });
+
+  /**
+   * lines は調査ツールの読み口。fs 実装ではストリームで流すので、インメモリ側も
+   * 同じ切り方（改行を含まない / 末尾の改行で空行を増やさない）に揃えておかないと、
+   * テストで通った行番号が本番でずれる。
+   */
+  describe('lines', () => {
+    async function collect(source: AsyncIterable<string>): Promise<string[]> {
+      const out: string[] = [];
+      for await (const line of source) out.push(line);
+      return out;
+    }
+
+    it('改行文字を含まない行を順に流す', async () => {
+      const store = new MemoryDocumentStore({ 'app.log': 'a\nb\nc' });
+      expect(await collect(store.lines('app.log'))).toEqual(['a', 'b', 'c']);
+    });
+
+    it('CRLF でも同じ結果になる', async () => {
+      const store = new MemoryDocumentStore({ 'app.log': 'a\r\nb\r\n' });
+      expect(await collect(store.lines('app.log'))).toEqual(['a', 'b']);
+    });
+
+    it('末尾の改行で空行を増やさない', async () => {
+      const store = new MemoryDocumentStore({ 'app.log': 'a\nb\n' });
+      expect(await collect(store.lines('app.log'))).toEqual(['a', 'b']);
+    });
+
+    it('空ファイルは 1 行も流さない', async () => {
+      const store = new MemoryDocumentStore({ 'empty.log': '' });
+      expect(await collect(store.lines('empty.log'))).toEqual([]);
+    });
+
+    it('存在しないファイルは reject する', async () => {
+      const store = new MemoryDocumentStore();
+      await expect(collect(store.lines('missing.log'))).rejects.toThrow();
+    });
+  });
 });
