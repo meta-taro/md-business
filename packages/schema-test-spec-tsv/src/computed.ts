@@ -20,19 +20,20 @@
  *   「未入力は空のまま」の規約は人が入力する欄のものであって、機械が決めた値には当たらない。
  * - **算出値と一致していれば同じ参照を返す**: 開いただけのファイルを変更扱いにしない。
  */
+import { parseCountInSource } from './countIn.js';
 import type { TsvDocument } from './parse.js';
 
 /** 計算列ディレクティブの種別語。 */
 const COMPUTED_DIRECTIVE = 'computed';
 
 /**
- * 解釈できる式。引数を取らないものだけを置いている。
- * 別ファイルを見る集計（`countIn`）はリンク定義が要るので、この段では受け付けない
- * （未知の式として捨てられる＝その列は普通の編集可能な列のまま）。
+ * 解釈できる式。
+ * - `rowNumber()`: この行の位置だけで決まる
+ * - `countIn(<ファイル>)`: 別ファイルを読まないと決まらない（{@link countReferences}）
  */
-export type ComputedFormula = 'rowNumber';
+export type ComputedFormula = 'rowNumber' | 'countIn';
 
-/** 式の表記 → 内部種別。表記は括弧まで含めて一致させる（式言語は作らない）。 */
+/** 引数を取らない式の表記 → 内部種別。表記は括弧まで含めて一致させる（式言語は作らない）。 */
 const FORMULAS: ReadonlyMap<string, ComputedFormula> = new Map([['rowNumber()', 'rowNumber']]);
 
 /** 1 本の `#@ computed` 行を解釈した結果。 */
@@ -41,6 +42,25 @@ export interface ComputedColumn {
   columnIndex: number;
   /** 値の決め方。 */
   formula: ComputedFormula;
+  /**
+   * `countIn` が数える相手のファイル（この列があるシートからの相対）。
+   * どの列とどの列が対応するかは相手の `#@ link` から読むので、ここには持たない。
+   */
+  source?: string;
+}
+
+/** 行ごとの件数（列の位置 → 行順の件数）。数えられなかった列は載せない。 */
+export type ComputedCounts = ReadonlyMap<number, readonly number[]>;
+
+/** 式 1 本を解釈する。読めなければ null（＝宣言ごと捨てる）。 */
+function readFormula(expression: string): Omit<ComputedColumn, 'columnIndex'> | null {
+  const known = FORMULAS.get(expression);
+  if (known !== undefined) return { formula: known };
+
+  const source = parseCountInSource(expression);
+  if (source !== null) return { formula: 'countIn', source };
+
+  return null;
 }
 
 /** 対象ディレクティブなら本体（種別語を除いた残り）を返す。違えば null。 */
@@ -60,7 +80,7 @@ export function readComputedColumns(
   directives: readonly string[],
   columnNames: readonly string[],
 ): ComputedColumn[] {
-  const byColumn = new Map<number, ComputedFormula>();
+  const byColumn = new Map<number, ComputedColumn>();
 
   for (const directive of directives) {
     const body = bodyOf(directive);
@@ -73,13 +93,13 @@ export function readComputedColumns(
     const columnIndex = columnNames.indexOf(body.slice(0, eq).trim());
     if (columnIndex < 0) continue;
 
-    const formula = FORMULAS.get(body.slice(eq + 1).trim());
-    if (formula === undefined) continue;
+    const rule = readFormula(body.slice(eq + 1).trim());
+    if (rule === null) continue;
 
-    byColumn.set(columnIndex, formula);
+    byColumn.set(columnIndex, { columnIndex, ...rule });
   }
 
-  return [...byColumn].map(([columnIndex, formula]) => ({ columnIndex, formula }));
+  return [...byColumn.values()];
 }
 
 /** 計算列の位置。書き込みを塞ぐ判定はこの集合で行う。 */
@@ -87,12 +107,24 @@ export function lockedColumns(computed: readonly ComputedColumn[]): ReadonlySet<
   return new Set(computed.map((c) => c.columnIndex));
 }
 
-/** 1 セルぶんの算出値。 */
-export function computedCellValue(formula: ComputedFormula, rowIndex: number): string {
+/** 数えた結果があればその値。数えられていなければ null（＝セルに触らない）。 */
+function countAt(counts: ComputedCounts | undefined, columnIndex: number, rowIndex: number): string | null {
+  const value = counts?.get(columnIndex)?.[rowIndex];
+  return value === undefined ? null : String(value);
+}
+
+/**
+ * 1 セルぶんの算出値。行の位置だけでは決まらない式は null（＝呼び出し側が別途数える）。
+ */
+export function computedCellValue(formula: ComputedFormula, rowIndex: number): string | null {
   switch (formula) {
     case 'rowNumber':
       // 表示用の通し番号なので 1 始まり（行ヘッダの番号と揃える）。
       return String(rowIndex + 1);
+    case 'countIn':
+      // 相手ファイルを読まないと決まらない。ここで 0 や空を返すと、
+      // 読めていないだけの状態がそのまま値としてファイルへ焼かれる。
+      return null;
   }
 }
 
@@ -102,10 +134,14 @@ export function computedCellValue(formula: ComputedFormula, rowIndex: number): s
  *
  * 貼り付け・一括編集・行の挿入削除のいずれの経路で値が入っても、最後にこれを通せば
  * 計算列は算出値へ戻る。経路ごとにガードを置くと、増えた経路から漏れる。
+ *
+ * `counts` に載っていない `countIn` 列は**触らない**。相手を開いていないだけで
+ * 空や 0 に落とすと、間違った件数がファイルへ残る。
  */
 export function applyComputed<T extends TsvDocument>(
   doc: T,
   computed: readonly ComputedColumn[],
+  counts?: ComputedCounts,
 ): T {
   if (computed.length === 0) return doc;
 
@@ -114,8 +150,8 @@ export function applyComputed<T extends TsvDocument>(
     let next: string[] | undefined;
 
     for (const { columnIndex, formula } of computed) {
-      const value = computedCellValue(formula, rowIndex);
-      if (cells[columnIndex] === value) continue;
+      const value = computedCellValue(formula, rowIndex) ?? countAt(counts, columnIndex, rowIndex);
+      if (value === null || cells[columnIndex] === value) continue;
 
       // 末尾セルが省略された短い行は、対象列まで空文字で伸ばしてから書く。
       next ??= cells.slice();

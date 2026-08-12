@@ -14,7 +14,7 @@
   import { untrack } from 'svelte';
   import { perf } from '$lib/diagnostics/perf.svelte';
   import { t } from '$lib/i18n/i18n.svelte';
-  import type { IdentifiedTsv } from '@md-business/schema-test-spec-tsv';
+  import type { ComputedCounts, IdentifiedTsv } from '@md-business/schema-test-spec-tsv';
   import {
     applyComputed,
     findRowsByCell,
@@ -131,6 +131,14 @@
      * 照合できなかったこと自体も 1 件として入ってくる。
      */
     linkIssues?: SheetLinkIssue[];
+    /**
+     * 集計列（`#@ computed … = countIn(…)`）の行ごとの件数。相手のファイルを読む必要が
+     * あるので親が渡す。
+     *
+     * 載っていない列は**触らない**。0 を書くと「参照が 1 件も無い」と区別がつかず、
+     * 相手を開いていないだけの状態が件数としてファイルへ焼かれる。
+     */
+    counts?: ComputedCounts;
   }
 
   let {
@@ -143,6 +151,7 @@
     onFollowLink,
     jump = null,
     linkIssues = [],
+    counts = new Map(),
   }: Props = $props();
 
   // 列型 → 入力ウィジェット仕様。列定義の変化に追従。
@@ -607,13 +616,13 @@
   // 親へ通知する唯一の出口。計算列をここで算出値へ揃える。書き込み経路ごとにガードを
   // 置くと、経路が増えたときに漏れる（行の複製・一括埋め・貼り付けは列を選ばない）。
   function emit(next: IdentifiedTsv): void {
-    onChange?.(applyComputed(next, computed));
+    onChange?.(applyComputed(next, computed, counts));
   }
 
   // 開いたファイルの計算列がずれていれば直す。算出値と一致していれば applyComputed が
   // 同じ参照を返すので、整ったファイルを開いただけでは変更扱いにならない。
   $effect(() => {
-    const healed = applyComputed(doc, computed);
+    const healed = applyComputed(doc, computed, counts);
     if (healed !== doc) onChange?.(healed);
   });
 

@@ -18,6 +18,7 @@
 import {
   applyComputed,
   checkColumnLink,
+  countReferences,
   generateRowId,
   hasRowIdColumn,
   isRowId,
@@ -32,6 +33,7 @@ import {
   withRowIds,
   withoutRowIds,
   type ComputedColumn,
+  type ComputedCounts,
   type HiddenRow,
   type ColumnLink,
   type IdentifiedTsv,
@@ -344,6 +346,36 @@ async function linkIssuesOf(
 }
 
 /**
+ * 集計列（`#@ computed <列名> = countIn(<ファイル>)`）を数える。
+ *
+ * 数える相手を読めない・相手がこちらを指していないときは、その列を結果に載せない
+ * （＝セルに触らない）。0 を書くと「参照が 1 件も無い」と区別がつかず、
+ * 開いていないだけの状態が件数としてファイルへ焼かれる。
+ */
+async function countsOf(
+  store: DocumentStore,
+  sourceRelative: string,
+  doc: TsvDocument,
+  computed: readonly ComputedColumn[],
+): Promise<ComputedCounts> {
+  const counts = new Map<number, readonly number[]>();
+
+  for (const column of computed) {
+    if (column.formula !== 'countIn' || column.source === undefined) continue;
+
+    const otherPath = resolveLinkPath(sourceRelative, column.source);
+    if (otherPath === null) continue;
+    const loaded = await load(store, otherPath);
+    if ('ok' in loaded) continue;
+
+    const counted = countReferences(doc, sourceRelative, loaded.doc, otherPath);
+    if (counted !== null) counts.set(column.columnIndex, counted);
+  }
+
+  return counts;
+}
+
+/**
  * 更新後の文書を書き出し、対象行の検証結果を添えて返す。
  *
  * 計算列はここで算出値へ揃える。**触った行だけでなく列ごと**直すのは、行の追加・削除で
@@ -356,7 +388,8 @@ async function persist(
   doc: IdentifiedTsv,
   rowIndex: number,
 ): Promise<TsvRowOk> {
-  const healed = applyComputed(doc, computedOf(doc));
+  const computed = computedOf(doc);
+  const healed = applyComputed(doc, computed, await countsOf(store, loaded.relative, doc, computed));
   const next = serializeTsv(toWritable(loaded, healed));
   await store.write(loaded.relative, preserveTrailingEol(next, loaded.source));
   // 検証は ID 列を抜いた形で行う。列 index が read_tsv の columns と揃う。

@@ -8,11 +8,12 @@
   import { previewReady } from '$lib/preview/previewGate';
   import { findHeadingOffset } from '$lib/editor/headingAnchor';
   import { debounce } from '$lib/util/debounce';
-  import type { CellLink, IdentifiedTsv } from '@md-business/schema-test-spec-tsv';
+  import type { CellLink, ComputedCounts, IdentifiedTsv } from '@md-business/schema-test-spec-tsv';
   import { openUrl } from '@tauri-apps/plugin-opener';
   import { isTsvSource } from '$lib/tsv/detect';
   import { loadGridDoc, saveGridDoc } from '$lib/tsv/gridDoc';
   import { checkSheetLinks, type SheetLinkIssue } from '$lib/tsv/linkCheck';
+  import { countSheetReferences } from '$lib/tsv/sheetCounts';
   import { invoke } from '@tauri-apps/api/core';
   import TsvGrid from '$lib/tsv/TsvGrid.svelte';
   import DataTreeView from '$lib/data/DataTreeView.svelte';
@@ -303,6 +304,26 @@
     }
     void checkSheetLinks(doc, path, readSheet).then((issues) => {
       if (seq === linkCheckSeq) linkIssues = issues;
+    });
+  });
+
+  // 集計列（`countIn`）の件数。数える相手を読むので、こちらも同期では出せない。
+  // 出るまでの間は空だが、空の列は applyComputed が触らない＝古い値が残るだけで、
+  // 0 が書き込まれることはない。
+  let counts = $state<ComputedCounts>(new Map());
+  let countSeq = 0;
+
+  $effect(() => {
+    const doc = tsvDoc;
+    const path = workspace.activePath;
+    const seq = (countSeq += 1);
+
+    if (doc === null || path === null) {
+      counts = new Map();
+      return;
+    }
+    void countSheetReferences(doc, path, readSheet).then((counted) => {
+      if (seq === countSeq) counts = counted;
     });
   });
 
@@ -649,6 +670,7 @@
           onFollowLink={handleFollowLink}
           jump={gridJump}
           {linkIssues}
+          {counts}
         />
       </div>
     {:else}

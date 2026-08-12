@@ -630,6 +630,71 @@ describe('計算列を持つ検証シート', () => {
   });
 });
 
+describe('集計列を持つ検証シート', () => {
+  /** 観点側に「この観点を何件のケースが見ているか」を出す状態。関係はケース側にだけ書く。 */
+  function countingStore(): MemoryDocumentStore {
+    return new MemoryDocumentStore({
+      'sheets/観点.tsv':
+        [
+          '#! md-business:test-spec-tsv/v1',
+          '#@ computed 件数 = countIn(ケース.tsv)',
+          '観点#!\t内容\t件数',
+          'A-1\t必須項目\t',
+          'A-2\t重複\t',
+        ].join('\n') + '\n',
+      'sheets/ケース.tsv':
+        [
+          '#! md-business:test-spec-tsv/v1',
+          '#@ link 観点 -> 観点.tsv#観点#',
+          'No.:number\t観点',
+          '1\tA-1',
+          '2\tA-1',
+        ].join('\n') + '\n',
+    });
+  }
+
+  it('書き込みのたびに参照している側の件数へ揃える', async () => {
+    const s = countingStore();
+    const r = await updateTsvRow(s, { path: 'sheets/観点.tsv', row: 0, values: { 内容: '必須' } });
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.values).toEqual(['A-1', '必須', '2']);
+
+    const after = await readTsv(s, 'sheets/観点.tsv');
+    expect(after.ok).toBe(true);
+    if (!after.ok) return;
+    // A-1 は 2 件、A-2 は 0 件。触った行だけでなく列ごと揃える。
+    expect(after.rows.map((row) => row[2])).toEqual(['2', '0']);
+  });
+
+  it('集計列は AI からも書けない', async () => {
+    // アプリのグリッドだけを塞いでも、ここから同じことができてしまう。
+    const r = await updateTsvRow(countingStore(), {
+      path: 'sheets/観点.tsv',
+      row: 0,
+      values: { 件数: '9' },
+    });
+    expect(r.ok).toBe(false);
+  });
+
+  it('数える相手を読めないときは前の値を残す', async () => {
+    // ワークスペースの一部だけを開いていることがある。0 に落とすと、
+    // 開いていないだけの状態が件数としてファイルへ焼かれる。
+    const s = new MemoryDocumentStore({
+      'sheets/観点.tsv':
+        ['#@ computed 件数 = countIn(ケース.tsv)', '観点#\t件数', 'A-1\t3'].join('\n') + '\n',
+    });
+    const r = await updateTsvRow(s, {
+      path: 'sheets/観点.tsv',
+      row: 0,
+      values: { '観点#': 'A-2' },
+    });
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.values).toEqual(['A-2', '3']);
+  });
+});
+
 describe('リンク定義を持つ検証シート', () => {
   /** ケース側（参照元）と観点側（参照先）が別ファイルに分かれている状態。 */
   function linkedStore(): MemoryDocumentStore {
