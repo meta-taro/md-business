@@ -160,6 +160,19 @@ describe('serializeHeader', () => {
     ).toBe('結果:enum(〇|×)!');
   });
 
+  it('writes back the choice source instead of the values it resolved to', () => {
+    // 引いた値をそのまま書き戻すと、参照が選択肢の写しに化けて元へ戻せなくなる。
+    expect(
+      serializeHeader({
+        name: '種別',
+        type: 'enum',
+        required: true,
+        enumSource: { path: '提出物.tsv', column: '種別' },
+        enumValues: ['仕様書', '議事録'],
+      }),
+    ).toBe('種別:enum(-> 提出物.tsv#種別)!');
+  });
+
   it('renders an enum column with no enumValues field as empty choices', () => {
     expect(serializeHeader({ name: '結果', type: 'enum', required: false })).toBe('結果:enum()');
   });

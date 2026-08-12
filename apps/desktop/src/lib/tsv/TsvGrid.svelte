@@ -14,7 +14,7 @@
   import { untrack } from 'svelte';
   import { perf } from '$lib/diagnostics/perf.svelte';
   import { t } from '$lib/i18n/i18n.svelte';
-  import type { ComputedCounts, IdentifiedTsv } from '@md-business/schema-test-spec-tsv';
+  import type { ComputedCounts, EnumChoices, IdentifiedTsv } from '@md-business/schema-test-spec-tsv';
   import {
     applyComputed,
     findRowsByCell,
@@ -139,6 +139,14 @@
      * 相手を開いていないだけの状態が件数としてファイルへ焼かれる。
      */
     counts?: ComputedCounts;
+    /**
+     * 選択肢を別シートから引く列（`enum(-> …)`）の選択肢。参照先を読む必要があるので
+     * 親が渡す。
+     *
+     * 載っていない列は**検査しない**。選択肢 0 個として扱うと、参照先を開いていない
+     * だけで既存の値が一斉に不正になる。
+     */
+    choices?: EnumChoices;
   }
 
   let {
@@ -152,10 +160,11 @@
     jump = null,
     linkIssues = [],
     counts = new Map(),
+    choices = new Map(),
   }: Props = $props();
 
   // 列型 → 入力ウィジェット仕様。列定義の変化に追従。
-  const widgets = $derived(gridWidgets(doc.columns));
+  const widgets = $derived(gridWidgets(doc.columns, choices));
 
   // スプレッドシート列座標（A,B,C…AA,AB）。型付きヘッダとは別レイヤーの位置参照バー。
   // フォーマットは変えず、描画専用に列数から算出する。
@@ -572,7 +581,7 @@
   const issueByCell = $derived.by(() =>
     perf.measure('validate', () => {
       const map = new Map<string, string>();
-      for (const issue of validateTsv(doc)) {
+      for (const issue of validateTsv(doc, choices)) {
         const key = `${issue.row}:${issue.column}`;
         if (!map.has(key)) map.set(key, issue.message);
       }

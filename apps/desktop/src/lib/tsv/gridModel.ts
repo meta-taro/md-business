@@ -1,4 +1,4 @@
-import type { ParsedHeader, TsvDocument } from '@md-business/schema-test-spec-tsv';
+import type { EnumChoices, ParsedHeader, TsvDocument } from '@md-business/schema-test-spec-tsv';
 
 /**
  * TSV グリッドの純モデル。
@@ -36,8 +36,11 @@ export interface CellWidget {
  * - `enum` → `select`（ドロップダウン）/ `ui:radio` の enum → `radio`
  * - `date` → `date`（日付ピッカー）/ `ui:datetime` の date → `datetime`
  * - `number` → `number` / `checkbox` → `checkbox` / `url` → `url`
+ *
+ * @param choices 別シートから引いた選択肢（`enum(-> …)` の列）。引けていなければ
+ *   選択肢なしで返す（＝選べる値が出ない。既存の値は検査側が触らない）。
  */
-export function widgetForColumn(header: ParsedHeader): CellWidget {
+export function widgetForColumn(header: ParsedHeader, choices?: readonly string[]): CellWidget {
   const required = header.required;
 
   switch (header.type) {
@@ -48,7 +51,7 @@ export function widgetForColumn(header: ParsedHeader): CellWidget {
     case 'enum':
       return {
         kind: header.ui === 'radio' ? 'radio' : 'select',
-        options: header.enumValues ?? [],
+        options: [...(header.enumSource !== undefined ? (choices ?? []) : (header.enumValues ?? []))],
         required,
       };
     case 'date':
@@ -63,8 +66,8 @@ export function widgetForColumn(header: ParsedHeader): CellWidget {
 }
 
 /** ヘッダ列定義の並びを、対応するウィジェット仕様の並びへ写像する。 */
-export function gridWidgets(columns: ParsedHeader[]): CellWidget[] {
-  return columns.map((header) => widgetForColumn(header));
+export function gridWidgets(columns: ParsedHeader[], choices?: EnumChoices): CellWidget[] {
+  return columns.map((header, index) => widgetForColumn(header, choices?.get(index)));
 }
 
 /** `checkbox` 列のセルに書き込む正本トークン（`validateTsv` が許す `TRUE` / `FALSE`）。 */

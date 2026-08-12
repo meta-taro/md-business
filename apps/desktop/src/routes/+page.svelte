@@ -8,11 +8,17 @@
   import { previewReady } from '$lib/preview/previewGate';
   import { findHeadingOffset } from '$lib/editor/headingAnchor';
   import { debounce } from '$lib/util/debounce';
-  import type { CellLink, ComputedCounts, IdentifiedTsv } from '@md-business/schema-test-spec-tsv';
+  import type {
+    CellLink,
+    ComputedCounts,
+    EnumChoices,
+    IdentifiedTsv,
+  } from '@md-business/schema-test-spec-tsv';
   import { openUrl } from '@tauri-apps/plugin-opener';
   import { isTsvSource } from '$lib/tsv/detect';
   import { loadGridDoc, saveGridDoc } from '$lib/tsv/gridDoc';
   import { checkSheetLinks, type SheetLinkIssue } from '$lib/tsv/linkCheck';
+  import { readSheetEnums } from '$lib/tsv/sheetEnums';
   import { countSheetReferences } from '$lib/tsv/sheetCounts';
   import { invoke } from '@tauri-apps/api/core';
   import TsvGrid from '$lib/tsv/TsvGrid.svelte';
@@ -324,6 +330,26 @@
     }
     void countSheetReferences(doc, path, readSheet).then((counted) => {
       if (seq === countSeq) counts = counted;
+    });
+  });
+
+  // 選択肢を別シートから引く列（`enum(-> …)`）の選択肢。参照先を読むので同期では出せない。
+  // 出るまでの間は空だが、空の列は検査もされない＝参照先を開いていないだけで既存の値が
+  // 一斉に赤くなることはない。
+  let choices = $state<EnumChoices>(new Map());
+  let choiceSeq = 0;
+
+  $effect(() => {
+    const doc = tsvDoc;
+    const path = workspace.activePath;
+    const seq = (choiceSeq += 1);
+
+    if (doc === null || path === null) {
+      choices = new Map();
+      return;
+    }
+    void readSheetEnums(doc, path, readSheet).then((read) => {
+      if (seq === choiceSeq) choices = read;
     });
   });
 
@@ -671,6 +697,7 @@
           jump={gridJump}
           {linkIssues}
           {counts}
+          {choices}
         />
       </div>
     {:else}
