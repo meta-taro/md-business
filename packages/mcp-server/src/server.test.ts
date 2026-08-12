@@ -120,12 +120,12 @@ describe('createServer / MCP 配線', () => {
     ]);
   });
 
-  it('list_schemas は 6 スキーマを返す', async () => {
+  it('list_schemas は 7 スキーマを返す', async () => {
     const client = await connect(new MemoryDocumentStore());
     const res = await client.callTool({ name: 'list_schemas', arguments: {} });
     const { text, isError } = parse(res as CallToolResult);
     expect(isError).toBe(false);
-    expect((text as { schemas: unknown[] }).schemas).toHaveLength(6);
+    expect((text as { schemas: unknown[] }).schemas).toHaveLength(7);
   });
 
   // list_schemas は id と表示名しか返さないので、エージェントは「どの項目が必須か」を

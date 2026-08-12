@@ -5,6 +5,7 @@ import { SCHEMA_VERSION as TEST_SPEC_V } from '@md-business/schema-test-spec';
 import { SCHEMA_VERSION as DB_SPEC_V } from '@md-business/schema-db-spec';
 import { SCHEMA_VERSION as NOSQL_V } from '@md-business/schema-nosql-db-spec';
 import { SCHEMA_VERSION as API_V } from '@md-business/schema-api-spec';
+import { SCHEMA_VERSION as INVESTIGATION_V } from '@md-business/schema-investigation';
 import {
   SCHEMA_REGISTRY,
   listSchemas,
@@ -14,15 +15,23 @@ import {
 } from './registry.js';
 
 /**
- * MCP スキーマ・レジストリ。6 スキーマパッケージを wrap し、
+ * MCP スキーマ・レジストリ。7 スキーマパッケージを wrap し、
  * schema id → { label, validate, schema } を解決する。既存パッケージは非改変で、
  * ここは公開 export（`/validate` compiled validator + SCHEMA_VERSION + JSON Schema）を
  * 束ねるだけ。検出は frontmatter の `schema:` 値（例 `invoice/v1`）を照合する。
  */
 describe('SCHEMA_REGISTRY', () => {
-  it('6 スキーマを登録し、id は各パッケージの SCHEMA_VERSION と一致する', () => {
+  it('7 スキーマを登録し、id は各パッケージの SCHEMA_VERSION と一致する', () => {
     const ids = SCHEMA_REGISTRY.map((e) => e.id);
-    expect(ids).toEqual([INVOICE_V, SPEC_V, TEST_SPEC_V, DB_SPEC_V, NOSQL_V, API_V]);
+    expect(ids).toEqual([
+      INVOICE_V,
+      SPEC_V,
+      TEST_SPEC_V,
+      DB_SPEC_V,
+      NOSQL_V,
+      API_V,
+      INVESTIGATION_V,
+    ]);
   });
 
   it('id は重複しない', () => {
@@ -46,13 +55,14 @@ describe('SCHEMA_REGISTRY', () => {
     expect(byId.get(DB_SPEC_V)).toBe('schema');
     expect(byId.get(NOSQL_V)).toBe('schema');
     expect(byId.get(API_V)).toBe('schema');
+    expect(byId.get(INVESTIGATION_V)).toBe('schema');
   });
 });
 
 describe('listSchemas', () => {
   it('id + label のメタだけを返す（validator 本体は含めない）', () => {
     const list = listSchemas();
-    expect(list).toHaveLength(6);
+    expect(list).toHaveLength(7);
     expect(list[0]).toEqual({ id: INVOICE_V, label: expect.any(String) });
     expect(list[0]).not.toHaveProperty('validate');
   });
@@ -122,5 +132,47 @@ describe('detectSchemaId', () => {
 
   it('前後空白を除いて照合する', () => {
     expect(detectSchemaId({ schemaVersion: `  ${INVOICE_V}  ` })).toBe(INVOICE_V);
+  });
+});
+
+describe('investigation/v1 の検証', () => {
+  const validate = resolveSchema(INVESTIGATION_V)!.validate;
+
+  function japaneseInvestigation(): Record<string, unknown> {
+    return {
+      スキーマ: INVESTIGATION_V,
+      種別: 'ログ',
+      文書番号: 'INV-2026-0001',
+      タイトル: '深夜帯のログイン失敗急増の調査',
+      作成日時: '2026-08-12T09:30:00+09:00',
+      状態: '調査中',
+      作成者: [{ 名前: '山田 太郎', 役割: '調査担当' }],
+      対象ファイル: [
+        {
+          パス: 'logs/app-2026-08-11.jsonl',
+          ハッシュ: '3b1f0c6a9d4e2f8b7c5a1d0e6f4b2a9c8d7e5f3a1b0c9d8e7f6a5b4c3d2e1f00',
+        },
+      ],
+      使用ツール: [{ 名前: 'md-business mcp-server', 版: '0.9.0' }],
+      調査時間帯: { 開始: '2026-08-11T00:00:00+09:00', 終了: '2026-08-12T00:00:00+09:00' },
+    };
+  }
+
+  it('日本語キーの調査報告書を通す（normalize → autofill → validate の 3 段が揃っている）', () => {
+    expect(validate(japaneseInvestigation())).toBe(true);
+  });
+
+  it('根拠が Evidence 参照でない所見を落とす', () => {
+    const doc = {
+      ...japaneseInvestigation(),
+      所見: [{ 番号: 'F-01', 要約: '認証失敗が集中している', 根拠: ['ログを見た感じ'] }],
+    };
+    expect(validate(doc)).toBe(false);
+  });
+
+  it('対象ファイルのハッシュが無い調査報告書を落とす', () => {
+    const doc = japaneseInvestigation();
+    doc['対象ファイル'] = [{ パス: 'logs/app.jsonl' }];
+    expect(validate(doc)).toBe(false);
   });
 });
