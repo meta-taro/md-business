@@ -2,6 +2,7 @@
   import { untrack, onMount, onDestroy } from 'svelte';
   import { themeController } from '$lib/theme.svelte';
   import { renderPreview } from '$lib/preview/renderPreview';
+  import { renderMermaidInDocument } from '$lib/preview/renderMermaid';
   import { frontmatterMessage } from '$lib/preview/frontmatterMessage';
   import { pdfExport } from '$lib/preview/pdfExport.svelte';
   import { previewReady } from '$lib/preview/previewGate';
@@ -222,6 +223,10 @@
     // srcdoc 再生成でハイライト（CSS.highlights）が失われるため、プレビュー検索が開いたまま
     // なら新しいドキュメントへ貼り直す（開いていない／別対象なら refresh は no-op）。
     if (search.open && search.target === 'preview') search.refresh();
+    // 図（Mermaid）は本文の組み立てとは別に、出来上がった文書を書き換える形で描く。
+    // 本文側を同期のまま保つため。図が無ければ何も読み込まないので待たない。
+    const doc = viewerFrame?.contentDocument;
+    if (doc) void renderMermaidInDocument(doc, { theme: themeController.value });
   }
 
   // frontmatter を registry で振り分け、該当スキーマのビューワーで描画する（6 スキーマ
