@@ -9,8 +9,8 @@ import DOMPurify from 'dompurify';
  *
  *   - inline `<svg>` (diagrams pasted from draw.io / Excalidraw)
  *   - `<img>` with `data:image/{png,jpeg,gif,webp,svg+xml}`, `https:`, `blob:`
- *   - `<pre><code class="language-mermaid">` survives intact so a future
- *     mermaid renderer can pick it up on a later pass
+ *   - `<pre><code class="language-mermaid">` survives intact; `renderMermaid.ts`
+ *     picks it up after the preview document is built and swaps in the SVG
  *
  * Anything else (script tags, event handlers, `javascript:` URLs, foreign
  * objects, form elements) is dropped.
