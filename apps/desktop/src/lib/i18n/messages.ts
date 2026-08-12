@@ -377,6 +377,9 @@ export interface Messages {
   'grid.colMenuText': string;
   'grid.colMenuAlign': string;
   'grid.rowMenuHead': string;
+  'grid.blame': string;
+  'grid.blameTitle': string;
+  'grid.blameUncommitted': string;
   'grid.colModeClip': string;
   'grid.colModeWrap': string;
   'grid.colModeOverflow': string;
@@ -750,6 +753,9 @@ const en: Messages = {
   'grid.colMenuText': 'Text display for the {name} column',
   'grid.colMenuAlign': 'Alignment',
   'grid.rowMenuHead': 'Row {row}',
+  'grid.blame': 'History',
+  'grid.blameTitle': 'Show who last changed each row (from git)',
+  'grid.blameUncommitted': 'Not committed yet',
   'grid.colModeClip': 'Cut off (ellipsis)',
   'grid.colModeWrap': 'Wrap',
   'grid.colModeOverflow': 'Spill over',
@@ -1117,6 +1123,9 @@ const ja: Messages = {
   'grid.colMenuText': '{name} 列のテキスト表示',
   'grid.colMenuAlign': '寄せ',
   'grid.rowMenuHead': '{row} 行目',
+  'grid.blame': '履歴',
+  'grid.blameTitle': '各行を最後に変えた人とコミットを出す（git より）',
+  'grid.blameUncommitted': '未コミット',
   'grid.colModeClip': '見切れる（省略）',
   'grid.colModeWrap': '折り返す',
   'grid.colModeOverflow': '突き抜ける',
@@ -1481,6 +1490,9 @@ const zh: Messages = {
   'grid.colMenuText': '{name} 列的文本显示',
   'grid.colMenuAlign': '对齐',
   'grid.rowMenuHead': '第 {row} 行',
+  'grid.blame': '历史',
+  'grid.blameTitle': '显示各行最后由谁修改（来自 git）',
+  'grid.blameUncommitted': '尚未提交',
   'grid.colModeClip': '截断（省略号）',
   'grid.colModeWrap': '换行',
   'grid.colModeOverflow': '溢出显示',
@@ -1849,6 +1861,9 @@ const ko: Messages = {
   'grid.colMenuText': '{name} 열의 텍스트 표시',
   'grid.colMenuAlign': '정렬',
   'grid.rowMenuHead': '{row}번째 행',
+  'grid.blame': '이력',
+  'grid.blameTitle': '각 행을 마지막으로 변경한 사람을 표시(git 기준)',
+  'grid.blameUncommitted': '아직 커밋 안 됨',
   'grid.colModeClip': '잘림(생략)',
   'grid.colModeWrap': '줄바꿈',
   'grid.colModeOverflow': '넘쳐 표시',

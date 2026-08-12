@@ -13,7 +13,7 @@
    */
   import { untrack } from 'svelte';
   import { perf } from '$lib/diagnostics/perf.svelte';
-  import { t } from '$lib/i18n/i18n.svelte';
+  import { i18n, t } from '$lib/i18n/i18n.svelte';
   import type { ComputedCounts, EnumChoices, IdentifiedTsv } from '@md-business/schema-test-spec-tsv';
   import {
     applyComputed,
@@ -82,6 +82,7 @@
     rowRange,
   } from './gridRange';
   import { rowMenuItems, rowMenuSelection, type RowMenuAction } from './gridRowMenu';
+  import { blameAge, formatBlameAge, type RowBlame } from './rowBlame';
   import { canStartDrag, beginDrag } from './gridDrag';
   import { takePickerRequest, opensOnSingleClick } from './gridPicker';
   import { displayRowCount, editPaddedCell } from './gridBlankRows';
@@ -148,6 +149,17 @@
      * だけで既存の値が一斉に不正になる。
      */
     choices?: EnumChoices;
+    /**
+     * 行を最後に変えたコミット（`git blame`）。git を叩くので親が渡す。
+     *
+     * 載っていない行は**何も出さない**。「履歴なし」と書くと、まだ読めていないだけの行と
+     * 一度もコミットしていない行が同じ見た目になる。
+     */
+    blame?: RowBlame;
+    /** 履歴を出しているか。 */
+    blameOn?: boolean;
+    /** 履歴表示の切り替えを親へ通知（省略時は切り替えボタンを出さない）。 */
+    onToggleBlame?: () => void;
   }
 
   let {
@@ -162,7 +174,25 @@
     linkIssues = [],
     counts = new Map(),
     choices = new Map(),
+    blame = new Map(),
+    blameOn = false,
+    onToggleBlame,
   }: Props = $props();
+
+  /**
+   * その行を最後に変えたのが誰でいつか、の 1 行。履歴が無い行は undefined。
+   *
+   * 突き合わせの鍵は行 ID。表の行番号はマーカー行・ディレクティブ・控え行を落とした
+   * 後の番号で、ファイルの行番号とは一致しない。
+   */
+  function blameLabel(row: number): string | undefined {
+    const id = doc.rowIds[row];
+    const entry = id === undefined ? undefined : blame.get(id);
+    if (entry === undefined) return undefined;
+    if (entry.uncommitted) return t('grid.blameUncommitted');
+    const age = formatBlameAge(blameAge(entry.timeMs, Date.now()), i18n.locale);
+    return `${age} · ${entry.author} · ${entry.summary}`;
+  }
 
   // 列型 → 入力ウィジェット仕様。列定義の変化に追従。
   const widgets = $derived(gridWidgets(doc.columns, choices));
@@ -1360,7 +1390,9 @@
             <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
             <th
               class="rownum rownum-select"
+              class:has-blame={blameOn && blameLabel(r) !== undefined}
               scope="row"
+              title={blameOn ? blameLabel(r) : undefined}
               onclick={() => selectWholeRow(r)}
               oncontextmenu={(e) => openRowMenu(r, e)}
             >
@@ -1623,9 +1655,28 @@
             : t('grid.revealShow', { count: hiddenCount })}
         </button>
       {/if}
+      <!-- 行の履歴。git を毎回叩くので、出すと決めたときだけ読む。 -->
+      {#if onToggleBlame}
+        <button
+          type="button"
+          class="row-btn"
+          class:on={blameOn}
+          onclick={onToggleBlame}
+          aria-pressed={blameOn}
+          title={t('grid.blameTitle')}
+        >
+          {t('grid.blame')}
+        </button>
+      {/if}
       <span class="active-row" aria-live="polite">
         {modeLabel}: {activeRowLabel}{#if selectionLabel} · {selectionLabel}{/if}
       </span>
+      {#if blameOn}
+        <!-- 行番号セルの tooltip と同じ中身。選択中の行の分だけは、当てなくても見える所に出す。 -->
+        <span class="blame-line" aria-live="polite" title={blameLabel(activeCell.row)}
+          >{blameLabel(activeCell.row) ?? ''}</span
+        >
+      {/if}
       {#if targetLinkIssues.length > 0}
         <!-- 参照先の取りこぼしは相手ファイルの中にあり、この画面のどこにも赤が出ない。
              消える通知にすると見逃されるので、直るまで出したままにする。 -->
@@ -1816,6 +1867,22 @@
     border-radius: 999px;
     padding: 0 0.5em;
     cursor: help;
+  }
+
+  /* 履歴を出しているとき、当てれば出ることを行番号に控えめに示す。 */
+  .rownum.has-blame {
+    text-decoration: underline dotted;
+    text-underline-offset: 2px;
+  }
+
+  /* 選択中の行の履歴。長い要約でバーを押し広げないよう、はみ出しは畳む（全文は tooltip）。 */
+  .blame-line {
+    max-width: 32ch;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: var(--text-2xs-size, var(--text-sm-size));
+    color: var(--text-secondary);
   }
 
   .active-row {
