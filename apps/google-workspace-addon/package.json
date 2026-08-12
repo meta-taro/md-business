@@ -16,15 +16,15 @@
   "dependencies": {
     "@md-business/core": "workspace:*",
     "@md-business/schema-test-spec": "workspace:*",
-    "js-yaml": "^4.3.0"
+    "js-yaml": "^4.3.1"
   },
   "devDependencies": {
     "@types/google-apps-script": "^1.0.83",
     "@types/js-yaml": "^4.0.9",
     "@types/node": "^22.10.0",
-    "@vitest/coverage-v8": "^2.1.8",
+    "@vitest/coverage-v8": "^3.2.6",
     "esbuild": "^0.21.5",
     "typescript": "^5.6.3",
-    "vitest": "^2.1.8"
+    "vitest": "^3.2.6"
   }
 }
