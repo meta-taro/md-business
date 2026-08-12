@@ -333,6 +333,8 @@ export interface Messages {
   'grid.jumpNoColumn': string;
   'grid.jumpNoRow': string;
   'grid.jumpMultiple': string;
+  'grid.linkGaps': string;
+  'grid.linkGapsTitle': string;
   'grid.pasteDroppedComputed': string;
   'grid.rowLabel': string;
   'grid.modeEditing': string;
@@ -701,6 +703,8 @@ const en: Messages = {
   'grid.jumpNoColumn': 'There is no column named “{column}”',
   'grid.jumpNoRow': 'No row has {column} set to “{value}”',
   'grid.jumpMultiple': '{count} rows match. Moved to the first one',
+  'grid.linkGaps': 'Linked sheets: {count} to check',
+  'grid.linkGapsTitle': 'Found in the sheets this one points at. Open them to fix.',
   'grid.pasteDroppedComputed': '{count} cells in computed columns were not pasted',
   'grid.rowLabel': 'Row {row}',
   'grid.modeEditing': 'Editing',
@@ -1067,6 +1071,8 @@ const ja: Messages = {
   'grid.jumpNoColumn': '「{column}」という列がありません',
   'grid.jumpNoRow': '{column} が「{value}」の行はありません',
   'grid.jumpMultiple': '{count} 行あります。最初の行へ移動しました',
+  'grid.linkGaps': '参照先に {count} 件',
+  'grid.linkGapsTitle': 'このシートが指している側で見つかったものです。相手を開いて直します。',
   'grid.pasteDroppedComputed': '計算列の {count} セルは貼り付けていません',
   'grid.rowLabel': '{row} 行目',
   'grid.modeEditing': '編集中',
@@ -1428,6 +1434,8 @@ const zh: Messages = {
   'grid.jumpNoColumn': '没有名为「{column}」的列',
   'grid.jumpNoRow': '没有 {column} 为「{value}」的行',
   'grid.jumpMultiple': '共有 {count} 行，已移动到第一行',
+  'grid.linkGaps': '引用目标有 {count} 项',
+  'grid.linkGapsTitle': '这些出现在本表所指向的表中。请打开对方表修改。',
   'grid.pasteDroppedComputed': '计算列的 {count} 个单元格未粘贴',
   'grid.rowLabel': '第 {row} 行',
   'grid.modeEditing': '编辑中',
@@ -1792,6 +1800,8 @@ const ko: Messages = {
   'grid.jumpNoColumn': '「{column}」이라는 열이 없습니다',
   'grid.jumpNoRow': '{column}이(가) 「{value}」인 행이 없습니다',
   'grid.jumpMultiple': '{count}개 행이 있습니다. 첫 행으로 이동했습니다',
+  'grid.linkGaps': '참조 대상에 {count}건',
+  'grid.linkGapsTitle': '이 시트가 가리키는 쪽에서 찾은 것입니다. 상대 시트를 열어 고칩니다.',
   'grid.pasteDroppedComputed': '계산 열의 {count}개 셀은 붙여넣지 않았습니다',
   'grid.rowLabel': '{row}번째 행',
   'grid.modeEditing': '편집 중',

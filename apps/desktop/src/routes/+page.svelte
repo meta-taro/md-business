@@ -8,10 +8,13 @@
   import { previewReady } from '$lib/preview/previewGate';
   import { findHeadingOffset } from '$lib/editor/headingAnchor';
   import { debounce } from '$lib/util/debounce';
-  import type { CellLink, IdentifiedTsv } from '@md-business/schema-test-spec-tsv';
+  import type { CellLink, ComputedCounts, IdentifiedTsv } from '@md-business/schema-test-spec-tsv';
   import { openUrl } from '@tauri-apps/plugin-opener';
   import { isTsvSource } from '$lib/tsv/detect';
   import { loadGridDoc, saveGridDoc } from '$lib/tsv/gridDoc';
+  import { checkSheetLinks, type SheetLinkIssue } from '$lib/tsv/linkCheck';
+  import { countSheetReferences } from '$lib/tsv/sheetCounts';
+  import { invoke } from '@tauri-apps/api/core';
   import TsvGrid from '$lib/tsv/TsvGrid.svelte';
   import DataTreeView from '$lib/data/DataTreeView.svelte';
   import { isDataFile, readDataDocument } from '$lib/data/dataDocument';
@@ -281,6 +284,59 @@
     isTsv ? perf.measure('parse', () => loadGridDoc(debouncedSource, { reveal: revealHidden })) : null,
   );
   const tsvDoc = $derived(tsvGrid?.doc ?? null);
+
+  // 別シートを指す列（`#@ link`）の照合結果。参照先を読むので同期では出せない。
+  // 出るまでの間は空＝「問題なし」ではなく「まだ照合していない」なので、
+  // 読めなかったこと自体も警告として linkCheck 側が 1 件返す。
+  let linkIssues = $state<SheetLinkIssue[]>([]);
+  // 読み終える順序は保証されない。開き直しが速いと古い結果が後から届くので、
+  // 投げた順番を持って最後のものだけを採る。
+  let linkCheckSeq = 0;
+
+  $effect(() => {
+    const doc = tsvDoc;
+    const path = workspace.activePath;
+    const seq = (linkCheckSeq += 1);
+
+    if (doc === null || path === null) {
+      linkIssues = [];
+      return;
+    }
+    void checkSheetLinks(doc, path, readSheet).then((issues) => {
+      if (seq === linkCheckSeq) linkIssues = issues;
+    });
+  });
+
+  // 集計列（`countIn`）の件数。数える相手を読むので、こちらも同期では出せない。
+  // 出るまでの間は空だが、空の列は applyComputed が触らない＝古い値が残るだけで、
+  // 0 が書き込まれることはない。
+  let counts = $state<ComputedCounts>(new Map());
+  let countSeq = 0;
+
+  $effect(() => {
+    const doc = tsvDoc;
+    const path = workspace.activePath;
+    const seq = (countSeq += 1);
+
+    if (doc === null || path === null) {
+      counts = new Map();
+      return;
+    }
+    void countSheetReferences(doc, path, readSheet).then((counted) => {
+      if (seq === countSeq) counts = counted;
+    });
+  });
+
+  /** 参照先 1 ファイルを読む。読めないもの（未オープン・別形式）は null で返す。 */
+  async function readSheet(relPath: string): Promise<string | null> {
+    const root = workspace.root;
+    if (root === null) return null;
+    try {
+      return await invoke<string>('read_document', { root, relPath });
+    } catch {
+      return null;
+    }
+  }
 
   // 参考データ（.json / .xml）は正本ではなく、隣に置いてある資料として読むだけ。
   // 判定は開いているファイルの拡張子だけで行う（中身を覗いて形式を当てにいかない）。
@@ -613,6 +669,8 @@
           onToggleReveal={() => (revealHidden = !revealHidden)}
           onFollowLink={handleFollowLink}
           jump={gridJump}
+          {linkIssues}
+          {counts}
         />
       </div>
     {:else}
