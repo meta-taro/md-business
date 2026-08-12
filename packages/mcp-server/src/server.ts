@@ -25,6 +25,7 @@ import { searchLines, readLines, type SearchLinesInput, type ReadLinesInput } fr
 import { filterRecords, type FilterRecordsInput, type Condition } from './records.js';
 import { aggregate, type AggregateInput } from './aggregate.js';
 import { buildTimeline, type BuildTimelineInput, type TimelineSource } from './timeline.js';
+import { saveEvidence, type SaveEvidenceInput } from './evidence.js';
 import { searchDocuments } from './search.js';
 import type { SearchQuery } from './search.js';
 import { gitStatus, gitDiff, gitCommit } from './gitTools.js';
@@ -86,6 +87,9 @@ export const SERVER_INSTRUCTIONS = `md-business は Markdown / TSV の業務文�
   全文を開くと調べる前に文脈が埋まるうえ、
   Authorization / Cookie / token / メールアドレスが伏せ字を通らずに入る。
   これらのツールの戻り値は必ず伏せ字がかかり、上限で切ったときは切ったと返る。
+- 調べて取り出した中身のうち、報告書の根拠にするものは **save_evidence** で残す。
+  返ってきた参照（\`evidence/EV-001.md\`）を所見から指す。会話の中だけに残した抜粋は、
+  後から確かめられないので根拠にならない。
 - 変更を確認して記録するのは **git_status** / **git_diff** / **git_commit**（利用可能な場合）。
 
 ## 書式の約束
@@ -619,6 +623,41 @@ export function createServer(store: DocumentStore, options: CreateServerOptions 
       if (maxValueLength !== undefined) input.maxValueLength = maxValueLength;
       const r = await buildTimeline(store, input);
       emit('build_timeline', sources[0]?.path, r);
+      return jsonResult(r, !r.ok);
+    },
+  );
+
+  server.registerTool(
+    'save_evidence',
+    {
+      description:
+        '調べて取り出した中身を Evidence として 1 件 1 ファイルに保存し、報告書から書く参照（evidence/EV-001.md）を返す。番号は空いている次のものを自動で振る。既にある Evidence は上書きしない。保存する前に伏せ字がかかるので、伏せた値は成果物にも残らない。',
+      inputSchema: {
+        title: z.string().describe('何の証拠か（1 行）'),
+        tool: z
+          .enum([
+            'search_lines',
+            'read_lines',
+            'filter_records',
+            'aggregate',
+            'build_timeline',
+            'manual',
+          ])
+          .describe('どのツールで取り出したか'),
+        sources: z
+          .array(z.string())
+          .describe('元にしたファイルのワークスペース相対パス（1 件以上）'),
+        body: z.string().describe('取り出した中身そのもの'),
+        note: z.string().optional().describe('なぜ残すか（所見との対応など）'),
+        id: z.string().optional().describe('番号（例 EV-042）。省略すると空いている次の番号'),
+      },
+    },
+    async ({ title, tool, sources, body, note, id }) => {
+      const input: SaveEvidenceInput = { title, tool, sources, body };
+      if (note !== undefined) input.note = note;
+      if (id !== undefined) input.id = id;
+      const r = await saveEvidence(store, input, now);
+      emit('save_evidence', r.ok ? r.path : undefined, r);
       return jsonResult(r, !r.ok);
     },
   );

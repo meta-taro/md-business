@@ -117,6 +117,7 @@ describe('createServer / MCP 配線', () => {
       'read_document',
       'read_lines',
       'read_tsv',
+      'save_evidence',
       'search_documents',
       'search_lines',
       'update_document',
