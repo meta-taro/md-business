@@ -5,7 +5,6 @@
   import { frontmatterMessage } from '$lib/preview/frontmatterMessage';
   import { pdfExport } from '$lib/preview/pdfExport.svelte';
   import { previewReady } from '$lib/preview/previewGate';
-  import CodeMirrorEditor from '$lib/editor/CodeMirrorEditor.svelte';
   import { findHeadingOffset } from '$lib/editor/headingAnchor';
   import { debounce } from '$lib/util/debounce';
   import type { CellLink, IdentifiedTsv } from '@md-business/schema-test-spec-tsv';
@@ -47,6 +46,11 @@
     scrollFraction,
     type EditorFocusInfo,
   } from '$lib/layout/scrollSync';
+
+  // エディタ一式（CodeMirror + 構文解析）は起動時に読むものの中で最も大きい。
+  // 静的に読むと、まだ何も開いていない段階でこれを読み終わるまで窓が出ない。
+  // 読み始めるのはここ（画面を組み立てる前）だが、待たずに先へ進む点が静的 import と違う。
+  const editorComponent = import('$lib/editor/CodeMirrorEditor.svelte').then((m) => m.default);
 
   // 中央 = 左右 2 分割（DESIGN §6）。左＝Markdown エディター（CodeMirror 6）、
   // 右＝ビューワー（renderer-pdf の HTML を iframe 隔離）。
@@ -529,13 +533,19 @@
 >
   <section class="pane editor" aria-label={t('page.editorPaneLabel')}>
     <div class="pane-head">{t('page.editorHead')}</div>
-    <CodeMirrorEditor
-      value={source}
-      onChange={handleEditorChange}
-      onSync={handleEditorSync}
-      readOnly={dataDoc !== null}
-      caret={editorCaret}
-    />
+    <!-- 読み終わるまでは枠だけ置く。ここで高さを持たせないと、届いた瞬間に
+         右のプレビューごと位置がずれる。 -->
+    {#await editorComponent}
+      <div class="editor-loading"></div>
+    {:then Editor}
+      <Editor
+        value={source}
+        onChange={handleEditorChange}
+        onSync={handleEditorSync}
+        readOnly={dataDoc !== null}
+        caret={editorCaret}
+      />
+    {/await}
     <SearchBar pane="editor" />
   </section>
 
@@ -737,6 +747,12 @@
     min-width: 0;
     min-height: 0;
     overflow: hidden;
+  }
+
+  /* エディタが届くまでの場所取り。CodeMirror 側のホストと同じ伸び方にしておく。 */
+  .editor-loading {
+    flex: 1;
+    min-height: 0;
   }
 
   /* 中央ディバイダ。6px の実体 + 疑似要素で当たり判定を左右に広げる。 */
