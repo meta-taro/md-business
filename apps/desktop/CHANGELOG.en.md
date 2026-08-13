@@ -4,12 +4,35 @@ Changes to this app. Versions follow [Semantic Versioning](https://semver.org/).
 
 Japanese is the source of truth for this file; see [CHANGELOG.md](./CHANGELOG.md).
 
-## 0.8.1
+## 0.9.0
+
+### Added
+
+- **Diagrams (Mermaid) are now drawn in the preview**. Flowcharts and sequence diagrams written in a design document appear as diagrams instead of sitting there as code. Until now, the place you wrote a diagram and the place a diagram appeared were not the same place.
+  - A document with no diagrams in it does not load the drawing engine at all, so it stays as light as before for anyone not using diagrams.
+  - A diagram that fails to draw is left as the original text, so unfinished markup does not swallow the surrounding page.
+  - Diagrams carry into the PDF as well — sharp at any zoom, and kept from breaking across a page.
+- **A column in a test sheet can now point at another sheet**. Declare in the header which column of which sheet a value is supposed to appear in, and the cross-check runs on its own. The lookup table you used to keep by hand with spreadsheet functions is no longer needed. The check runs both ways: values missing from the destination, and rows nothing points at.
+- **The number of times a row is pointed at can now be counted as a column**. "How many tests hang off this checkpoint" no longer has to be recounted every time the sheet is opened.
+- **A set of choices can now be pulled from a column of another sheet**. Listing choices in the column declaration means editing every sheet's header whenever the list changes. If the list already exists as a sheet, that sheet can be the source of truth instead.
+  - When the destination cannot be read, the column is simply not checked. No choices are offered, but the values already written stay as they are. Turning every existing value red just because a sheet is not open would bury the real violations under red nobody can fix.
+- **Right-clicking a row number in the test grid now brings up the row operations** (duplicate / copy / clear / set aside / delete). The row toolbar below has grown and folds up in a narrow window, so the most-used ones are also reachable from the row itself. Only the row you right-clicked is affected, and the selection moves to it as the menu opens, so which row will be affected is visible before you press.
+- **Who last changed a row, and when, can now be seen on the row** (history). Several people touch different rows of the same test sheet, so a row marked NG gave no clue whether it was today's result or one left over from six months ago. Point at the row number and you get "3 days ago · who · what the change was". Reading the history costs a lookup every time, so it is off by default and turned on from the row toolbar. Rows with no history show nothing.
+- **AI can now investigate a log without reading all of it** (built-in MCP server). Six tools: search lines, take a line range, filter one-record-per-line logs, count by time bucket or key, merge separate logs into one timeline, and save what was extracted as evidence. Handing over a whole log exhausts the reading budget before the investigation starts, and lets credentials and email addresses through unredacted. These are a separate entrance from the business-document tools.
+- **Added a format for investigation reports**. Log investigations and network investigations share one format. The evidence field takes structured references only, not prose, and files listed require a hash — so that "it looked that way" cannot slip into the record, and neither can a file nobody can identify later. For now it is available from the AI side (MCP).
+
+### Changed
+
+- **Startup is lighter**. Of the roughly 1,660KB read before the window appeared, over 60% was the editor, none of which is needed until something is opened. It is now loaded when you open a file.
+- **In-cell line breaks now match spreadsheets**. Alt + Enter, Ctrl + Enter, and Shift + Enter all insert a line break; which one means "line break" differs between spreadsheet applications, so all three are accepted rather than committing the cell on a misremembered one. Enter on its own still commits and moves down.
+- **Columns that accept a line break are now marked in the header** (a ↵ after the column name). Which columns accept one was invisible until you tried, and in a column that does not, the keystroke commits and drops you to the row below.
 
 ### Fixed
 
 - **Links inside the app did nothing when clicked.** "See more" in the update notice, the pointers in Help, external links written in a preview or a test sheet, and "Show in folder" from a file's right-click menu were all unresponsive. The permission to open a browser or a file explorer was missing the list of destinations it was allowed to open, so the app itself refused the request. Nothing was shown when it was refused, so from the outside there was no way to tell whether the app was broken or the click was wrong.
   - A test now fails if the same gap reappears. A gap like this passes both the build and the type check, so nobody finds it until a person clicks.
+- **Fixed typing in the test grid replacing one character at a time, and losing focus.** A second keystroke wiped the first, and focus left the field mid-conversion, so a table could not be filled in one pass.
+- Cleared the outstanding dependency advisories.
 
 ## 0.8.0
 
