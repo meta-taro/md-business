@@ -328,6 +328,7 @@ export interface Messages {
   'grid.emptyColumns': string;
   'grid.rowNumber': string;
   'grid.required': string;
+  'grid.multiline': string;
   'grid.defaultGroupLabel': string;
   'grid.computedCell': string;
   'grid.jumpNoColumn': string;
@@ -702,6 +703,7 @@ const en: Messages = {
   'grid.emptyColumns': 'No columns are defined (open a TSV that has a header row)',
   'grid.rowNumber': 'Row number',
   'grid.required': 'Required',
+  'grid.multiline': 'Line breaks allowed (Alt / Ctrl / Shift + Enter)',
   'grid.defaultGroupLabel': 'Group',
   'grid.computedCell': 'Computed column (the value is filled in for you)',
   'grid.jumpNoColumn': 'There is no column named “{column}”',
@@ -1074,6 +1076,7 @@ const ja: Messages = {
   'grid.emptyColumns': '列定義がありません（ヘッダ行のある TSV を開いてください）',
   'grid.rowNumber': '行番号',
   'grid.required': '必須',
+  'grid.multiline': 'セルの中で改行できる列（Alt / Ctrl / Shift + Enter）',
   'grid.defaultGroupLabel': 'グループ',
   'grid.computedCell': '計算列（値は自動で決まる）',
   'grid.jumpNoColumn': '「{column}」という列がありません',
@@ -1441,6 +1444,7 @@ const zh: Messages = {
   'grid.emptyColumns': '没有列定义（请打开带表头行的 TSV）',
   'grid.rowNumber': '行号',
   'grid.required': '必填',
+  'grid.multiline': '可在单元格内换行的列（Alt / Ctrl / Shift + Enter）',
   'grid.defaultGroupLabel': '分组',
   'grid.computedCell': '计算列（数值自动确定）',
   'grid.jumpNoColumn': '没有名为「{column}」的列',
@@ -1811,6 +1815,7 @@ const ko: Messages = {
   'grid.emptyColumns': '열 정의가 없습니다(헤더 행이 있는 TSV를 열어 주세요)',
   'grid.rowNumber': '행 번호',
   'grid.required': '필수',
+  'grid.multiline': '셀 안에서 줄바꿈할 수 있는 열 (Alt / Ctrl / Shift + Enter)',
   'grid.defaultGroupLabel': '그룹',
   'grid.computedCell': '계산 열(값이 자동으로 정해집니다)',
   'grid.jumpNoColumn': '「{column}」이라는 열이 없습니다',

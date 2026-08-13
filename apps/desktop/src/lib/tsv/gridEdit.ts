@@ -54,3 +54,13 @@ export function handsOffKey(
   if (ctrl || key.length !== 1 || key === ' ') return false;
   return kind !== undefined && HANDOFF.has(kind);
 }
+
+/**
+ * セルの中に改行を持てる列か（見出しの目印と改行キーの受け口が同じ判定を使う）。
+ *
+ * TSV は 1 物理行 = 1 件なので、改行を持てるのは複数行として宣言された列だけ。
+ * ほかの列に改行が入ると、次の行として読まれて表が崩れる。
+ */
+export function acceptsLineBreak(kind: CellWidgetKind | undefined): boolean {
+  return kind === 'multiline';
+}

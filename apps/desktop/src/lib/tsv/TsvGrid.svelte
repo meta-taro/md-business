@@ -31,7 +31,7 @@
   } from './gridModel';
   import { planGridKey, type GridMode } from './gridMode';
   import { nextCell } from './gridNav';
-  import { handsOffKey, seedFromKey } from './gridEdit';
+  import { acceptsLineBreak, handsOffKey, seedFromKey } from './gridEdit';
   import { planCellFocus, type FocusWhere } from './gridFocusPlan';
   import { parseClipboardMatrix, applyPaste, rowToTsv } from './gridClipboard';
   import { duplicateRow, deleteRow, clearRow } from './gridRows';
@@ -1404,6 +1404,13 @@
             >
               <span class="colname">{column.name}</span>
               {#if column.required}<span class="req" aria-label={t('grid.required')}>*</span>{/if}
+              <!-- 改行を持てる列の目印。どの列で Alt+Enter が効くかは打ってみないと分からず、
+                   効かない列では確定して下へ落ちてしまうので、見出しで先に見せる。 -->
+              {#if acceptsLineBreak(widgets[col]?.kind)}<span
+                  class="wrapmark"
+                  title={t('grid.multiline')}
+                  aria-label={t('grid.multiline')}
+                >↵</span>{/if}
               <!-- 列幅リサイズのグリップ。掴んで左右ドラッグで列幅を変える（スプレ同様）。
                    ダブルクリックで内容に合わせた自動幅。キーボード列幅調整は未提供。 -->
               <!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -2311,6 +2318,14 @@
   .req {
     color: var(--danger-fg);
     margin-left: 2px;
+  }
+
+  /* 改行を持てる列の目印。列名より弱く出す（読む順は列名が先）。 */
+  .wrapmark {
+    color: var(--text-tertiary);
+    margin-left: 3px;
+    font-size: 0.85em;
+    cursor: help;
   }
 
   /* 計算列＝人が打たない列。地を沈めて「打つ場所ではない」ことを見た目で先に伝える。

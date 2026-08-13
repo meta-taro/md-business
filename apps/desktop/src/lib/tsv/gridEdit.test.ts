@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { seedFromKey, handsOffKey } from './gridEdit';
+import { seedFromKey, handsOffKey, acceptsLineBreak } from './gridEdit';
 
 /**
  * nav→edit で打鍵した文字を「置換編集の種」にするかの純ロジック。
@@ -62,5 +62,21 @@ describe('handsOffKey', () => {
     expect(handsOffKey('date', 'Enter', false)).toBe(false);
     expect(handsOffKey('date', 'F2', false)).toBe(false);
     expect(handsOffKey('date', ' ', false)).toBe(false);
+  });
+});
+
+/**
+ * セルの中に改行を持てる列か。見出しの目印と、改行キーの受け口が同じ判定を使う。
+ */
+describe('acceptsLineBreak', () => {
+  it('複数行の列だけ改行を持てる', () => {
+    expect(acceptsLineBreak('multiline')).toBe(true);
+  });
+
+  it('ほかの列型・列型なしは持てない（1 行 1 件が崩れる）', () => {
+    for (const kind of ['text', 'url', 'number', 'select', 'radio', 'date', 'datetime', 'checkbox'] as const) {
+      expect(acceptsLineBreak(kind)).toBe(false);
+    }
+    expect(acceptsLineBreak(undefined)).toBe(false);
   });
 });
