@@ -47,6 +47,7 @@ pub fn run() {
             git::git_push,
             git::git_pull,
             git::git_diff,
+            git::git_blame,
             git::forge_file_url,
             git::git_file_state,
             fileinfo::file_stat,

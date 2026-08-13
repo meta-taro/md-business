@@ -19,6 +19,7 @@
   import { loadGridDoc, saveGridDoc } from '$lib/tsv/gridDoc';
   import { checkSheetLinks, type SheetLinkIssue } from '$lib/tsv/linkCheck';
   import { readSheetEnums } from '$lib/tsv/sheetEnums';
+  import { parseRowBlame, type RowBlame } from '$lib/tsv/rowBlame';
   import { countSheetReferences } from '$lib/tsv/sheetCounts';
   import { invoke } from '@tauri-apps/api/core';
   import TsvGrid from '$lib/tsv/TsvGrid.svelte';
@@ -351,6 +352,33 @@
     void readSheetEnums(doc, path, readSheet).then((read) => {
       if (seq === choiceSeq) choices = read;
     });
+  });
+
+  // 行の履歴（git blame）。git を毎回叩くので、出すと決めたときだけ読む。
+  // 出していない間は空のまま＝グリッドは何も出さない。
+  let blameOn = $state(false);
+  let blame = $state<RowBlame>(new Map());
+  let blameSeq = 0;
+
+  $effect(() => {
+    const on = blameOn;
+    const path = workspace.activePath;
+    const root = workspace.root;
+    const seq = (blameSeq += 1);
+
+    if (!on || path === null || root === null) {
+      blame = new Map();
+      return;
+    }
+    // 履歴が無い（未追跡・コミット皆無・git 未導入）ときは空文字列が返る。
+    // 取れなかったことと「変更が無い」ことを分けないのは、どちらも出す中身が無いため。
+    void invoke<string>('git_blame', { root, relPath: path })
+      .then((porcelain) => {
+        if (seq === blameSeq) blame = parseRowBlame(porcelain);
+      })
+      .catch(() => {
+        if (seq === blameSeq) blame = new Map();
+      });
   });
 
   /** 参照先 1 ファイルを読む。読めないもの（未オープン・別形式）は null で返す。 */
@@ -698,6 +726,9 @@
           {linkIssues}
           {counts}
           {choices}
+          {blame}
+          {blameOn}
+          onToggleBlame={() => (blameOn = !blameOn)}
         />
       </div>
     {:else}

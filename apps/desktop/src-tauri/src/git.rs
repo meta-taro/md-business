@@ -649,6 +649,39 @@ pub fn git_diff(root: String, rel_path: String) -> Result<String, String> {
     git_diff_impl(Path::new(&root), &rel_path)
 }
 
+/// 1 ファイルの行別の履歴を `git blame --line-porcelain` のまま返す（Tauri 非依存の実体）。
+///
+/// 出力の解釈はフロント側（rowBlame.ts）が持つ。ここで構造体へ畳まないのは、
+/// 行を検証シートの行 ID へ結び付ける処理がフロントにあり、途中で形を変えても
+/// 通過するだけになるため。
+///
+/// 未追跡・コミット皆無・git 未導入は「履歴がまだ無い」だけなので、空文字列へ
+/// 無害に劣化させる（UI は履歴を出さない）。
+///
+/// `rel_path` は **開いているフォルダ基準**（git status が返す repo root 基準ではない）。
+/// git は cwd 基準で pathspec を解釈するので、フォルダがリポジトリのサブディレクトリでも
+/// そのまま渡せる。
+pub fn git_blame_impl(root: &Path, rel_path: &str) -> Result<String, String> {
+    if rel_path.is_empty() || rel_path.contains('\0') {
+        return Err("不正なパスです".to_string());
+    }
+    let toplevel = run_git_result(root, &["rev-parse", "--show-toplevel"])
+        .map(|s| s.trim().to_string())
+        .map_err(|e| format!("git リポジトリを解決できません（root={}）: {e}", root.display()))?;
+    if toplevel.is_empty() {
+        return Err(format!("git リポジトリではありません（root={}）", root.display()));
+    }
+
+    Ok(run_git(root, &["blame", "--line-porcelain", "--", rel_path]).unwrap_or_default())
+}
+
+/// フロントから `invoke("git_blame", { root, relPath })` で呼ぶラッパ。
+/// 成功で porcelain テキスト（空文字列 = 履歴なし）、非リポジトリ・不正パスは Err(メッセージ)。
+#[tauri::command]
+pub fn git_blame(root: String, rel_path: String) -> Result<String, String> {
+    git_blame_impl(Path::new(&root), &rel_path)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
