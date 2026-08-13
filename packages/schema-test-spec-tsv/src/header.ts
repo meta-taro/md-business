@@ -1,3 +1,4 @@
+import { parseEnumSource } from './enumSource.js';
 import { unescapeCell } from './escape.js';
 import type { ColumnType, ColumnUiHint, ParsedHeader } from './types.js';
 
@@ -73,10 +74,17 @@ export function parseTypedHeader(cell: string): ParsedHeader {
         result.ui = mapping.ui;
       }
       if (isEnumLike) {
-        result.enumValues =
-          params && params.length > 0
-            ? params.split('|').map((v) => unescapeCell(v))
-            : [];
+        // 括弧の中身が参照先なら、選択肢は別シートを読んで初めて決まる。ここでは
+        // 参照だけを持たせ、enumValues は入れない（空配列だと「0 個」になる）。
+        const source = params === undefined ? null : parseEnumSource(params);
+        if (source !== null) {
+          result.enumSource = source;
+        } else {
+          result.enumValues =
+            params && params.length > 0
+              ? params.split('|').map((v) => unescapeCell(v))
+              : [];
+        }
       }
       return result;
     }

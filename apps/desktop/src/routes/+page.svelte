@@ -2,16 +2,26 @@
   import { untrack, onMount, onDestroy } from 'svelte';
   import { themeController } from '$lib/theme.svelte';
   import { renderPreview } from '$lib/preview/renderPreview';
+  import { renderMermaidInDocument } from '$lib/preview/renderMermaid';
   import { frontmatterMessage } from '$lib/preview/frontmatterMessage';
   import { pdfExport } from '$lib/preview/pdfExport.svelte';
   import { previewReady } from '$lib/preview/previewGate';
-  import CodeMirrorEditor from '$lib/editor/CodeMirrorEditor.svelte';
   import { findHeadingOffset } from '$lib/editor/headingAnchor';
   import { debounce } from '$lib/util/debounce';
-  import type { CellLink, IdentifiedTsv } from '@md-business/schema-test-spec-tsv';
+  import type {
+    CellLink,
+    ComputedCounts,
+    EnumChoices,
+    IdentifiedTsv,
+  } from '@md-business/schema-test-spec-tsv';
   import { openUrl } from '@tauri-apps/plugin-opener';
   import { isTsvSource } from '$lib/tsv/detect';
   import { loadGridDoc, saveGridDoc } from '$lib/tsv/gridDoc';
+  import { checkSheetLinks, type SheetLinkIssue } from '$lib/tsv/linkCheck';
+  import { readSheetEnums } from '$lib/tsv/sheetEnums';
+  import { parseRowBlame, type RowBlame } from '$lib/tsv/rowBlame';
+  import { countSheetReferences } from '$lib/tsv/sheetCounts';
+  import { invoke } from '@tauri-apps/api/core';
   import TsvGrid from '$lib/tsv/TsvGrid.svelte';
   import DataTreeView from '$lib/data/DataTreeView.svelte';
   import { isDataFile, readDataDocument } from '$lib/data/dataDocument';
@@ -47,6 +57,11 @@
     scrollFraction,
     type EditorFocusInfo,
   } from '$lib/layout/scrollSync';
+
+  // エディタ一式（CodeMirror + 構文解析）は起動時に読むものの中で最も大きい。
+  // 静的に読むと、まだ何も開いていない段階でこれを読み終わるまで窓が出ない。
+  // 読み始めるのはここ（画面を組み立てる前）だが、待たずに先へ進む点が静的 import と違う。
+  const editorComponent = import('$lib/editor/CodeMirrorEditor.svelte').then((m) => m.default);
 
   // 中央 = 左右 2 分割（DESIGN §6）。左＝Markdown エディター（CodeMirror 6）、
   // 右＝ビューワー（renderer-pdf の HTML を iframe 隔離）。
@@ -218,6 +233,10 @@
     // srcdoc 再生成でハイライト（CSS.highlights）が失われるため、プレビュー検索が開いたまま
     // なら新しいドキュメントへ貼り直す（開いていない／別対象なら refresh は no-op）。
     if (search.open && search.target === 'preview') search.refresh();
+    // 図（Mermaid）は本文の組み立てとは別に、出来上がった文書を書き換える形で描く。
+    // 本文側を同期のまま保つため。図が無ければ何も読み込まないので待たない。
+    const doc = viewerFrame?.contentDocument;
+    if (doc) void renderMermaidInDocument(doc, { theme: themeController.value });
   }
 
   // frontmatter を registry で振り分け、該当スキーマのビューワーで描画する（6 スキーマ
@@ -272,6 +291,106 @@
     isTsv ? perf.measure('parse', () => loadGridDoc(debouncedSource, { reveal: revealHidden })) : null,
   );
   const tsvDoc = $derived(tsvGrid?.doc ?? null);
+
+  // 別シートを指す列（`#@ link`）の照合結果。参照先を読むので同期では出せない。
+  // 出るまでの間は空＝「問題なし」ではなく「まだ照合していない」なので、
+  // 読めなかったこと自体も警告として linkCheck 側が 1 件返す。
+  let linkIssues = $state<SheetLinkIssue[]>([]);
+  // 読み終える順序は保証されない。開き直しが速いと古い結果が後から届くので、
+  // 投げた順番を持って最後のものだけを採る。
+  let linkCheckSeq = 0;
+
+  $effect(() => {
+    const doc = tsvDoc;
+    const path = workspace.activePath;
+    const seq = (linkCheckSeq += 1);
+
+    if (doc === null || path === null) {
+      linkIssues = [];
+      return;
+    }
+    void checkSheetLinks(doc, path, readSheet).then((issues) => {
+      if (seq === linkCheckSeq) linkIssues = issues;
+    });
+  });
+
+  // 集計列（`countIn`）の件数。数える相手を読むので、こちらも同期では出せない。
+  // 出るまでの間は空だが、空の列は applyComputed が触らない＝古い値が残るだけで、
+  // 0 が書き込まれることはない。
+  let counts = $state<ComputedCounts>(new Map());
+  let countSeq = 0;
+
+  $effect(() => {
+    const doc = tsvDoc;
+    const path = workspace.activePath;
+    const seq = (countSeq += 1);
+
+    if (doc === null || path === null) {
+      counts = new Map();
+      return;
+    }
+    void countSheetReferences(doc, path, readSheet).then((counted) => {
+      if (seq === countSeq) counts = counted;
+    });
+  });
+
+  // 選択肢を別シートから引く列（`enum(-> …)`）の選択肢。参照先を読むので同期では出せない。
+  // 出るまでの間は空だが、空の列は検査もされない＝参照先を開いていないだけで既存の値が
+  // 一斉に赤くなることはない。
+  let choices = $state<EnumChoices>(new Map());
+  let choiceSeq = 0;
+
+  $effect(() => {
+    const doc = tsvDoc;
+    const path = workspace.activePath;
+    const seq = (choiceSeq += 1);
+
+    if (doc === null || path === null) {
+      choices = new Map();
+      return;
+    }
+    void readSheetEnums(doc, path, readSheet).then((read) => {
+      if (seq === choiceSeq) choices = read;
+    });
+  });
+
+  // 行の履歴（git blame）。git を毎回叩くので、出すと決めたときだけ読む。
+  // 出していない間は空のまま＝グリッドは何も出さない。
+  let blameOn = $state(false);
+  let blame = $state<RowBlame>(new Map());
+  let blameSeq = 0;
+
+  $effect(() => {
+    const on = blameOn;
+    const path = workspace.activePath;
+    const root = workspace.root;
+    const seq = (blameSeq += 1);
+
+    if (!on || path === null || root === null) {
+      blame = new Map();
+      return;
+    }
+    // 履歴が無い（未追跡・コミット皆無・git 未導入）ときは空文字列が返る。
+    // 取れなかったことと「変更が無い」ことを分けないのは、どちらも出す中身が無いため。
+    void invoke<string>('git_blame', { root, relPath: path })
+      .then((porcelain) => {
+        if (seq === blameSeq) blame = parseRowBlame(porcelain);
+      })
+      .catch(() => {
+        if (seq === blameSeq) blame = new Map();
+      });
+  });
+
+  /** 参照先 1 ファイルを読む。読めないもの（未オープン・別形式）は null で返す。 */
+  async function readSheet(relPath: string): Promise<string | null> {
+    const root = workspace.root;
+    if (root === null) return null;
+    try {
+      return await invoke<string>('read_document', { root, relPath });
+    } catch {
+      return null;
+    }
+  }
 
   // 参考データ（.json / .xml）は正本ではなく、隣に置いてある資料として読むだけ。
   // 判定は開いているファイルの拡張子だけで行う（中身を覗いて形式を当てにいかない）。
@@ -529,13 +648,19 @@
 >
   <section class="pane editor" aria-label={t('page.editorPaneLabel')}>
     <div class="pane-head">{t('page.editorHead')}</div>
-    <CodeMirrorEditor
-      value={source}
-      onChange={handleEditorChange}
-      onSync={handleEditorSync}
-      readOnly={dataDoc !== null}
-      caret={editorCaret}
-    />
+    <!-- 読み終わるまでは枠だけ置く。ここで高さを持たせないと、届いた瞬間に
+         右のプレビューごと位置がずれる。 -->
+    {#await editorComponent}
+      <div class="editor-loading"></div>
+    {:then Editor}
+      <Editor
+        value={source}
+        onChange={handleEditorChange}
+        onSync={handleEditorSync}
+        readOnly={dataDoc !== null}
+        caret={editorCaret}
+      />
+    {/await}
     <SearchBar pane="editor" />
   </section>
 
@@ -598,6 +723,12 @@
           onToggleReveal={() => (revealHidden = !revealHidden)}
           onFollowLink={handleFollowLink}
           jump={gridJump}
+          {linkIssues}
+          {counts}
+          {choices}
+          {blame}
+          {blameOn}
+          onToggleBlame={() => (blameOn = !blameOn)}
         />
       </div>
     {:else}
@@ -737,6 +868,12 @@
     min-width: 0;
     min-height: 0;
     overflow: hidden;
+  }
+
+  /* エディタが届くまでの場所取り。CodeMirror 側のホストと同じ伸び方にしておく。 */
+  .editor-loading {
+    flex: 1;
+    min-height: 0;
   }
 
   /* 中央ディバイダ。6px の実体 + 疑似要素で当たり判定を左右に広げる。 */

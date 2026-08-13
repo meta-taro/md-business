@@ -113,6 +113,25 @@ describe('gridWidgets', () => {
   it('returns an empty list for no columns', () => {
     expect(gridWidgets([])).toEqual([]);
   });
+
+  it('別シートから引いた選択肢を使う', () => {
+    const columns = [
+      col('No.', 'number'),
+      col('種別', 'enum', { enumSource: { path: '提出物.tsv', column: '種別' } }),
+    ];
+
+    expect(gridWidgets(columns, new Map([[1, ['仕様書', '議事録']]]))).toEqual([
+      { kind: 'number', required: false },
+      { kind: 'select', options: ['仕様書', '議事録'], required: false },
+    ]);
+  });
+
+  it('引けていない参照列は選択肢なし', () => {
+    // 選べる値が無い状態。既存の値を消さないよう、検査側は同時に検査を飛ばす。
+    const columns = [col('種別', 'enum', { enumSource: { path: '提出物.tsv', column: '種別' } })];
+
+    expect(gridWidgets(columns)).toEqual([{ kind: 'select', options: [], required: false }]);
+  });
 });
 
 describe('checkboxToCell / cellToCheckbox', () => {

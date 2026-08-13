@@ -134,6 +134,37 @@ describe('parseTypedHeader', () => {
     });
   });
 
+  it('reads an arrow inside the parentheses as an external choice source', () => {
+    // 選択肢を引けたかどうかは別のファイルを読まないと決まらないので、enumValues は
+    // 埋めない（空配列にすると「選択肢が 0 個」と区別がつかなくなる）。
+    expect(parseTypedHeader('種別:enum(-> 提出物.tsv#種別)')).toEqual({
+      name: '種別',
+      type: 'enum',
+      required: false,
+      enumSource: { path: '提出物.tsv', column: '種別' },
+    });
+  });
+
+  it('keeps the radio hint and the required marker on an external choice source', () => {
+    expect(parseTypedHeader('種別:radio(-> 提出物.tsv#種別)!')).toEqual({
+      name: '種別',
+      type: 'enum',
+      required: true,
+      ui: 'radio',
+      enumSource: { path: '提出物.tsv', column: '種別' },
+    });
+  });
+
+  it('treats an unreadable arrow form as a plain choice list', () => {
+    // 参照先として読めない書き方は、黙って参照扱いにせず今までどおり選択肢として読む。
+    expect(parseTypedHeader('種別:enum(-> 提出物.tsv)')).toEqual({
+      name: '種別',
+      type: 'enum',
+      required: false,
+      enumValues: ['-> 提出物.tsv'],
+    });
+  });
+
   it('does not treat parentheses on a non-enum type as an annotation (falls back to name)', () => {
     expect(parseTypedHeader('実施:date(x)')).toEqual({
       name: '実施:date(x)',

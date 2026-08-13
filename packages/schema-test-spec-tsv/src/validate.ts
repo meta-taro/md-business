@@ -1,3 +1,4 @@
+import type { EnumChoices } from './enumSource.js';
 import type { TsvDocument } from './parse.js';
 import type { ParsedHeader } from './types.js';
 
@@ -105,7 +106,11 @@ function isValidUrl(value: string): boolean {
  * 空でないセルを列型で検査し、違反コードを返す（違反なしなら `null`）。
  * `required` と列数整合は呼び出し側で扱うため、ここでは値の型検査のみ。
  */
-function checkTypedValue(column: ParsedHeader, value: string): ValidationCode | null {
+function checkTypedValue(
+  column: ParsedHeader,
+  value: string,
+  choices: readonly string[] | undefined,
+): ValidationCode | null {
   // multiline_text 以外は単一行。改行・タブを含めない。
   if (column.type !== 'multiline_text' && CONTROL_CHARS.test(value)) {
     return 'multiline_not_allowed';
@@ -113,7 +118,10 @@ function checkTypedValue(column: ParsedHeader, value: string): ValidationCode | 
 
   switch (column.type) {
     case 'enum': {
-      const allowed = column.enumValues ?? [];
+      // 選択肢を別シートから引く列は、引けていなければ検査しない。参照先を開いて
+      // いないだけで全行が赤くなると、直しようのない赤が並んで本物の違反が埋もれる。
+      const allowed = column.enumSource !== undefined ? choices : (column.enumValues ?? []);
+      if (allowed === undefined) return null;
       return allowed.includes(value) ? null : 'enum_value';
     }
     case 'date':
@@ -158,8 +166,11 @@ const MESSAGES: Record<ValidationCode, string> = {
  * - 行のセル数が列数を超えたら、最初の余剰セル位置に `extra_columns`（不足は許容）。
  *
  * 位置は `row`（`doc.rows` の index）と `column`（`doc.columns` の index）で表す。
+ *
+ * @param choices 別シートから引いた選択肢（`enum(-> …)` の列）。引けなかった列は
+ *   載せない＝その列の選択肢検査を飛ばす。
  */
-export function validateTsv(doc: TsvDocument): ValidationIssue[] {
+export function validateTsv(doc: TsvDocument, choices?: EnumChoices): ValidationIssue[] {
   const issues: ValidationIssue[] = [];
   const columnCount = doc.columns.length;
 
@@ -183,7 +194,7 @@ export function validateTsv(doc: TsvDocument): ValidationIssue[] {
         continue;
       }
 
-      const code = checkTypedValue(column, value);
+      const code = checkTypedValue(column, value, choices?.get(colIndex));
       if (code !== null) {
         issues.push({
           row: rowIndex,

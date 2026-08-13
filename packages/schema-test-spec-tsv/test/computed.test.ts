@@ -60,12 +60,26 @@ describe('readComputedColumns', () => {
   });
 
   it('未知の式は捨てる（読めない列を編集不可のまま空で固定しない）', () => {
+    // 関係を引数で毎回書かせる形は受けない。同じ関係を 2 か所に書くと、
+    // 片方だけ直したときにどちらが正しいか決められなくなる。
     expect(
       readComputedColumns(
         ['computed ケース反映件数 = countIn("07_観点表.tsv", "観点#", 観点#)'],
         COLUMNS,
       ),
     ).toEqual([]);
+  });
+
+  it('countIn は数える相手のファイルだけを受ける', () => {
+    expect(readComputedColumns(['computed ケース反映件数 = countIn(ケース.tsv)'], COLUMNS)).toEqual([
+      { columnIndex: 3, formula: 'countIn', source: 'ケース.tsv' },
+    ]);
+  });
+
+  it('countIn の相手が列を引けない形式なら捨てる', () => {
+    expect(readComputedColumns(['computed ケース反映件数 = countIn(ケース.md)'], COLUMNS)).toEqual(
+      [],
+    );
   });
 
   it('= が無い行は捨てる', () => {
@@ -92,6 +106,12 @@ describe('computedCellValue', () => {
   it('rowNumber は 1 始まりの行番号', () => {
     expect(computedCellValue('rowNumber', 0)).toBe('1');
     expect(computedCellValue('rowNumber', 9)).toBe('10');
+  });
+
+  it('countIn は行位置だけでは決まらない', () => {
+    // 相手ファイルを読まないと件数は出ない。ここで 0 や空を返すと、
+    // 読めていないだけの状態がそのまま値としてファイルへ焼かれる。
+    expect(computedCellValue('countIn', 0)).toBeNull();
   });
 });
 
@@ -151,5 +171,27 @@ describe('applyComputed', () => {
     const doc = docOf([['99', 'ログイン', '', '']]);
 
     expect(applyComputed(doc, [{ columnIndex: 0, formula: 'rowNumber' }]).columns).toBe(doc.columns);
+  });
+
+  it('countIn は数えた結果を渡されたときだけ書く', () => {
+    const doc = docOf([
+      ['1', 'ログイン', '', ''],
+      ['2', 'ログアウト', '', ''],
+    ]);
+    const computed = [{ columnIndex: 3, formula: 'countIn' as const, source: 'ケース.tsv' }];
+
+    const next = applyComputed(doc, computed, new Map([[3, [2, 0]]]));
+
+    expect(next.rows[0]?.[3]).toBe('2');
+    expect(next.rows[1]?.[3]).toBe('0');
+  });
+
+  it('数えられなかった countIn 列は前の値を残す', () => {
+    // 相手を開いていないだけで空や 0 に落とすと、間違った件数がファイルへ残る。
+    const doc = docOf([['1', 'ログイン', '', '5']]);
+    const computed = [{ columnIndex: 3, formula: 'countIn' as const, source: 'ケース.tsv' }];
+
+    expect(applyComputed(doc, computed)).toBe(doc);
+    expect(applyComputed(doc, computed, new Map()).rows[0]?.[3]).toBe('5');
   });
 });

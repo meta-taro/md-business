@@ -17,12 +17,16 @@
  */
 import {
   applyComputed,
+  checkColumnLink,
+  collectEnumChoices,
+  countReferences,
   generateRowId,
   hasRowIdColumn,
   isRowId,
   lockedColumns,
   mergeHiddenRows,
   parseTsv,
+  readColumnLinks,
   readComputedColumns,
   serializeTsv,
   splitHiddenRows,
@@ -30,8 +34,12 @@ import {
   withRowIds,
   withoutRowIds,
   type ComputedColumn,
+  type ComputedCounts,
+  type EnumChoices,
   type HiddenRow,
+  type ColumnLink,
   type IdentifiedTsv,
+  type LinkIssue,
   type ParsedHeader,
   type TsvDocument,
   type ValidationIssue,
@@ -62,6 +70,17 @@ export const MAX_TSV_SOURCE_CHARS = 4_000_000;
 /** 列名 → セル値。指定しなかった列は追加時なら空、更新時なら据え置き。 */
 export type TsvRowValues = Record<string, string>;
 
+/**
+ * リンク照合の結果 1 件。参照先の位置は相手ファイルの中なので、どのファイルかを添える。
+ *
+ * `side` が `target` の行はこのシートには無い。パスが無いと、受け取った側は
+ * 「取りこぼしがある」ことは分かっても、どこを開けば直せるのかが分からない。
+ */
+export interface TsvLinkIssue extends LinkIssue {
+  /** 参照先ファイルの正規化相対パス。 */
+  targetPath: string;
+}
+
 export interface ReadTsvOk {
   ok: true;
   /** 正規化済み相対パス。 */
@@ -86,6 +105,14 @@ export interface ReadTsvOk {
   rowIds: string[];
   /** 列型に照らした違反の一覧（空なら全セル妥当）。 */
   issues: ValidationIssue[];
+  /**
+   * リンク定義（`#@ link`）の両方向照合の結果。定義が無ければ空配列。
+   *
+   * `issues` と分けるのは、こちらが**他のファイルを読んだ結果**だから。参照先を開いて
+   * いなければ照合できない（＝空でも「問題なし」を意味しない）ので、同じ配列に混ぜると
+   * 受け取った側が判断を誤る。
+   */
+  linkIssues: TsvLinkIssue[];
 }
 
 export interface TsvRowOk {
@@ -277,6 +304,109 @@ function computedOf(doc: TsvDocument): ComputedColumn[] {
 }
 
 /**
+ * 参照先パスを、そのシートのある場所からの相対として解決する。
+ *
+ * ワークスペースのルート基準にしないのは、シートに書く側が自分の隣のファイルを
+ * `観点.tsv` と書けるようにするため。深い場所へ置き直したときにルート基準の記述が
+ * 全部壊れる、という直し方も避けられる。
+ */
+function resolveLinkPath(sourceRelative: string, target: string): string | null {
+  const slash = sourceRelative.lastIndexOf('/');
+  const dir = slash < 0 ? '' : sourceRelative.slice(0, slash);
+  const safe = safeRelativePath(dir === '' ? target : `${dir}/${target}`);
+  return safe.ok ? safe.relative : null;
+}
+
+/**
+ * そのシートのリンク定義（`#@ link <列名> -> <ファイル>#<列名>`）を両方向に照合する。
+ *
+ * 参照先が読めない・壊れているときは、その 1 本だけを警告にして残りを続ける。
+ * ワークスペースの一部だけを開いていることがあり、そこで全部止めると
+ * 「開くたびに赤い」状態になって本物の欠落が埋もれる。
+ */
+async function linkIssuesOf(
+  store: DocumentStore,
+  sourceRelative: string,
+  doc: TsvDocument,
+): Promise<TsvLinkIssue[]> {
+  const links: ColumnLink[] = readColumnLinks(
+    doc.directives,
+    doc.columns.map((column) => column.name),
+  );
+  const issues: TsvLinkIssue[] = [];
+
+  for (const link of links) {
+    const targetPath = resolveLinkPath(sourceRelative, link.path);
+    const loaded = targetPath === null ? null : await load(store, targetPath);
+    const target = loaded !== null && !('ok' in loaded) ? loaded.doc : null;
+    for (const issue of checkColumnLink(doc, link, target)) {
+      issues.push({ ...issue, targetPath: targetPath ?? link.path });
+    }
+  }
+
+  return issues;
+}
+
+/**
+ * 集計列（`#@ computed <列名> = countIn(<ファイル>)`）を数える。
+ *
+ * 数える相手を読めない・相手がこちらを指していないときは、その列を結果に載せない
+ * （＝セルに触らない）。0 を書くと「参照が 1 件も無い」と区別がつかず、
+ * 開いていないだけの状態が件数としてファイルへ焼かれる。
+ */
+async function countsOf(
+  store: DocumentStore,
+  sourceRelative: string,
+  doc: TsvDocument,
+  computed: readonly ComputedColumn[],
+): Promise<ComputedCounts> {
+  const counts = new Map<number, readonly number[]>();
+
+  for (const column of computed) {
+    if (column.formula !== 'countIn' || column.source === undefined) continue;
+
+    const otherPath = resolveLinkPath(sourceRelative, column.source);
+    if (otherPath === null) continue;
+    const loaded = await load(store, otherPath);
+    if ('ok' in loaded) continue;
+
+    const counted = countReferences(doc, sourceRelative, loaded.doc, otherPath);
+    if (counted !== null) counts.set(column.columnIndex, counted);
+  }
+
+  return counts;
+}
+
+/**
+ * 選択肢を別シートから引く列（`enum(-> <ファイル>#<列名>)`）の選択肢を集める。
+ *
+ * 引けなかった列は結果に載せない（＝その列の選択肢検査を飛ばす）。空の選択肢として
+ * 扱うと、参照先を開いていないだけで既存の値が一斉に不正になる。
+ */
+async function choicesOf(
+  store: DocumentStore,
+  sourceRelative: string,
+  doc: TsvDocument,
+): Promise<EnumChoices> {
+  const choices = new Map<number, readonly string[]>();
+
+  for (const [index, column] of doc.columns.entries()) {
+    const source = column.enumSource;
+    if (source === undefined) continue;
+
+    const otherPath = resolveLinkPath(sourceRelative, source.path);
+    if (otherPath === null) continue;
+    const loaded = await load(store, otherPath);
+    if ('ok' in loaded) continue;
+
+    const collected = collectEnumChoices(loaded.doc, source.column);
+    if (collected !== null) choices.set(index, collected);
+  }
+
+  return choices;
+}
+
+/**
  * 更新後の文書を書き出し、対象行の検証結果を添えて返す。
  *
  * 計算列はここで算出値へ揃える。**触った行だけでなく列ごと**直すのは、行の追加・削除で
@@ -289,11 +419,12 @@ async function persist(
   doc: IdentifiedTsv,
   rowIndex: number,
 ): Promise<TsvRowOk> {
-  const healed = applyComputed(doc, computedOf(doc));
+  const computed = computedOf(doc);
+  const healed = applyComputed(doc, computed, await countsOf(store, loaded.relative, doc, computed));
   const next = serializeTsv(toWritable(loaded, healed));
   await store.write(loaded.relative, preserveTrailingEol(next, loaded.source));
   // 検証は ID 列を抜いた形で行う。列 index が read_tsv の columns と揃う。
-  const issues = validateTsv(healed);
+  const issues = validateTsv(healed, await choicesOf(store, loaded.relative, healed));
   const rowId = loaded.tracksIds ? healed.rowIds[rowIndex] : undefined;
   return {
     ok: true,
@@ -358,7 +489,8 @@ export async function readTsv(
     columns: doc.columns,
     rows: doc.rows,
     rowIds: tracksIds ? [...doc.rowIds] : [],
-    issues: validateTsv(doc),
+    issues: validateTsv(doc, await choicesOf(store, relative, doc)),
+    linkIssues: await linkIssuesOf(store, relative, doc),
   }));
 }
 

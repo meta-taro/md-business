@@ -11,10 +11,10 @@
    * `gridModel.cellDisplayText`、いずれも純関数として node 環境 vitest で検査済み。
    * Svelte 側はそれらを描画・フォーカス制御する薄いグルー（manual-verify）。
    */
-  import { untrack } from 'svelte';
+  import { flushSync, untrack } from 'svelte';
   import { perf } from '$lib/diagnostics/perf.svelte';
-  import { t } from '$lib/i18n/i18n.svelte';
-  import type { IdentifiedTsv } from '@md-business/schema-test-spec-tsv';
+  import { i18n, t } from '$lib/i18n/i18n.svelte';
+  import type { ComputedCounts, EnumChoices, IdentifiedTsv } from '@md-business/schema-test-spec-tsv';
   import {
     applyComputed,
     findRowsByCell,
@@ -31,7 +31,8 @@
   } from './gridModel';
   import { planGridKey, type GridMode } from './gridMode';
   import { nextCell } from './gridNav';
-  import { seedFromKey } from './gridEdit';
+  import { acceptsLineBreak, handsOffKey, seedFromKey } from './gridEdit';
+  import { planCellFocus, type FocusWhere } from './gridFocusPlan';
   import { parseClipboardMatrix, applyPaste, rowToTsv } from './gridClipboard';
   import { duplicateRow, deleteRow, clearRow } from './gridRows';
   import { canFillDown, fillDown } from './gridFill';
@@ -81,6 +82,8 @@
     rangeToTsv,
     rowRange,
   } from './gridRange';
+  import { rowMenuItems, rowMenuSelection, type RowMenuAction } from './gridRowMenu';
+  import { blameAge, formatBlameAge, type RowBlame } from './rowBlame';
   import { canStartDrag, beginDrag } from './gridDrag';
   import { takePickerRequest, opensOnSingleClick } from './gridPicker';
   import { displayRowCount, editPaddedCell } from './gridBlankRows';
@@ -99,6 +102,7 @@
   import { countLockedPasteCells } from './gridComputed';
   import { hideRow, hiddenRowCount, isHiddenRow, unhideRow } from './gridHidden';
   import { followableLink } from './gridLink';
+  import type { SheetLinkIssue } from './linkCheck';
   import type { CellLink } from '@md-business/schema-test-spec-tsv';
 
   interface Props {
@@ -123,6 +127,40 @@
      * 「同じ指し先＝変化なし」になり、開き直しても動かない。
      */
     jump?: { column: string; value: string; seq: number } | null;
+    /**
+     * 別シートを指す列（`#@ link`）の照合結果。参照先を読む必要があるので親が渡す。
+     *
+     * 空でも「問題なし」とは限らない（まだ照合していない / 参照先を開いていない）。
+     * 照合できなかったこと自体も 1 件として入ってくる。
+     */
+    linkIssues?: SheetLinkIssue[];
+    /**
+     * 集計列（`#@ computed … = countIn(…)`）の行ごとの件数。相手のファイルを読む必要が
+     * あるので親が渡す。
+     *
+     * 載っていない列は**触らない**。0 を書くと「参照が 1 件も無い」と区別がつかず、
+     * 相手を開いていないだけの状態が件数としてファイルへ焼かれる。
+     */
+    counts?: ComputedCounts;
+    /**
+     * 選択肢を別シートから引く列（`enum(-> …)`）の選択肢。参照先を読む必要があるので
+     * 親が渡す。
+     *
+     * 載っていない列は**検査しない**。選択肢 0 個として扱うと、参照先を開いていない
+     * だけで既存の値が一斉に不正になる。
+     */
+    choices?: EnumChoices;
+    /**
+     * 行を最後に変えたコミット（`git blame`）。git を叩くので親が渡す。
+     *
+     * 載っていない行は**何も出さない**。「履歴なし」と書くと、まだ読めていないだけの行と
+     * 一度もコミットしていない行が同じ見た目になる。
+     */
+    blame?: RowBlame;
+    /** 履歴を出しているか。 */
+    blameOn?: boolean;
+    /** 履歴表示の切り替えを親へ通知（省略時は切り替えボタンを出さない）。 */
+    onToggleBlame?: () => void;
   }
 
   let {
@@ -134,10 +172,31 @@
     onToggleReveal,
     onFollowLink,
     jump = null,
+    linkIssues = [],
+    counts = new Map(),
+    choices = new Map(),
+    blame = new Map(),
+    blameOn = false,
+    onToggleBlame,
   }: Props = $props();
 
+  /**
+   * その行を最後に変えたのが誰でいつか、の 1 行。履歴が無い行は undefined。
+   *
+   * 突き合わせの鍵は行 ID。表の行番号はマーカー行・ディレクティブ・控え行を落とした
+   * 後の番号で、ファイルの行番号とは一致しない。
+   */
+  function blameLabel(row: number): string | undefined {
+    const id = doc.rowIds[row];
+    const entry = id === undefined ? undefined : blame.get(id);
+    if (entry === undefined) return undefined;
+    if (entry.uncommitted) return t('grid.blameUncommitted');
+    const age = formatBlameAge(blameAge(entry.timeMs, Date.now()), i18n.locale);
+    return `${age} · ${entry.author} · ${entry.summary}`;
+  }
+
   // 列型 → 入力ウィジェット仕様。列定義の変化に追従。
-  const widgets = $derived(gridWidgets(doc.columns));
+  const widgets = $derived(gridWidgets(doc.columns, choices));
 
   // スプレッドシート列座標（A,B,C…AA,AB）。型付きヘッダとは別レイヤーの位置参照バー。
   // フォーマットは変えず、描画専用に列数から算出する。
@@ -532,6 +591,46 @@
     colMenu = null;
   }
 
+  // ── 行の右クリックメニュー。行操作バーは窓を狭めると後ろから「…」へ畳まれるので、
+  //    よく使う 5 つを行番号セルの右クリックからも出す（バーは残す＝発見しやすさ）。 ──
+  let rowMenu = $state<{ row: number; x: number; y: number } | null>(null);
+  const rowMenuList = $derived(
+    rowMenu ? rowMenuItems(rowMenu.row < doc.rows.length && isHiddenRow(doc, rowMenu.row)) : [],
+  );
+  function openRowMenu(row: number, event: MouseEvent): void {
+    // 読み取り専用と、まだファイルに無い pad 行には出す中身が無い。既定メニューの抑止は
+    // グリッド全体の右クリックハンドラが引き受けるので、ここは何もせず戻ってよい。
+    if (!editable || row >= doc.rows.length) return;
+    event.preventDefault(); // WebView2 ネイティブメニューを抑止しカスタムメニューを出す
+    // 対象は右クリックした 1 行。選択をそこへ寄せ、どの行に効くかを押す前に見せる。
+    selection = rowMenuSelection(row, doc.columns.length);
+    rowMenu = { row, x: event.clientX, y: event.clientY };
+  }
+  function closeRowMenu(): void {
+    rowMenu = null;
+  }
+  function chooseRowAction(action: RowMenuAction): void {
+    rowMenu = null;
+    // 対象行は選択済み（openRowMenu で寄せてある）ので、バーと同じ関数をそのまま使う。
+    switch (action) {
+      case 'duplicate':
+        duplicateActiveRow();
+        return;
+      case 'copy':
+        void copyActiveRow();
+        return;
+      case 'clear':
+        clearActiveRow();
+        return;
+      case 'toggleHidden':
+        toggleActiveRowHidden();
+        return;
+      case 'delete':
+        deleteActiveRow();
+        return;
+    }
+  }
+
   /**
    * 独自メニューを持たない場所（行番号列・座標バーの隅・補足行・余白）の右クリック。
    * WebView 既定のメニューはブラウザの操作を並べるだけなので、文字入力中を除いて抑止する。
@@ -549,15 +648,31 @@
   }
 
   // 型検査。セル位置ごとの最初の違反メッセージを引けるようにする。
+  // このシートの中にあるリンク違反（参照先に無い値）も、型の違反と同じ場所へ出す。
+  // 利用者から見れば「そのセルの値が通らない」で同じことなので、見え方を分けない。
   const issueByCell = $derived.by(() =>
     perf.measure('validate', () => {
       const map = new Map<string, string>();
-      for (const issue of validateTsv(doc)) {
+      for (const issue of validateTsv(doc, choices)) {
+        const key = `${issue.row}:${issue.column}`;
+        if (!map.has(key)) map.set(key, issue.message);
+      }
+      for (const issue of linkIssues) {
+        if (issue.side !== 'source') continue;
         const key = `${issue.row}:${issue.column}`;
         if (!map.has(key)) map.set(key, issue.message);
       }
       return map;
     }),
+  );
+
+  // 参照先の側にあるもの（取りこぼした行・読めなかった参照先）。相手ファイルの中なので
+  // このグリッドには赤が出ない。件数を出さないと、見えていないことが「無い」に化ける。
+  const targetLinkIssues = $derived(linkIssues.filter((issue) => issue.side === 'target'));
+
+  // 下部バーの吹き出し。どのファイルの何かが分からないと開きに行けない。
+  const targetLinkDetail = $derived(
+    targetLinkIssues.map((issue) => `${issue.targetPath}: ${issue.message}`).join('\n'),
   );
 
   function cellValue(row: number, col: number): string {
@@ -582,13 +697,13 @@
   // 親へ通知する唯一の出口。計算列をここで算出値へ揃える。書き込み経路ごとにガードを
   // 置くと、経路が増えたときに漏れる（行の複製・一括埋め・貼り付けは列を選ばない）。
   function emit(next: IdentifiedTsv): void {
-    onChange?.(applyComputed(next, computed));
+    onChange?.(applyComputed(next, computed, counts));
   }
 
   // 開いたファイルの計算列がずれていれば直す。算出値と一致していれば applyComputed が
   // 同じ参照を返すので、整ったファイルを開いただけでは変更扱いにならない。
   $effect(() => {
-    const healed = applyComputed(doc, computed);
+    const healed = applyComputed(doc, computed, counts);
     if (healed !== doc) onChange?.(healed);
   });
 
@@ -676,6 +791,34 @@
     }
   }
 
+  // いま焦点がどこにあるか。グリッドの外＝利用者が別の場所（エディター等）を触っている。
+  function focusWhere(): FocusWhere {
+    const el = document.activeElement;
+    if (el === null || el === document.body) return 'none';
+    return gridEl?.contains(el) ? 'grid' : 'outside';
+  }
+
+  // 編集ウィジェットへ同期で焦点を移す。移せたら true。
+  // 打鍵を止めずに入力へ渡すときは、キーの既定動作が走る前に焦点が移っている必要がある。
+  function focusEditInput(row: number, col: number): boolean {
+    const input = gridEl
+      ?.querySelector(`[data-cell="${row}-${col}"]`)
+      ?.querySelector<HTMLElement>('input, select, textarea');
+    if (!input) return false;
+    if (document.activeElement !== input) input.focus();
+    return document.activeElement === input;
+  }
+
+  // キャレットの位置へ改行を差し込む（複数行の列のみ。表計算ソフトの Alt+Enter に相当）。
+  // 値の確定と高さの追従は入力イベントの受け手（oninput / autogrow）に任せる。
+  function insertBreak(target: EventTarget | null): void {
+    if (!(target instanceof HTMLTextAreaElement)) return;
+    const start = target.selectionStart ?? target.value.length;
+    const end = target.selectionEnd ?? start;
+    target.setRangeText('\n', start, end, 'end');
+    target.dispatchEvent(new Event('input', { bubbles: true }));
+  }
+
   // テキスト系のみ全選択できる（date/number/select に select() すると例外の環境がある）。
   function trySelectAll(el: HTMLElement): void {
     try {
@@ -686,11 +829,17 @@
     }
   }
 
-  // アクティブセルへフォーカスを寄せる。activeCell / mode の変化にのみ追従する。
+  // アクティブセルへフォーカスを寄せる。
   // - nav: セルは静的表示（実ウィジェットは出さない）。キーボード操作のため静的セル自体へ
   //   フォーカスする（選択リングは td.active のクラスで描くのでフォーカス非依存）。
   // - edit: 実ウィジェットへフォーカス。印字キーで入ったとき（種あり）はその文字で値を置換、
   //   ダブルクリック / Enter / F2 で入ったとき（種なし）は既存値を全選択する。
+  //
+  // この効果は activeCell / mode 以外の理由でも走り直す。本文はセルを 1 つ確定するたびに
+  // 組み直され、行の高さも列の型もそこから導き直すためで、スクロールや別シートの
+  // 選択肢読み込みでも同じことが起きる。何をしてよいかは planCellFocus に決めさせる
+  // （やり直すと打鍵ごとに全選択され、エディター側の焦点も奪ってしまう）。
+  let preparedSpot: string | null = null;
   $effect(() => {
     const { row, col } = activeCell;
     const editing = mode === 'edit';
@@ -703,16 +852,19 @@
     }
     const td = gridEl.querySelector<HTMLElement>(`[data-cell="${row}-${col}"]`);
     if (!td) return;
+    const plan = planCellFocus({ row, col, editing }, preparedSpot, focusWhere());
+    preparedSpot = plan.spot;
     if (!editing) {
       // 編集から出たら要求は失効させる（次に編集へ入るときに立て直す）。
       pendingPicker = false;
       const cell = td.querySelector<HTMLElement>('.cell-active');
-      if (cell && document.activeElement !== cell) cell.focus();
+      if (plan.takeFocus && cell && document.activeElement !== cell) cell.focus();
       return;
     }
     const input = td.querySelector<HTMLElement>('input, select, textarea');
     if (!input) return;
-    if (document.activeElement !== input) input.focus();
+    if (plan.takeFocus && document.activeElement !== input) input.focus();
+    if (!plan.prepare) return;
     // 種の受け渡しは 1 回きり。untrack で読み、消す代入で effect を再実行させない。
     const seed = untrack(() => pendingSeed);
     if (
@@ -930,13 +1082,23 @@
         selection = { anchor: action.to, focus: action.to };
         break;
       case 'edit': {
+        const ctrl = event.ctrlKey || event.metaKey;
+        // 日付系だけは打鍵を止めない。値を文字列で組み立てられないので種にできず、
+        // 止めると 1 文字目が消えて「2026-08-11」が「0026-08-11」になる。入力を先に
+        // 作って焦点を移し、その文字を日付入力自身の年欄に受け取らせる。
+        // 入力が出来ていなければ従来どおり止める（打鍵は静的セルへ落ちるだけで害はない）。
+        if (!isLocked(col) && handsOffKey(widgets[col]?.kind, event.key, ctrl)) {
+          enterEdit();
+          flushSync();
+          if (focusEditInput(row, col)) break;
+        }
         // 既定動作は必ず抑止し、静的セルへ生の文字が落ちないようにする。印字1文字で入った
         // 場合はその文字を種として控え、ウィジェット生成後の effect で置換して流し込む。
         // Enter / F2 は種なし＝既存値を全選択して編集へ入る。
         event.preventDefault();
         // 計算列は種も控えない（控えたまま入れないと、次に別の列へ入ったとき流れ込む）。
         if (isLocked(col)) break;
-        pendingSeed = seedFromKey(widgets[col]?.kind, event.key, event.ctrlKey || event.metaKey);
+        pendingSeed = seedFromKey(widgets[col]?.kind, event.key, ctrl);
         enterEdit();
         break;
       }
@@ -944,6 +1106,10 @@
         event.preventDefault();
         mode = 'nav';
         selection = { anchor: action.to, focus: action.to };
+        break;
+      case 'break':
+        event.preventDefault();
+        if (editable) insertBreak(event.target);
         break;
       case 'cancel':
         event.preventDefault();
@@ -1055,6 +1221,7 @@
 <svelte:window
   onkeydown={(e) => {
     if (e.key === 'Escape' && colMenu) closeColMenu();
+    if (e.key === 'Escape' && rowMenu) closeRowMenu();
   }}
   onpointerup={endDrag}
   onpointercancel={endDrag}
@@ -1237,6 +1404,13 @@
             >
               <span class="colname">{column.name}</span>
               {#if column.required}<span class="req" aria-label={t('grid.required')}>*</span>{/if}
+              <!-- 改行を持てる列の目印。どの列で Alt+Enter が効くかは打ってみないと分からず、
+                   効かない列では確定して下へ落ちてしまうので、見出しで先に見せる。 -->
+              {#if acceptsLineBreak(widgets[col]?.kind)}<span
+                  class="wrapmark"
+                  title={t('grid.multiline')}
+                  aria-label={t('grid.multiline')}
+                >↵</span>{/if}
               <!-- 列幅リサイズのグリップ。掴んで左右ドラッグで列幅を変える（スプレ同様）。
                    ダブルクリックで内容に合わせた自動幅。キーボード列幅調整は未提供。 -->
               <!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -1273,7 +1447,14 @@
             <!-- 行番号クリックで行全体を選択（スプレ同様）。下端のグリップは行高リサイズ。 -->
             <!-- svelte-ignore a11y_click_events_have_key_events -->
             <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-            <th class="rownum rownum-select" scope="row" onclick={() => selectWholeRow(r)}>
+            <th
+              class="rownum rownum-select"
+              class:has-blame={blameOn && blameLabel(r) !== undefined}
+              scope="row"
+              title={blameOn ? blameLabel(r) : undefined}
+              onclick={() => selectWholeRow(r)}
+              oncontextmenu={(e) => openRowMenu(r, e)}
+            >
               {r + 1}
               <!-- 行高リサイズのグリップ（行番号セル下端）。ドラッグで高さ変更、
                    ダブルクリックで既定高に戻す。キーボード操作は未提供。 -->
@@ -1533,9 +1714,39 @@
             : t('grid.revealShow', { count: hiddenCount })}
         </button>
       {/if}
+      <!-- 行の履歴。git を毎回叩くので、出すと決めたときだけ読む。 -->
+      {#if onToggleBlame}
+        <button
+          type="button"
+          class="row-btn"
+          class:on={blameOn}
+          onclick={onToggleBlame}
+          aria-pressed={blameOn}
+          title={t('grid.blameTitle')}
+        >
+          {t('grid.blame')}
+        </button>
+      {/if}
       <span class="active-row" aria-live="polite">
         {modeLabel}: {activeRowLabel}{#if selectionLabel} · {selectionLabel}{/if}
       </span>
+      {#if blameOn}
+        <!-- 行番号セルの tooltip と同じ中身。選択中の行の分だけは、当てなくても見える所に出す。 -->
+        <span class="blame-line" aria-live="polite" title={blameLabel(activeCell.row)}
+          >{blameLabel(activeCell.row) ?? ''}</span
+        >
+      {/if}
+      {#if targetLinkIssues.length > 0}
+        <!-- 参照先の取りこぼしは相手ファイルの中にあり、この画面のどこにも赤が出ない。
+             消える通知にすると見逃されるので、直るまで出したままにする。 -->
+        <span
+          class="link-gaps"
+          title={`${t('grid.linkGapsTitle')}\n${targetLinkDetail}`}
+          aria-live="polite"
+        >
+          {t('grid.linkGaps', { count: targetLinkIssues.length })}
+        </span>
+      {/if}
       <!-- 落とした件数のように、黙っていると気づかれない結果だけをここへ出す。 -->
       <span class="notice" aria-live="polite">{notice}</span>
     </div>
@@ -1583,6 +1794,36 @@
             onclick={() => chooseColAlign(item.align)}
           >
             <span class="check" aria-hidden="true">{item.checked ? '✓' : ''}</span>
+            {t(item.labelKey)}
+          </button>
+        </li>
+      {/each}
+    </ul>
+  {/if}
+
+  {#if rowMenu}
+    <!-- 行の右クリックメニュー。中身は行操作バーと同じ 5 つで、ラベルも共用する。 -->
+    <button
+      type="button"
+      class="menu-backdrop"
+      aria-label={t('grid.menuClose')}
+      onclick={closeRowMenu}
+      oncontextmenu={(e) => { e.preventDefault(); closeRowMenu(); }}
+    ></button>
+    <ul class="col-menu" role="menu" style={`left:${rowMenu.x}px; top:${rowMenu.y}px`}>
+      <li class="col-menu-head" role="presentation">
+        {t('grid.rowMenuHead', { row: rowMenu.row + 1 })}
+      </li>
+      {#each rowMenuList as item (item.action)}
+        <li role="none">
+          <button
+            type="button"
+            role="menuitem"
+            class="col-menu-item"
+            class:danger={item.danger}
+            onclick={() => chooseRowAction(item.action)}
+          >
+            <span class="check" aria-hidden="true"></span>
             {t(item.labelKey)}
           </button>
         </li>
@@ -1672,6 +1913,33 @@
   }
 
   .notice {
+    font-size: var(--text-2xs-size, var(--text-sm-size));
+    color: var(--text-secondary);
+  }
+
+  /* 消えない表示なので、通知より弱く出す。赤にすると常時警告の見た目になり、
+     セルの違反（本当に直せるもの）が埋もれる。 */
+  .link-gaps {
+    font-size: var(--text-2xs-size, var(--text-sm-size));
+    color: var(--text-secondary);
+    border: 1px solid var(--border-subtle, var(--border));
+    border-radius: 999px;
+    padding: 0 0.5em;
+    cursor: help;
+  }
+
+  /* 履歴を出しているとき、当てれば出ることを行番号に控えめに示す。 */
+  .rownum.has-blame {
+    text-decoration: underline dotted;
+    text-underline-offset: 2px;
+  }
+
+  /* 選択中の行の履歴。長い要約でバーを押し広げないよう、はみ出しは畳む（全文は tooltip）。 */
+  .blame-line {
+    max-width: 32ch;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
     font-size: var(--text-2xs-size, var(--text-sm-size));
     color: var(--text-secondary);
   }
@@ -2052,6 +2320,14 @@
     margin-left: 2px;
   }
 
+  /* 改行を持てる列の目印。列名より弱く出す（読む順は列名が先）。 */
+  .wrapmark {
+    color: var(--text-tertiary);
+    margin-left: 3px;
+    font-size: 0.85em;
+    cursor: help;
+  }
+
   /* 計算列＝人が打たない列。地を沈めて「打つ場所ではない」ことを見た目で先に伝える。
      選択・エラーの地は下の規則が上書きする（塞がれていても選択位置は見えるべき）。 */
   td.computed {
@@ -2339,6 +2615,11 @@
 
   .col-menu-item.checked {
     color: var(--accent);
+  }
+
+  /* 戻せない操作だけ色を変える（行操作バーの danger と同じ扱い）。 */
+  .col-menu-item.danger {
+    color: var(--danger, #c0392b);
   }
 
   .col-menu-item .check {

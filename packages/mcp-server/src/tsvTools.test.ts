@@ -629,3 +629,209 @@ describe('計算列を持つ検証シート', () => {
     expect(r.values).toEqual(['a', '5']);
   });
 });
+
+describe('集計列を持つ検証シート', () => {
+  /** 観点側に「この観点を何件のケースが見ているか」を出す状態。関係はケース側にだけ書く。 */
+  function countingStore(): MemoryDocumentStore {
+    return new MemoryDocumentStore({
+      'sheets/観点.tsv':
+        [
+          '#! md-business:test-spec-tsv/v1',
+          '#@ computed 件数 = countIn(ケース.tsv)',
+          '観点#!\t内容\t件数',
+          'A-1\t必須項目\t',
+          'A-2\t重複\t',
+        ].join('\n') + '\n',
+      'sheets/ケース.tsv':
+        [
+          '#! md-business:test-spec-tsv/v1',
+          '#@ link 観点 -> 観点.tsv#観点#',
+          'No.:number\t観点',
+          '1\tA-1',
+          '2\tA-1',
+        ].join('\n') + '\n',
+    });
+  }
+
+  it('書き込みのたびに参照している側の件数へ揃える', async () => {
+    const s = countingStore();
+    const r = await updateTsvRow(s, { path: 'sheets/観点.tsv', row: 0, values: { 内容: '必須' } });
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.values).toEqual(['A-1', '必須', '2']);
+
+    const after = await readTsv(s, 'sheets/観点.tsv');
+    expect(after.ok).toBe(true);
+    if (!after.ok) return;
+    // A-1 は 2 件、A-2 は 0 件。触った行だけでなく列ごと揃える。
+    expect(after.rows.map((row) => row[2])).toEqual(['2', '0']);
+  });
+
+  it('集計列は AI からも書けない', async () => {
+    // アプリのグリッドだけを塞いでも、ここから同じことができてしまう。
+    const r = await updateTsvRow(countingStore(), {
+      path: 'sheets/観点.tsv',
+      row: 0,
+      values: { 件数: '9' },
+    });
+    expect(r.ok).toBe(false);
+  });
+
+  it('数える相手を読めないときは前の値を残す', async () => {
+    // ワークスペースの一部だけを開いていることがある。0 に落とすと、
+    // 開いていないだけの状態が件数としてファイルへ焼かれる。
+    const s = new MemoryDocumentStore({
+      'sheets/観点.tsv':
+        ['#@ computed 件数 = countIn(ケース.tsv)', '観点#\t件数', 'A-1\t3'].join('\n') + '\n',
+    });
+    const r = await updateTsvRow(s, {
+      path: 'sheets/観点.tsv',
+      row: 0,
+      values: { '観点#': 'A-2' },
+    });
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.values).toEqual(['A-2', '3']);
+  });
+});
+
+describe('リンク定義を持つ検証シート', () => {
+  /** ケース側（参照元）と観点側（参照先）が別ファイルに分かれている状態。 */
+  function linkedStore(): MemoryDocumentStore {
+    return new MemoryDocumentStore({
+      'sheets/ケース.tsv':
+        [
+          '#! md-business:test-spec-tsv/v1',
+          '#@ link 観点 -> 観点.tsv#観点#',
+          'No.:number\t項目!\t観点',
+          '1\t新規登録\tA-1, A-2',
+          '2\t金額計算\tA-1',
+        ].join('\n') + '\n',
+      'sheets/観点.tsv':
+        ['#! md-business:test-spec-tsv/v1', '観点#!\t内容', 'A-1\t必須項目', 'A-2\t重複', 'A-3\t桁あふれ'].join(
+          '\n',
+        ) + '\n',
+    });
+  }
+
+  it('参照先に無い値を error として返す', async () => {
+    const s = linkedStore();
+    await updateTsvRow(s, { path: 'sheets/ケース.tsv', row: 1, values: { 観点: 'A-9' } });
+
+    const r = await readTsv(s, 'sheets/ケース.tsv');
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.linkIssues).toContainEqual(
+      expect.objectContaining({
+        code: 'link_unknown_value',
+        severity: 'error',
+        side: 'source',
+        row: 1,
+        column: 2,
+        value: 'A-9',
+        targetPath: 'sheets/観点.tsv',
+      }),
+    );
+  });
+
+  it('誰も参照していない参照先の行を warning として返す', async () => {
+    const r = await readTsv(linkedStore(), 'sheets/ケース.tsv');
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    // A-1 / A-2 は参照済み。A-3 だけが取りこぼし。
+    expect(r.linkIssues).toEqual([
+      expect.objectContaining({
+        code: 'link_unreferenced_row',
+        severity: 'warning',
+        side: 'target',
+        row: 2,
+        value: 'A-3',
+        targetPath: 'sheets/観点.tsv',
+      }),
+    ]);
+  });
+
+  it('参照先はシートのある場所からの相対で解決する', async () => {
+    const s = new MemoryDocumentStore({
+      'sheets/case/ケース.tsv':
+        ['#@ link 観点 -> ../観点.tsv#観点', '観点', 'A-1'].join('\n') + '\n',
+      'sheets/観点.tsv': ['観点', 'A-1'].join('\n') + '\n',
+    });
+    const r = await readTsv(s, 'sheets/case/ケース.tsv');
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.linkIssues).toEqual([]);
+  });
+
+  it('参照先を読めないときは警告 1 件だけ返す（開いていないだけのことがある）', async () => {
+    const s = new MemoryDocumentStore({
+      'ケース.tsv': ['#@ link 観点 -> 観点.tsv#観点', '観点', 'A-1'].join('\n') + '\n',
+    });
+    const r = await readTsv(s, 'ケース.tsv');
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.linkIssues).toEqual([
+      expect.objectContaining({ code: 'link_target_missing', severity: 'warning' }),
+    ]);
+  });
+
+  it('リンク定義が無ければ空配列', async () => {
+    const r = await readTsv(store(), 'sheets/受注.tsv');
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.linkIssues).toEqual([]);
+  });
+});
+
+describe('選択肢を別シートから引く検証シート', () => {
+  /** 種別の一覧は提出物側が正本で、こちらは参照するだけの状態。 */
+  function enumStore(): MemoryDocumentStore {
+    return new MemoryDocumentStore({
+      'sheets/受付.tsv':
+        [
+          '#! md-business:test-spec-tsv/v1',
+          'No.:number\t種別:enum(-> 提出物.tsv#種別)',
+          '1\t仕様書',
+          '2\t絵日記',
+        ].join('\n') + '\n',
+      'sheets/提出物.tsv':
+        ['#! md-business:test-spec-tsv/v1', '種別!\t期限', '仕様書\t月末', '議事録\t翌日', '仕様書\t月末'].join(
+          '\n',
+        ) + '\n',
+    });
+  }
+
+  it('参照先に無い値を選択肢違反として返す', async () => {
+    const r = await readTsv(enumStore(), 'sheets/受付.tsv');
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.issues).toEqual([expect.objectContaining({ row: 1, column: 1, code: 'enum_value' })]);
+  });
+
+  it('参照先を読めないときは検査しない（既存の値を保つ）', async () => {
+    // 参照先を開いていないだけで全行が赤くなると、直しようのない赤で本物の違反が埋もれる。
+    const s = new MemoryDocumentStore({
+      'sheets/受付.tsv':
+        ['No.:number\t種別:enum(-> 提出物.tsv#種別)', '1\t仕様書', '2\t絵日記'].join('\n') + '\n',
+    });
+    const r = await readTsv(s, 'sheets/受付.tsv');
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.issues).toEqual([]);
+  });
+
+  it('書き込み後の検証でも参照先の選択肢を使う', async () => {
+    const s = enumStore();
+    const r = await updateTsvRow(s, { path: 'sheets/受付.tsv', row: 0, values: { 種別: '議事録' } });
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.issues).toEqual([]);
+    expect(r.totalIssues).toBe(1);
+  });
+
+  it('参照の宣言は書き戻しても選択肢の写しに化けない', async () => {
+    const s = enumStore();
+    await updateTsvRow(s, { path: 'sheets/受付.tsv', row: 0, values: { 種別: '議事録' } });
+    expect(await s.read('sheets/受付.tsv')).toContain('種別:enum(-> 提出物.tsv#種別)');
+  });
+});

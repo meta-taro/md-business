@@ -328,11 +328,14 @@ export interface Messages {
   'grid.emptyColumns': string;
   'grid.rowNumber': string;
   'grid.required': string;
+  'grid.multiline': string;
   'grid.defaultGroupLabel': string;
   'grid.computedCell': string;
   'grid.jumpNoColumn': string;
   'grid.jumpNoRow': string;
   'grid.jumpMultiple': string;
+  'grid.linkGaps': string;
+  'grid.linkGapsTitle': string;
   'grid.pasteDroppedComputed': string;
   'grid.rowLabel': string;
   'grid.modeEditing': string;
@@ -374,6 +377,10 @@ export interface Messages {
   'grid.menuClose': string;
   'grid.colMenuText': string;
   'grid.colMenuAlign': string;
+  'grid.rowMenuHead': string;
+  'grid.blame': string;
+  'grid.blameTitle': string;
+  'grid.blameUncommitted': string;
   'grid.colModeClip': string;
   'grid.colModeWrap': string;
   'grid.colModeOverflow': string;
@@ -696,11 +703,14 @@ const en: Messages = {
   'grid.emptyColumns': 'No columns are defined (open a TSV that has a header row)',
   'grid.rowNumber': 'Row number',
   'grid.required': 'Required',
+  'grid.multiline': 'Line breaks allowed (Alt / Ctrl / Shift + Enter)',
   'grid.defaultGroupLabel': 'Group',
   'grid.computedCell': 'Computed column (the value is filled in for you)',
   'grid.jumpNoColumn': 'There is no column named “{column}”',
   'grid.jumpNoRow': 'No row has {column} set to “{value}”',
   'grid.jumpMultiple': '{count} rows match. Moved to the first one',
+  'grid.linkGaps': 'Linked sheets: {count} to check',
+  'grid.linkGapsTitle': 'Found in the sheets this one points at. Open them to fix.',
   'grid.pasteDroppedComputed': '{count} cells in computed columns were not pasted',
   'grid.rowLabel': 'Row {row}',
   'grid.modeEditing': 'Editing',
@@ -744,6 +754,10 @@ const en: Messages = {
   'grid.menuClose': 'Close the menu',
   'grid.colMenuText': 'Text display for the {name} column',
   'grid.colMenuAlign': 'Alignment',
+  'grid.rowMenuHead': 'Row {row}',
+  'grid.blame': 'History',
+  'grid.blameTitle': 'Show who last changed each row (from git)',
+  'grid.blameUncommitted': 'Not committed yet',
   'grid.colModeClip': 'Cut off (ellipsis)',
   'grid.colModeWrap': 'Wrap',
   'grid.colModeOverflow': 'Spill over',
@@ -1062,11 +1076,14 @@ const ja: Messages = {
   'grid.emptyColumns': '列定義がありません（ヘッダ行のある TSV を開いてください）',
   'grid.rowNumber': '行番号',
   'grid.required': '必須',
+  'grid.multiline': 'セルの中で改行できる列（Alt / Ctrl / Shift + Enter）',
   'grid.defaultGroupLabel': 'グループ',
   'grid.computedCell': '計算列（値は自動で決まる）',
   'grid.jumpNoColumn': '「{column}」という列がありません',
   'grid.jumpNoRow': '{column} が「{value}」の行はありません',
   'grid.jumpMultiple': '{count} 行あります。最初の行へ移動しました',
+  'grid.linkGaps': '参照先に {count} 件',
+  'grid.linkGapsTitle': 'このシートが指している側で見つかったものです。相手を開いて直します。',
   'grid.pasteDroppedComputed': '計算列の {count} セルは貼り付けていません',
   'grid.rowLabel': '{row} 行目',
   'grid.modeEditing': '編集中',
@@ -1108,6 +1125,10 @@ const ja: Messages = {
   'grid.menuClose': 'メニューを閉じる',
   'grid.colMenuText': '{name} 列のテキスト表示',
   'grid.colMenuAlign': '寄せ',
+  'grid.rowMenuHead': '{row} 行目',
+  'grid.blame': '履歴',
+  'grid.blameTitle': '各行を最後に変えた人とコミットを出す（git より）',
+  'grid.blameUncommitted': '未コミット',
   'grid.colModeClip': '見切れる（省略）',
   'grid.colModeWrap': '折り返す',
   'grid.colModeOverflow': '突き抜ける',
@@ -1423,11 +1444,14 @@ const zh: Messages = {
   'grid.emptyColumns': '没有列定义（请打开带表头行的 TSV）',
   'grid.rowNumber': '行号',
   'grid.required': '必填',
+  'grid.multiline': '可在单元格内换行的列（Alt / Ctrl / Shift + Enter）',
   'grid.defaultGroupLabel': '分组',
   'grid.computedCell': '计算列（数值自动确定）',
   'grid.jumpNoColumn': '没有名为「{column}」的列',
   'grid.jumpNoRow': '没有 {column} 为「{value}」的行',
   'grid.jumpMultiple': '共有 {count} 行，已移动到第一行',
+  'grid.linkGaps': '引用目标有 {count} 项',
+  'grid.linkGapsTitle': '这些出现在本表所指向的表中。请打开对方表修改。',
   'grid.pasteDroppedComputed': '计算列的 {count} 个单元格未粘贴',
   'grid.rowLabel': '第 {row} 行',
   'grid.modeEditing': '编辑中',
@@ -1469,6 +1493,10 @@ const zh: Messages = {
   'grid.menuClose': '关闭菜单',
   'grid.colMenuText': '{name} 列的文本显示',
   'grid.colMenuAlign': '对齐',
+  'grid.rowMenuHead': '第 {row} 行',
+  'grid.blame': '历史',
+  'grid.blameTitle': '显示各行最后由谁修改（来自 git）',
+  'grid.blameUncommitted': '尚未提交',
   'grid.colModeClip': '截断（省略号）',
   'grid.colModeWrap': '换行',
   'grid.colModeOverflow': '溢出显示',
@@ -1787,11 +1815,14 @@ const ko: Messages = {
   'grid.emptyColumns': '열 정의가 없습니다(헤더 행이 있는 TSV를 열어 주세요)',
   'grid.rowNumber': '행 번호',
   'grid.required': '필수',
+  'grid.multiline': '셀 안에서 줄바꿈할 수 있는 열 (Alt / Ctrl / Shift + Enter)',
   'grid.defaultGroupLabel': '그룹',
   'grid.computedCell': '계산 열(값이 자동으로 정해집니다)',
   'grid.jumpNoColumn': '「{column}」이라는 열이 없습니다',
   'grid.jumpNoRow': '{column}이(가) 「{value}」인 행이 없습니다',
   'grid.jumpMultiple': '{count}개 행이 있습니다. 첫 행으로 이동했습니다',
+  'grid.linkGaps': '참조 대상에 {count}건',
+  'grid.linkGapsTitle': '이 시트가 가리키는 쪽에서 찾은 것입니다. 상대 시트를 열어 고칩니다.',
   'grid.pasteDroppedComputed': '계산 열의 {count}개 셀은 붙여넣지 않았습니다',
   'grid.rowLabel': '{row}번째 행',
   'grid.modeEditing': '편집 중',
@@ -1834,6 +1865,10 @@ const ko: Messages = {
   'grid.menuClose': '메뉴 닫기',
   'grid.colMenuText': '{name} 열의 텍스트 표시',
   'grid.colMenuAlign': '정렬',
+  'grid.rowMenuHead': '{row}번째 행',
+  'grid.blame': '이력',
+  'grid.blameTitle': '각 행을 마지막으로 변경한 사람을 표시(git 기준)',
+  'grid.blameUncommitted': '아직 커밋 안 됨',
   'grid.colModeClip': '잘림(생략)',
   'grid.colModeWrap': '줄바꿈',
   'grid.colModeOverflow': '넘쳐 표시',
