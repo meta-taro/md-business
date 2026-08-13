@@ -79,9 +79,12 @@ export function planGridKey(
   if (intent.key === 'Escape') return { kind: 'cancel' };
 
   if (intent.key === 'Enter') {
-    // 表計算ソフトと同じ割り当て。Enter はどの列でも確定で、セル内改行は Alt / Ctrl を添える。
+    // 表計算ソフトと同じ割り当て。Enter はどの列でも確定で、セル内改行は修飾キーを添える。
+    // 添えるキーはソフトによって Alt / Ctrl / Shift と分かれるので、複数行の列では全部受ける
+    // （Shift+Enter の「確定して上へ」は、その列でだけ諦める）。
     // 改行を持てない列（1 行 1 件が崩れる）では添えても確定として扱う。
-    if (ctx.multiline && ((intent.alt ?? false) || ctrl)) return { kind: 'break' };
+    const withBreakKey = (intent.alt ?? false) || ctrl || (intent.shift ?? false);
+    if (ctx.multiline && withBreakKey) return { kind: 'break' };
     const to = nextCell(pos, { key: 'Enter', shift: intent.shift }, dims);
     // 端では移動先が自セルに丸まる＝確定のみして nav へ戻す。
     if (!to || samePos(to, pos)) return { kind: 'cancel' };
