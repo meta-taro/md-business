@@ -11,7 +11,7 @@
    * `gridModel.cellDisplayText`、いずれも純関数として node 環境 vitest で検査済み。
    * Svelte 側はそれらを描画・フォーカス制御する薄いグルー（manual-verify）。
    */
-  import { untrack } from 'svelte';
+  import { flushSync, untrack } from 'svelte';
   import { perf } from '$lib/diagnostics/perf.svelte';
   import { i18n, t } from '$lib/i18n/i18n.svelte';
   import type { ComputedCounts, EnumChoices, IdentifiedTsv } from '@md-business/schema-test-spec-tsv';
@@ -31,7 +31,8 @@
   } from './gridModel';
   import { planGridKey, type GridMode } from './gridMode';
   import { nextCell } from './gridNav';
-  import { seedFromKey } from './gridEdit';
+  import { acceptsLineBreak, handsOffKey, seedFromKey } from './gridEdit';
+  import { planCellFocus, type FocusWhere } from './gridFocusPlan';
   import { parseClipboardMatrix, applyPaste, rowToTsv } from './gridClipboard';
   import { duplicateRow, deleteRow, clearRow } from './gridRows';
   import { canFillDown, fillDown } from './gridFill';
@@ -790,6 +791,34 @@
     }
   }
 
+  // いま焦点がどこにあるか。グリッドの外＝利用者が別の場所（エディター等）を触っている。
+  function focusWhere(): FocusWhere {
+    const el = document.activeElement;
+    if (el === null || el === document.body) return 'none';
+    return gridEl?.contains(el) ? 'grid' : 'outside';
+  }
+
+  // 編集ウィジェットへ同期で焦点を移す。移せたら true。
+  // 打鍵を止めずに入力へ渡すときは、キーの既定動作が走る前に焦点が移っている必要がある。
+  function focusEditInput(row: number, col: number): boolean {
+    const input = gridEl
+      ?.querySelector(`[data-cell="${row}-${col}"]`)
+      ?.querySelector<HTMLElement>('input, select, textarea');
+    if (!input) return false;
+    if (document.activeElement !== input) input.focus();
+    return document.activeElement === input;
+  }
+
+  // キャレットの位置へ改行を差し込む（複数行の列のみ。表計算ソフトの Alt+Enter に相当）。
+  // 値の確定と高さの追従は入力イベントの受け手（oninput / autogrow）に任せる。
+  function insertBreak(target: EventTarget | null): void {
+    if (!(target instanceof HTMLTextAreaElement)) return;
+    const start = target.selectionStart ?? target.value.length;
+    const end = target.selectionEnd ?? start;
+    target.setRangeText('\n', start, end, 'end');
+    target.dispatchEvent(new Event('input', { bubbles: true }));
+  }
+
   // テキスト系のみ全選択できる（date/number/select に select() すると例外の環境がある）。
   function trySelectAll(el: HTMLElement): void {
     try {
@@ -800,11 +829,17 @@
     }
   }
 
-  // アクティブセルへフォーカスを寄せる。activeCell / mode の変化にのみ追従する。
+  // アクティブセルへフォーカスを寄せる。
   // - nav: セルは静的表示（実ウィジェットは出さない）。キーボード操作のため静的セル自体へ
   //   フォーカスする（選択リングは td.active のクラスで描くのでフォーカス非依存）。
   // - edit: 実ウィジェットへフォーカス。印字キーで入ったとき（種あり）はその文字で値を置換、
   //   ダブルクリック / Enter / F2 で入ったとき（種なし）は既存値を全選択する。
+  //
+  // この効果は activeCell / mode 以外の理由でも走り直す。本文はセルを 1 つ確定するたびに
+  // 組み直され、行の高さも列の型もそこから導き直すためで、スクロールや別シートの
+  // 選択肢読み込みでも同じことが起きる。何をしてよいかは planCellFocus に決めさせる
+  // （やり直すと打鍵ごとに全選択され、エディター側の焦点も奪ってしまう）。
+  let preparedSpot: string | null = null;
   $effect(() => {
     const { row, col } = activeCell;
     const editing = mode === 'edit';
@@ -817,16 +852,19 @@
     }
     const td = gridEl.querySelector<HTMLElement>(`[data-cell="${row}-${col}"]`);
     if (!td) return;
+    const plan = planCellFocus({ row, col, editing }, preparedSpot, focusWhere());
+    preparedSpot = plan.spot;
     if (!editing) {
       // 編集から出たら要求は失効させる（次に編集へ入るときに立て直す）。
       pendingPicker = false;
       const cell = td.querySelector<HTMLElement>('.cell-active');
-      if (cell && document.activeElement !== cell) cell.focus();
+      if (plan.takeFocus && cell && document.activeElement !== cell) cell.focus();
       return;
     }
     const input = td.querySelector<HTMLElement>('input, select, textarea');
     if (!input) return;
-    if (document.activeElement !== input) input.focus();
+    if (plan.takeFocus && document.activeElement !== input) input.focus();
+    if (!plan.prepare) return;
     // 種の受け渡しは 1 回きり。untrack で読み、消す代入で effect を再実行させない。
     const seed = untrack(() => pendingSeed);
     if (
@@ -1044,13 +1082,23 @@
         selection = { anchor: action.to, focus: action.to };
         break;
       case 'edit': {
+        const ctrl = event.ctrlKey || event.metaKey;
+        // 日付系だけは打鍵を止めない。値を文字列で組み立てられないので種にできず、
+        // 止めると 1 文字目が消えて「2026-08-11」が「0026-08-11」になる。入力を先に
+        // 作って焦点を移し、その文字を日付入力自身の年欄に受け取らせる。
+        // 入力が出来ていなければ従来どおり止める（打鍵は静的セルへ落ちるだけで害はない）。
+        if (!isLocked(col) && handsOffKey(widgets[col]?.kind, event.key, ctrl)) {
+          enterEdit();
+          flushSync();
+          if (focusEditInput(row, col)) break;
+        }
         // 既定動作は必ず抑止し、静的セルへ生の文字が落ちないようにする。印字1文字で入った
         // 場合はその文字を種として控え、ウィジェット生成後の effect で置換して流し込む。
         // Enter / F2 は種なし＝既存値を全選択して編集へ入る。
         event.preventDefault();
         // 計算列は種も控えない（控えたまま入れないと、次に別の列へ入ったとき流れ込む）。
         if (isLocked(col)) break;
-        pendingSeed = seedFromKey(widgets[col]?.kind, event.key, event.ctrlKey || event.metaKey);
+        pendingSeed = seedFromKey(widgets[col]?.kind, event.key, ctrl);
         enterEdit();
         break;
       }
@@ -1058,6 +1106,10 @@
         event.preventDefault();
         mode = 'nav';
         selection = { anchor: action.to, focus: action.to };
+        break;
+      case 'break':
+        event.preventDefault();
+        if (editable) insertBreak(event.target);
         break;
       case 'cancel':
         event.preventDefault();
@@ -1352,6 +1404,13 @@
             >
               <span class="colname">{column.name}</span>
               {#if column.required}<span class="req" aria-label={t('grid.required')}>*</span>{/if}
+              <!-- 改行を持てる列の目印。どの列で Alt+Enter が効くかは打ってみないと分からず、
+                   効かない列では確定して下へ落ちてしまうので、見出しで先に見せる。 -->
+              {#if acceptsLineBreak(widgets[col]?.kind)}<span
+                  class="wrapmark"
+                  title={t('grid.multiline')}
+                  aria-label={t('grid.multiline')}
+                >↵</span>{/if}
               <!-- 列幅リサイズのグリップ。掴んで左右ドラッグで列幅を変える（スプレ同様）。
                    ダブルクリックで内容に合わせた自動幅。キーボード列幅調整は未提供。 -->
               <!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -2259,6 +2318,14 @@
   .req {
     color: var(--danger-fg);
     margin-left: 2px;
+  }
+
+  /* 改行を持てる列の目印。列名より弱く出す（読む順は列名が先）。 */
+  .wrapmark {
+    color: var(--text-tertiary);
+    margin-left: 3px;
+    font-size: 0.85em;
+    cursor: help;
   }
 
   /* 計算列＝人が打たない列。地を沈めて「打つ場所ではない」ことを見た目で先に伝える。
