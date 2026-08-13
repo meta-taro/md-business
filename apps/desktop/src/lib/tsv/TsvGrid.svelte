@@ -809,6 +809,16 @@
     return document.activeElement === input;
   }
 
+  // キャレットの位置へ改行を差し込む（複数行の列のみ。表計算ソフトの Alt+Enter に相当）。
+  // 値の確定と高さの追従は入力イベントの受け手（oninput / autogrow）に任せる。
+  function insertBreak(target: EventTarget | null): void {
+    if (!(target instanceof HTMLTextAreaElement)) return;
+    const start = target.selectionStart ?? target.value.length;
+    const end = target.selectionEnd ?? start;
+    target.setRangeText('\n', start, end, 'end');
+    target.dispatchEvent(new Event('input', { bubbles: true }));
+  }
+
   // テキスト系のみ全選択できる（date/number/select に select() すると例外の環境がある）。
   function trySelectAll(el: HTMLElement): void {
     try {
@@ -1096,6 +1106,10 @@
         event.preventDefault();
         mode = 'nav';
         selection = { anchor: action.to, focus: action.to };
+        break;
+      case 'break':
+        event.preventDefault();
+        if (editable) insertBreak(event.target);
         break;
       case 'cancel':
         event.preventDefault();

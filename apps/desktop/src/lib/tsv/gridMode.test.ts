@@ -134,14 +134,37 @@ describe('planGridKey / edit モード', () => {
     });
   });
 
-  it('複数行セルの Enter は改行（pass）、Ctrl+Enter で確定して下', () => {
+  // 表計算ソフトと同じ割り当て。Enter は行がどの型でも確定で、セル内改行は Alt / Ctrl を添える。
+  it('複数行セルでも Enter は確定して下（Shift で上）', () => {
     expect(planGridKey({ key: 'Enter' }, at(0, 0), dims, { mode: 'edit', multiline: true })).toEqual({
-      kind: 'pass',
-    });
-    expect(planGridKey({ key: 'Enter', ctrl: true }, at(0, 0), dims, { mode: 'edit', multiline: true })).toEqual({
       kind: 'commit-move',
       to: at(1, 0),
     });
+    expect(
+      planGridKey({ key: 'Enter', shift: true }, at(1, 0), dims, { mode: 'edit', multiline: true }),
+    ).toEqual({ kind: 'commit-move', to: at(0, 0) });
+  });
+
+  it('複数行セルの Alt+Enter / Ctrl+Enter はセル内改行', () => {
+    expect(
+      planGridKey({ key: 'Enter', alt: true }, at(0, 0), dims, { mode: 'edit', multiline: true }),
+    ).toEqual({ kind: 'break' });
+    expect(
+      planGridKey({ key: 'Enter', ctrl: true }, at(0, 0), dims, { mode: 'edit', multiline: true }),
+    ).toEqual({ kind: 'break' });
+  });
+
+  // 改行を持てない列で改行を入れると 1 行 1 件が崩れるので、確定として扱う。
+  it('単行セルの Alt+Enter / Ctrl+Enter は改行せず確定して下', () => {
+    for (const intent of [
+      { key: 'Enter', alt: true },
+      { key: 'Enter', ctrl: true },
+    ]) {
+      expect(planGridKey(intent, at(0, 0), dims, { mode: 'edit', multiline: false })).toEqual({
+        kind: 'commit-move',
+        to: at(1, 0),
+      });
+    }
   });
 
   it('最下端の Enter は確定のみで nav へ（cancel）', () => {

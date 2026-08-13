@@ -15,6 +15,7 @@ export type GridMode = 'nav' | 'edit';
  * - move: nav 中のセル選択移動（mode は nav のまま）
  * - edit: nav → edit（同セルの編集を開始）
  * - commit-move: edit 中に確定して別セルへ移動（mode → nav）
+ * - break: edit 中にセル内へ改行を入れる（複数行の列のみ）
  * - cancel: edit → nav（同セルに留まる。端での Enter 確定もこれ）
  * - clear: nav 中に選択セルを空にする
  * - pass: 何もしない（テキスト入力へ委ねる / グリッド外への Tab 等）
@@ -23,6 +24,7 @@ export type GridAction =
   | { kind: 'move'; to: CellPos }
   | { kind: 'edit' }
   | { kind: 'commit-move'; to: CellPos }
+  | { kind: 'break' }
   | { kind: 'cancel' }
   | { kind: 'clear' }
   | { kind: 'pass' };
@@ -30,7 +32,7 @@ export type GridAction =
 export interface GridKeyContext {
   /** 現在のモード。 */
   mode: GridMode;
-  /** 選択セルが複数行入力（textarea）か。Enter の意味（改行 vs 確定）を分ける。 */
+  /** 選択セルが複数行入力（textarea）か。Alt/Ctrl+Enter で改行を入れられるかを分ける。 */
   multiline: boolean;
 }
 
@@ -77,7 +79,9 @@ export function planGridKey(
   if (intent.key === 'Escape') return { kind: 'cancel' };
 
   if (intent.key === 'Enter') {
-    if (ctx.multiline && !ctrl) return { kind: 'pass' }; // 改行は入力へ
+    // 表計算ソフトと同じ割り当て。Enter はどの列でも確定で、セル内改行は Alt / Ctrl を添える。
+    // 改行を持てない列（1 行 1 件が崩れる）では添えても確定として扱う。
+    if (ctx.multiline && ((intent.alt ?? false) || ctrl)) return { kind: 'break' };
     const to = nextCell(pos, { key: 'Enter', shift: intent.shift }, dims);
     // 端では移動先が自セルに丸まる＝確定のみして nav へ戻す。
     if (!to || samePos(to, pos)) return { kind: 'cancel' };
