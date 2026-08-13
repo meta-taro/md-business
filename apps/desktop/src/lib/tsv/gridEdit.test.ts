@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { seedFromKey } from './gridEdit';
+import { seedFromKey, handsOffKey } from './gridEdit';
 
 /**
  * nav→edit で打鍵した文字を「置換編集の種」にするかの純ロジック。
@@ -30,5 +30,37 @@ describe('seedFromKey', () => {
   it('日本語1文字・空白も種にする（直接入力の1打鍵）', () => {
     expect(seedFromKey('text', 'あ', false)).toBe('あ');
     expect(seedFromKey('text', ' ', false)).toBe(' ');
+  });
+});
+
+/**
+ * 種にできないウィジェットのうち、打鍵そのものを入力へ渡すもの。
+ * 日付系は 1 文字目を握り潰すと「2026」が「0026」になるので、止めずに渡す。
+ */
+describe('handsOffKey', () => {
+  it('日付・日時は印字1文字を入力へ渡す', () => {
+    for (const kind of ['date', 'datetime'] as const) {
+      expect(handsOffKey(kind, '2', false)).toBe(true);
+    }
+  });
+
+  it('種にできるテキスト入力系は渡さない（種の仕組みで入る）', () => {
+    for (const kind of ['text', 'url', 'number', 'multiline'] as const) {
+      expect(handsOffKey(kind, '2', false)).toBe(false);
+    }
+    expect(handsOffKey(undefined, '2', false)).toBe(false);
+  });
+
+  it('選択肢・チェックボックスは渡さない（打鍵で値を作らない）', () => {
+    for (const kind of ['select', 'radio', 'checkbox'] as const) {
+      expect(handsOffKey(kind, '2', false)).toBe(false);
+    }
+  });
+
+  it('修飾キー付き・非印字キー・空白は渡さない', () => {
+    expect(handsOffKey('date', '2', true)).toBe(false);
+    expect(handsOffKey('date', 'Enter', false)).toBe(false);
+    expect(handsOffKey('date', 'F2', false)).toBe(false);
+    expect(handsOffKey('date', ' ', false)).toBe(false);
   });
 });
