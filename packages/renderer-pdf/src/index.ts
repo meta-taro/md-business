@@ -19,6 +19,14 @@ export {
 export { renderApiSpecBody, type RenderApiSpecBodyOptions } from './apiSpecTemplate.js';
 export { renderApiSpecHtml, type RenderApiSpecHtmlOptions } from './renderApiSpecHtml.js';
 export {
+  renderInvestigationBody,
+  type RenderInvestigationBodyOptions,
+} from './investigationTemplate.js';
+export {
+  renderInvestigationHtml,
+  type RenderInvestigationHtmlOptions,
+} from './renderInvestigationHtml.js';
+export {
   renderStampSvg,
   inferStampShape,
   extractStampChars,

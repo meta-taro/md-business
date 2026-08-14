@@ -2,7 +2,7 @@
   "name": "@md-business/desktop",
   "version": "0.9.0",
   "private": true,
-  "description": "md-business デスクトップアプリ（Tauri 2 + SvelteKit）— 6 種の業務文書を用途別ビューワーで開き、Markdown を左右 2 画面でライブ編集・PDF 出力する本命プロダクト。",
+  "description": "md-business デスクトップアプリ（Tauri 2 + SvelteKit）— 7 種の業務文書を用途別ビューワーで開き、Markdown を左右 2 画面でライブ編集・PDF 出力する本命プロダクト。",
   "license": "MIT",
   "type": "module",
   "scripts": {
@@ -29,6 +29,7 @@
     "@md-business/renderer-pdf": "workspace:*",
     "@md-business/schema-api-spec": "workspace:*",
     "@md-business/schema-db-spec": "workspace:^",
+    "@md-business/schema-investigation": "workspace:*",
     "@md-business/schema-invoice": "workspace:^",
     "@md-business/schema-nosql-db-spec": "workspace:^",
     "@md-business/schema-spec": "workspace:^",
