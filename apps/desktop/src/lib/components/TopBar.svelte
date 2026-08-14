@@ -5,6 +5,7 @@
   import { workspace } from '$lib/workspace/workspace.svelte';
   import { autosave } from '$lib/workspace/autosave.svelte';
   import { pdfExport } from '$lib/preview/pdfExport.svelte';
+  import { timelineView } from '$lib/logs/timelineView.svelte';
   import { documentDisplayName } from '$lib/window/docTitle';
   import { t } from '$lib/i18n/i18n.svelte';
   import HelpButton from './HelpButton.svelte';
@@ -154,6 +155,34 @@
           <circle cx="11.9" cy="8.1" r="0.7" fill="currentColor" />
         </svg>
         <span>PDF</span>
+      </button>
+      <!-- 時系列。ログは文書ツリーに出ない（出すとエディタで開けてしまう）ので、
+           ここが唯一の入口になる。フォルダを開いていなければ押せない。 -->
+      <button
+        class="btn ghost with-icon"
+        type="button"
+        onclick={() =>
+          timelineView.active
+            ? timelineView.close()
+            : workspace.root && timelineView.open(workspace.root)}
+        disabled={workspace.root === null}
+        aria-pressed={timelineView.active}
+        title={t('timeline.openTitle')}
+        aria-label={t('timeline.open')}
+      >
+        <svg class="btn-ico" viewBox="0 0 16 16" aria-hidden="true">
+          <path
+            d="M2 8h12"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.2"
+            stroke-linecap="round"
+          />
+          <circle cx="4.5" cy="8" r="1.6" fill="none" stroke="currentColor" stroke-width="1.2" />
+          <circle cx="9" cy="8" r="1.6" fill="none" stroke="currentColor" stroke-width="1.2" />
+          <circle cx="13" cy="8" r="1.1" fill="currentColor" />
+        </svg>
+        <span>{t('timeline.open')}</span>
       </button>
       <!-- テーマ切替（保存 / PDF と同じアイコン + ラベル体裁に統一）。現在テーマを表す線画を出す。
            ダーク時は月・ライト時は太陽。押すと反対テーマへ切替。 -->

@@ -187,6 +187,42 @@ export interface Messages {
   'panel.collapse': string;
   'panel.expand': string;
   'panel.hint': string;
+  'timeline.open': string;
+  'timeline.openTitle': string;
+  'timeline.head': string;
+  'timeline.files': string;
+  'timeline.filesEmpty': string;
+  'timeline.filesTruncated': string;
+  'timeline.rescan': string;
+  'timeline.prepare': string;
+  'timeline.preparing': string;
+  'timeline.candidateNote': string;
+  'timeline.timeField': string;
+  'timeline.guess': string;
+  'timeline.chosen': string;
+  'timeline.evidence.nameAndValue': string;
+  'timeline.evidence.valueOnly': string;
+  'timeline.evidence.nameOnly': string;
+  'timeline.parsed': string;
+  'timeline.noCandidate': string;
+  'timeline.unreadable': string;
+  'timeline.skipped': string;
+  'timeline.joinKey': string;
+  'timeline.joinNone': string;
+  'timeline.joinExact': string;
+  'timeline.joinNormalized': string;
+  'timeline.shared': string;
+  'timeline.build': string;
+  'timeline.building': string;
+  'timeline.colTime': string;
+  'timeline.colSource': string;
+  'timeline.colLine': string;
+  'timeline.colRecord': string;
+  'timeline.unknownTime': string;
+  'timeline.empty': string;
+  'timeline.truncated': string;
+  'timeline.unknownCount': string;
+  'timeline.maskedNote': string;
   'diag.tab': string;
   'diag.scale': string;
   'diag.chars': string;
@@ -559,6 +595,42 @@ const en: Messages = {
   'panel.collapse': 'Collapse panel',
   'panel.expand': 'Open panel',
   'panel.hint': 'Git diff, AI, and MCP logs\nwill appear in a later phase',
+  'timeline.open': 'Timeline',
+  'timeline.openTitle': 'Line up logs in time order',
+  'timeline.head': 'Timeline',
+  'timeline.files': 'Pick logs',
+  'timeline.filesEmpty': 'No logs (.log / .jsonl / .ndjson) in this folder',
+  'timeline.filesTruncated': 'Too many to list — showing part of them',
+  'timeline.rescan': 'List again',
+  'timeline.prepare': 'Look inside and suggest fields',
+  'timeline.preparing': 'Reading',
+  'timeline.candidateNote': 'These are suggestions. Look at the contents and decide whether they fit.',
+  'timeline.timeField': 'Time field',
+  'timeline.guess': 'guess',
+  'timeline.chosen': 'chosen',
+  'timeline.evidence.nameAndValue': 'name and value both look like a time',
+  'timeline.evidence.valueOnly': 'value reads as a time',
+  'timeline.evidence.nameOnly': 'name looks like a time, but the value does not read as one',
+  'timeline.parsed': 'read {parsed} of {sampled}',
+  'timeline.noCandidate': 'No suggestion — type a field name',
+  'timeline.unreadable': 'Cannot read',
+  'timeline.skipped': '{count} lines could not be read',
+  'timeline.joinKey': 'Field to match on',
+  'timeline.joinNone': 'none',
+  'timeline.joinExact': 'same name',
+  'timeline.joinNormalized': 'names differ, matched after normalising',
+  'timeline.shared': '{count} values appear in more than one file',
+  'timeline.build': 'Build the timeline',
+  'timeline.building': 'Building',
+  'timeline.colTime': 'Time',
+  'timeline.colSource': 'From',
+  'timeline.colLine': 'Line',
+  'timeline.colRecord': 'Contents',
+  'timeline.unknownTime': 'time unknown',
+  'timeline.empty': 'Pick logs and press [Build the timeline]',
+  'timeline.truncated': 'Stopped at the limit — there is more',
+  'timeline.unknownCount': '{count} events with no readable time',
+  'timeline.maskedNote': 'Masked values cannot be unmasked here.',
   'diag.tab': 'Diagnostics',
   'diag.scale': 'Size',
   'diag.chars': 'characters',
@@ -934,6 +1006,42 @@ const ja: Messages = {
   'panel.collapse': 'パネルを畳む',
   'panel.expand': 'パネルを開く',
   'panel.hint': 'Git 差分・AI・MCP ログは\n後続フェーズで表示されます',
+  'timeline.open': '時系列',
+  'timeline.openTitle': 'ログを時刻順に並べて見る',
+  'timeline.head': '時系列',
+  'timeline.files': 'ログを選ぶ',
+  'timeline.filesEmpty': 'このフォルダにログ（.log / .jsonl / .ndjson）はありません',
+  'timeline.filesTruncated': '多すぎるため一部だけ出しています',
+  'timeline.rescan': '一覧を取り直す',
+  'timeline.prepare': '中身を見て候補を出す',
+  'timeline.preparing': '読んでいます',
+  'timeline.candidateNote': 'ここに出るのは候補です。合っているかは中身を見て決めてください。',
+  'timeline.timeField': '時刻の項目',
+  'timeline.guess': '推定',
+  'timeline.chosen': '選択済み',
+  'timeline.evidence.nameAndValue': '名前も値も時刻',
+  'timeline.evidence.valueOnly': '値が時刻として読めた',
+  'timeline.evidence.nameOnly': '名前は時刻らしいが、値は時刻として読めない',
+  'timeline.parsed': '{sampled} 件中 {parsed} 件読めた',
+  'timeline.noCandidate': '候補なし — 項目名を打ってください',
+  'timeline.unreadable': '読めません',
+  'timeline.skipped': '読めなかった行 {count}',
+  'timeline.joinKey': '突き合わせる項目',
+  'timeline.joinNone': '選ばない',
+  'timeline.joinExact': '名前が一致',
+  'timeline.joinNormalized': '名前が違うので書き方を揃えて寄せた',
+  'timeline.shared': '2 つ以上のファイルに現れた値 {count} 種類',
+  'timeline.build': '時系列を組む',
+  'timeline.building': '組んでいます',
+  'timeline.colTime': '時刻',
+  'timeline.colSource': '出どころ',
+  'timeline.colLine': '行',
+  'timeline.colRecord': '中身',
+  'timeline.unknownTime': '時刻不明',
+  'timeline.empty': 'ログを選んで [時系列を組む] を押してください',
+  'timeline.truncated': '上限で切りました。この先があります',
+  'timeline.unknownCount': '時刻が読めなかった出来事 {count} 件',
+  'timeline.maskedNote': '伏せ字はここでは外せません。',
   'diag.tab': '診断',
   'diag.scale': '規模',
   'diag.chars': '文字',
@@ -1306,6 +1414,42 @@ const zh: Messages = {
   'panel.collapse': '折叠面板',
   'panel.expand': '打开面板',
   'panel.hint': 'Git 差异、AI、MCP 日志\n将在后续阶段显示',
+  'timeline.open': '时间轴',
+  'timeline.openTitle': '按时间顺序排列日志',
+  'timeline.head': '时间轴',
+  'timeline.files': '选择日志',
+  'timeline.filesEmpty': '此文件夹中没有日志（.log / .jsonl / .ndjson）',
+  'timeline.filesTruncated': '数量过多，仅显示一部分',
+  'timeline.rescan': '重新列出',
+  'timeline.prepare': '查看内容并给出候选',
+  'timeline.preparing': '读取中',
+  'timeline.candidateNote': '这里显示的是候选项。是否合适请查看内容后判断。',
+  'timeline.timeField': '时间字段',
+  'timeline.guess': '推测',
+  'timeline.chosen': '已选择',
+  'timeline.evidence.nameAndValue': '名称与值都像时间',
+  'timeline.evidence.valueOnly': '值可作为时间读取',
+  'timeline.evidence.nameOnly': '名称像时间，但值无法作为时间读取',
+  'timeline.parsed': '{sampled} 条中读取了 {parsed} 条',
+  'timeline.noCandidate': '没有候选 — 请输入字段名',
+  'timeline.unreadable': '无法读取',
+  'timeline.skipped': '无法读取的行 {count}',
+  'timeline.joinKey': '用于对应的字段',
+  'timeline.joinNone': '不选择',
+  'timeline.joinExact': '名称一致',
+  'timeline.joinNormalized': '名称不同，规范化后归并',
+  'timeline.shared': '出现在两个以上文件中的值 {count} 种',
+  'timeline.build': '生成时间轴',
+  'timeline.building': '生成中',
+  'timeline.colTime': '时间',
+  'timeline.colSource': '来源',
+  'timeline.colLine': '行',
+  'timeline.colRecord': '内容',
+  'timeline.unknownTime': '时间不明',
+  'timeline.empty': '选择日志后按 [生成时间轴]',
+  'timeline.truncated': '已达上限截断，后面还有',
+  'timeline.unknownCount': '无法读取时间的事件 {count} 条',
+  'timeline.maskedNote': '此处无法解除掩码。',
   'diag.tab': '诊断',
   'diag.scale': '规模',
   'diag.chars': '字符',
@@ -1675,6 +1819,42 @@ const ko: Messages = {
   'panel.collapse': '패널 접기',
   'panel.expand': '패널 열기',
   'panel.hint': 'Git 차이・AI・MCP 로그는\n다음 단계에서 표시됩니다',
+  'timeline.open': '타임라인',
+  'timeline.openTitle': '로그를 시각 순서로 늘어놓기',
+  'timeline.head': '타임라인',
+  'timeline.files': '로그 선택',
+  'timeline.filesEmpty': '이 폴더에 로그(.log / .jsonl / .ndjson)가 없습니다',
+  'timeline.filesTruncated': '너무 많아 일부만 표시합니다',
+  'timeline.rescan': '목록 다시 가져오기',
+  'timeline.prepare': '내용을 보고 후보 내기',
+  'timeline.preparing': '읽는 중',
+  'timeline.candidateNote': '여기에 나오는 것은 후보입니다. 맞는지는 내용을 보고 정해 주세요.',
+  'timeline.timeField': '시각 항목',
+  'timeline.guess': '추정',
+  'timeline.chosen': '선택함',
+  'timeline.evidence.nameAndValue': '이름도 값도 시각',
+  'timeline.evidence.valueOnly': '값이 시각으로 읽힘',
+  'timeline.evidence.nameOnly': '이름은 시각 같지만 값은 시각으로 읽히지 않음',
+  'timeline.parsed': '{sampled}건 중 {parsed}건 읽음',
+  'timeline.noCandidate': '후보 없음 — 항목 이름을 입력하세요',
+  'timeline.unreadable': '읽을 수 없습니다',
+  'timeline.skipped': '읽지 못한 줄 {count}',
+  'timeline.joinKey': '맞춰 볼 항목',
+  'timeline.joinNone': '고르지 않음',
+  'timeline.joinExact': '이름이 같음',
+  'timeline.joinNormalized': '이름이 달라 표기를 맞춰 묶음',
+  'timeline.shared': '두 개 이상의 파일에 나온 값 {count}종',
+  'timeline.build': '타임라인 만들기',
+  'timeline.building': '만드는 중',
+  'timeline.colTime': '시각',
+  'timeline.colSource': '출처',
+  'timeline.colLine': '줄',
+  'timeline.colRecord': '내용',
+  'timeline.unknownTime': '시각 불명',
+  'timeline.empty': '로그를 고르고 [타임라인 만들기]를 누르세요',
+  'timeline.truncated': '상한에서 끊었습니다. 더 있습니다',
+  'timeline.unknownCount': '시각을 읽지 못한 사건 {count}건',
+  'timeline.maskedNote': '여기서는 마스킹을 해제할 수 없습니다.',
   'diag.tab': '진단',
   'diag.scale': '규모',
   'diag.chars': '문자',

@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { previewVisible, previewReady, type PaneState } from './previewGate';
 
 function pane(over: Partial<PaneState> = {}): PaneState {
-  return { diff: false, data: false, grid: false, ...over };
+  return { diff: false, data: false, grid: false, timeline: false, ...over };
 }
 
 describe('previewVisible', () => {
@@ -10,10 +10,11 @@ describe('previewVisible', () => {
     expect(previewVisible(pane())).toBe(true);
   });
 
-  it('差分・参考データ・検証グリッドのどれかが出ていればプレビューは出ない', () => {
+  it('差分・参考データ・検証グリッド・時系列のどれかが出ていればプレビューは出ない', () => {
     expect(previewVisible(pane({ diff: true }))).toBe(false);
     expect(previewVisible(pane({ data: true }))).toBe(false);
     expect(previewVisible(pane({ grid: true }))).toBe(false);
+    expect(previewVisible(pane({ timeline: true }))).toBe(false);
   });
 });
 
@@ -30,6 +31,7 @@ describe('previewReady', () => {
     expect(previewReady(pane({ grid: true }), isOk)).toBe(false);
     expect(previewReady(pane({ data: true }), isOk)).toBe(false);
     expect(previewReady(pane({ diff: true }), isOk)).toBe(false);
+    expect(previewReady(pane({ timeline: true }), isOk)).toBe(false);
     expect(isOk).not.toHaveBeenCalled();
   });
 });

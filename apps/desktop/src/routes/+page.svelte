@@ -40,6 +40,8 @@
   import { workspace } from '$lib/workspace/workspace.svelte';
   import { resolveRelPath } from '$lib/workspace/relPath';
   import { diffView } from '$lib/git/diffView.svelte';
+  import { timelineView } from '$lib/logs/timelineView.svelte';
+  import TimelineView from '$lib/components/TimelineView.svelte';
   import DiffView from '$lib/components/DiffView.svelte';
   import SearchBar from '$lib/search/SearchBar.svelte';
   import { search } from '$lib/search/search.svelte';
@@ -431,9 +433,10 @@
   const dataPath = $derived(isDataFile(workspace.activePath) ? workspace.activePath : null);
   const dataDoc = $derived(dataPath === null ? null : readDataDocument(dataPath, debouncedSource));
 
-  // 右ペインがいま何を出しているか。マークアップの分岐（差分 → 参考データ → 検証グリッド
-  // → プレビュー）と同じ条件で持つ。
+  // 右ペインがいま何を出しているか。マークアップの分岐（時系列 → 差分 → 参考データ
+  // → 検証グリッド → プレビュー）と同じ条件で持つ。
   const paneState = $derived({
+    timeline: timelineView.active,
     diff: diffView.active,
     data: dataDoc !== null,
     grid: isTsv && tsvDoc !== null,
@@ -684,7 +687,7 @@
 <div
   class="split"
   class:dragging
-  class:grid-full={isTsv && !!tsvDoc && gridFullscreen && !diffView.active}
+  class:grid-full={isTsv && !!tsvDoc && gridFullscreen && !diffView.active && !timelineView.active}
   bind:this={splitEl}
   style="--split-cols: {dividerColumns(splitRatio)}"
 >
@@ -729,7 +732,11 @@
 
   <section class="pane preview" aria-label={t('page.previewPaneLabel')}>
     <SearchBar pane="preview" />
-    {#if diffView.active}
+    {#if timelineView.active}
+      <!-- 時系列。開いている文書とは無関係に、フォルダの中のログを混ぜて出す面。
+           ほかの分岐より先に見るのは、文書を開いたまま調べられるようにするため。 -->
+      <TimelineView root={workspace.root ?? ''} />
+    {:else if diffView.active}
       <!-- 変更ファイルをソース管理パネルでクリックした間だけ差分表示に切り替える。
            「プレビューに戻る」or 別ファイルを通常オープンで解除される。 -->
       <div class="pane-head">{t('page.diffHead')}</div>

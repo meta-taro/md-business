@@ -15,6 +15,7 @@ import { apiSpecSample } from '$lib/samples/apiSpecSample';
 import { git } from '$lib/git/git.svelte';
 import { perf } from '$lib/diagnostics/perf.svelte';
 import { diffView } from '$lib/git/diffView.svelte';
+import { timelineView } from '$lib/logs/timelineView.svelte';
 import { buildTree, type DocEntry, type TreeNode } from './fileTree';
 import {
   initialExpandedPaths,
@@ -303,6 +304,8 @@ class WorkspaceStore {
       this.activePath = null;
       // フォルダを開き直したら前フォルダの差分表示は無効。通常プレビューへ戻す。
       diffView.reset();
+      // 時系列も同じ。前フォルダのログ一覧と結果を残すと、開き直した先のものに見える。
+      timelineView.reset();
       this.truncated = result.truncated;
       this.error = null;
       // 次回起動で自動復元できるよう、開けたフォルダを記憶する（WebView の localStorage）。
