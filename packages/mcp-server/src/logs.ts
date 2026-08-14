@@ -17,5 +17,17 @@ export type {
   TimelineSource,
   TimelineSourceStat,
 } from './timeline.js';
+
+/**
+ * 中身を覗くための口。
+ *
+ * どの項目を時刻にするかは、ファイルを開く前には決まらない。組み立てる側と
+ * 別の読み方をすると、画面で選んだ項目が組み立てでは読めない、が起きる。
+ */
+export { formatFromPath, pick, readRecords, toText } from './recordSource.js';
+export type { ReadStats, RecordFormat, SourceRecord } from './recordSource.js';
+export { parseTimestamp } from './timestamps.js';
+export type { EpochUnit, Timestamp } from './timestamps.js';
+
 export type { LineSource } from './store.js';
 export type { ToolError } from './tools.js';
