@@ -126,13 +126,21 @@ function renderTools(tools: InvestigationTool[]): string {
   `;
 }
 
-function renderFinding(finding: InvestigationFinding): string {
+function renderFinding(finding: InvestigationFinding, linkEvidence: boolean): string {
   const severity = finding.severity;
   const badge = severity
     ? `<span class="mdb-investigation__severity mdb-investigation__severity--${escapeHtml(severity)}">${escapeHtml(SEVERITY_LABELS[severity] ?? severity)}</span>`
     : '';
   const evidence = finding.evidence
-    .map((ref) => `<li><code>${escapeHtml(ref)}</code></li>`)
+    .map((ref) => {
+      const text = escapeHtml(ref);
+      // リンクにしても文字列はそのまま残す。開けない場所（紙）でも、
+      // どのファイルを指しているかは読めなければ根拠にならない。
+      const inner = linkEvidence
+        ? `<a class="mdb-investigation__evidence-link" href="${text}"><code>${text}</code></a>`
+        : `<code>${text}</code>`;
+      return `<li>${inner}</li>`;
+    })
     .join('');
   return `
     <section class="mdb-investigation__finding">
@@ -156,12 +164,15 @@ function renderFinding(finding: InvestigationFinding): string {
  * render time would make that constraint pointless for anyone reading the
  * printed report.
  */
-function renderFindings(findings: InvestigationFinding[] | undefined): string {
+function renderFindings(
+  findings: InvestigationFinding[] | undefined,
+  linkEvidence: boolean,
+): string {
   if (!findings || findings.length === 0) return '';
   return `
     <section class="mdb-investigation__findings">
       <h2>所見</h2>
-      ${findings.map(renderFinding).join('')}
+      ${findings.map((f) => renderFinding(f, linkEvidence)).join('')}
     </section>
   `;
 }
@@ -185,6 +196,17 @@ export interface RenderInvestigationBodyOptions {
   bodyHtml?: string;
   /** When true, suppress the cover page (for embedding the body elsewhere). */
   hideCover?: boolean;
+  /**
+   * Render evidence references as links to their workspace-relative paths.
+   *
+   * Off by default: on paper, and in a viewer that cannot open another
+   * document, a link that leads nowhere is indistinguishable from a broken
+   * one. Turn it on only where something is listening for the click.
+   *
+   * Only evidence gets this treatment. `relatedDocs` is a free string that may
+   * not be a path at all, so it stays plain text.
+   */
+  linkEvidence?: boolean;
 }
 
 /**
@@ -210,7 +232,7 @@ export function renderInvestigationBody(
   investigation: Investigation,
   options: RenderInvestigationBodyOptions = {},
 ): string {
-  const { bodyHtml = '', hideCover = false } = options;
+  const { bodyHtml = '', hideCover = false, linkEvidence = false } = options;
   const themeColor = resolveThemeColor(investigation.theme);
   const themeStyle = themeColor ? ` style="--mdb-color-accent:${themeColor}"` : '';
   const status = investigation.status;
@@ -250,7 +272,7 @@ export function renderInvestigationBody(
       ${renderTargets(investigation.targets)}
       ${renderTools(investigation.tools)}
       ${renderSummary(investigation.summary)}
-      ${renderFindings(investigation.findings)}
+      ${renderFindings(investigation.findings, linkEvidence)}
       ${prose}
     </section>
   `;

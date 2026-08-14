@@ -131,6 +131,43 @@ describe('renderInvestigationBody — 所見', () => {
     expect(html).toContain('evidence/EV-003.md');
   });
 
+  it('既定では根拠をリンクにしない', () => {
+    // 紙と、開く先を持たない画面が既定。押しても何も起きないリンクは、
+    // 壊れているのと区別がつかない。
+    const html = renderInvestigationBody(standardInvestigation());
+    expect(html).not.toContain('<a ');
+    expect(html).toContain('<code>evidence/EV-001.md</code>');
+  });
+
+  it('linkEvidence を渡したときだけ根拠をリンクにする', () => {
+    const html = renderInvestigationBody(standardInvestigation(), { linkEvidence: true });
+    expect(html).toContain('href="evidence/EV-001.md"');
+    expect(html).toContain('href="evidence/EV-003.md"');
+    // 参照の文字列はそのまま読める形で残す（リンクを開けない場所でも見える）。
+    expect(html).toContain('>evidence/EV-001.md<');
+  });
+
+  it('リンクにするときも参照文字列は素通ししない', () => {
+    const html = renderInvestigationBody(
+      standardInvestigation({
+        findings: [{ id: 'F-01', summary: 'x', evidence: ['"><script>alert(1)</script>'] }],
+      }),
+      { linkEvidence: true },
+    );
+    expect(html).not.toContain('<script>alert(1)</script>');
+    expect(html).not.toContain('href=""><');
+  });
+
+  it('関連文書はリンクにしない', () => {
+    // 関連文書は自由文字列で、ワークスペース内のパスとは限らない。
+    // 開ける保証が無いものをリンクの形にすると、開けなかったときに壊れて見える。
+    const html = renderInvestigationBody(
+      standardInvestigation({ relatedDocs: ['docs/specs/auth.md'] }),
+      { linkEvidence: true },
+    );
+    expect(html).toContain('<code>docs/specs/auth.md</code>');
+  });
+
   it('所見がまだ無ければ見出しごと出さない', () => {
     const html = renderInvestigationBody(minimalInvestigation());
     expect(html).not.toContain('mdb-investigation__findings');

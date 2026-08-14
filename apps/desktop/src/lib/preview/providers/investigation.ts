@@ -64,6 +64,9 @@ export const investigationProvider = createSchemaPreview<Investigation>({
       bodyHtml: body
         ? sanitizeViewerHtml(renderMarkdownToHtml(body, { hasFrontmatter: false }))
         : '',
+      // デスクトップは根拠ファイルを開く先を持っている（プレビューのリンクを
+      // 親側で受けて、同じフォルダの文書として開く）。
+      linkEvidence: true,
     }),
   css: investigationCss,
 });
