@@ -17,7 +17,7 @@ import { compileConditions, type Condition, type ConditionMatch } from './condit
 import { pick, readRecords, toText, type ReadStats, type RecordFormat } from './recordSource.js';
 import { bucketLabel, parseTimestamp, type BucketUnit, type EpochUnit } from './timestamps.js';
 import { resolveSource } from './records.js';
-import type { DocumentStore } from './store.js';
+import type { LineSource } from './store.js';
 import type { ToolError } from './tools.js';
 
 /** 既定と上限。 */
@@ -94,7 +94,7 @@ export interface AggregateOk {
  * 条件で絞ったレコードを、キー別・時間帯別に数える。
  */
 export async function aggregate(
-  store: DocumentStore,
+  store: LineSource,
   input: AggregateInput,
 ): Promise<AggregateOk | ToolError> {
   const source = resolveSource(input.path, input.format);

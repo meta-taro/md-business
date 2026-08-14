@@ -141,6 +141,9 @@ importers:
       '@md-business/data-tree':
         specifier: workspace:*
         version: link:../../packages/data-tree
+      '@md-business/mcp-server':
+        specifier: workspace:*
+        version: link:../../packages/mcp-server
       '@md-business/renderer-pdf':
         specifier: workspace:*
         version: link:../../packages/renderer-pdf
