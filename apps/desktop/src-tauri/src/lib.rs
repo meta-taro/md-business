@@ -1,5 +1,6 @@
 mod fileinfo;
 mod git;
+mod logscan;
 mod mcp;
 mod mcp_logic;
 mod watch;
@@ -52,6 +53,7 @@ pub fn run() {
             git::git_file_state,
             fileinfo::file_stat,
             fileinfo::file_digest,
+            logscan::read_file_lines,
             mcp::mcp_status,
             mcp::mcp_set_root,
             mcp::mcp_respond,
