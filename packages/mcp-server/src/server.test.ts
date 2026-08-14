@@ -645,7 +645,7 @@ describe('createServer / export_pdf ツール', () => {
     const requests: { action: string; path: string }[] = [];
     return {
       requests,
-      request: async (req: { action: 'export-pdf'; path: string }) => {
+      request: async (req: { action: 'export-pdf' | 'open-document'; path: string }) => {
         requests.push(req);
         return result;
       },
@@ -699,6 +699,48 @@ describe('createServer / export_pdf ツール', () => {
     const res = (await client.callTool({
       name: 'export_pdf',
       arguments: { path: '../secret.md' },
+    })) as CallToolResult;
+    expect(parse(res).isError).toBe(true);
+    expect(app.requests).toEqual([]);
+  });
+
+  it('アプリとの連絡手段が無ければ open_document も公開しない', async () => {
+    const client = await connect(new MemoryDocumentStore());
+    const { tools } = await client.listTools();
+    expect(tools.map((t) => t.name)).not.toContain('open_document');
+  });
+
+  it('アプリへ対象文書を開くよう依頼する（印刷は伴わない）', async () => {
+    const app = fakeApp({ ok: true });
+    const client = await connectWithApp(app);
+    const res = (await client.callTool({
+      name: 'open_document',
+      arguments: { path: 'specs/design.md' },
+    })) as CallToolResult;
+    const { text, isError } = parse(res);
+    expect(isError).toBe(false);
+    expect(text).toMatchObject({ ok: true, path: 'specs/design.md' });
+    expect(app.requests).toEqual([{ action: 'open-document', path: 'specs/design.md' }]);
+  });
+
+  it('開けなかった理由はそのまま返す', async () => {
+    const app = fakeApp({ ok: false, error: '開いているフォルダに specs/design.md がありません' });
+    const client = await connectWithApp(app);
+    const res = (await client.callTool({
+      name: 'open_document',
+      arguments: { path: 'specs/design.md' },
+    })) as CallToolResult;
+    const { text, isError } = parse(res);
+    expect(isError).toBe(true);
+    expect(text).toMatchObject({ ok: false });
+  });
+
+  it('絶対パスはアプリへ渡さない', async () => {
+    const app = fakeApp({ ok: true });
+    const client = await connectWithApp(app);
+    const res = (await client.callTool({
+      name: 'open_document',
+      arguments: { path: 'C:\\Windows\\win.ini' },
     })) as CallToolResult;
     expect(parse(res).isError).toBe(true);
     expect(app.requests).toEqual([]);

@@ -205,6 +205,23 @@ describe('startSidecar', () => {
     });
   });
 
+  it('open_document も同じ経路を通り、応答がツールの結果になる', async () => {
+    handle = await startSidecar({ root: workspace, token: 'tok', io: { input, write: out.write } });
+    const client = await connectMcp(handle.url, 'tok');
+
+    const call = client.callTool({ name: 'open_document', arguments: { path: 'specs/design.md' } });
+    const request = await waitForRequest(out);
+    expect(request).toMatchObject({ action: 'open-document', path: 'specs/design.md' });
+
+    await send(input, JSON.stringify({ type: 'response', id: request.id, ok: true }));
+    const result = (await call) as { isError?: boolean; content: { type: string; text: string }[] };
+    expect(result.isError).toBeFalsy();
+    expect(JSON.parse(result.content[0]?.text ?? '{}')).toEqual({
+      ok: true,
+      path: 'specs/design.md',
+    });
+  });
+
   it('アプリが失敗を返せば、その理由をツールの結果に載せる', async () => {
     handle = await startSidecar({ root: workspace, token: 'tok', io: { input, write: out.write } });
     const client = await connectMcp(handle.url, 'tok');

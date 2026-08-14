@@ -744,9 +744,32 @@ export function createServer(store: DocumentStore, options: CreateServerOptions 
     );
   }
 
-  // PDF 出力はアプリの画面（プレビュー）を印刷する機能なので、サーバー単体では行えない。
-  // アプリに「対象を開いて PDF ボタンを押す」ところまでを頼み、その可否を返す。
+  // 画面を伴う操作はサーバー単体では行えない。アプリへ頼み、その可否を返す。
+  // どちらもサイドカーとして動いているときだけ公開する（素のサーバーには画面が無い）。
   if (app !== undefined) {
+    server.registerTool(
+      'open_document',
+      {
+        description:
+          'デスクトップアプリの表示を対象文書に切り替える。開いているフォルダの中だけを指定でき、印刷は行わない。',
+        inputSchema: {
+          path: z.string().describe('画面に出すワークスペース相対パス'),
+        },
+      },
+      async ({ path }) => {
+        const safe = safeRelativePath(path);
+        if (!safe.ok) {
+          const r = { ok: false as const, error: safe.reason };
+          emit('open_document', path, r);
+          return jsonResult(r, true);
+        }
+        const result = await app.request({ action: 'open-document', path: safe.relative });
+        const r = result.ok ? { ok: true as const, path: safe.relative } : result;
+        emit('open_document', safe.relative, r);
+        return jsonResult(r, !r.ok);
+      },
+    );
+
     server.registerTool(
       'export_pdf',
       {

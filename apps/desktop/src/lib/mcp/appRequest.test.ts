@@ -1,11 +1,17 @@
 import { describe, it, expect } from 'vitest';
-import { parseRequestEvent, planExportPdf, waitUntil } from './appRequest';
+import { parseRequestEvent, planDocumentRequest, waitUntil } from './appRequest';
 
 describe('parseRequestEvent', () => {
   it('画面操作の依頼を読み取る', () => {
     expect(
       parseRequestEvent({ id: 'req-1', action: 'export-pdf', path: 'invoices/INV-1.md' }),
     ).toEqual({ id: 'req-1', action: 'export-pdf', path: 'invoices/INV-1.md' });
+  });
+
+  it('文書を開く依頼も読み取る', () => {
+    expect(
+      parseRequestEvent({ id: 'req-2', action: 'open-document', path: 'specs/design.md' }),
+    ).toEqual({ id: 'req-2', action: 'open-document', path: 'specs/design.md' });
   });
 
   it('形が違う payload は読み飛ばす', () => {
@@ -15,14 +21,16 @@ describe('parseRequestEvent', () => {
     expect(parseRequestEvent({ id: 'a', action: 'export-pdf' })).toBeNull();
     expect(parseRequestEvent({ id: '', action: 'export-pdf', path: 'a.md' })).toBeNull();
     expect(parseRequestEvent({ id: 'a', action: 'unknown', path: 'a.md' })).toBeNull();
+    expect(parseRequestEvent({ id: 'a', action: 'open-document', path: '' })).toBeNull();
   });
 });
 
-describe('planExportPdf', () => {
+describe('planDocumentRequest', () => {
   const paths = ['invoices/INV-1.md', 'specs/design.md'];
+  const open = { folderName: '経理2026', knownPaths: paths };
 
   it('開いているフォルダにある文書なら実行できる', () => {
-    expect(planExportPdf('invoices/INV-1.md', { hasWorkspace: true, knownPaths: paths })).toEqual({
+    expect(planDocumentRequest('invoices/INV-1.md', open)).toEqual({
       ok: true,
       path: 'invoices/INV-1.md',
     });
@@ -30,17 +38,19 @@ describe('planExportPdf', () => {
 
   it('フォルダが開かれていなければ理由を返す', () => {
     // 依頼元は画面の状態を知らないので、何が足りないかを言葉で返す。
-    const plan = planExportPdf('a.md', { hasWorkspace: false, knownPaths: [] });
+    const plan = planDocumentRequest('a.md', { folderName: null, knownPaths: [] });
     expect(plan.ok).toBe(false);
     if (plan.ok) return;
     expect(plan.error).not.toBe('');
   });
 
-  it('ツリーに無いパスは実行しない', () => {
-    const plan = planExportPdf('missing.md', { hasWorkspace: true, knownPaths: paths });
+  it('ツリーに無いパスは、今開いているフォルダ名を添えて断る', () => {
+    // フォルダ名が無いと、依頼元は「別のフォルダを見ている」ことに気づけない。
+    const plan = planDocumentRequest('missing.md', open);
     expect(plan.ok).toBe(false);
     if (plan.ok) return;
     expect(plan.error).toContain('missing.md');
+    expect(plan.error).toContain('経理2026');
   });
 });
 

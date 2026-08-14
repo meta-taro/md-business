@@ -126,14 +126,14 @@ export interface RootEvent {
 /**
  * アプリ画面でしかできない操作の依頼。
  *
- * PDF 出力は表示中のプレビューを印刷する機能で、サーバー側には画面が無い。
- * 対象文書を開いて印刷ダイアログを出すところまでをアプリに任せる。
+ * サーバー側には画面が無い。対象文書を開くところ（`open-document`）と、そのうえで
+ * 印刷ダイアログを出すところ（`export-pdf`）をアプリに任せる。
  */
 export interface RequestEvent {
   type: 'request';
   /** 応答を突き合わせるための id。 */
   id: string;
-  action: 'export-pdf';
+  action: 'export-pdf' | 'open-document';
   /** 対象のワークスペース相対パス。 */
   path: string;
 }
