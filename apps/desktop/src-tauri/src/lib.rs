@@ -54,6 +54,7 @@ pub fn run() {
             fileinfo::file_stat,
             fileinfo::file_digest,
             logscan::read_file_lines,
+            logscan::scan_logs,
             mcp::mcp_status,
             mcp::mcp_set_root,
             mcp::mcp_respond,
