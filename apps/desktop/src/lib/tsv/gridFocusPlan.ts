@@ -50,13 +50,18 @@ export function focusSpotKey(spot: FocusSpot): string {
  * - 焦点の奪取は、対象が変わったときと、どこにも焦点が無いときに限る。
  *   グリッドの外に焦点があるならそれは利用者が今触っている場所なので触らない。
  *   グリッドの中の別要素（行メモの下書きなど）も、打鍵の途中で奪うと同じ壊れ方をする。
+ *
+ * @param released 人がスクロールして選択セルを画面外へ送ったために、焦点を手放したまま
+ *   にしているか（`planRowReveal` が決める）。手放したぶんまで「浮いたから」で取り返すと、
+ *   スクロールで選択セルが戻ってきた瞬間に表示が寄る。
  */
 export function planCellFocus(
   spot: FocusSpot,
   prepared: string | null,
   where: FocusWhere,
+  released = false,
 ): FocusPlan {
   const key = focusSpotKey(spot);
   const moved = key !== prepared;
-  return { spot: key, prepare: moved, takeFocus: moved || where === 'none' };
+  return { spot: key, prepare: moved, takeFocus: moved || (where === 'none' && !released) };
 }
