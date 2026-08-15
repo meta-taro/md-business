@@ -534,25 +534,74 @@ pub fn is_valid_commit_message(message: &str) -> bool {
     !message.trim().is_empty()
 }
 
-/// 変更をすべてステージ（`git add -A`）してコミットする。成功時は最新の GitStatus を返す。
+/// コミット対象のパスとして受け付けてよいか。
+/// pathspec は `--` の後ろに置くのでオプション注入にはならない（先頭 '-' も可）。
+/// 弾くのは「リポジトリの外を指すもの」＝絶対パス・ドライブ・UNC・`..` 成分。
+pub fn is_valid_commit_path(path: &str) -> bool {
+    if path.trim().is_empty() || path.contains('\0') {
+        return false;
+    }
+    let bytes = path.as_bytes();
+    // 先頭が区切り（`/a` `\a` `\\server\share`）＝ルート起点。
+    if matches!(bytes[0], b'/' | b'\\') {
+        return false;
+    }
+    // ドライブ指定（`C:\...` `C:a`）。
+    if bytes.len() >= 2 && bytes[1] == b':' {
+        return false;
+    }
+    !path.split(['/', '\\']).any(|segment| segment == "..")
+}
+
+/// 変更をステージしてコミットする。成功時は最新の GitStatus を返す。
+/// - `paths` が空なら全変更（`git add -A`）。指定があればその分だけ。
 /// - 空メッセージは git 実行前に弾く（空コミットを作らない）。
 /// - ステージ後に変更が無ければ `git commit` が失敗する＝その stderr をそのまま Err で返す。
 /// - `--no-verify` は付けない（リポジトリ側の hook を尊重する）。
-pub fn git_commit_impl(root: &Path, message: &str) -> Result<GitStatus, String> {
+///
+/// 指定ありのときは `commit` にも同じ pathspec を渡す。ステージするだけだと、
+/// 利用者が別に `git add` 済みの変更が同じコミットへ紛れ込む。混ざったことは後から
+/// 履歴でしか分からないので、選んだ分だけを記録する。
+pub fn git_commit_impl(root: &Path, message: &str, paths: &[String]) -> Result<GitStatus, String> {
     if !is_valid_commit_message(message) {
         return Err("コミットメッセージを入力してください".to_string());
     }
-    // 全変更をステージ（新規・削除・変更を含む）。add -A は cwd に関わらずリポジトリ全体。
-    run_git_result(root, &["add", "-A"])?;
-    // message は位置引数として渡す（先頭 '-' でも注入にならない）。
-    run_git_result(root, &["commit", "-m", message])?;
+    for path in paths {
+        if !is_valid_commit_path(path) {
+            return Err(format!("コミットできないパスです: {path}"));
+        }
+    }
+
+    if paths.is_empty() {
+        // 全変更をステージ（新規・削除・変更を含む）。add -A は cwd に関わらずリポジトリ全体。
+        run_git_result(root, &["add", "-A"])?;
+        // message は位置引数として渡す（先頭 '-' でも注入にならない）。
+        run_git_result(root, &["commit", "-m", message])?;
+        return Ok(git_status_impl(root));
+    }
+
+    let specs: Vec<&str> = paths.iter().map(String::as_str).collect();
+    // pathspec 付きの add は削除も記録する（git 2.0 以降は -A 相当）。
+    let mut stage: Vec<&str> = vec!["add", "--"];
+    stage.extend(&specs);
+    run_git_result(root, &stage)?;
+
+    let mut commit: Vec<&str> = vec!["commit", "-m", message, "--"];
+    commit.extend(&specs);
+    run_git_result(root, &commit)?;
     Ok(git_status_impl(root))
 }
 
-/// フロントから `invoke("git_commit", { root, message })` で呼ぶラッパ。
+/// フロントから `invoke("git_commit", { root, message, paths })` で呼ぶラッパ。
+/// `paths` 省略は「全変更」（従来どおり）。
 #[tauri::command]
-pub async fn git_commit(root: String, message: String) -> Result<GitStatus, String> {
-    spawn_git(move || git_commit_impl(Path::new(&root), &message)).await
+pub async fn git_commit(
+    root: String,
+    message: String,
+    paths: Option<Vec<String>>,
+) -> Result<GitStatus, String> {
+    let paths = paths.unwrap_or_default();
+    spawn_git(move || git_commit_impl(Path::new(&root), &message, &paths)).await
 }
 
 /// upstream へ push する。成功時は最新の GitStatus（ahead が解消される）を返す。
@@ -1008,8 +1057,8 @@ mod tests {
     fn git_commit_空メッセージは_git実行前にエラー() {
         // 空メッセージはバリデーションで弾き、git を起動しない（空コミットを作らない）。
         let dir = std::env::temp_dir();
-        assert!(git_commit_impl(&dir, "").is_err());
-        assert!(git_commit_impl(&dir, "   ").is_err());
+        assert!(git_commit_impl(&dir, "", &[]).is_err());
+        assert!(git_commit_impl(&dir, "   ", &[]).is_err());
     }
 
     // ── build_untracked_diff（未追跡ファイルの合成 diff）──────────────────────
@@ -1122,5 +1171,137 @@ mod tests {
         let state = git_file_state_impl(&dir, "notes.md");
         let _ = std::fs::remove_dir_all(&dir);
         assert_eq!(state, "notRepo");
+    }
+
+    // ── is_valid_commit_path（コミット対象パスの受理範囲）────────────────────
+
+    #[test]
+    fn コミット対象はリポジトリ内の相対パスのみ受理する() {
+        assert!(is_valid_commit_path("notes.md"));
+        assert!(is_valid_commit_path("docs/test-specs/001-login.tsv"));
+        assert!(is_valid_commit_path("docs\\a.md"), "Windows 区切りも可");
+        assert!(is_valid_commit_path("-dash.md"), "`--` の後ろに置くので先頭ダッシュは可");
+        assert!(is_valid_commit_path("日本語 の名前.md"), "空白・日本語は可");
+        assert!(!is_valid_commit_path(""), "空は拒否");
+        assert!(!is_valid_commit_path("   "), "空白のみは拒否");
+        assert!(!is_valid_commit_path("a\0b"), "NUL を拒否");
+        assert!(!is_valid_commit_path("../outside.md"), "リポジトリ外への脱出を拒否");
+        assert!(!is_valid_commit_path("docs/../../x.md"), "途中の .. も拒否");
+        assert!(!is_valid_commit_path("/etc/passwd"), "絶対パスを拒否");
+        assert!(!is_valid_commit_path("\\\\server\\share\\a.md"), "UNC を拒否");
+        assert!(!is_valid_commit_path("C:\\Windows\\a.md"), "ドライブ指定を拒否");
+    }
+
+    #[test]
+    fn git_commit_不正パスは_git実行前にエラー() {
+        // 不正パスはバリデーションで弾き、git を起動しない（部分ステージすら起こさない）。
+        let dir = std::env::temp_dir();
+        let bad = vec!["../outside.md".to_string()];
+        assert!(git_commit_impl(&dir, "msg", &bad).is_err());
+    }
+
+    // ── 選択コミット（実リポジトリでの振る舞い）──────────────────────────────
+
+    /// テスト用の一時リポジトリを作る。設定は当該リポジトリ内に閉じる（global を触らない）。
+    fn temp_repo(tag: &str) -> std::path::PathBuf {
+        use std::sync::atomic::{AtomicU32, Ordering};
+        static N: AtomicU32 = AtomicU32::new(0);
+        let n = N.fetch_add(1, Ordering::SeqCst);
+        let dir =
+            std::env::temp_dir().join(format!("mdbiz_{}_{}_{}", tag, std::process::id(), n));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).expect("temp 作成");
+        let git = |args: &[&str]| {
+            git_command(&dir)
+                .args(args)
+                .output()
+                .expect("git を実行できません（テストには git が要る）")
+        };
+        git(&["init"]);
+        git(&["config", "user.email", "test@example.invalid"]);
+        git(&["config", "user.name", "test"]);
+        // 署名・hook は環境依存なのでこのリポジトリ内で無効化する（他人の環境設定に左右されない）。
+        git(&["config", "commit.gpgsign", "false"]);
+        git(&["config", "core.hooksPath", "no-such-hooks"]);
+        dir
+    }
+
+    /// 追跡済みファイルの HEAD 時点の中身。無ければ None。
+    /// 末尾改行は付いたまま返るので、比較する側で trim する。
+    fn head_content(root: &Path, rel: &str) -> Option<String> {
+        run_git(root, &["show", &format!("HEAD:{rel}")])
+    }
+
+    #[test]
+    fn 選択したファイルだけがコミットに入る() {
+        let dir = temp_repo("gitsel");
+        std::fs::write(dir.join("wanted.md"), "入れる\n").expect("書き込み");
+        std::fs::write(dir.join("unrelated.md"), "入れない\n").expect("書き込み");
+
+        let paths = vec!["wanted.md".to_string()];
+        let status = git_commit_impl(&dir, "選択コミット", &paths).expect("コミット成功");
+
+        assert_eq!(
+            head_content(&dir, "wanted.md").as_deref().map(str::trim),
+            Some("入れる"),
+            "選んだファイルは HEAD に入る"
+        );
+        assert!(
+            head_content(&dir, "unrelated.md").is_none(),
+            "選ばなかったファイルは HEAD に入らない"
+        );
+        assert!(
+            status.files.iter().any(|f| f.rel_path == "unrelated.md"),
+            "選ばなかったファイルは変更として残る"
+        );
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn 選択コミットは先にステージ済みの別変更を巻き込まない() {
+        // 利用者が CLI で別件を `git add` 済みでも、画面で選んだ分だけを記録する。
+        let dir = temp_repo("gitsel2");
+        std::fs::write(dir.join("wanted.md"), "入れる\n").expect("書き込み");
+        std::fs::write(dir.join("staged.md"), "別件\n").expect("書き込み");
+        run_git_result(&dir, &["add", "--", "staged.md"]).expect("事前ステージ");
+
+        let paths = vec!["wanted.md".to_string()];
+        git_commit_impl(&dir, "選択コミット", &paths).expect("コミット成功");
+
+        assert!(
+            head_content(&dir, "staged.md").is_none(),
+            "先にステージされていた別件はコミットに入らない"
+        );
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn 選択コミットは削除も記録する() {
+        let dir = temp_repo("gitsel3");
+        std::fs::write(dir.join("gone.md"), "消す\n").expect("書き込み");
+        git_commit_impl(&dir, "初回", &[]).expect("初回コミット");
+        std::fs::remove_file(dir.join("gone.md")).expect("削除");
+
+        let paths = vec!["gone.md".to_string()];
+        git_commit_impl(&dir, "削除", &paths).expect("コミット成功");
+
+        assert!(
+            head_content(&dir, "gone.md").is_none(),
+            "削除が HEAD へ反映される"
+        );
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn パス省略は従来どおり全変更をコミットする() {
+        let dir = temp_repo("gitall");
+        std::fs::write(dir.join("a.md"), "あ\n").expect("書き込み");
+        std::fs::write(dir.join("b.md"), "い\n").expect("書き込み");
+
+        git_commit_impl(&dir, "全部", &[]).expect("コミット成功");
+
+        assert!(head_content(&dir, "a.md").is_some());
+        assert!(head_content(&dir, "b.md").is_some());
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }

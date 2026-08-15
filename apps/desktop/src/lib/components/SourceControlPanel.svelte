@@ -8,7 +8,8 @@
   import { git } from '$lib/git/git.svelte';
   import { workspace } from '$lib/workspace/workspace.svelte';
   import { diffView } from '$lib/git/diffView.svelte';
-  import { gitMarkLetter, toTreeRelPath, type GitFileStatus } from '$lib/git/gitStatus';
+  import { gitMarkLetter, toTreeRelPath, commitTargets, type GitFileStatus } from '$lib/git/gitStatus';
+  import { SvelteSet } from 'svelte/reactivity';
   import { t } from '$lib/i18n/i18n.svelte';
 
   interface Props {
@@ -21,11 +22,26 @@
   let busy = $state(false);
   let error = $state<string | null>(null);
   let notice = $state<string | null>(null);
+  // チェックを外したファイル。「含めるもの」ではなく「外したもの」を持つので、
+  // 編集中に現れた新しい変更は既定で対象に入る（気付かず取りこぼさない）。
+  const excluded = new SvelteSet<string>();
 
   const root = $derived(workspace.root);
+  const targets = $derived(commitTargets(git.status.files, excluded));
+  const allSelected = $derived(targets.count === git.changeCount);
   const canCommit = $derived(
-    !busy && git.isRepo && git.changeCount > 0 && message.trim().length > 0 && root !== null,
+    !busy && git.isRepo && targets.count > 0 && message.trim().length > 0 && root !== null,
   );
+
+  function toggleFile(relPath: string): void {
+    if (excluded.has(relPath)) excluded.delete(relPath);
+    else excluded.add(relPath);
+  }
+
+  function toggleAll(): void {
+    if (allSelected) for (const f of git.status.files) excluded.add(f.relPath);
+    else excluded.clear();
+  }
   // push / pull は upstream 未設定・up-to-date でも git 側が適切に応答する。isRepo なら押下可
   // とし、失敗（認証・非 ff・upstream 無し）は stderr をそのまま提示する。
   const canPush = $derived(!busy && git.isRepo && root !== null);
@@ -42,9 +58,11 @@
     error = null;
     notice = null;
     try {
-      const count = git.changeCount;
-      await git.commit(root, message);
+      const { paths, count } = targets;
+      await git.commit(root, message, paths);
       message = '';
+      // 外した印はコミット後も残す。次のコミットで黙って混ざるより、
+      // もう一度自分でチェックを戻してもらうほうが安全（一覧から消えた分は無視される）。
       notice = t('scm.committed', { count });
       // ツリーの色マークは git ストア更新で自動反映。ワークスペースの再走査は不要。
     } catch (e) {
@@ -141,13 +159,37 @@
 
     <div class="scm-body">
       <div class="changes">
-        <div class="col-title">{t('scm.changes')} <span class="muted">({git.changeCount})</span></div>
+        <div class="col-title">
+          {#if git.changeCount > 0}
+            <label class="pick-all">
+              <input
+                type="checkbox"
+                checked={allSelected}
+                indeterminate={targets.count > 0 && !allSelected}
+                onchange={toggleAll}
+                disabled={busy}
+              />
+              {t('scm.changes')}
+            </label>
+            <span class="muted">({targets.count}/{git.changeCount})</span>
+          {:else}
+            {t('scm.changes')} <span class="muted">(0)</span>
+          {/if}
+        </div>
         {#if git.changeCount === 0}
           <p class="empty">{t('scm.noChanges')}</p>
         {:else}
           <ul class="file-list">
             {#each git.status.files as f (f.relPath)}
-              <li>
+              <li class="file-item" class:dropped={excluded.has(f.relPath)}>
+                <input
+                  class="pick"
+                  type="checkbox"
+                  checked={!excluded.has(f.relPath)}
+                  onchange={() => toggleFile(f.relPath)}
+                  disabled={busy}
+                  aria-label={t('scm.pickFile', { path: f.relPath })}
+                />
                 <button
                   class="file-row"
                   type="button"
@@ -178,8 +220,8 @@
         <button class="commit-btn" type="button" onclick={doCommit} disabled={!canCommit}>
           {#if busy}
             {t('scm.working')}
-          {:else if git.changeCount > 0}
-            {t('scm.commitCount', { count: git.changeCount })}
+          {:else if targets.count > 0}
+            {t('scm.commitCount', { count: targets.count })}
           {:else}
             {t('scm.commit')}
           {/if}
@@ -343,10 +385,43 @@
   }
 
   .col-title {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
     margin-bottom: var(--space-2);
     font-size: var(--text-xs-size);
     font-weight: 600;
     color: var(--text-secondary);
+  }
+
+  .pick-all {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+  }
+
+  .pick-all input,
+  .pick {
+    width: 13px;
+    height: 13px;
+    margin: 0;
+    flex: none;
+    accent-color: var(--accent);
+    cursor: pointer;
+  }
+
+  .file-item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding-left: var(--space-2);
+  }
+
+  /* チェックを外した行は薄くする（一覧からは消さない＝外したことが見えるように）。 */
+  .file-item.dropped .file-row {
+    opacity: 0.45;
+    text-decoration: line-through;
   }
 
   .changes {

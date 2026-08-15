@@ -101,12 +101,13 @@ class GitStore {
   }
 
   /**
-   * 全変更をステージしてコミットする（Rust 側で `git add -A` → `git commit -m`）。
+   * ステージしてコミットする（Rust 側で `git add` → `git commit -m`）。
+   * `paths` 省略で全変更（`git add -A`）、指定するとその分だけ。
    * 成功で最新ステータスを反映。空メッセージ・ステージ後に変更なし等は Rust の Err が
    * 例外として飛ぶので、呼び出し側（StatusBar）で捕捉して stderr を提示する。
    */
-  async commit(root: string, message: string): Promise<void> {
-    this.status = await invoke<GitStatus>('git_commit', { root, message });
+  async commit(root: string, message: string, paths?: string[]): Promise<void> {
+    this.status = await invoke<GitStatus>('git_commit', { root, message, paths });
   }
 
   /**

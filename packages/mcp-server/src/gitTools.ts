@@ -227,24 +227,22 @@ export async function gitCommit(git: GitRunner, input: GitCommitInput): Promise<
     return { ok: false, error: 'コミットメッセージを指定してください' };
   }
 
-  let stage: string[];
-  if (input.paths === undefined || input.paths.length === 0) {
-    stage = ['add', '-A'];
-  } else {
-    const safePaths: string[] = [];
-    for (const path of input.paths) {
-      const safe = safeRelativePath(path);
-      if (!safe.ok) return { ok: false, error: safe.reason };
-      safePaths.push(safe.relative);
-    }
-    stage = ['add', '--', ...safePaths];
+  const safePaths: string[] = [];
+  for (const path of input.paths ?? []) {
+    const safe = safeRelativePath(path);
+    if (!safe.ok) return { ok: false, error: safe.reason };
+    safePaths.push(safe.relative);
   }
 
-  const staged = await git.run(stage);
+  const staged = await git.run(safePaths.length === 0 ? ['add', '-A'] : ['add', '--', ...safePaths]);
   if (!staged.ok) return { ok: false, error: reasonOf(staged) };
 
   // message は `-m` の次の位置引数なので、先頭が `-` でもオプション注入にならない。
-  const committed = await git.run(['commit', '-m', message]);
+  // 指定ありのときは commit にも同じパスを渡す。ステージするだけだと、利用者が別に
+  // `git add` 済みの変更が同じコミットへ紛れ込む（混ざったことは後から履歴でしか分からない）。
+  const commit = ['commit', '-m', message];
+  if (safePaths.length > 0) commit.push('--', ...safePaths);
+  const committed = await git.run(commit);
   if (!committed.ok) return { ok: false, error: reasonOf(committed) };
 
   const head = await git.run(['rev-parse', 'HEAD']);
