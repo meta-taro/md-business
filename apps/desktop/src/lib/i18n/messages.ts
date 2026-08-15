@@ -118,6 +118,9 @@ export interface Messages {
   'scm.history': string;
   'scm.noHistory': string;
   'scm.commitTitle': string;
+  'scm.init': string;
+  'scm.initTitle': string;
+  'scm.initialized': string;
   'diff.label': string;
   'diff.backToPreviewTitle': string;
   'diff.backToPreview': string;
@@ -570,6 +573,9 @@ const en: Messages = {
   'scm.history': 'History',
   'scm.noHistory': 'No commits yet',
   'scm.commitTitle': '{hash} ・ {author}',
+  'scm.init': 'Start tracking with Git',
+  'scm.initTitle': 'Create a local repository in this folder. No remote is set up.',
+  'scm.initialized': 'This folder is now tracked with Git',
   'diff.label': 'Diff view',
   'diff.backToPreviewTitle': 'Close the diff and go back to the preview',
   'diff.backToPreview': 'Back to preview',
@@ -1019,6 +1025,9 @@ const ja: Messages = {
   'scm.history': '履歴',
   'scm.noHistory': 'まだコミットがありません',
   'scm.commitTitle': '{hash} ・ {author}',
+  'scm.init': 'Git で管理する',
+  'scm.initTitle': 'このフォルダに履歴を作ります。送り先の設定はしません',
+  'scm.initialized': 'このフォルダを Git で管理するようにしました',
   'diff.label': '差分ビュー',
   'diff.backToPreviewTitle': '差分を閉じてプレビューに戻る',
   'diff.backToPreview': 'プレビューに戻る',
@@ -1465,6 +1474,9 @@ const zh: Messages = {
   'scm.history': '历史',
   'scm.noHistory': '尚无提交',
   'scm.commitTitle': '{hash} ・ {author}',
+  'scm.init': '用 Git 管理',
+  'scm.initTitle': '在此文件夹中创建本地仓库。不会设置远程地址',
+  'scm.initialized': '已将此文件夹纳入 Git 管理',
   'diff.label': '差异视图',
   'diff.backToPreviewTitle': '关闭差异并返回预览',
   'diff.backToPreview': '返回预览',
@@ -1908,6 +1920,9 @@ const ko: Messages = {
   'scm.history': '기록',
   'scm.noHistory': '아직 커밋이 없습니다',
   'scm.commitTitle': '{hash} ・ {author}',
+  'scm.init': 'Git으로 관리',
+  'scm.initTitle': '이 폴더에 로컬 저장소를 만듭니다. 원격은 설정하지 않습니다',
+  'scm.initialized': '이 폴더를 Git으로 관리하게 되었습니다',
   'diff.label': '차이 보기',
   'diff.backToPreviewTitle': '차이를 닫고 미리보기로 돌아가기',
   'diff.backToPreview': '미리보기로 돌아가기',

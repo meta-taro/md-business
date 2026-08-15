@@ -88,6 +88,27 @@
     }
   }
 
+  // Git 管理下でないフォルダを開いたとき用。作るのは手元の履歴だけで、
+  // リモートは設定しない（どこへ出すかは push の操作で人が決める）。
+  const canInit = $derived(!busy && !git.isRepo && root !== null);
+
+  async function doInit(): Promise<void> {
+    if (!canInit || root === null) return;
+    busy = true;
+    error = null;
+    notice = null;
+    try {
+      await git.init(root);
+      await git.loadBranches(root);
+      await git.loadLog(root); // まだコミットが無いので空。以後の追記でここへ出る
+      notice = t('scm.initialized');
+    } catch (e) {
+      error = toErr(e);
+    } finally {
+      busy = false;
+    }
+  }
+
   async function doPush(): Promise<void> {
     if (!canPush || root === null) return;
     busy = true;
@@ -152,6 +173,9 @@
           {/if}
         {:else}
           <span class="muted">{t('status.noRepo')}</span>
+          <button class="chip" type="button" onclick={doInit} disabled={!canInit} title={t('scm.initTitle')}>
+            {t('scm.init')}
+          </button>
         {/if}
       </div>
       <div class="head-right">

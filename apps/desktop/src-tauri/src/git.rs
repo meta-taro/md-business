@@ -905,6 +905,51 @@ pub fn git_log(
     git_log_impl(Path::new(&root), rel_path.as_deref(), limit)
 }
 
+/// 既定ブランチ名の設定が無いときに使う名前。
+///
+/// git 自身の既定は `master` だが、置き先（GitHub 等）の既定は `main` で、
+/// 食い違ったまま最初の push をすると、同じ中身のブランチが 2 つ並ぶ。
+const INIT_DEFAULT_BRANCH: &str = "main";
+
+/// `git init` に渡す引数を決める。
+///
+/// 利用者が `init.defaultBranch` を設定しているならそれに従う（設定を上書きしない）。
+/// 設定が無いときだけ既定を明示する。
+fn init_args(configured_default: Option<&str>) -> Vec<&'static str> {
+    match configured_default {
+        Some(name) if !name.trim().is_empty() => vec!["init"],
+        _ => vec!["init", "-b", INIT_DEFAULT_BRANCH],
+    }
+}
+
+/// フォルダを Git リポジトリにする（Tauri 非依存の実体）。成功時は最新の GitStatus。
+///
+/// リモートは設定しない。作るのは手元の履歴だけで、どこへ出すかは別の操作にする。
+pub fn git_init_impl(root: &Path) -> Result<GitStatus, String> {
+    if !root.is_dir() {
+        return Err(format!("フォルダがありません: {}", root.display()));
+    }
+    // `git init` は既にリポジトリでも成功する。ここで断らないと「押しても何も
+    // 起きないボタン」になり、利用者からは失敗と区別が付かない。
+    // 既存リポジトリのサブフォルダを開いている場合もここで止まる（既に管理下なので正しい）。
+    if run_git(root, &["rev-parse", "--git-dir"]).is_some() {
+        return Err("このフォルダは既に Git で管理されています".to_string());
+    }
+
+    let configured = run_git(root, &["config", "--get", "init.defaultBranch"])
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty());
+    run_git_result(root, &init_args(configured.as_deref()))?;
+    Ok(git_status_impl(root))
+}
+
+/// フロントから `invoke("git_init", { root })` で呼ぶラッパ。
+/// 成功で最新ステータス、失敗（既にリポジトリ・フォルダ無し・git 未導入）は Err(メッセージ)。
+#[tauri::command]
+pub fn git_init(root: String) -> Result<GitStatus, String> {
+    git_init_impl(Path::new(&root))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1582,5 +1627,47 @@ mod tests {
         assert!(git_log_impl(&dir, Some("../外.md"), None).is_err());
         assert!(git_log_impl(&dir, Some("C:\\Windows\\win.ini"), None).is_err());
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// git を持たない素のフォルダ（init を試す相手）。
+    fn temp_plain_dir(tag: &str) -> std::path::PathBuf {
+        let dir = std::env::temp_dir().join(format!("mdbiz_{}_{}", tag, std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).expect("temp 作成");
+        dir
+    }
+
+    // 既定ブランチ名の設定があるならそれに従う（利用者の設定を上書きしない）。
+    #[test]
+    fn init_の引数は既定ブランチ設定の有無で決まる() {
+        assert_eq!(init_args(None), vec!["init", "-b", "main"]);
+        assert_eq!(init_args(Some("")), vec!["init", "-b", "main"], "空の設定は無いのと同じ");
+        assert_eq!(init_args(Some("trunk")), vec!["init"], "設定があるなら git に任せる");
+    }
+
+    #[test]
+    fn 素のフォルダをリポジトリにできる() {
+        let dir = temp_plain_dir("gitinit");
+        assert!(!git_status_impl(&dir).is_repo, "まだリポジトリではない");
+
+        let status = git_init_impl(&dir).expect("init 成功");
+        assert!(status.is_repo, "init 後はリポジトリとして見える");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    // `git init` は既にリポジトリでも成功してしまう。ここで断らないと
+    // 「押しても何も起きないボタン」になり、利用者からは失敗と区別が付かない。
+    #[test]
+    fn 既にリポジトリなら断る() {
+        let dir = temp_repo("gitinitagain");
+        assert!(git_init_impl(&dir).is_err());
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn 無いフォルダは_git実行前にエラー() {
+        let dir = std::env::temp_dir().join("mdbiz_gitinit_absent");
+        let _ = std::fs::remove_dir_all(&dir);
+        assert!(git_init_impl(&dir).is_err());
     }
 }
