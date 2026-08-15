@@ -6,6 +6,7 @@
   import { frontmatterMessage } from '$lib/preview/frontmatterMessage';
   import { pdfExport } from '$lib/preview/pdfExport.svelte';
   import { previewReady } from '$lib/preview/previewGate';
+  import { resolvePreviewLink } from '$lib/preview/previewLink';
   import { findHeadingOffset } from '$lib/editor/headingAnchor';
   import { debounce } from '$lib/util/debounce';
   import type {
@@ -39,6 +40,8 @@
   import { workspace } from '$lib/workspace/workspace.svelte';
   import { resolveRelPath } from '$lib/workspace/relPath';
   import { diffView } from '$lib/git/diffView.svelte';
+  import { timelineView } from '$lib/logs/timelineView.svelte';
+  import TimelineView from '$lib/components/TimelineView.svelte';
   import DiffView from '$lib/components/DiffView.svelte';
   import SearchBar from '$lib/search/SearchBar.svelte';
   import { search } from '$lib/search/search.svelte';
@@ -216,6 +219,37 @@
     }
   }
 
+  /**
+   * プレビュー内のリンクを親側で受ける。
+   *
+   * iframe をそのまま遷移させると、プレビュー枠の中が指し先で上書きされて
+   * 戻る手段が無くなる。押されたものが何かを resolvePreviewLink で決めてから、
+   * ブラウザで開く / アプリで開く / 何もしない を親側で選ぶ。
+   */
+  function handlePreviewLinkClick(event: MouseEvent): void {
+    const target = event.target as Element | null;
+    // iframe は別レルムなので instanceof は使えない（コンストラクタが別物）。
+    if (!target || typeof target.closest !== 'function') return;
+    const anchor = target.closest('a[href]');
+    if (!anchor) return;
+    const link = resolvePreviewLink(anchor.getAttribute('href') ?? '');
+    // null は同じ文書の中の移動。既定の動きがそのまま正しいので横取りしない。
+    if (link === null) return;
+    event.preventDefault();
+    if (link.kind === 'blocked') {
+      workspace.reportError(t('page.linkNotOpenable', { href: link.href }));
+      return;
+    }
+    if (link.kind === 'external') {
+      // webview 内で遷移させない（アプリの画面がリンク先で上書きされる）。
+      void openUrl(link.href).catch(() => {
+        // Tauri 外（素の vite プレビュー）。何もしない。
+      });
+      return;
+    }
+    void openRelativeDocument(link.path);
+  }
+
   // iframe ロード時: プレビュー側のユーザースクロールを検知して追従を止めるリスナーを張り、
   // 直近フォーカスへ 1 度だけ位置合わせする。srcdoc 再生成のたびに document が入れ替わり
   // リスナーも一緒に消えるので、毎ロードで張り直す（リーク無し）。
@@ -228,6 +262,7 @@
       win.addEventListener('touchstart', cancelFollow, { passive: true });
       win.addEventListener('pointerdown', cancelFollow, { passive: true });
       win.addEventListener('keydown', cancelFollow);
+      win.addEventListener('click', handlePreviewLinkClick);
     }
     applyPreviewScroll();
     // srcdoc 再生成でハイライト（CSS.highlights）が失われるため、プレビュー検索が開いたまま
@@ -398,9 +433,10 @@
   const dataPath = $derived(isDataFile(workspace.activePath) ? workspace.activePath : null);
   const dataDoc = $derived(dataPath === null ? null : readDataDocument(dataPath, debouncedSource));
 
-  // 右ペインがいま何を出しているか。マークアップの分岐（差分 → 参考データ → 検証グリッド
-  // → プレビュー）と同じ条件で持つ。
+  // 右ペインがいま何を出しているか。マークアップの分岐（時系列 → 差分 → 参考データ
+  // → 検証グリッド → プレビュー）と同じ条件で持つ。
   const paneState = $derived({
+    timeline: timelineView.active,
     diff: diffView.active,
     data: dataDoc !== null,
     grid: isTsv && tsvDoc !== null,
@@ -476,6 +512,25 @@
 
   // グリッドのセルに書いたリンクを開く。追える種類の判定は gridLink 側に集めてあり、
   // 押せる見た目とここの分岐は同じ集合を見る（見た目と挙動をずらさないため）。
+  /**
+   * 相対の指し先を、いま開いているファイルからの相対として開く。開けたら true。
+   * グリッドのセルリンクとプレビューのリンクで導線を 1 本にする（開き方が
+   * 場所ごとに違うと、開けなかったときの理由も場所ごとに変わってしまう）。
+   */
+  async function openRelativeDocument(path: string): Promise<boolean> {
+    // リンクは書いた人が見ているファイルからの相対。開く側はルートからの相対を取る。
+    const relPath = resolveRelPath(workspace.activePath, path);
+    if (relPath === null) {
+      workspace.reportError(t('page.linkOutsideFolder', { path }));
+      return false;
+    }
+    // 開く導線は FileTree と同じ（差分表示を畳んでから開く。未保存分は自動保存が持つ）。
+    diffView.reset();
+    await workspace.select(relPath);
+    // 読めなければ activePath は変わらない。理由は workspace.error に出ている。
+    return workspace.activePath === relPath;
+  }
+
   async function handleFollowLink(link: CellLink): Promise<void> {
     if (link.kind === 'external') {
       try {
@@ -490,17 +545,7 @@
     const path = link.path;
     if (path === null) return;
 
-    // リンクは書いた人が見ているファイルからの相対。開く側はルートからの相対を取る。
-    const relPath = resolveRelPath(workspace.activePath, path);
-    if (relPath === null) {
-      workspace.reportError(t('page.linkOutsideFolder', { path }));
-      return;
-    }
-    // 開く導線は FileTree と同じ（差分表示を畳んでから開く。未保存分は自動保存が持つ）。
-    diffView.reset();
-    await workspace.select(relPath);
-    // 読めなければ activePath は変わらない。理由は workspace.error に出ている。
-    if (workspace.activePath !== relPath) return;
+    if (!(await openRelativeDocument(path))) return;
     if (link.kind === 'row') {
       gridJump = { column: link.column, value: link.value, seq: (gridJumpSeq += 1) };
       return;
@@ -642,7 +687,7 @@
 <div
   class="split"
   class:dragging
-  class:grid-full={isTsv && !!tsvDoc && gridFullscreen && !diffView.active}
+  class:grid-full={isTsv && !!tsvDoc && gridFullscreen && !diffView.active && !timelineView.active}
   bind:this={splitEl}
   style="--split-cols: {dividerColumns(splitRatio)}"
 >
@@ -687,7 +732,11 @@
 
   <section class="pane preview" aria-label={t('page.previewPaneLabel')}>
     <SearchBar pane="preview" />
-    {#if diffView.active}
+    {#if timelineView.active}
+      <!-- 時系列。開いている文書とは無関係に、フォルダの中のログを混ぜて出す面。
+           ほかの分岐より先に見るのは、文書を開いたまま調べられるようにするため。 -->
+      <TimelineView root={workspace.root ?? ''} />
+    {:else if diffView.active}
       <!-- 変更ファイルをソース管理パネルでクリックした間だけ差分表示に切り替える。
            「プレビューに戻る」or 別ファイルを通常オープンで解除される。 -->
       <div class="pane-head">{t('page.diffHead')}</div>

@@ -1,0 +1,526 @@
+/*
+ * Investigation report (調査報告書) print styles — A4 portrait, Japanese-aware.
+ * Cover page + targets / tools / summary / findings layout for Paged.js.
+ *
+ * Theme color: set `--mdb-color-accent` on `.mdb-investigation` via inline
+ * style or preset (see investigationTemplate.ts). All accent surfaces inherit
+ * from it.
+ */
+
+@page {
+  size: A4 portrait;
+  margin: 20mm 18mm 22mm 18mm;
+}
+
+/* 表紙ページは余白 0。`.mdb-investigation__cover` 自体が左カラーバー + 内側
+   padding を持つので、@page margin で更に削るとレイアウトが二重に縮む。 */
+@page :first {
+  margin: 0;
+}
+
+:root {
+  --mdb-color-fg: #111;
+  --mdb-color-muted: #666;
+  --mdb-color-border: #d4d4d8;
+  --mdb-color-accent: #2a4d7a;
+  --mdb-color-accent-soft: #e0e7f0;
+  --mdb-color-code-bg: #f5f5f4;
+  --mdb-font-base: 'Noto Sans JP', 'Hiragino Kaku Gothic ProN', 'Yu Gothic', sans-serif;
+  --mdb-font-mono: 'JetBrains Mono', 'Noto Sans Mono CJK JP', 'Consolas', monospace;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  font-family: var(--mdb-font-base);
+  color: var(--mdb-color-fg);
+  font-size: 10.5pt;
+  line-height: 1.7;
+  -webkit-font-smoothing: antialiased;
+}
+
+.mdb-investigation {
+  margin: 0;
+}
+
+/* ─────────────────────── Cover page ─────────────────────── */
+
+.mdb-investigation__cover {
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  width: 100%;
+  min-height: 297mm;
+  max-height: 297mm;
+  padding: 0;
+  margin: 0;
+  page-break-after: always;
+  break-after: page;
+  background: linear-gradient(135deg, var(--mdb-color-accent-soft) 0%, #ffffff 60%);
+  border-left: 6mm solid var(--mdb-color-accent);
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.mdb-investigation__cover-inner {
+  padding: 24mm 22mm 14mm 22mm;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.mdb-investigation__status {
+  display: inline-block;
+  padding: 2mm 6mm;
+  font-size: 9pt;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  border: 1.2pt solid var(--mdb-color-accent);
+  border-radius: 999px;
+  color: var(--mdb-color-accent);
+  background: #ffffff;
+  margin-bottom: 10mm;
+}
+
+/* 結論が出たものだけを塗り潰す。調査中と中断は「まだ読み方が確定していない」
+   ので、離れて見ても色の差で分かるようにする。 */
+.mdb-investigation__status--concluded {
+  background: var(--mdb-color-accent);
+  color: #ffffff;
+}
+
+.mdb-investigation__status--investigating {
+  border-style: dashed;
+}
+
+.mdb-investigation__status--suspended {
+  border-style: dotted;
+  color: var(--mdb-color-muted);
+  border-color: var(--mdb-color-muted);
+}
+
+.mdb-investigation__title {
+  font-size: 26pt;
+  font-weight: 700;
+  line-height: 1.3;
+  margin: 0 0 12mm 0;
+  color: var(--mdb-color-fg);
+  letter-spacing: 0.02em;
+}
+
+.mdb-investigation__meta {
+  display: grid;
+  grid-template-columns: 32mm 1fr;
+  row-gap: 2.5mm;
+  column-gap: 6mm;
+  margin: 0 0 10mm 0;
+  padding: 0;
+  font-size: 11pt;
+}
+
+.mdb-investigation__meta dt {
+  font-weight: 600;
+  color: var(--mdb-color-muted);
+  margin: 0;
+}
+
+.mdb-investigation__meta dd {
+  margin: 0;
+  color: var(--mdb-color-fg);
+}
+
+/* 時刻はログと突き合わせる値なので、書かれたまま等幅で出す。 */
+.mdb-investigation__meta time {
+  font-family: var(--mdb-font-mono);
+  font-size: 10pt;
+  white-space: nowrap;
+}
+
+.mdb-investigation__people,
+.mdb-investigation__related {
+  margin: 0 0 10mm 0;
+}
+
+.mdb-investigation__people h2,
+.mdb-investigation__related h2 {
+  font-size: 11pt;
+  font-weight: 600;
+  color: var(--mdb-color-accent);
+  margin: 0 0 3mm 0;
+  padding: 0 0 1.5mm 0;
+  border-bottom: 0.6pt solid var(--mdb-color-accent);
+  letter-spacing: 0.04em;
+}
+
+.mdb-investigation__people ul,
+.mdb-investigation__related ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.mdb-investigation__people li,
+.mdb-investigation__related li {
+  padding: 1mm 0;
+  font-size: 10.5pt;
+}
+
+.mdb-investigation__role {
+  font-size: 9.5pt;
+  color: var(--mdb-color-muted);
+  margin-left: 1mm;
+}
+
+.mdb-investigation__related code {
+  font-family: var(--mdb-font-mono);
+  font-size: 9.5pt;
+  background: transparent;
+  padding: 0;
+  word-break: break-all;
+}
+
+/* ─────────────────────── Body ─────────────────────── */
+
+.mdb-investigation__body {
+  padding: 4mm 0 0 0;
+  max-width: 174mm;
+  margin: 0 auto;
+}
+
+.mdb-investigation__targets,
+.mdb-investigation__tools,
+.mdb-investigation__summary,
+.mdb-investigation__findings {
+  margin: 0 0 9mm 0;
+}
+
+.mdb-investigation__targets h2,
+.mdb-investigation__tools h2,
+.mdb-investigation__summary h2,
+.mdb-investigation__findings h2 {
+  font-size: 13pt;
+  font-weight: 700;
+  color: var(--mdb-color-accent);
+  margin: 0 0 3mm 0;
+  padding: 0 0 1.5mm 0;
+  border-bottom: 1.2pt solid var(--mdb-color-accent);
+  page-break-after: avoid;
+  break-after: avoid;
+}
+
+/* ─────────────────────── Targets ─────────────────────── */
+
+.mdb-investigation__targets table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 9.5pt;
+  table-layout: fixed;
+}
+
+.mdb-investigation__targets th,
+.mdb-investigation__targets td {
+  border: 0.6pt solid var(--mdb-color-border);
+  padding: 1.5mm 2.5mm;
+  text-align: left;
+  vertical-align: top;
+}
+
+.mdb-investigation__targets thead th {
+  background: var(--mdb-color-accent-soft);
+  color: var(--mdb-color-fg);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.mdb-investigation__targets code {
+  font-family: var(--mdb-font-mono);
+  background: transparent;
+  padding: 0;
+}
+
+.mdb-investigation__target-path {
+  width: 34%;
+}
+
+.mdb-investigation__target-path code {
+  font-size: 9pt;
+  word-break: break-all;
+}
+
+/* ダイジェストは 64 桁を省略せず出す。桁を落とすと「同じファイルか」を後から
+   確かめられなくなるので、幅が足りなければ折り返す（切らない）。 */
+.mdb-investigation__target-hash {
+  width: 42%;
+}
+
+.mdb-investigation__target-hash code {
+  font-size: 8pt;
+  line-height: 1.5;
+  word-break: break-all;
+  overflow-wrap: anywhere;
+}
+
+.mdb-investigation__target-note {
+  width: 24%;
+  color: var(--mdb-color-muted);
+}
+
+/* ─────────────────────── Tools ─────────────────────── */
+
+.mdb-investigation__tools ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.mdb-investigation__tools li {
+  padding: 1mm 0;
+  font-size: 10pt;
+}
+
+.mdb-investigation__tool-name {
+  font-weight: 600;
+}
+
+.mdb-investigation__tool-version {
+  font-family: var(--mdb-font-mono);
+  font-size: 9.5pt;
+  background: var(--mdb-color-code-bg);
+  padding: 0.2mm 1.5mm;
+  border-radius: 1mm;
+  margin-left: 1.5mm;
+}
+
+/* ─────────────────────── Summary ─────────────────────── */
+
+.mdb-investigation__summary p {
+  margin: 0;
+}
+
+/* ─────────────────────── Findings ─────────────────────── */
+
+/* 所見と根拠は 1 組で読むものなので、途中で改ページさせない。 */
+.mdb-investigation__finding {
+  margin: 0 0 6mm 0;
+  padding: 0 0 0 4mm;
+  border-left: 3pt solid var(--mdb-color-accent);
+  page-break-inside: avoid;
+  break-inside: avoid;
+}
+
+.mdb-investigation__finding h3 {
+  display: flex;
+  align-items: center;
+  gap: 3mm;
+  font-size: 11pt;
+  font-weight: 700;
+  margin: 0 0 1.5mm 0;
+  page-break-after: avoid;
+  break-after: avoid;
+}
+
+.mdb-investigation__finding-id {
+  font-family: var(--mdb-font-mono);
+  color: var(--mdb-color-accent);
+}
+
+.mdb-investigation__severity {
+  display: inline-block;
+  padding: 0.4mm 3mm;
+  font-size: 8.5pt;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  border: 0.8pt solid var(--mdb-color-border);
+  border-radius: 999px;
+  color: var(--mdb-color-muted);
+  background: #ffffff;
+}
+
+.mdb-investigation__severity--high {
+  color: #ffffff;
+  background: #b91c1c;
+  border-color: #b91c1c;
+}
+
+.mdb-investigation__severity--medium {
+  color: #9a3412;
+  background: #ffedd5;
+  border-color: #c2410c;
+}
+
+.mdb-investigation__severity--low {
+  color: #3f3f46;
+  background: #f4f4f5;
+  border-color: #a1a1aa;
+}
+
+.mdb-investigation__severity--info {
+  color: var(--mdb-color-accent);
+  background: var(--mdb-color-accent-soft);
+  border-color: var(--mdb-color-accent);
+}
+
+.mdb-investigation__finding-summary {
+  margin: 0 0 2mm 0;
+  font-size: 10.5pt;
+}
+
+.mdb-investigation__evidence h4 {
+  font-size: 9.5pt;
+  font-weight: 600;
+  color: var(--mdb-color-muted);
+  margin: 0 0 1mm 0;
+  page-break-after: avoid;
+  break-after: avoid;
+}
+
+.mdb-investigation__evidence ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2mm;
+}
+
+.mdb-investigation__evidence li {
+  font-size: 9.5pt;
+}
+
+/* 押せる場所でだけ付く（linkEvidence）。押せない場所では li > code のまま。 */
+.mdb-investigation__evidence-link {
+  color: inherit;
+  text-decoration: none;
+  border-bottom: 0.3mm solid var(--mdb-color-accent);
+}
+
+.mdb-investigation__evidence code {
+  font-family: var(--mdb-font-mono);
+  font-size: 9pt;
+  background: var(--mdb-color-code-bg);
+  padding: 0.2mm 1.5mm;
+  border-radius: 1mm;
+  word-break: break-all;
+}
+
+/* ─────────────────────── Markdown 本文 ─────────────────────── */
+
+/* 本文の先頭 h1 は表紙の表題と同じものが書かれることが多いので、spec.css の
+   章立て（h1 ごとに改ページ）は持ち込まない。 */
+.mdb-investigation__prose > h1 {
+  font-size: 15pt;
+  font-weight: 700;
+  color: var(--mdb-color-accent);
+  margin: 0 0 4mm 0;
+  padding: 0 0 1.5mm 0;
+  border-bottom: 1.2pt solid var(--mdb-color-accent);
+}
+
+.mdb-investigation__prose h2 {
+  font-size: 12.5pt;
+  font-weight: 600;
+  color: var(--mdb-color-fg);
+  margin: 8mm 0 3mm 0;
+  padding: 0 0 1.5mm 2mm;
+  border-left: 3pt solid var(--mdb-color-accent);
+  page-break-after: avoid;
+  break-after: avoid;
+}
+
+.mdb-investigation__prose h3 {
+  font-size: 11pt;
+  font-weight: 600;
+  margin: 5mm 0 2mm 0;
+  page-break-after: avoid;
+  break-after: avoid;
+}
+
+.mdb-investigation__prose h4 {
+  font-size: 10pt;
+  font-weight: 600;
+  color: var(--mdb-color-muted);
+  margin: 4mm 0 1.5mm 0;
+  page-break-after: avoid;
+  break-after: avoid;
+}
+
+.mdb-investigation__prose p {
+  margin: 0 0 3mm 0;
+  text-align: justify;
+  text-justify: inter-ideograph;
+}
+
+.mdb-investigation__prose ul,
+.mdb-investigation__prose ol {
+  margin: 0 0 4mm 0;
+  padding-left: 6mm;
+}
+
+.mdb-investigation__prose li {
+  margin: 0 0 1.5mm 0;
+}
+
+.mdb-investigation__prose blockquote {
+  margin: 4mm 0;
+  padding: 2mm 4mm;
+  border-left: 3pt solid var(--mdb-color-border);
+  background: var(--mdb-color-code-bg);
+  color: var(--mdb-color-muted);
+}
+
+.mdb-investigation__prose code {
+  font-family: var(--mdb-font-mono);
+  font-size: 9.5pt;
+  background: var(--mdb-color-code-bg);
+  padding: 0.2mm 1mm;
+  border-radius: 1mm;
+}
+
+.mdb-investigation__prose pre {
+  font-family: var(--mdb-font-mono);
+  font-size: 9pt;
+  background: var(--mdb-color-code-bg);
+  padding: 3mm 4mm;
+  margin: 0 0 4mm 0;
+  border-radius: 1mm;
+  white-space: pre-wrap;
+  word-break: break-all;
+  page-break-inside: avoid;
+  break-inside: avoid;
+}
+
+.mdb-investigation__prose pre > code {
+  background: transparent;
+  padding: 0;
+}
+
+.mdb-investigation__prose table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0 0 4mm 0;
+  font-size: 9.5pt;
+}
+
+.mdb-investigation__prose th,
+.mdb-investigation__prose td {
+  border: 0.6pt solid var(--mdb-color-border);
+  padding: 1.5mm 2.5mm;
+  text-align: left;
+  vertical-align: top;
+}
+
+.mdb-investigation__prose thead th {
+  background: var(--mdb-color-accent-soft);
+  font-weight: 600;
+}
+
+/* 画面プレビュー時のシャドウ / 余分なマージンは付与しない（spec.css と同方針）。 */
+@media screen {
+  .mdb-investigation {
+    background: #ffffff;
+  }
+  .mdb-investigation__cover {
+    margin: -18mm -16mm 0 -16mm;
+    width: calc(100% + 32mm);
+  }
+}

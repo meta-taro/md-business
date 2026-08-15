@@ -16,7 +16,7 @@ import { compileConditions, type Condition, type ConditionMatch } from './condit
 import { pick, readRecords, type ReadStats, type RecordFormat } from './recordSource.js';
 import { parseTimestamp, type EpochUnit } from './timestamps.js';
 import { resolveSource } from './records.js';
-import type { DocumentStore } from './store.js';
+import type { LineSource } from './store.js';
 import type { ToolError } from './tools.js';
 
 /** 既定と上限。 */
@@ -129,7 +129,7 @@ function parseWindow(
  * 複数のファイルを時刻順に混ぜて返す。読むのは 1 行ずつで、全文はメモリに載せない。
  */
 export async function buildTimeline(
-  store: DocumentStore,
+  store: LineSource,
   input: BuildTimelineInput,
 ): Promise<BuildTimelineOk | ToolError> {
   if (input.sources.length === 0) {

@@ -6,6 +6,9 @@
 import { describe, it, expect } from 'vitest';
 import { renderPreview } from './renderPreview';
 
+// 64 桁の 16 進。数字だけにすると YAML が数値として読むので、実物と同じく英字を混ぜる。
+const SHA256 = 'ab12cd34'.repeat(8);
+
 describe('renderPreview — prose スキーマ（spec / test-spec）ルーティング', () => {
   it('spec を documentNumber マーカーで振り分け、本文を HTML 化して描く', () => {
     const md = [
@@ -44,6 +47,67 @@ describe('renderPreview — prose スキーマ（spec / test-spec）ルーティ
     if (!r.ok) return;
     expect(r.srcdoc).not.toContain('<script>alert(1)</script>');
     expect(r.srcdoc).not.toContain('alert(1)');
+  });
+
+  it('investigation を schema prefix で振り分け、本文を HTML 化して描く', () => {
+    const md = [
+      '---',
+      'schema: investigation/v1',
+      'kind: log',
+      'documentNumber: INV-001',
+      'title: 認証失敗急増の調査',
+      'createdAt: "2026-08-12T09:30:00+09:00"',
+      'status: investigating',
+      'authors:',
+      '  - name: 調査担当',
+      'targets:',
+      `  - path: logs/app.jsonl`,
+      `    sha256: ${SHA256}`,
+      'tools:',
+      '  - name: md-business',
+      '    version: "0.9.0"',
+      'window:',
+      '  from: "2026-08-11T00:00:00+09:00"',
+      '  to: "2026-08-12T00:00:00+09:00"',
+      '---',
+      '## 結論',
+      '',
+      '送信元 IP の素性が判明するまで断定しない。',
+    ].join('\n');
+    const r = renderPreview(md);
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.label).toBe('調査報告書');
+    expect(r.documentTitle).toBe('認証失敗急増の調査');
+    expect(r.errors).toEqual([]);
+    // ダイジェストは 64 桁のまま出す（後から同じファイルか確かめる唯一の手掛かり）。
+    expect(r.srcdoc).toContain(SHA256);
+    // 経緯・調べ方・結論は本文にしか無いので、本文が落ちると報告書にならない。
+    expect(r.srcdoc).toContain('結論');
+    expect(r.srcdoc).toContain('送信元 IP の素性が判明するまで断定しない。');
+  });
+
+  it('investigation 本文の <script> はサニタイズで落ちる', () => {
+    const md = [
+      '---',
+      'schema: investigation/v1',
+      'documentNumber: INV-002',
+      'title: XSS テスト',
+      '---',
+      '<script>alert(1)</script>',
+    ].join('\n');
+    const r = renderPreview(md);
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.srcdoc).not.toContain('alert(1)');
+  });
+
+  it('日本語だけの調査報告書も所見マーカーで振り分ける', () => {
+    const md = ['---', '所見: []', 'タイトル: 通信調査', '---', '# 通信調査'].join('\n');
+    const r = renderPreview(md);
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.label).toBe('調査報告書');
   });
 
   it('test-spec を columns マーカーで振り分ける', () => {

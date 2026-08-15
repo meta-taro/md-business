@@ -7,7 +7,25 @@
  * パスは常に `safeRelativePath` で正規化済みの `/` 区切り相対パスを渡す約束。
  */
 
-export interface DocumentStore {
+/**
+ * 行だけ読める口。
+ *
+ * ログを扱う層（filter / aggregate / timeline）が実際に触るのはここだけで、
+ * 書き込みも一覧も要らない。読み書き一式を要求すると、行しか返せない相手
+ * （デスクトップアプリのように、読む口が別で用意されている側）は
+ * 使わない口を偽物で埋めないと呼べなくなる。
+ */
+export interface LineSource {
+  /**
+   * 相対パスを 1 行ずつ流す。存在しなければ最初の取り出しで reject する。
+   *
+   * 流す行に改行文字は含まず、CRLF と LF は同じ結果になる。
+   * 末尾の改行で空行は増えない（行番号が実ファイルとずれないため）。
+   */
+  lines(relativePath: string): AsyncIterable<string>;
+}
+
+export interface DocumentStore extends LineSource {
   /** 相対パスの内容を読む。存在しなければ reject する。 */
   read(relativePath: string): Promise<string>;
   /** 相対パスへ内容を書く（親ディレクトリは実装側で用意）。 */
@@ -18,14 +36,6 @@ export interface DocumentStore {
   list(): Promise<string[]>;
   /** 検証シート（`.tsv`）の全相対パス（ソート済み）。 */
   listSheets(): Promise<string[]>;
-  /**
-   * 相対パスを 1 行ずつ流す。存在しなければ最初の取り出しで reject する。
-   *
-   * 調査対象のログは全文を文字列にできない大きさになりうるので、read とは別に
-   * 行単位の読み口を持つ。流す行に改行文字は含まず、CRLF と LF は同じ結果になる。
-   * 末尾の改行で空行は増えない（行番号が実ファイルとずれないため）。
-   */
-  lines(relativePath: string): AsyncIterable<string>;
 }
 
 /**

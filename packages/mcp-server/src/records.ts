@@ -21,7 +21,7 @@ import {
   type ReadStats,
   type RecordFormat,
 } from './recordSource.js';
-import type { DocumentStore } from './store.js';
+import type { LineSource } from './store.js';
 import type { ToolError } from './tools.js';
 
 export type { Condition, ConditionOp, ConditionMatch } from './conditions.js';
@@ -97,7 +97,7 @@ export function resolveSource(
  * 条件で行を絞って返す。読むのは 1 行ずつで、全文はメモリに載せない。
  */
 export async function filterRecords(
-  store: DocumentStore,
+  store: LineSource,
   input: FilterRecordsInput,
 ): Promise<FilterRecordsOk | ToolError> {
   const source = resolveSource(input.path, input.format);

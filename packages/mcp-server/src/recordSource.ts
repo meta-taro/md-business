@@ -8,7 +8,7 @@
  * 3. **形式を推測しない**。拡張子で判らなければ呼び出し側に指定させる
  */
 import { unescapeCell } from '@md-business/schema-test-spec-tsv';
-import type { DocumentStore } from './store.js';
+import type { LineSource } from './store.js';
 
 /** 検証シートであることを示す 1 行目のマーカー（行頭 0 桁）。 */
 const TEST_SPEC_MARKER = '#! md-business:test-spec-tsv/v1';
@@ -66,7 +66,7 @@ function headerNames(cells: string[]): string[] {
  * レコードを 1 件ずつ返す。読めなかった行は stats.skipped に数えて飛ばす。
  */
 export async function* readRecords(
-  store: DocumentStore,
+  store: LineSource,
   relative: string,
   format: RecordFormat,
   stats: ReadStats,
