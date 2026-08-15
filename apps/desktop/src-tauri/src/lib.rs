@@ -96,6 +96,7 @@ pub fn run() {
             git::git_pull,
             git::git_diff,
             git::git_blame,
+            git::git_log,
             git::forge_file_url,
             git::git_identity,
             git::git_file_state,

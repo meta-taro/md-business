@@ -8,9 +8,16 @@
   import { git } from '$lib/git/git.svelte';
   import { workspace } from '$lib/workspace/workspace.svelte';
   import { diffView } from '$lib/git/diffView.svelte';
-  import { gitMarkLetter, toTreeRelPath, commitTargets, type GitFileStatus } from '$lib/git/gitStatus';
+  import {
+    gitMarkLetter,
+    toTreeRelPath,
+    commitTargets,
+    shortHash,
+    formatCommitDate,
+    type GitFileStatus,
+  } from '$lib/git/gitStatus';
   import { SvelteSet } from 'svelte/reactivity';
-  import { t } from '$lib/i18n/i18n.svelte';
+  import { i18n, t } from '$lib/i18n/i18n.svelte';
 
   interface Props {
     open: boolean;
@@ -42,6 +49,14 @@
     if (allSelected) for (const f of git.status.files) excluded.add(f.relPath);
     else excluded.clear();
   }
+  // 履歴はパネルを開いたときとブランチ切替時に読み直す。保存のたびに走らせない
+  // （git log は変更の保存では変わらないので、回すだけ無駄になる）。
+  $effect(() => {
+    git.branch; // 依存として読む（切り替えたら履歴も別物になる）
+    if (!open || root === null) return;
+    void git.loadLog(root);
+  });
+
   // push / pull は upstream 未設定・up-to-date でも git 側が適切に応答する。isRepo なら押下可
   // とし、失敗（認証・非 ff・upstream 無し）は stderr をそのまま提示する。
   const canPush = $derived(!busy && git.isRepo && root !== null);
@@ -64,6 +79,7 @@
       // 外した印はコミット後も残す。次のコミットで黙って混ざるより、
       // もう一度自分でチェックを戻してもらうほうが安全（一覧から消えた分は無視される）。
       notice = t('scm.committed', { count });
+      await git.loadLog(root); // 履歴の先頭に今のコミットを出す
       // ツリーの色マークは git ストア更新で自動反映。ワークスペースの再走査は不要。
     } catch (e) {
       error = toErr(e);
@@ -94,6 +110,7 @@
     notice = null;
     try {
       await git.pull(root);
+      await git.loadLog(root); // 取り込んだコミットを履歴へ反映
       notice = t('scm.pulled');
     } catch (e) {
       error = toErr(e);
@@ -227,6 +244,29 @@
           {/if}
         </button>
         <p class="hint">{t('scm.stageHint')}</p>
+      </div>
+
+      <div class="history">
+        <div class="col-title">
+          {t('scm.history')}
+          {#if git.log.length > 0}<span class="muted">({git.log.length})</span>{/if}
+        </div>
+        {#if git.log.length === 0}
+          <p class="empty">{t('scm.noHistory')}</p>
+        {:else}
+          <ul class="log-list">
+            {#each git.log as c (c.hash)}
+              <li class="log-item" title={t('scm.commitTitle', { hash: c.hash, author: c.author })}>
+                <div class="log-subject">{c.subject}</div>
+                <div class="log-meta">
+                  <span class="log-hash">{shortHash(c.hash)}</span>
+                  <span class="log-author">{c.author}</span>
+                  <span class="log-date">{formatCommitDate(c.date, i18n.locale)}</span>
+                </div>
+              </li>
+            {/each}
+          </ul>
+        {/if}
       </div>
     </div>
   </section>
@@ -377,7 +417,8 @@
 
   .scm-body {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    /* 変更 / コミット / 履歴。minmax(0,…) で長いパス・件名が桁を押し広げないようにする。 */
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.1fr);
     gap: var(--space-3);
     padding: var(--space-3);
     min-height: 0;
@@ -568,5 +609,64 @@
     margin: var(--space-1) 0 0;
     color: var(--text-tertiary);
     font-size: var(--text-2xs-size, 10px);
+  }
+
+  .history {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+
+  .log-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    overflow-y: auto;
+    max-height: 200px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--bg-app);
+  }
+
+  .log-item {
+    padding: 4px var(--space-2);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .log-item:last-child {
+    border-bottom: none;
+  }
+
+  .log-subject {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: var(--text-xs-size);
+  }
+
+  .log-meta {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    margin-top: 1px;
+    color: var(--text-tertiary);
+    font-size: var(--text-2xs-size, 10px);
+  }
+
+  .log-hash {
+    flex: none;
+    font-family: var(--font-mono);
+  }
+
+  .log-author {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .log-date {
+    margin-left: auto;
+    flex: none;
+    font-variant-numeric: tabular-nums;
   }
 </style>

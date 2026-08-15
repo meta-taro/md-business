@@ -8,6 +8,8 @@ import {
   forgeLabel,
   toTreeRelPath,
   commitTargets,
+  shortHash,
+  formatCommitDate,
   type GitStatus,
 } from './gitStatus';
 
@@ -153,5 +155,30 @@ describe('commitTargets — コミット対象の絞り込み', () => {
   it('変更が無ければ count=0', () => {
     const r = commitTargets([], new Set());
     expect(r.count).toBe(0);
+  });
+});
+
+describe('shortHash', () => {
+  it('先頭 7 文字に切る（履歴の並びで桁を揃える）', () => {
+    expect(shortHash('0123456789abcdef')).toBe('0123456');
+  });
+
+  it('短いものはそのまま返す', () => {
+    expect(shortHash('abc')).toBe('abc');
+    expect(shortHash('')).toBe('');
+  });
+});
+
+describe('formatCommitDate', () => {
+  it('日付と時刻に整える', () => {
+    const s = formatCommitDate('2026-08-15T09:05:00+09:00', 'ja');
+    expect(s).toContain('2026');
+    expect(s).not.toBe('');
+  });
+
+  // git の出力をそのまま渡す作りなので、読めない値でも表示を壊さない。
+  it('日付として読めない値はそのまま返す', () => {
+    expect(formatCommitDate('こわれた日付', 'ja')).toBe('こわれた日付');
+    expect(formatCommitDate('', 'ja')).toBe('');
   });
 });

@@ -18,6 +18,7 @@ import {
   changeCount,
   type GitStatus,
   type GitFileState,
+  type GitLogEntry,
 } from './gitStatus';
 
 class GitStore {
@@ -26,6 +27,9 @@ class GitStore {
 
   /** ローカルブランチ名一覧（切替ポップオーバー用）。非リポジトリは空。 */
   branches = $state<string[]>([]);
+
+  /** 直近のコミット一覧（新しい順）。未取得・非リポジトリは空。 */
+  log = $state<GitLogEntry[]>([]);
 
   /** files を relPath（repo root 基準）→ state に索引化。ツリー照合の O(1) 化。 */
   private statusMap = $derived(buildStatusMap(this.status));
@@ -92,6 +96,21 @@ class GitStore {
   }
 
   /**
+   * コミット履歴を取得して反映する。件数は Rust 側で既定・上限へ丸められる。
+   *
+   * 保存のたびに呼ぶ `refresh` からは呼ばない（毎回 git log を回すことになる）。
+   * 履歴を出す画面を開いたときと、コミットした直後に読み直す。
+   */
+  async loadLog(root: string): Promise<void> {
+    try {
+      this.log = await invoke<GitLogEntry[]>('git_log', { root });
+    } catch {
+      // 非リポジトリ・git 未導入。履歴なしとして畳む（UI は空表示へ劣化）。
+      this.log = [];
+    }
+  }
+
+  /**
    * ブランチを切り替え、返却された最新ステータスを反映する。
    * 失敗（未コミット変更との衝突・不明ブランチ）は Rust の Err が例外として飛ぶので、
    * 呼び出し側（workspace / StatusBar）で捕捉してユーザーへ表示する。
@@ -131,6 +150,7 @@ class GitStore {
   reset(): void {
     this.status = emptyGitStatus();
     this.branches = [];
+    this.log = [];
   }
 }
 
