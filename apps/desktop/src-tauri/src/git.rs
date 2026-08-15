@@ -3,9 +3,13 @@
 //! ワークスペース root が git リポジトリなら、ファイル別の変更状態（VSCode 風の
 //! 色マーク用）とブランチ / ahead-behind / フォージ種別（StatusBar 用）を返す。
 //!
-//! 取得は `git` CLI を一度だけ実行する（`git status --porcelain=v2 --branch -z`）。
+//! 取得は `git` CLI の実行による（`git status --porcelain=v2 --branch -z` ほか）。
 //! libgit2 系クレートは Windows ビルドが重いため採らない。git 未導入・非リポジトリ・
 //! その他失敗時は `is_repo=false` の空ステータスへ無害に劣化させ、UI はマーク非表示にする。
+//!
+//! 実行は必ず `git_command` を通す。Windows で素の `Command::new("git")` を使うと、
+//! GUI アプリから起動した子プロセスにコンソールウィンドウが割り当てられ、実行のたびに
+//! 黒い窓が開いて消える（前面も奪う）。起動直後は状態取得で複数回呼ぶため、続けて瞬く。
 //!
 //! パース（porcelain v2 -z → GitStatus）とフォージ判定は Tauri 非依存の純関数へ寄せ、
 //! `#[cfg(test)]` から固定文字列に対して単体テストする（workspace.rs と同流儀・§7.3）。
@@ -13,6 +17,18 @@
 use serde::Serialize;
 use std::path::Path;
 use std::process::Command;
+#[cfg(windows)]
+use std::os::windows::process::CommandExt;
+
+/// `git -C <root> --no-optional-locks` まで組んだ `Command`。
+/// Windows ではコンソールウィンドウを割り当てない（`CREATE_NO_WINDOW`）。
+fn git_command(root: &Path) -> Command {
+    let mut command = Command::new("git");
+    command.arg("-C").arg(root).arg("--no-optional-locks");
+    #[cfg(windows)]
+    command.creation_flags(0x0800_0000);
+    command
+}
 
 /// 1 ファイルの変更状態。`rel_path` は root からの相対パス（区切りは "/"）。
 /// `state` は色マークの意味カテゴリ（フロントの gitMark が色・バッジ文字へ写像する）。
@@ -294,13 +310,7 @@ pub fn build_forge_file_url(remote_url: Option<&str>, branch: &str, rel_path: &s
 /// git 未導入（spawn 失敗）・非 0 終了（非リポジトリ等）は None（呼び出し側で graceful 劣化）。
 /// `--no-optional-locks` で index.lock 生成を避け、他プロセスの git 操作と競合しないようにする。
 fn run_git(root: &Path, args: &[&str]) -> Option<String> {
-    let output = Command::new("git")
-        .arg("-C")
-        .arg(root)
-        .arg("--no-optional-locks")
-        .args(args)
-        .output()
-        .ok()?;
+    let output = git_command(root).args(args).output().ok()?;
     if !output.status.success() {
         return None;
     }
@@ -427,10 +437,7 @@ pub fn git_file_state(root: String, rel_path: String) -> String {
 /// `run_git` の Result 版。失敗時は stderr（無ければ終了コード）を Err で返す。
 /// switch のようにユーザーへ失敗理由を見せたい操作で使う。
 fn run_git_result(root: &Path, args: &[&str]) -> Result<String, String> {
-    let output = Command::new("git")
-        .arg("-C")
-        .arg(root)
-        .arg("--no-optional-locks")
+    let output = git_command(root)
         .args(args)
         .output()
         .map_err(|e| format!("git を実行できません: {e}"))?;
