@@ -31,12 +31,15 @@
   /* 画面キャプチャ。画像が 1 枚も置かれていない間は節ごと出さない（下部のスクリプトが開閉する）。 */
   .shots { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
   .shots figure { margin: 0; }
-  .shots img {
+  figure img.shot {
     display: block; width: 100%; height: auto;
     border: 1px solid var(--line); border-radius: 8px; background: var(--bg);
   }
-  .shots figcaption { margin-top: 8px; font-size: 0.9rem; color: var(--muted); }
+  figure figcaption { margin-top: 8px; font-size: 0.9rem; color: var(--muted); }
   @media (max-width: 720px) { .shots { grid-template-columns: 1fr; } }
+  /* 先頭の 1 枚はダウンロードボタンより上に置く。何のアプリか分からないまま
+     ボタンだけが見えている状態を作らないため。 */
+  .hero-shot { margin: 0 0 28px; }
 </style>
 </head>
 <body>
@@ -49,6 +52,12 @@
 
 <main class="doc">
 
+  <!-- 先頭の 1 枚。画像を置くまでは hidden のままで、置いた時点で自動的に出る。 -->
+  <figure class="hero-shot shot-group" id="hero-shot" hidden>
+    <img class="shot" src="../screenshots/desktop-invoice.png" alt="適格請求書を開いた画面。左にファイル一覧、右に請求書ビュー" width="1600" height="1000">
+    <figcaption>適格請求書を開いたところ。金額と税区分は Markdown から組み立てられます</figcaption>
+  </figure>
+
   <div class="dl-hero">
     <div class="dl-primary" id="primary">
       <span class="spin">最新版を確認しています…</span>
@@ -59,28 +68,24 @@
 
   <!-- 画面キャプチャ。画像を置くまで hidden のままで、置いた時点で自動的に出る（HTML の再編集は不要）。
        404 になった figure は個別に伏せるので、5 枚のうち一部だけ揃った状態でも壊れない。 -->
-  <section id="shots" hidden>
+  <section id="shots" class="shot-group" hidden>
     <h2>画面を見る</h2>
     <p>入れる前に、何ができるアプリなのかをご覧ください。</p>
     <div class="shots">
       <figure>
-        <img src="../screenshots/desktop-invoice.png" alt="適格請求書を開いた画面。左にファイル一覧、右に請求書ビュー" loading="lazy" width="1600" height="1000">
-        <figcaption>適格請求書を開いたところ。金額と税区分は Markdown から組み立てられます</figcaption>
-      </figure>
-      <figure>
-        <img src="../screenshots/desktop-editor.png" alt="Markdown を左右 2 画面でライブ編集している画面" loading="lazy" width="1600" height="1000">
+        <img class="shot" src="../screenshots/desktop-editor.png" alt="Markdown を左右 2 画面でライブ編集している画面" loading="lazy" width="1600" height="1000">
         <figcaption>左で書くと右がすぐ追いつきます。保存の前から仕上がりが見えます</figcaption>
       </figure>
       <figure>
-        <img src="../screenshots/desktop-test-spec-grid.png" alt="検証シートのグリッド。結果列が OK / NG / 保留 で色分けされている" loading="lazy" width="1600" height="1000">
+        <img class="shot" src="../screenshots/desktop-test-spec-grid.png" alt="検証シートのグリッド。結果列が OK / NG / 保留 で色分けされている" loading="lazy" width="1600" height="1000">
         <figcaption>検証シートは表として編集できます。結果は行ごとに色が付きます</figcaption>
       </figure>
       <figure>
-        <img src="../screenshots/desktop-mcp.png" alt="MCP タブ。AI アシスタントが実行した操作の履歴が並んでいる" loading="lazy" width="1600" height="1000">
+        <img class="shot" src="../screenshots/desktop-mcp.png" alt="MCP タブ。AI アシスタントが実行した操作の履歴が並んでいる" loading="lazy" width="1600" height="1000">
         <figcaption>AI アシスタントをつないだところ。実行された操作は履歴として残ります</figcaption>
       </figure>
       <figure>
-        <img src="../screenshots/desktop-pdf.png" alt="PDF 出力プレビュー。A4 の紙面が表示されている" loading="lazy" width="1600" height="1000">
+        <img class="shot" src="../screenshots/desktop-pdf.png" alt="PDF 出力プレビュー。A4 の紙面が表示されている" loading="lazy" width="1600" height="1000">
         <figcaption>そのまま A4 の PDF に出せます。画面で見えているとおりに出ます</figcaption>
       </figure>
     </div>
@@ -174,20 +179,20 @@
   // 「1 枚でも読めたら節を出す / 読めなかった図版は個別に伏せる」で判断する。
   // キャッシュ済みの画像では load / error が発火しないため complete を先に見る。
   (function () {
-    const section = document.getElementById('shots');
-    if (!section) return;
-    section.querySelectorAll('figure').forEach(function (figure) {
-      const img = figure.querySelector('img');
-      if (!img) return;
-      const settle = function () {
-        if (img.naturalWidth > 0) section.hidden = false;
-        else figure.hidden = true;
-      };
-      if (img.complete) settle();
-      else {
-        img.addEventListener('load', settle);
-        img.addEventListener('error', settle);
-      }
+    document.querySelectorAll('.shot-group').forEach(function (group) {
+      group.querySelectorAll('img.shot').forEach(function (img) {
+        // 先頭の 1 枚は figure 自身が群でもある（畳む単位と図版が同じ）。
+        const figure = img.closest('figure') || img;
+        const settle = function () {
+          if (img.naturalWidth > 0) group.hidden = false;
+          else if (figure !== group) figure.hidden = true;
+        };
+        if (img.complete) settle();
+        else {
+          img.addEventListener('load', settle);
+          img.addEventListener('error', settle);
+        }
+      });
     });
   })();
 

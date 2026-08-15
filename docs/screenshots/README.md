@@ -36,12 +36,24 @@
 
 「気をつけて撮る」ではなく、**写り込みようがない場所で撮る**。撮影者の注意力に頼ると、5 枚のうち 1 枚で必ず漏れる。
 
-1. `templates/` をユーザー名の入らない場所へコピーする（例: `C:\demo\md-business` / `~/demo/md-business`）。
-   テンプレートの値はすべてダミーで、スキーマ検証も通っている状態が保証されている
+1. 撮影用のフォルダを作る。
+
+   ```
+   node scripts/demo-workspace/seed.mjs
+   ```
+
+   `templates/` からユーザー名の入らない場所（`C:\demo\md-business` / `~/demo/md-business`）へ
+   9 ファイルを展開する。テンプレートの値はすべてダミーで、スキーマ検証も通っている状態が保証されている
 2. アプリで **そのフォルダだけ**を開く。ふだん使っているフォルダは開かない
 3. ウィンドウ幅を 1600px 前後にし、全画面にしない（デスクトップや他アプリが写り込まない）
-4. ウィンドウ単位で撮る（Windows: `Alt` + `PrintScreen` / macOS: `Cmd` + `Shift` + `4` → `Space`）。
-   画面全体を撮ってから切り抜くと、切り抜き漏れが起きる
+4. **プロセス ID を指定して**撮る。
+
+   ```
+   powershell -File scripts/demo-workspace/capture.ps1 -ProcessId <pid> -Out docs/screenshots/desktop-invoice.png
+   ```
+
+   「手前のウィンドウ」を撮る撮り方はしない。デモ用の起動とふだんの起動は同じ見た目なので、
+   どちらを撮ったのか画像からは判別できない。画面全体を撮ってから切り抜くのも、切り抜き漏れが起きる
 
 ### 出す前の確認（1 枚ずつ見る）
 
@@ -69,11 +81,11 @@
 1 枚も無い間は「画面を見る」の節ごと出ないので、**途中まで揃った状態でも壊れない**
 （揃った分だけ出る）。
 
-- [ ] `desktop-invoice.png` — 適格請求書を開いた画面（左にファイル一覧、右に請求書ビュー）
-- [ ] `desktop-editor.png` — Markdown の左右 2 画面ライブ編集
-- [ ] `desktop-test-spec-grid.png` — 検証シートのグリッド（OK / NG / 保留 の色分けが見える状態）
-- [ ] `desktop-mcp.png` — MCP タブ（操作履歴が数行並んだ状態・**トークンを写さない**）
-- [ ] `desktop-pdf.png` — PDF 出力プレビュー（A4 の紙面）
+- [x] `desktop-invoice.png` — 適格請求書を開いた画面（左にファイル一覧、右に請求書ビュー）
+- [x] `desktop-editor.png` — Markdown の左右 2 画面ライブ編集
+- [x] `desktop-test-spec-grid.png` — 検証シートのグリッド（OK / NG / 保留 の色分けが見える状態）
+- [x] `desktop-mcp.png` — MCP タブ（操作履歴が数行並んだ状態・**トークンを写さない**）
+- [x] `desktop-pdf.png` — PDF 出力プレビュー（A4 の紙面）
 - [ ] `chrome-extension-viewer.png` — Chrome 拡張で適格請求書を表示している様子
 - [ ] `chrome-extension-pdf.png` — A4 PDF 出力プレビュー
 - [ ] `addon-test-spec-sheet.png` — Google Workspace Add-on で検証シートを Sheets 表示
