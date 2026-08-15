@@ -35,6 +35,14 @@ export interface PreviewDocumentInput {
   theme?: PreviewTheme;
   /** <html lang>。既定 'ja'。 */
   lang?: string;
+  /**
+   * iframe 内ショートカット横取りスクリプトを入れるか。既定 true。
+   *
+   * false にするのはアプリの外へ出す HTML（ファイル書き出し・Web 公開）。あのスクリプトは
+   * 「親フレームがアプリである」ことを前提にした仕掛けなので、受け取った人がブラウザで
+   * 開いたときには、印刷と検索を横取りするだけの邪魔者になる。
+   */
+  shortcuts?: boolean;
 }
 
 /** 属性値・テキスト双方に使える最小 HTML エスケープ。
@@ -84,7 +92,8 @@ const PREVIEW_SHORTCUT_SCRIPT = `<script>
 </script>`;
 
 export function buildPreviewDocument(input: PreviewDocumentInput): string {
-  const { bodyHtml, css, title = '', theme = 'light', lang = 'ja' } = input;
+  const { bodyHtml, css, title = '', theme = 'light', lang = 'ja', shortcuts = true } = input;
+  const script = shortcuts ? `\n${PREVIEW_SHORTCUT_SCRIPT}` : '';
 
   return `<!doctype html>
 <html lang="${escapeHtml(lang)}" data-theme="${escapeHtml(theme)}">
@@ -96,8 +105,7 @@ export function buildPreviewDocument(input: PreviewDocumentInput): string {
 <style>${css}</style>
 </head>
 <body>
-${bodyHtml}
-${PREVIEW_SHORTCUT_SCRIPT}
+${bodyHtml}${script}
 </body>
 </html>`;
 }

@@ -138,6 +138,7 @@ export function renderMarkdownFallback(
       css: MARKDOWN_CSS,
       title: documentTitle,
       theme: options.theme,
+      shortcuts: options.shortcuts,
     }),
     documentTitle,
     label: 'Markdown',

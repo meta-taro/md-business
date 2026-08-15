@@ -97,6 +97,11 @@ export type PreviewResult = PreviewOk | PreviewNotApplicable;
 export interface RenderPreviewOptions {
   /** iframe 内のテーマ。アプリのライト/ダークと一致させる。 */
   theme?: PreviewTheme;
+  /**
+   * iframe 内ショートカット横取りスクリプトを入れるか。既定 true（画面プレビュー）。
+   * アプリの外へ出す HTML（書き出し）だけが false を渡す。
+   */
+  shortcuts?: boolean;
 }
 
 export interface PreviewProvider extends PreviewProviderMeta {
@@ -123,7 +128,7 @@ export function createSchemaPreview<T>(config: SchemaPreviewConfig<T>): PreviewP
       body = '',
       options: RenderPreviewOptions = {},
     ): PreviewResult {
-      const { theme } = options;
+      const { theme, shortcuts } = options;
 
       const normalized = config.normalize(frontmatter);
       const autofilled = config.autofill(normalized.data);
@@ -141,7 +146,13 @@ export function createSchemaPreview<T>(config: SchemaPreviewConfig<T>): PreviewP
       } catch (error: unknown) {
         return {
           ok: true,
-          srcdoc: buildPreviewDocument({ bodyHtml: '', css: config.css, title: documentTitle, theme }),
+          srcdoc: buildPreviewDocument({
+            bodyHtml: '',
+            css: config.css,
+            title: documentTitle,
+            theme,
+            shortcuts,
+          }),
           documentTitle,
           label,
           warnings,
@@ -152,7 +163,13 @@ export function createSchemaPreview<T>(config: SchemaPreviewConfig<T>): PreviewP
 
       return {
         ok: true,
-        srcdoc: buildPreviewDocument({ bodyHtml, css: config.css, title: documentTitle, theme }),
+        srcdoc: buildPreviewDocument({
+          bodyHtml,
+          css: config.css,
+          title: documentTitle,
+          theme,
+          shortcuts,
+        }),
         documentTitle,
         label,
         warnings,
