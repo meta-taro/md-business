@@ -38,6 +38,18 @@ let purifyInstance: PurifyInstance | null = null;
 const ALLOWED_URI_REGEXP =
   /^(?:https|blob|mailto):|^[#/?]|^data:image\/(?:png|jpe?g|gif|webp|svg\+xml);base64,/i;
 
+// `href` additionally accepts relative references, so a document can link to the
+// document next to it (`[根拠](evidence/EV-001.md)`). The test is "carries no
+// colon": naming a scheme requires one, and obfuscation cannot remove it —
+// `java&#9;script:alert(1)` still has its colon and is still rejected here.
+//
+// This covers navigation targets only. `src` stays scheme-restricted, so a
+// relative image reference is still dropped rather than resolved against
+// whatever page the viewer happens to be on.
+function isRelativeReference(value: string): boolean {
+  return !value.includes(':');
+}
+
 // HTML / SVG attributes that carry URLs. The DOMPurify default `ALLOWED_URI_REGEXP`
 // option is over-broad (it also strips non-URI attributes like SVG `viewBox`), so
 // we apply the regex manually through `uponSanitizeAttribute` against this set.
@@ -76,7 +88,15 @@ function getPurify(): PurifyInstance {
       hookEvent.keepAttr = false;
       return;
     }
-    hookEvent.keepAttr = ALLOWED_URI_REGEXP.test(value);
+    // `//host/path` names no scheme but still points off-site, which is exactly
+    // what the https-only rule exists to stop.
+    if (value.startsWith('//')) {
+      hookEvent.keepAttr = false;
+      return;
+    }
+    hookEvent.keepAttr =
+      ALLOWED_URI_REGEXP.test(value) ||
+      (hookEvent.attrName === 'href' && isRelativeReference(value));
   });
   purifyInstance = instance;
   return instance;

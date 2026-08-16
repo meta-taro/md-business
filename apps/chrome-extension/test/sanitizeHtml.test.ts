@@ -162,6 +162,42 @@ describe('sanitizeViewerHtml — normal markdown output passes through', () => {
   });
 });
 
+// 隣の文書を指すリンク（`[根拠](evidence/EV-001.md)` など）。ここを落とすと、
+// 文書どうしを行き来する経路がプレビューから消える。ポリシーはデスクトップ側
+// (apps/desktop/src/lib/preview/sanitizeHtml.ts) と同じものを保つ。
+describe('sanitizeViewerHtml — relative document links', () => {
+  it('keeps relative links', () => {
+    expect(sanitizeViewerHtml('<a href="./b.md">x</a>')).toContain('href="./b.md"');
+    expect(sanitizeViewerHtml('<a href="evidence/EV-001.md">x</a>')).toContain(
+      'href="evidence/EV-001.md"',
+    );
+    expect(sanitizeViewerHtml('<a href="../logs/app.jsonl">x</a>')).toContain(
+      'href="../logs/app.jsonl"',
+    );
+  });
+
+  it('keeps the fragment and query on a relative link', () => {
+    expect(sanitizeViewerHtml('<a href="a.md#所見">x</a>')).toContain('href="a.md#所見"');
+    expect(sanitizeViewerHtml('<a href="a.md?v=1">x</a>')).toContain('href="a.md?v=1"');
+  });
+
+  // スキームを名乗るには `:` が要る。空白・制御文字を挟んでも `:` は消せない。
+  it('still drops javascript: even when obfuscated with whitespace', () => {
+    const out = sanitizeViewerHtml('<a href="java&#9;script:alert(1)">x</a>');
+    expect(out).not.toContain('script:');
+    expect(out).not.toContain('alert(1)');
+  });
+
+  it('still drops http: downgrades and scheme-relative URLs', () => {
+    expect(sanitizeViewerHtml('<a href="http://example.com">x</a>')).not.toContain('href=');
+    expect(sanitizeViewerHtml('<a href="//example.com/a">x</a>')).not.toContain('href=');
+  });
+
+  it('does not extend the relaxation to src', () => {
+    expect(sanitizeViewerHtml('<img src="./local.png">')).not.toContain('src=');
+  });
+});
+
 describe('sanitizeViewerHtml — empty / edge inputs', () => {
   it('returns empty string for empty input', () => {
     expect(sanitizeViewerHtml('')).toBe('');

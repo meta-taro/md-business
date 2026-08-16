@@ -14,7 +14,10 @@
 import { renderMarkdownToHtml } from '@md-business/core';
 import { buildPreviewDocument } from '../previewDocument';
 import { sanitizeViewerHtml } from '../sanitizeHtml';
-import type { PreviewOk, RenderPreviewOptions } from '../previewFactory';
+import type { PreviewOk, PreviewStyle, RenderPreviewOptions } from '../previewFactory';
+
+/** 標準プレビューの書式 ID。業務スキーマの ID（invoice 等）と衝突しない名前にする。 */
+const MARKDOWN_STYLE_ID = 'markdown';
 
 /** 標準プレビューの最小プロース CSS（iframe 内で自己完結・テーマ追従）。 */
 const MARKDOWN_CSS = `
@@ -115,6 +118,12 @@ hr { height: 1px; margin: 1.5em 0; border: 0; background: var(--md-border); }
 }
 `;
 
+/**
+ * 標準プレビューの書式。静的サイトの一覧ページ（どの文書にも属さない）も
+ * この書式で描くため、provider の外から参照できるようにしてある。
+ */
+export const MARKDOWN_STYLE: PreviewStyle = { id: MARKDOWN_STYLE_ID, css: MARKDOWN_CSS };
+
 /** 先頭の ATX 見出し（# 見出し）をタイトルに採る。無ければ 'Markdown'。 */
 function titleFromBody(body: string): string {
   const match = body.match(/^#{1,6}\s+(.+?)\s*#*\s*$/m);
@@ -136,10 +145,12 @@ export function renderMarkdownFallback(
     srcdoc: buildPreviewDocument({
       bodyHtml,
       css: MARKDOWN_CSS,
+      cssHref: options.cssHref?.(MARKDOWN_STYLE_ID),
       title: documentTitle,
       theme: options.theme,
       shortcuts: options.shortcuts,
     }),
+    style: MARKDOWN_STYLE,
     documentTitle,
     label: 'Markdown',
     warnings: [],

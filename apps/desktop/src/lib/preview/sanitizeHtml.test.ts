@@ -174,6 +174,55 @@ describe('sanitizeViewerHtml — normal markdown output passes through', () => {
   });
 });
 
+// 隣の文書を指すリンク（`[根拠](evidence/EV-001.md)` など）。これを落とすと、
+// 文書どうしを行き来する経路がプレビューから消える。開く側（previewLink →
+// workspace の resolve_in_root）がフォルダの外を弾くので、ここで許すのは
+// 「行き先の文字列を残す」ところまで。
+describe('sanitizeViewerHtml — relative document links', () => {
+  it('keeps same-folder relative links', () => {
+    expect(sanitizeViewerHtml('<a href="./b.md">x</a>')).toContain('href="./b.md"');
+    expect(sanitizeViewerHtml('<a href="b.md">x</a>')).toContain('href="b.md"');
+  });
+
+  it('keeps sub-folder and parent-folder relative links', () => {
+    expect(sanitizeViewerHtml('<a href="evidence/EV-001.md">x</a>')).toContain(
+      'href="evidence/EV-001.md"',
+    );
+    expect(sanitizeViewerHtml('<a href="../logs/app.jsonl">x</a>')).toContain(
+      'href="../logs/app.jsonl"',
+    );
+  });
+
+  it('keeps the fragment and query on a relative link', () => {
+    expect(sanitizeViewerHtml('<a href="a.md#所見">x</a>')).toContain('href="a.md#所見"');
+    expect(sanitizeViewerHtml('<a href="a.md?v=1">x</a>')).toContain('href="a.md?v=1"');
+  });
+
+  it('keeps a relative link whose file name contains a space', () => {
+    // Markdown の書き手は percent-encode してくれるとは限らない。
+    expect(sanitizeViewerHtml('<a href="my doc.md">x</a>')).toContain('href="my doc.md"');
+  });
+
+  // 以下は「相対に見えるが相対ではない」もの。スキームを名乗るには `:` が要るので、
+  // 空白・制御文字を挟んで難読化しても `:` は消せない。
+  it('still drops javascript: even when obfuscated with whitespace', () => {
+    const out = sanitizeViewerHtml('<a href="java&#9;script:alert(1)">x</a>');
+    expect(out).not.toContain('script:');
+    expect(out).not.toContain('alert(1)');
+  });
+
+  it('still drops http: downgrades and scheme-relative URLs', () => {
+    expect(sanitizeViewerHtml('<a href="http://example.com">x</a>')).not.toContain('href=');
+    expect(sanitizeViewerHtml('<a href="//example.com/a">x</a>')).not.toContain('href=');
+  });
+
+  // href だけを緩める。画像はプレビューが置き場所を解決できず（srcdoc の基準 URL は
+  // アプリ自身）、書き出しも実体を運ばないので、通しても壊れた画像になるだけ。
+  it('does not extend the relaxation to src', () => {
+    expect(sanitizeViewerHtml('<img src="./local.png">')).not.toContain('src=');
+  });
+});
+
 describe('sanitizeViewerHtml — empty / edge inputs', () => {
   it('returns empty string for empty input', () => {
     expect(sanitizeViewerHtml('')).toBe('');

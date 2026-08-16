@@ -24,6 +24,11 @@ export interface Messages {
   'action.html': string;
   'action.htmlTitle': string;
   'action.htmlDone': string;
+  'action.site': string;
+  'action.siteTitle': string;
+  'action.siteDone': string;
+  'action.siteDoneSkipped': string;
+  'action.siteNone': string;
   'action.theme': string;
   'action.themeToLight': string;
   'action.themeToDark': string;
@@ -446,6 +451,11 @@ const en: Messages = {
   'action.html': 'HTML',
   'action.htmlTitle': 'Export HTML (one file, saved next to the document)',
   'action.htmlDone': 'Exported {path}',
+  'action.site': 'Site',
+  'action.siteTitle': 'Export the whole folder as a website (into dist/)',
+  'action.siteDone': 'Exported {count} files to {dir}/',
+  'action.siteDoneSkipped': 'Exported {count} files to {dir}/ ({skipped} left out)',
+  'action.siteNone': 'No document could be turned into a page',
   'action.theme': 'Theme',
   'action.themeToLight': 'Switch to light theme',
   'action.themeToDark': 'Switch to dark theme',
@@ -860,6 +870,11 @@ const ja: Messages = {
   'action.html': 'HTML',
   'action.htmlTitle': 'HTML 出力（1 ファイル・文書と同じ場所へ書き出す）',
   'action.htmlDone': '{path} へ書き出しました',
+  'action.site': 'サイト',
+  'action.siteTitle': 'サイト出力（フォルダ内の文書をまとめて dist/ へ書き出す）',
+  'action.siteDone': '{dir}/ へ {count} 件書き出しました',
+  'action.siteDoneSkipped': '{dir}/ へ {count} 件書き出しました（{skipped} 件は出せませんでした）',
+  'action.siteNone': 'ページに出来る文書がありませんでした',
   'action.theme': 'テーマ',
   'action.themeToLight': 'ライトテーマに切替',
   'action.themeToDark': 'ダークテーマに切替',
@@ -1271,6 +1286,11 @@ const zh: Messages = {
   'action.html': 'HTML',
   'action.htmlTitle': '导出 HTML（单个文件・保存到文档所在位置）',
   'action.htmlDone': '已导出到 {path}',
+  'action.site': '网站',
+  'action.siteTitle': '导出网站（将文件夹内的文档一并导出到 dist/）',
+  'action.siteDone': '已导出 {count} 个文件到 {dir}/',
+  'action.siteDoneSkipped': '已导出 {count} 个文件到 {dir}/（{skipped} 个未能导出）',
+  'action.siteNone': '没有可生成页面的文档',
   'action.theme': '主题',
   'action.themeToLight': '切换到浅色主题',
   'action.themeToDark': '切换到深色主题',
@@ -1679,6 +1699,11 @@ const ko: Messages = {
   'action.html': 'HTML',
   'action.htmlTitle': 'HTML 내보내기 (한 파일 · 문서와 같은 위치에 저장)',
   'action.htmlDone': '{path}(으)로 내보냈습니다',
+  'action.site': '사이트',
+  'action.siteTitle': '사이트 내보내기 (폴더 안의 문서를 한꺼번에 dist/ 로 내보냄)',
+  'action.siteDone': '{dir}/ 에 {count}개를 내보냈습니다',
+  'action.siteDoneSkipped': '{dir}/ 에 {count}개를 내보냈습니다 ({skipped}개는 내보내지 못했습니다)',
+  'action.siteNone': '페이지로 만들 수 있는 문서가 없습니다',
   'action.theme': '테마',
   'action.themeToLight': '라이트 테마로 전환',
   'action.themeToDark': '다크 테마로 전환',

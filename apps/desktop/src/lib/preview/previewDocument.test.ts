@@ -102,4 +102,18 @@ describe('buildPreviewDocument', () => {
     expect(html).toContain(base.bodyHtml);
     expect(html).toContain('.mdb-api-spec { color: red; }');
   });
+
+  // 静的サイトは同じ CSS を何十ページも抱えることになるので、そこだけ外に出す。
+  it('cssHref を渡すと CSS を埋め込まず外部参照にする', () => {
+    const html = buildPreviewDocument({ ...base, cssHref: '../assets/api-spec.css' });
+    expect(html).toContain('<link rel="stylesheet" href="../assets/api-spec.css">');
+    expect(html).not.toContain('.mdb-api-spec { color: red; }');
+    // color-scheme の 1 行は文書ごとに変わるので残す
+    expect(html).toContain('color-scheme: light');
+  });
+
+  it('cssHref も escape する', () => {
+    const html = buildPreviewDocument({ ...base, cssHref: 'a"onload="x' });
+    expect(html).not.toContain('onload="x');
+  });
 });

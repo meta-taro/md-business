@@ -29,6 +29,15 @@ export interface PreviewDocumentInput {
   bodyHtml: string;
   /** インライン化する文書 CSS（api-spec.css 等）のテキスト。 */
   css: string;
+  /**
+   * CSS を埋め込まず、この URL の外部スタイルシートとして読ませる。
+   *
+   * 渡すのは静的サイト出力だけ。1 ファイルで完結させたい画面プレビューと単一 HTML
+   * 書き出しは埋め込みのままにする（外部参照にすると、送った先で CSS が欠けた
+   * 素の HTML になる）。逆にページが何十枚もあるサイトでは、同じ CSS を全ページへ
+   * 複製すると出力が膨らみ、直したいときも 1 枚ずつ直すことになる。
+   */
+  cssHref?: string;
   /** ドキュメントタイトル（<title>）。escape される。 */
   title?: string;
   /** iframe 内 <html data-theme>。アプリのテーマと一致させる。既定 light。 */
@@ -92,8 +101,20 @@ const PREVIEW_SHORTCUT_SCRIPT = `<script>
 </script>`;
 
 export function buildPreviewDocument(input: PreviewDocumentInput): string {
-  const { bodyHtml, css, title = '', theme = 'light', lang = 'ja', shortcuts = true } = input;
+  const {
+    bodyHtml,
+    css,
+    cssHref,
+    title = '',
+    theme = 'light',
+    lang = 'ja',
+    shortcuts = true,
+  } = input;
   const script = shortcuts ? `\n${PREVIEW_SHORTCUT_SCRIPT}` : '';
+  const style =
+    cssHref === undefined
+      ? `<style>${css}</style>`
+      : `<link rel="stylesheet" href="${escapeHtml(cssHref)}">`;
 
   return `<!doctype html>
 <html lang="${escapeHtml(lang)}" data-theme="${escapeHtml(theme)}">
@@ -102,7 +123,7 @@ export function buildPreviewDocument(input: PreviewDocumentInput): string {
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${escapeHtml(title)}</title>
 <style>:root { color-scheme: ${escapeHtml(theme)}; }</style>
-<style>${css}</style>
+${style}
 </head>
 <body>
 ${bodyHtml}${script}

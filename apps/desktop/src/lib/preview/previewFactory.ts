@@ -65,10 +65,24 @@ export interface SchemaPreviewConfig<T> {
   css: string;
 }
 
+/**
+ * 描画に使った文書 CSS。静的サイト出力が「同じ書式のページで CSS を 1 本に
+ * まとめる」ために要る。どのスキーマになるかは描いてみるまで決まらないので、
+ * 呼ぶ側が事前に知る手立ては無く、結果に添えて返すしかない。
+ */
+export interface PreviewStyle {
+  /** スキーマ ID（= CSS ファイル名のもと）。 */
+  id: string;
+  /** CSS のテキスト。 */
+  css: string;
+}
+
 export interface PreviewOk {
   ok: true;
   /** `<iframe srcdoc>` に渡す完全な HTML 文書。 */
   srcdoc: string;
+  /** 描画に使った文書 CSS（外部ファイルへ出すとき用）。 */
+  style: PreviewStyle;
   /** <title> / タブ名に使う文書タイトル。 */
   documentTitle: string;
   /** 解決したスキーマの表示名（ペイン見出し用）。 */
@@ -102,6 +116,12 @@ export interface RenderPreviewOptions {
    * アプリの外へ出す HTML（書き出し）だけが false を渡す。
    */
   shortcuts?: boolean;
+  /**
+   * 文書 CSS を外部ファイルにして `<link>` で読ませる。スキーマ ID を受け取り、
+   * そのページから見た CSS の URL を返す（ページの深さで `../` の数が変わるため、
+   * 固定文字列ではなく関数で受け取る）。渡すのは静的サイト出力だけ。
+   */
+  cssHref?: (styleId: string) => string;
 }
 
 export interface PreviewProvider extends PreviewProviderMeta {
@@ -129,6 +149,8 @@ export function createSchemaPreview<T>(config: SchemaPreviewConfig<T>): PreviewP
       options: RenderPreviewOptions = {},
     ): PreviewResult {
       const { theme, shortcuts } = options;
+      const cssHref = options.cssHref?.(meta.id);
+      const style = { id: meta.id, css: config.css };
 
       const normalized = config.normalize(frontmatter);
       const autofilled = config.autofill(normalized.data);
@@ -149,10 +171,12 @@ export function createSchemaPreview<T>(config: SchemaPreviewConfig<T>): PreviewP
           srcdoc: buildPreviewDocument({
             bodyHtml: '',
             css: config.css,
+            cssHref,
             title: documentTitle,
             theme,
             shortcuts,
           }),
+          style,
           documentTitle,
           label,
           warnings,
@@ -166,10 +190,12 @@ export function createSchemaPreview<T>(config: SchemaPreviewConfig<T>): PreviewP
         srcdoc: buildPreviewDocument({
           bodyHtml,
           css: config.css,
+          cssHref,
           title: documentTitle,
           theme,
           shortcuts,
         }),
+        style,
         documentTitle,
         label,
         warnings,

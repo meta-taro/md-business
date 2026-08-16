@@ -40,6 +40,7 @@ pub fn run() {
             workspace::rename_entry,
             workspace::directory_exists,
             workspace::export_html,
+            workspace::export_site,
             watch::watch_workspace,
             watch::unwatch_workspace,
             git::git_status,
