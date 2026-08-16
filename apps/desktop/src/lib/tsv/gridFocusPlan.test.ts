@@ -65,4 +65,22 @@ describe('planCellFocus', () => {
     const second = planCellFocus(spot, first.spot, 'grid');
     expect(second.prepare).toBe(false);
   });
+
+  // 間引きで選択セルの DOM が消えると焦点が浮く。人がスクロールして外したぶんまで
+  // 「浮いたから」で取り返すと、戻ってきた瞬間に表示が寄る（スクロールの揺れの一因）。
+  it('手放したと分かっているときは、焦点が浮いていても取り返さない', () => {
+    const spot = at(500, 0, false);
+    const plan = planCellFocus(spot, focusSpotKey(spot), 'none', true);
+    expect(plan.takeFocus).toBe(false);
+  });
+
+  it('手放していなければ、焦点が浮いたときは従来どおり取り返す', () => {
+    const spot = at(500, 0, false);
+    expect(planCellFocus(spot, focusSpotKey(spot), 'none', false).takeFocus).toBe(true);
+  });
+
+  it('手放していても、選択が動いたなら焦点を当てる', () => {
+    const plan = planCellFocus(at(501, 0, false), focusSpotKey(at(500, 0, false)), 'none', true);
+    expect(plan.takeFocus).toBe(true);
+  });
 });

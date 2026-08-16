@@ -32,7 +32,8 @@
   import { planGridKey, type GridMode } from './gridMode';
   import { nextCell } from './gridNav';
   import { acceptsLineBreak, handsOffKey, seedFromKey } from './gridEdit';
-  import { planCellFocus, type FocusWhere } from './gridFocusPlan';
+  import { focusSpotKey, planCellFocus, type FocusWhere } from './gridFocusPlan';
+  import { planRowReveal, type RevealState } from './gridReveal';
   import { parseClipboardMatrix, applyPaste, rowToTsv } from './gridClipboard';
   import { duplicateRow, deleteRow, clearRow } from './gridRows';
   import { canFillDown, fillDown } from './gridFill';
@@ -840,19 +841,33 @@
   // 選択肢読み込みでも同じことが起きる。何をしてよいかは planCellFocus に決めさせる
   // （やり直すと打鍵ごとに全選択され、エディター側の焦点も奪ってしまう）。
   let preparedSpot: string | null = null;
+  // 「寄せる」を選択の変化だけに絞るための持ち越し。窓は scrollTop から導かれるので、
+  // 人がホイールを回すだけでもこの効果は走り直す。判断は planRowReveal に決めさせる
+  // （毎回寄せると scrollTop が書き戻され、人の操作と引き合って表示が揺れる）。
+  let revealState: RevealState = { revealed: null, releasedSpot: null };
   $effect(() => {
     const { row, col } = activeCell;
     const editing = mode === 'edit';
     if (!engaged || !gridEl) return;
+    const spot = focusSpotKey({ row, col, editing });
+    const inWindow = row >= win.start && row < win.end;
+    const revealPlan = planRowReveal({ spot, inWindow, ...revealState });
+    revealState = { revealed: revealPlan.revealed, releasedSpot: revealPlan.releasedSpot };
     // 間引きの外へ出たら、まず表示領域へ入れる。窓が動くとこの効果がもう一度走り、
     // そこで焦点を当てる（窓の中にある行は焦点を当てれば自動で寄る）。
-    if (row < win.start || row >= win.end) {
+    if (revealPlan.reveal) {
       revealRow(row);
       return;
     }
+    if (!inWindow) return; // 人がスクロールして外した。焦点は手放したままにする。
     const td = gridEl.querySelector<HTMLElement>(`[data-cell="${row}-${col}"]`);
     if (!td) return;
-    const plan = planCellFocus({ row, col, editing }, preparedSpot, focusWhere());
+    const plan = planCellFocus(
+      { row, col, editing },
+      preparedSpot,
+      focusWhere(),
+      revealPlan.releasedSpot === spot,
+    );
     preparedSpot = plan.spot;
     if (!editing) {
       // 編集から出たら要求は失効させる（次に編集へ入るときに立て直す）。
