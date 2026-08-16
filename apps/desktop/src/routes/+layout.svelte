@@ -25,7 +25,8 @@
   import { updater } from '$lib/update/updater.svelte';
   import { mcp } from '$lib/mcp/mcp.svelte';
   import { fileChangeFromLog, parseLogEvent } from '$lib/mcp/mcpLog';
-  import { parseRequestEvent, planExportPdf, waitUntil } from '$lib/mcp/appRequest';
+  import { parseRequestEvent, planDocumentRequest, waitUntil } from '$lib/mcp/appRequest';
+  import { folderLabel } from '$lib/workspace/recentFolders';
   import {
     DEFAULT_FILETREE_W,
     MIN_FILETREE_W,
@@ -164,7 +165,7 @@
   const PDF_READY_TIMEOUT_MS = 8000;
 
   /**
-   * MCP からの PDF 出力依頼を処理する。
+   * MCP からの画面操作の依頼を処理する。
    *
    * 依頼元は応答を待っているので、断る場合も必ず理由を返す。印刷ダイアログは閉じるまで
    * 戻らないため、応答は開く前に済ませる（保存操作そのものは利用者が行う）。
@@ -175,8 +176,8 @@
     const respond = (ok: boolean, error: string | null = null): Promise<void> =>
       invoke<void>('mcp_respond', { id: request.id, ok, error }).catch(() => undefined);
 
-    const plan = planExportPdf(request.path, {
-      hasWorkspace: workspace.root !== null,
+    const plan = planDocumentRequest(request.path, {
+      folderName: workspace.root === null ? null : folderLabel(workspace.root).name,
       knownPaths: workspace.allFilePaths(),
     });
     if (!plan.ok) {
@@ -184,6 +185,11 @@
       return;
     }
     if (workspace.activePath !== plan.path) await workspace.select(plan.path);
+    // 表示を切り替えるだけの依頼はここで終わり。印刷は伴わない。
+    if (request.action === 'open-document') {
+      await respond(true);
+      return;
+    }
     const ready = await waitUntil(() => pdfExport.canExport, {
       timeoutMs: PDF_READY_TIMEOUT_MS,
       stepMs: 50,
