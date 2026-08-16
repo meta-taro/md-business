@@ -6,6 +6,10 @@
   import { autosave } from '$lib/workspace/autosave.svelte';
   import { pdfExport } from '$lib/preview/pdfExport.svelte';
   import { htmlExport } from '$lib/preview/htmlExportController.svelte';
+  import {
+    siteExport,
+    type SiteExportResult,
+  } from '$lib/preview/siteExportController.svelte';
   import { timelineView } from '$lib/logs/timelineView.svelte';
   import { documentDisplayName } from '$lib/window/docTitle';
   import { t } from '$lib/i18n/i18n.svelte';
@@ -27,6 +31,28 @@
     const fileName = workspace.activePath.split('/').pop() ?? workspace.activePath;
     return documentDisplayName(workspace.source, fileName);
   });
+
+  // サイト書き出しの知らせ。出せなかった文書がある場合は件数まで出す（黙って減らさない）。
+  function siteNote(result: SiteExportResult): string {
+    if (result.kind === 'error') return result.message;
+    if (result.kind === 'none') return t('action.siteNone');
+    if (result.skipped.length === 0) {
+      return t('action.siteDone', { dir: result.dir, count: result.count });
+    }
+    return t('action.siteDoneSkipped', {
+      dir: result.dir,
+      count: result.count,
+      skipped: result.skipped.length,
+    });
+  }
+
+  // 出せなかった文書は、どれがなぜ駄目だったかを hover で読めるようにしておく。
+  // 件数だけだと、直しようがない。
+  function siteNoteTitle(result: SiteExportResult): string {
+    const note = siteNote(result);
+    if (result.kind === 'error' || result.skipped.length === 0) return note;
+    return [note, ...result.skipped.map((skip) => `${skip.path}: ${skip.reason}`)].join('\n');
+  }
 </script>
 
 <header class="topbar" data-tauri-drag-region>
@@ -193,6 +219,39 @@
           {htmlExport.result.ok
             ? t('action.htmlDone', { path: htmlExport.result.path })
             : htmlExport.result.message}
+        </span>
+      {/if}
+      <!-- サイト出力。フォルダ内の .md をまとめて dist/ へ置く。開いている文書に依らないので
+           プレビューの状態は見ない（フォルダさえ開いていれば押せる）。
+           アイコンは地球儀＝そのまま配れる Web の見た目。 -->
+      <button
+        class="btn ghost with-icon"
+        type="button"
+        onclick={() => void siteExport.run()}
+        disabled={!siteExport.canExport}
+        title={t('action.siteTitle')}
+        aria-label={t('action.site')}
+      >
+        <svg class="btn-ico" viewBox="0 0 16 16" aria-hidden="true">
+          <circle cx="8" cy="8" r="5.5" fill="none" stroke="currentColor" stroke-width="1.2" />
+          <path
+            d="M2.5 8h11M8 2.5c1.5 1.5 2.3 3.4 2.3 5.5S9.5 12.5 8 13.5C6.5 12.5 5.7 10.1 5.7 8S6.5 4 8 2.5Z"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.2"
+            stroke-linejoin="round"
+          />
+        </svg>
+        <span>{t('action.site')}</span>
+      </button>
+      {#if siteExport.result !== null}
+        <span
+          class="export-note"
+          class:is-error={siteExport.result.kind !== 'done'}
+          role="status"
+          title={siteNoteTitle(siteExport.result)}
+        >
+          {siteNote(siteExport.result)}
         </span>
       {/if}
       <!-- 時系列。ログは文書ツリーに出ない（出すとエディタで開けてしまう）ので、

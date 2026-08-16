@@ -9,8 +9,8 @@
 //! から実 FS（temp ディレクトリ）に対して単体テストする。`#[tauri::command]` 側は
 //! 薄いラッパに徹する（§7.3「ロジックを純関数へ抽出し単体化」）。
 
-use serde::Serialize;
-use std::path::{Path, PathBuf};
+use serde::{Deserialize, Serialize};
+use std::path::{Component, Path, PathBuf};
 use tauri::State;
 
 use crate::watch::{record_self_write, WatchState};
@@ -334,6 +334,97 @@ pub fn export_html_impl(root: &Path, rel_path: &str, html: &str) -> Result<Strin
 #[tauri::command]
 pub fn export_html(root: String, rel_path: String, html: String) -> Result<String, String> {
     export_html_impl(Path::new(&root), &rel_path, &html)
+}
+
+/// 静的サイトの書き出し先フォルダ名（ルート直下）。走査の除外対象でもあるので、
+/// ここへ書いても文書ツリーには出てこない（＝生成物が正本に混ざらない）。
+const SITE_DIR: &str = "dist";
+
+/// サイトに置ける拡張子。ページと書式だけ。ここを広げると、任意の中身を任意の名前で
+/// 置ける口になる（画像は今のところ運ぶ実体が無い——プレビューが通さないため）。
+const SITE_EXTS: [&str; 2] = ["html", "css"];
+
+/// 書き出す 1 ファイル。`path` は `dist/` から見た相対パス（`/` 区切り）。
+#[derive(Deserialize, Debug, Clone, PartialEq, Eq)]
+pub struct SiteFile {
+    pub path: String,
+    pub content: String,
+}
+
+/// 書き出しの結果。どこへ何件置いたかだけ返す。
+#[derive(Serialize, Debug, Clone, PartialEq, Eq)]
+pub struct SiteWriteResult {
+    pub dir: String,
+    pub count: usize,
+}
+
+/// サイト内の相対パスとして受け付けてよいか確かめ、`dist/` からの相対パスを返す。
+///
+/// 通すのは「普通の名前」だけ。`..`（上へ出る）・先頭の `/`（絶対）・`C:`（ドライブ指定）は
+/// いずれも `Component::Normal` にならないので、この一点で塞げる。
+fn site_relative_path(path: &str) -> Result<PathBuf, String> {
+    let normalized = path.replace('\\', "/");
+    let candidate = Path::new(&normalized);
+    if !candidate
+        .components()
+        .all(|c| matches!(c, Component::Normal(_)))
+    {
+        return Err(format!("サイト内に置けない場所を指しています: {}", path));
+    }
+    match lower_ext(candidate) {
+        Some(ext) if SITE_EXTS.contains(&ext.as_str()) => Ok(candidate.to_path_buf()),
+        _ => Err(format!(
+            "サイトに置けるのは .html / .css のみです: {}",
+            path
+        )),
+    }
+}
+
+/// 開いているフォルダの `dist/` へサイト一式を書き出す（Tauri 非依存の実体）。
+///
+/// 単一 HTML 書き出しと同じく、**出力先はフロントから受け取らない**。受け取るのは
+/// `dist/` の中での相対パスだけで、その手前は常にルート直下の `dist/` に固定する。
+///
+/// 既にあるファイルは上書きするが、**もう作られなかったファイルは消さない**。`dist/` は
+/// 他のビルド成果物の置き場でもありうるので、こちらの判断でフォルダごと掃除しない。
+/// （消えた文書のページが残る場合は、利用者が `dist/` を消してから出し直す）
+pub fn export_site_impl(root: &Path, files: &[SiteFile]) -> Result<SiteWriteResult, String> {
+    if files.is_empty() {
+        return Err("書き出すページがありません".to_string());
+    }
+    let canon_root = std::fs::canonicalize(root).map_err(|e| format!("ルート解決失敗: {}", e))?;
+    if !canon_root.is_dir() {
+        return Err("ルートがディレクトリではありません".to_string());
+    }
+
+    // 先に全部確かめる。途中まで書いてから断ると、混ざった状態の dist/ が残る。
+    let targets = files
+        .iter()
+        .map(|file| {
+            site_relative_path(&file.path)
+                .map(|rel| (canon_root.join(SITE_DIR).join(rel), &file.content))
+        })
+        .collect::<Result<Vec<_>, String>>()?;
+
+    for (target, content) in &targets {
+        if let Some(parent) = target.parent() {
+            std::fs::create_dir_all(parent)
+                .map_err(|e| format!("フォルダ作成失敗 {}: {}", parent.display(), e))?;
+        }
+        std::fs::write(target, content)
+            .map_err(|e| format!("書き出し失敗 {}: {}", target.display(), e))?;
+    }
+
+    Ok(SiteWriteResult {
+        dir: SITE_DIR.to_string(),
+        count: targets.len(),
+    })
+}
+
+/// フロントから `invoke("export_site", { root, files })` で呼ぶ薄いラッパ。
+#[tauri::command]
+pub fn export_site(root: String, files: Vec<SiteFile>) -> Result<SiteWriteResult, String> {
+    export_site_impl(Path::new(&root), &files)
 }
 
 /// フロントから `invoke("scan_documents", { root })` で呼ぶ薄いラッパ。
@@ -980,5 +1071,117 @@ schema: spec/v1
         let root = TempRoot::new("export_absent");
 
         assert!(export_html_impl(&root.path, "none.md", "<html>").is_err());
+    }
+
+    // ── export_site_impl ─────────────────────────────────────────────────
+
+    fn site_file(path: &str, content: &str) -> SiteFile {
+        SiteFile {
+            path: path.to_string(),
+            content: content.to_string(),
+        }
+    }
+
+    #[test]
+    fn サイトは_dist_配下へ書き出す() {
+        let root = TempRoot::new("site_ok");
+
+        let result = export_site_impl(
+            &root.path,
+            &[
+                site_file("index.html", "<!doctype html>"),
+                site_file("assets/markdown.css", "body{}"),
+            ],
+        )
+        .expect("書き出し成功");
+
+        assert_eq!(result.dir, "dist");
+        assert_eq!(result.count, 2);
+        assert_eq!(
+            std::fs::read_to_string(root.path.join("dist/index.html")).unwrap(),
+            "<!doctype html>"
+        );
+        assert_eq!(
+            std::fs::read_to_string(root.path.join("dist/assets/markdown.css")).unwrap(),
+            "body{}"
+        );
+    }
+
+    #[test]
+    fn 階層のあるページは親フォルダごと作る() {
+        let root = TempRoot::new("site_nested");
+
+        export_site_impl(&root.path, &[site_file("設計/基本設計書.html", "<h1>")])
+            .expect("書き出し成功");
+
+        assert!(root.path.join("dist/設計/基本設計書.html").is_file());
+    }
+
+    // ページは生成物。作り直すたびに別名が増えるほうが困る（単一 HTML と同じ扱い）。
+    #[test]
+    fn サイトの既存ファイルは上書きする() {
+        let root = TempRoot::new("site_overwrite");
+        root.file("dist/index.html", "古い");
+
+        export_site_impl(&root.path, &[site_file("index.html", "新しい")]).expect("書き出し成功");
+
+        assert_eq!(
+            std::fs::read_to_string(root.path.join("dist/index.html")).unwrap(),
+            "新しい"
+        );
+    }
+
+    // 途中まで書いてから断ると、混ざった状態の dist/ が残る。先に全部確かめる。
+    #[test]
+    fn 上へ出るパスが_1_つでもあれば何も書かない() {
+        let root = TempRoot::new("site_escape");
+
+        assert!(export_site_impl(
+            &root.path,
+            &[site_file("a.html", "<h1>"), site_file("../外.html", "<h1>")]
+        )
+        .is_err());
+
+        assert!(!root.path.join("dist/a.html").exists());
+        assert!(!root.path.join("外.html").exists());
+    }
+
+    #[test]
+    fn サイトの絶対パスは断る() {
+        let root = TempRoot::new("site_abs");
+
+        assert!(export_site_impl(&root.path, &[site_file("/tmp/x.html", "<h1>")]).is_err());
+        assert!(export_site_impl(&root.path, &[site_file("C:/x.html", "<h1>")]).is_err());
+    }
+
+    // dist/ に置くのは描いたページと CSS だけ。ここを広げると、任意の中身を
+    // 任意の名前で置ける口になる。
+    #[test]
+    fn html_と_css_以外は断る() {
+        let root = TempRoot::new("site_ext");
+
+        assert!(export_site_impl(&root.path, &[site_file("a.exe", "MZ")]).is_err());
+        assert!(export_site_impl(&root.path, &[site_file("a.md", "# a")]).is_err());
+        assert!(export_site_impl(&root.path, &[site_file("noext", "x")]).is_err());
+    }
+
+    // 空の dist/ を作っても、利用者には何が起きたか分からない。
+    #[test]
+    fn 空の一覧は断る() {
+        let root = TempRoot::new("site_empty");
+
+        assert!(export_site_impl(&root.path, &[]).is_err());
+        assert!(!root.path.join("dist").exists());
+    }
+
+    #[test]
+    fn ルートがフォルダでなければ断る() {
+        let root = TempRoot::new("site_noroot");
+
+        assert!(export_site_impl(
+            &root.path.join("無いフォルダ"),
+            &[site_file("a.html", "<h1>")]
+        )
+        .is_err());
     }
 }
