@@ -5,6 +5,7 @@
   import { workspace } from '$lib/workspace/workspace.svelte';
   import { autosave } from '$lib/workspace/autosave.svelte';
   import { pdfExport } from '$lib/preview/pdfExport.svelte';
+  import { htmlExport } from '$lib/preview/htmlExportController.svelte';
   import { timelineView } from '$lib/logs/timelineView.svelte';
   import { documentDisplayName } from '$lib/window/docTitle';
   import { t } from '$lib/i18n/i18n.svelte';
@@ -156,6 +157,44 @@
         </svg>
         <span>PDF</span>
       </button>
+      <!-- HTML 出力。プレビューと同じものを 1 ファイルとして文書の隣へ書き出す。
+           書き出し先はここから渡さない（元の .md の場所から Rust が決める）。
+           アイコンは山括弧＝ソースの見た目そのもの。 -->
+      <button
+        class="btn ghost with-icon"
+        type="button"
+        onclick={() => void htmlExport.run()}
+        disabled={!htmlExport.canExport}
+        title={t('action.htmlTitle')}
+        aria-label={t('action.html')}
+      >
+        <svg class="btn-ico" viewBox="0 0 16 16" aria-hidden="true">
+          <path
+            d="M5.75 5 2.5 8l3.25 3M10.25 5 13.5 8l-3.25 3"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
+        </svg>
+        <span>{t('action.html')}</span>
+      </button>
+      {#if htmlExport.result !== null}
+        <!-- 書き出した先／断られた理由。読めば用が済むのでしばらくして自分で消える。 -->
+        <span
+          class="export-note"
+          class:is-error={!htmlExport.result.ok}
+          role="status"
+          title={htmlExport.result.ok
+            ? t('action.htmlDone', { path: htmlExport.result.path })
+            : htmlExport.result.message}
+        >
+          {htmlExport.result.ok
+            ? t('action.htmlDone', { path: htmlExport.result.path })
+            : htmlExport.result.message}
+        </span>
+      {/if}
       <!-- 時系列。ログは文書ツリーに出ない（出すとエディタで開けてしまう）ので、
            ここが唯一の入口になる。フォルダを開いていなければ押せない。 -->
       <button
@@ -473,6 +512,25 @@
     font-size: var(--text-2xs-size);
     line-height: 1.5;
     opacity: 0.85;
+  }
+
+  /* 書き出し結果。パスは長くなりうるので幅を切って省略し、全文は title で読ませる。 */
+  .export-note {
+    flex: none;
+    max-width: 22ch;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    padding: 0 var(--space-1);
+    border-radius: var(--radius-sm);
+    font-size: var(--text-2xs-size);
+    line-height: 1.8;
+    color: var(--text-secondary);
+  }
+
+  .export-note.is-error {
+    background: var(--danger-bg);
+    color: var(--danger-fg);
   }
 
   /* ── ウィンドウコントロール（Windows 慣習：右上角に密着・フル高） ── */

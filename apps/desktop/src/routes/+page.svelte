@@ -5,6 +5,7 @@
   import { renderMermaidInDocument } from '$lib/preview/renderMermaid';
   import { frontmatterMessage } from '$lib/preview/frontmatterMessage';
   import { pdfExport } from '$lib/preview/pdfExport.svelte';
+  import { htmlExport } from '$lib/preview/htmlExportController.svelte';
   import { previewReady } from '$lib/preview/previewGate';
   import { resolvePreviewLink } from '$lib/preview/previewLink';
   import { findHeadingOffset } from '$lib/editor/headingAnchor';
@@ -449,7 +450,10 @@
   // preview は本文全体を HTML へ組み直す導出値なので、出していないときに読むと
   // 捨てるためだけの組み直しが 1 セル確定ごとに走る（2,000 行で 170ms）。
   $effect(() => {
-    pdfExport.setReady(previewReady(paneState, () => preview.ok));
+    const ready = previewReady(paneState, () => preview.ok);
+    pdfExport.setReady(ready);
+    // HTML 書き出しも同じ条件。プレビューに出せないものは書き出す中身が無い。
+    htmlExport.setReady(ready);
   });
 
   // グリッド編集 → 正本ソースへ書き戻し、エディターと即同期する。

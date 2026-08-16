@@ -305,6 +305,37 @@ pub fn directory_exists_impl(path: &Path) -> bool {
     path.is_dir()
 }
 
+/// 文書と同じ場所へ HTML を書き出す（Tauri 非依存の実体）。成功で書き出し先の相対パス。
+///
+/// **出力先はフロントから受け取らない。** 受け取るのは元の `.md` の相対パスだけで、
+/// 書き出し先はその拡張子を `.html` に替えて機械的に決める。出力先を渡せる作りにすると、
+/// 書き込める場所がプレビューの持ち主より広くなる（`.md` しか書けない `write_document`
+/// の脇に、任意の場所へ任意の中身を置ける口が空く）。
+///
+/// 生成物なので既存の `.html` は上書きする。作り直すたびに別名が増えるほうが困る。
+pub fn export_html_impl(root: &Path, rel_path: &str, html: &str) -> Result<String, String> {
+    let source = resolve_in_root(root, rel_path)?;
+    if lower_ext(&source).as_deref() != Some("md") {
+        return Err("HTML にできるのは .md のみです".to_string());
+    }
+    let target = source.with_extension("html");
+    std::fs::write(&target, html).map_err(|e| format!("書き出し失敗: {}", e))?;
+
+    // 表示用に相対パスへ戻す。resolve_in_root が root 配下を保証済み。
+    let canon_root = std::fs::canonicalize(root).map_err(|e| format!("ルート解決失敗: {}", e))?;
+    Ok(target
+        .strip_prefix(&canon_root)
+        .map(|p| p.to_string_lossy().replace('\\', "/"))
+        .unwrap_or_else(|_| target.to_string_lossy().to_string()))
+}
+
+/// フロントから `invoke("export_html", { root, relPath, html })` で呼ぶ薄いラッパ。
+/// 成功で書き出し先の相対パス、失敗はメッセージ。
+#[tauri::command]
+pub fn export_html(root: String, rel_path: String, html: String) -> Result<String, String> {
+    export_html_impl(Path::new(&root), &rel_path, &html)
+}
+
 /// フロントから `invoke("scan_documents", { root })` で呼ぶ薄いラッパ。
 #[tauri::command]
 pub fn scan_documents(root: String) -> Result<ScanResult, String> {
@@ -891,5 +922,63 @@ mod tests {
         root.file("a.md", "# a");
         assert!(rename_entry_impl(&root.path, "../a.md", "b.md").is_err());
         assert!(rename_entry_impl(&root.path, "", "b").is_err());
+    }
+    // ── export_html_impl ─────────────────────────────────────────────────
+
+    #[test]
+    fn 書き出し先は元の_md_と同じ場所の同名_html() {
+        let root = TempRoot::new("export_ok");
+        root.file("設計書/基本設計書.md", "---
+schema: spec/v1
+---
+");
+
+        let written = export_html_impl(&root.path, "設計書/基本設計書.md", "<!doctype html>")
+            .expect("書き出し成功");
+
+        assert_eq!(written, "設計書/基本設計書.html");
+        let out = root.path.join("設計書/基本設計書.html");
+        assert_eq!(std::fs::read_to_string(out).unwrap(), "<!doctype html>");
+    }
+
+    // 生成物なので上書きしてよい。作り直すたびに別名が増えるほうが困る。
+    #[test]
+    fn 既存の_html_は上書きする() {
+        let root = TempRoot::new("export_overwrite");
+        root.file("a.md", "# a");
+        root.file("a.html", "古い");
+
+        export_html_impl(&root.path, "a.md", "新しい").expect("書き出し成功");
+
+        assert_eq!(
+            std::fs::read_to_string(root.path.join("a.html")).unwrap(),
+            "新しい"
+        );
+    }
+
+    // .tsv は表として編集するもので、プレビューを持たない。
+    #[test]
+    fn 元が_md_でなければ断る() {
+        let root = TempRoot::new("export_ext");
+        root.file("a.tsv", "#! md-business:test-spec-tsv/v1
+");
+
+        assert!(export_html_impl(&root.path, "a.tsv", "<html>").is_err());
+        assert!(!root.path.join("a.html").exists());
+    }
+
+    #[test]
+    fn ルート外を指すパスは断る() {
+        let root = TempRoot::new("export_escape");
+        root.file("a.md", "# a");
+
+        assert!(export_html_impl(&root.path, "../a.md", "<html>").is_err());
+    }
+
+    #[test]
+    fn 無いファイルは断る() {
+        let root = TempRoot::new("export_absent");
+
+        assert!(export_html_impl(&root.path, "none.md", "<html>").is_err());
     }
 }

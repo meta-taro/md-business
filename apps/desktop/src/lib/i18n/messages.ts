@@ -21,6 +21,9 @@ export interface Messages {
   'action.pdf': string;
   'action.pdfExport': string;
   'action.pdfTitle': string;
+  'action.html': string;
+  'action.htmlTitle': string;
+  'action.htmlDone': string;
   'action.theme': string;
   'action.themeToLight': string;
   'action.themeToDark': string;
@@ -440,6 +443,9 @@ const en: Messages = {
   'action.pdf': 'PDF',
   'action.pdfExport': 'Export PDF',
   'action.pdfTitle': 'Export PDF (Ctrl+P / ⌘P — print the preview as A4)',
+  'action.html': 'HTML',
+  'action.htmlTitle': 'Export HTML (one file, saved next to the document)',
+  'action.htmlDone': 'Exported {path}',
   'action.theme': 'Theme',
   'action.themeToLight': 'Switch to light theme',
   'action.themeToDark': 'Switch to dark theme',
@@ -851,6 +857,9 @@ const ja: Messages = {
   'action.pdf': 'PDF',
   'action.pdfExport': 'PDF 出力',
   'action.pdfTitle': 'PDF 出力（Ctrl+P / ⌘P・プレビューを A4 で印刷／保存）',
+  'action.html': 'HTML',
+  'action.htmlTitle': 'HTML 出力（1 ファイル・文書と同じ場所へ書き出す）',
+  'action.htmlDone': '{path} へ書き出しました',
   'action.theme': 'テーマ',
   'action.themeToLight': 'ライトテーマに切替',
   'action.themeToDark': 'ダークテーマに切替',
@@ -1259,6 +1268,9 @@ const zh: Messages = {
   'action.pdf': 'PDF',
   'action.pdfExport': '导出 PDF',
   'action.pdfTitle': '导出 PDF（Ctrl+P / ⌘P・将预览按 A4 打印／保存）',
+  'action.html': 'HTML',
+  'action.htmlTitle': '导出 HTML（单个文件・保存到文档所在位置）',
+  'action.htmlDone': '已导出到 {path}',
   'action.theme': '主题',
   'action.themeToLight': '切换到浅色主题',
   'action.themeToDark': '切换到深色主题',
@@ -1664,6 +1676,9 @@ const ko: Messages = {
   'action.pdf': 'PDF',
   'action.pdfExport': 'PDF 내보내기',
   'action.pdfTitle': 'PDF 내보내기 (Ctrl+P / ⌘P · 미리보기를 A4로 인쇄／저장)',
+  'action.html': 'HTML',
+  'action.htmlTitle': 'HTML 내보내기 (한 파일 · 문서와 같은 위치에 저장)',
+  'action.htmlDone': '{path}(으)로 내보냈습니다',
   'action.theme': '테마',
   'action.themeToLight': '라이트 테마로 전환',
   'action.themeToDark': '다크 테마로 전환',

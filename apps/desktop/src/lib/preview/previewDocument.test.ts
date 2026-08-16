@@ -92,4 +92,14 @@ describe('buildPreviewDocument', () => {
     expect(html).toContain('md-business-preview');
     expect(html).toContain('parent.postMessage');
   });
+  // 書き出した HTML は画面の外へ出る。そこで keydown を横取りすると、
+  // 受け取った人がブラウザで開いたときに印刷・検索の操作を奪う。
+  it('shortcuts: false ならスクリプトを入れない', () => {
+    const html = buildPreviewDocument({ ...base, shortcuts: false });
+    expect(html).not.toContain('<script>');
+    expect(html).not.toContain('parent.postMessage');
+    // 本文と CSS はそのまま残る
+    expect(html).toContain(base.bodyHtml);
+    expect(html).toContain('.mdb-api-spec { color: red; }');
+  });
 });
