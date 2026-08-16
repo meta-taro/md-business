@@ -35,7 +35,12 @@ const ucs2lengthInline = `const __md_ucs2length = ${ucs2length.toString()};`;
 
 const requireFromHere = createRequire(import.meta.url);
 const formatsPath = requireFromHere.resolve('ajv-formats/dist/formats.js');
-const formatsSrc = fs.readFileSync(formatsPath, 'utf-8');
+// `formats.js` ends with a source-map comment. Inlining it verbatim would make
+// our bundle claim a map file we never write, so every reader of the artifact
+// reports a missing file and the noise buries real errors.
+const formatsSrc = fs
+  .readFileSync(formatsPath, 'utf-8')
+  .replace(/^\/\/# sourceMappingURL=.*$/gm, '');
 const formatsInline = `const __md_ajv_formats = (() => {
   const exports = {};
   ${formatsSrc}
