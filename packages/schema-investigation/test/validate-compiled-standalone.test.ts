@@ -47,6 +47,14 @@ describe('validate.compiled.js standalone bundle', () => {
   it('does not reference __cjs_N namespace bindings (replaced by inlined helpers)', () => {
     expect(compiledSrc).not.toMatch(/__cjs_\d+/);
   });
+
+  // The bundle inlines the text of `ajv-formats/dist/formats.js`, and that
+  // file's last line points at a source map. We never emit the map, so every
+  // tool that reads this artifact reports a missing file. The noise is loud
+  // enough to bury the errors worth reading.
+  it('does not point at a source map it never emits', () => {
+    expect(compiledSrc).not.toMatch(/sourceMappingURL/);
+  });
 });
 
 describe('validate.compiled.js runtime behaviour after standalone inlining', () => {

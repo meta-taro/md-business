@@ -75,6 +75,39 @@ function fanoutChain(levels: number, fanout: number): unknown {
   return node;
 }
 
+/** How much of a `fanoutChain` the caller actually touched. */
+interface CountedChain {
+  value: unknown;
+  reads: () => number;
+}
+
+/**
+ * A `fanoutChain` that counts every read the walker makes against it.
+ *
+ * "The budget stopped the walk early" cannot be stated as elapsed time — a
+ * shared machine can be slow for reasons that have nothing to do with this
+ * code, and a threshold loose enough never to misfire is loose enough to pass
+ * with no budget at all. Counting reads states the same claim as a number that
+ * depends only on the algorithm.
+ */
+function countedFanoutChain(levels: number, fanout: number): CountedChain {
+  let reads = 0;
+  const counted = <T extends object>(node: T): T =>
+    new Proxy(node, {
+      get(target, key, receiver) {
+        reads += 1;
+        return Reflect.get(target, key, receiver);
+      },
+    });
+
+  let node: unknown = counted(['x']);
+  for (let i = 0; i < levels; i += 1) {
+    const below = node;
+    node = counted(Array.from({ length: fanout }, () => below));
+  }
+  return { value: node, reads: () => reads };
+}
+
 describe('findStructureOverflow', () => {
   it('returns null for a structure within both limits', () => {
     expect(findStructureOverflow({ a: { b: [{ c: 1 }] } })).toBeNull();
@@ -96,10 +129,12 @@ describe('findStructureOverflow', () => {
   });
 
   it('stops within the node budget instead of walking the whole expansion', () => {
-    // 12 ** 8 is ~430 million paths; without a budget this walk takes seconds.
-    const started = performance.now();
-    expect(findStructureOverflow(fanoutChain(8, 12))).not.toBeNull();
-    expect(performance.now() - started).toBeLessThan(500);
+    // 12 ** 8 is ~430 million positions. The budget stops the walk at roughly
+    // half a million reads; a walk of the whole expansion needs a few million
+    // for a structure a thousand times smaller than this one.
+    const chain = countedFanoutChain(8, 12);
+    expect(findStructureOverflow(chain.value)).not.toBeNull();
+    expect(chain.reads()).toBeLessThan(MAX_FRONTMATTER_NODES * 10);
   });
 
   it('accepts a structure just under the node budget', () => {
@@ -114,9 +149,9 @@ describe('findDepthOverflow node budget', () => {
   // directly must get the same protection as the ones going through
   // `depthValidationError`.
   it('reports an overflow for a structure past the node budget', () => {
-    const started = performance.now();
-    expect(findDepthOverflow(fanoutChain(8, 12))).not.toBeNull();
-    expect(performance.now() - started).toBeLessThan(500);
+    const chain = countedFanoutChain(8, 12);
+    expect(findDepthOverflow(chain.value)).not.toBeNull();
+    expect(chain.reads()).toBeLessThan(MAX_FRONTMATTER_NODES * 10);
   });
 });
 
