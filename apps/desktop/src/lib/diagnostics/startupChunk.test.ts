@@ -14,6 +14,9 @@ const LAYOUT = fileURLToPath(new URL('../../routes/+layout.svelte', import.meta.
 const HTML_EXPORT = fileURLToPath(
   new URL('../preview/htmlExportController.svelte.ts', import.meta.url),
 );
+const IMAGE_EXPORT = fileURLToPath(
+  new URL('../preview/imageExportController.svelte.ts', import.meta.url),
+);
 const SITE_EXPORT = fileURLToPath(
   new URL('../preview/siteExportController.svelte.ts', import.meta.url),
 );
@@ -52,6 +55,14 @@ describe('起動時に読むもの', () => {
   // 読まれるので、ここで静的 import に戻すとボタンを押さない起動でも全部読む。
   it('HTML 書き出しはボタンを押してから読む', () => {
     const controller = readFileSync(HTML_EXPORT, 'utf8');
+    expect(controller).not.toMatch(/^\s*import\s+.*from\s+'\.\/htmlExport'/m);
+    expect(controller).toMatch(/import\(\s*'\.\/htmlExport'\s*\)/);
+  });
+
+  // 画像書き出しも撮る中身は同じ描画一式。注文づくり（imageExport）は寸法の表だけなので
+  // 起動時に読んでよいが、その先は押されるまで読まない。
+  it('画像書き出しはボタンを押してから読む', () => {
+    const controller = readFileSync(IMAGE_EXPORT, 'utf8');
     expect(controller).not.toMatch(/^\s*import\s+.*from\s+'\.\/htmlExport'/m);
     expect(controller).toMatch(/import\(\s*'\.\/htmlExport'\s*\)/);
   });
