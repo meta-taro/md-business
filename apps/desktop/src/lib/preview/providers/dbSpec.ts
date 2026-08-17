@@ -12,6 +12,7 @@ import validateDbSpec from '@md-business/schema-db-spec/validate';
 import { renderDbSpecBody } from '@md-business/renderer-pdf';
 import dbSpecCss from '@md-business/renderer-pdf/styles/db-spec.css?raw';
 import { createSchemaPreview } from '../previewFactory';
+import { DB_SPEC_META } from './meta';
 
 function withPreviewDefaults(data: Record<string, unknown>): DbSpec {
   const safe: Record<string, unknown> = { ...data };
@@ -32,11 +33,7 @@ function withPreviewDefaults(data: Record<string, unknown>): DbSpec {
 }
 
 export const dbSpecProvider = createSchemaPreview<DbSpec>({
-  meta: {
-    id: 'db-spec',
-    label: 'DB 設計書',
-    markers: ['tables', 'テーブル'],
-  },
+  meta: DB_SPEC_META,
   normalize: normalizeDbSpecFrontmatter,
   autofill: autofillDbSpec,
   validate: validateDbSpec,

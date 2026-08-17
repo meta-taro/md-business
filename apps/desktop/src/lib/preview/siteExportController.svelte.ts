@@ -74,7 +74,7 @@ class SiteExportController {
       // ページの組み立てはプレビューと同じ描画一式を使う。起動時に読ませないよう、
       // ボタンが押されたここで読み込む。
       const { buildStaticSite } = await import('./staticSite');
-      const plan = buildStaticSite(docs, { title: folderTitle(root) });
+      const plan = await buildStaticSite(docs, { title: folderTitle(root) });
       if (plan.pages.length === 0) {
         // 全部プレビューに失敗した。中身の無いサイトを置いても使い道が無い。
         this.#notify({ kind: 'none', skipped: plan.skipped });

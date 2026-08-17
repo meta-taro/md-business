@@ -48,7 +48,7 @@ class HtmlExportController {
     // 組み立てはプレビューと同じ描画一式を使う。起動時に読ませないよう、
     // ボタンが押されたここで読み込む（[HTML] を押さない起動では読まれない）。
     const { buildExportHtml } = await import('./htmlExport');
-    const html = buildExportHtml(workspace.source);
+    const html = await buildExportHtml(workspace.source);
     // canExport を満たしていれば通常ここには来ない（プレビューが出ている＝組める）。
     if (html === null) return;
 

@@ -20,6 +20,7 @@ import validateInvoice from '@md-business/schema-invoice/validate';
 import { renderInvoiceBody } from '@md-business/renderer-pdf';
 import invoiceCss from '@md-business/renderer-pdf/styles/invoice.css?raw';
 import { createSchemaPreview } from '../previewFactory';
+import { INVOICE_META } from './meta';
 
 function withPreviewDefaults(data: Record<string, unknown>): Invoice {
   const safe: Record<string, unknown> = { ...data };
@@ -41,20 +42,7 @@ function withPreviewDefaults(data: Record<string, unknown>): Invoice {
 }
 
 export const invoiceProvider = createSchemaPreview<Invoice>({
-  meta: {
-    id: 'invoice',
-    label: '請求書',
-    markers: [
-      'invoiceNumber',
-      '請求書番号',
-      '見積書番号',
-      '領収書番号',
-      'items',
-      '品目',
-      'issuer',
-      '発行元',
-    ],
-  },
+  meta: INVOICE_META,
   normalize: normalizeInvoiceFrontmatter,
   autofill: autofillInvoice,
   validate: validateInvoice,

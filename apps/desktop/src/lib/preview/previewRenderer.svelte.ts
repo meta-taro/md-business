@@ -1,9 +1,12 @@
 /**
  * プレビュー描画の遅延読み込み。
  *
- * 文書を描くには 6 スキーマぶんの検証器・文書 CSS・Markdown の組み立てが要る。
- * これが起動時に読む JS の大半を占める一方、窓を出すまでに要るものは 1 つも無い。
- * 描画側の入口をここへ閉じ込め、プレビューを実際に出す時点で読み込む。
+ * 文書を描くには検証器・文書 CSS・Markdown の組み立てが要る。これが起動時に読む JS の
+ * 大半を占める一方、窓を出すまでに要るものは 1 つも無い。描画側の入口をここへ閉じ込め、
+ * プレビューを実際に出す時点で読み込む。
+ *
+ * ここで読むのは振り分けまでで、スキーマごとの検証器はさらにその先（providers/lazy）。
+ * だから `render` は非同期で、開いた文書のスキーマぶんだけを読んでから結果が返る。
  *
  * 読み込みが済むまで `render` は null で、呼ぶ側はまだ描けない状態として扱う。
  * 失敗したら要求済みの印を戻し、次にプレビューを出そうとしたときにもう一度試す
@@ -11,7 +14,10 @@
  */
 import type { PreviewResult, RenderPreviewOptions } from './previewFactory';
 
-export type RenderPreview = (source: string, options?: RenderPreviewOptions) => PreviewResult;
+export type RenderPreview = (
+  source: string,
+  options?: RenderPreviewOptions,
+) => Promise<PreviewResult>;
 
 class PreviewRenderer {
   #render = $state<RenderPreview | null>(null);

@@ -12,6 +12,7 @@ import validateNosqlDbSpec from '@md-business/schema-nosql-db-spec/validate';
 import { renderNosqlDbSpecBody } from '@md-business/renderer-pdf';
 import nosqlDbSpecCss from '@md-business/renderer-pdf/styles/nosql-db-spec.css?raw';
 import { createSchemaPreview } from '../previewFactory';
+import { NOSQL_DB_SPEC_META } from './meta';
 
 function withPreviewDefaults(data: Record<string, unknown>): NosqlDbSpec {
   const safe: Record<string, unknown> = { ...data };
@@ -32,11 +33,7 @@ function withPreviewDefaults(data: Record<string, unknown>): NosqlDbSpec {
 }
 
 export const nosqlDbSpecProvider = createSchemaPreview<NosqlDbSpec>({
-  meta: {
-    id: 'nosql-db-spec',
-    label: 'NoSQL 設計書',
-    markers: ['collections', 'コレクション'],
-  },
+  meta: NOSQL_DB_SPEC_META,
   normalize: normalizeNosqlDbSpecFrontmatter,
   autofill: autofillNosqlDbSpec,
   validate: validateNosqlDbSpec,
