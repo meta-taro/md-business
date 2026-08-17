@@ -61,7 +61,8 @@
       "enum": ["auto", "manual"]
     },
     "theme": {
-      "type": "string"
+      "type": "string",
+      "description": "Accent color (テーマ). Preset names: blue / red / yellow / orange / purple / black / gray, or an explicit hex such as `#2a4d7a`. Japanese color names (青 / 赤 / 黄 / 橙 / 紫 / 黒 / 灰) are accepted. Unrecognized values fall back to the default accent and are reported as a warning."
     },
     "fileName": {
       "type": "string"

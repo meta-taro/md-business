@@ -1,33 +1,7 @@
 import type { Spec } from '@md-business/schema-spec';
 import { escapeHtml } from './escape.js';
+import { themeStyleAttr } from './theme.js';
 import { formatDateIso } from './format.js';
-
-/**
- * Accent color presets — kept in sync with the invoice template so both
- * document types share a single design vocabulary. Authors who need a brand
- * color can pass an explicit `#rrggbb` instead.
- */
-const THEME_PRESETS: Record<string, string> = {
-  blue: '#2a4d7a',
-  red: '#b91c1c',
-  yellow: '#b8860b',
-  orange: '#c2410c',
-  purple: '#6d28d9',
-  black: '#1f1f1f',
-  gray: '#4b5563',
-};
-
-const HEX_COLOR = /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/;
-
-function resolveThemeColor(theme: string | undefined): string | null {
-  if (!theme) return null;
-  const trimmed = theme.trim();
-  if (!trimmed) return null;
-  const preset = THEME_PRESETS[trimmed.toLowerCase()];
-  if (preset) return preset;
-  if (HEX_COLOR.test(trimmed)) return trimmed;
-  return null;
-}
 
 const STATUS_LABELS: Record<string, string> = {
   draft: 'ドラフト',
@@ -96,8 +70,7 @@ export interface RenderSpecBodyOptions {
  */
 export function renderSpecBody(spec: Spec, options: RenderSpecBodyOptions = {}): string {
   const { bodyHtml = '', hideCover = false } = options;
-  const themeColor = resolveThemeColor(spec.theme);
-  const themeStyle = themeColor ? ` style="--mdb-color-accent:${themeColor}"` : '';
+  const themeStyle = themeStyleAttr(spec.theme);
 
   const cover = hideCover
     ? ''

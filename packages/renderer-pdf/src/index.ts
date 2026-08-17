@@ -1,4 +1,11 @@
 export { escapeHtml } from './escape.js';
+export {
+  THEME_PRESETS,
+  THEME_NAMES,
+  resolveTheme,
+  themeStyleAttr,
+  type ThemeResolution,
+} from './theme.js';
 export { formatJpy, formatNumber, formatDateIso } from './format.js';
 export { renderInvoiceBody, type RenderInvoiceBodyOptions } from './template.js';
 export { renderInvoiceHtml, type RenderInvoiceHtmlOptions } from './renderHtml.js';

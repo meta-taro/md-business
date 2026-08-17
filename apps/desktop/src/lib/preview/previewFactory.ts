@@ -22,6 +22,7 @@ import {
   type ValidationError,
 } from '@md-business/core';
 import { buildPreviewDocument, type PreviewTheme } from './previewDocument';
+import { themeWarnings } from './themeWarning';
 import type { PreviewProviderMeta } from './registry';
 
 /** normalize / autofill が返す非致命 warning の共通シェイプ。 */
@@ -154,7 +155,12 @@ export function createSchemaPreview<T>(config: SchemaPreviewConfig<T>): PreviewP
 
       const normalized = config.normalize(frontmatter);
       const autofilled = config.autofill(normalized.data);
-      const warnings = config.translateWarnings([...normalized.warnings, ...autofilled.warnings]);
+      const warnings = [
+        ...config.translateWarnings([...normalized.warnings, ...autofilled.warnings]),
+        // テーマは全書式に共通で、描くときに読まれて黙って落ちる。normalize を
+        // 通した後の値を見る（日本語の色名はそこで英語の名前に直っている）。
+        ...themeWarnings(autofilled.data.theme),
+      ];
       const validation = validateWithCompiled<T>(autofilled.data, config.validate);
       const errors = validation.ok ? [] : config.translateErrors(validation.errors);
 
