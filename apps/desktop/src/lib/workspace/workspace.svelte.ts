@@ -16,6 +16,7 @@ import { git } from '$lib/git/git.svelte';
 import { perf } from '$lib/diagnostics/perf.svelte';
 import { diffView } from '$lib/git/diffView.svelte';
 import { timelineView } from '$lib/logs/timelineView.svelte';
+import { browserPreview } from '$lib/preview/browserPreviewController.svelte';
 import { buildTree, type DocEntry, type TreeNode } from './fileTree';
 import {
   initialExpandedPaths,
@@ -306,6 +307,9 @@ class WorkspaceStore {
       diffView.reset();
       // 時系列も同じ。前フォルダのログ一覧と結果を残すと、開き直した先のものに見える。
       timelineView.reset();
+      // ブラウザ表示は畳む。前のフォルダの中身が、同じ URL で出続けることになる。
+      // 同じフォルダを取り直しただけのときは何もしない。
+      browserPreview.syncRoot(root);
       this.truncated = result.truncated;
       this.error = null;
       // 次回起動で自動復元できるよう、開けたフォルダを記憶する（WebView の localStorage）。
@@ -532,6 +536,9 @@ class WorkspaceStore {
       this.error = null;
       // 保存でファイルの git 状態（modified など）が変わるので再取得する。
       void git.refresh(this.root);
+      // ブラウザ表示にも反映する。自分の保存は監視イベントとして戻ってこない（エコー
+      // 抑制）ので、ここで知らせないとアプリ内の編集だけ反映されないことになる。
+      browserPreview.onFileChanged(relPath);
     } catch (e) {
       this.error = errorMessage(e);
     } finally {

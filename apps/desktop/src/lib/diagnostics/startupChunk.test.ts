@@ -17,6 +17,10 @@ const HTML_EXPORT = fileURLToPath(
 const SITE_EXPORT = fileURLToPath(
   new URL('../preview/siteExportController.svelte.ts', import.meta.url),
 );
+const BROWSER_PREVIEW = fileURLToPath(
+  new URL('../preview/browserPreviewController.svelte.ts', import.meta.url),
+);
+const COLLECT_SITE = fileURLToPath(new URL('../preview/collectSite.ts', import.meta.url));
 
 describe('起動時に読むもの', () => {
   const source = readFileSync(PAGE, 'utf8');
@@ -52,9 +56,20 @@ describe('起動時に読むもの', () => {
     expect(controller).toMatch(/import\(\s*'\.\/htmlExport'\s*\)/);
   });
 
-  it('サイト書き出しはボタンを押してから読む', () => {
-    const controller = readFileSync(SITE_EXPORT, 'utf8');
-    expect(controller).not.toMatch(/^\s*import\s+(?!type\b).*from\s+'\.\/staticSite'/m);
-    expect(controller).toMatch(/import\(\s*'\.\/staticSite'\s*\)/);
+  // サイト書き出しとブラウザ表示は、同じ組み立て（collectSite）を通る。描画一式を
+  // 読むのはそこ 1 か所なので、遅らせ方もそこで見る。
+  it('サイトの組み立てはボタンを押してから読む', () => {
+    const collect = readFileSync(COLLECT_SITE, 'utf8');
+    expect(collect).not.toMatch(/^\s*import\s+(?!type\b).*from\s+'\.\/staticSite'/m);
+    expect(collect).toMatch(/import\(\s*'\.\/staticSite'\s*\)/);
+  });
+
+  // ブラウザ表示のコントローラは、フォルダを開く経路から参照されるので必ず起動時に読まれる。
+  it('サイト書き出し・ブラウザ表示は描画一式を静的 import しない', () => {
+    for (const path of [SITE_EXPORT, BROWSER_PREVIEW]) {
+      expect(readFileSync(path, 'utf8')).not.toMatch(
+        /^\s*import\s+(?!type\b).*from\s+'\.\/staticSite'/m,
+      );
+    }
   });
 });

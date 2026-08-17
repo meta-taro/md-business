@@ -29,6 +29,10 @@ export interface Messages {
   'action.siteDone': string;
   'action.siteDoneSkipped': string;
   'action.siteNone': string;
+  'action.browser': string;
+  'action.browserTitle': string;
+  'action.browserStopTitle': string;
+  'action.browserServing': string;
   'action.theme': string;
   'action.themeToLight': string;
   'action.themeToDark': string;
@@ -456,6 +460,10 @@ const en: Messages = {
   'action.siteDone': 'Exported {count} files to {dir}/',
   'action.siteDoneSkipped': 'Exported {count} files to {dir}/ ({skipped} left out)',
   'action.siteNone': 'No document could be turned into a page',
+  'action.browser': 'Browser',
+  'action.browserTitle': 'Open the folder in your browser (a local address on this machine)',
+  'action.browserStopTitle': 'Stop serving to the browser',
+  'action.browserServing': 'Serving at {url}',
   'action.theme': 'Theme',
   'action.themeToLight': 'Switch to light theme',
   'action.themeToDark': 'Switch to dark theme',
@@ -875,6 +883,10 @@ const ja: Messages = {
   'action.siteDone': '{dir}/ へ {count} 件書き出しました',
   'action.siteDoneSkipped': '{dir}/ へ {count} 件書き出しました（{skipped} 件は出せませんでした）',
   'action.siteNone': 'ページに出来る文書がありませんでした',
+  'action.browser': 'ブラウザ',
+  'action.browserTitle': 'ブラウザで見る（この PC の中だけのアドレスで開く）',
+  'action.browserStopTitle': 'ブラウザへの表示をやめる',
+  'action.browserServing': '{url} で表示中',
   'action.theme': 'テーマ',
   'action.themeToLight': 'ライトテーマに切替',
   'action.themeToDark': 'ダークテーマに切替',
@@ -1291,6 +1303,10 @@ const zh: Messages = {
   'action.siteDone': '已导出 {count} 个文件到 {dir}/',
   'action.siteDoneSkipped': '已导出 {count} 个文件到 {dir}/（{skipped} 个未能导出）',
   'action.siteNone': '没有可生成页面的文档',
+  'action.browser': '浏览器',
+  'action.browserTitle': '在浏览器中查看（使用仅限本机的地址打开）',
+  'action.browserStopTitle': '停止向浏览器提供页面',
+  'action.browserServing': '正在 {url} 提供页面',
   'action.theme': '主题',
   'action.themeToLight': '切换到浅色主题',
   'action.themeToDark': '切换到深色主题',
@@ -1704,6 +1720,10 @@ const ko: Messages = {
   'action.siteDone': '{dir}/ 에 {count}개를 내보냈습니다',
   'action.siteDoneSkipped': '{dir}/ 에 {count}개를 내보냈습니다 ({skipped}개는 내보내지 못했습니다)',
   'action.siteNone': '페이지로 만들 수 있는 문서가 없습니다',
+  'action.browser': '브라우저',
+  'action.browserTitle': '브라우저에서 보기 (이 PC 안에서만 열리는 주소)',
+  'action.browserStopTitle': '브라우저 표시를 중지',
+  'action.browserServing': '{url} 에서 표시 중',
   'action.theme': '테마',
   'action.themeToLight': '라이트 테마로 전환',
   'action.themeToDark': '다크 테마로 전환',
