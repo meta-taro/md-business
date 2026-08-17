@@ -21,7 +21,6 @@
   import SourceControlPanel from '$lib/components/SourceControlPanel.svelte';
   import FileTree from '$lib/components/FileTree.svelte';
   import SidePanel from '$lib/components/SidePanel.svelte';
-  import UpdateDialog from '$lib/update/UpdateDialog.svelte';
   import { updater } from '$lib/update/updater.svelte';
   import { mcp } from '$lib/mcp/mcp.svelte';
   import { fileChangeFromLog, parseLogEvent } from '$lib/mcp/mcpLog';
@@ -315,8 +314,16 @@
   <StatusBar scmOpen={scmOpen} onToggleScm={() => (scmOpen = !scmOpen)} />
 </div>
 
-<!-- アプリ更新のモーダル（起動時自動確認 / ヘルプの「更新を確認」から表示）。 -->
-<UpdateDialog />
+<!--
+  アプリ更新のモーダル（起動時自動確認 / ヘルプの「更新を確認」から表示）。
+  中身は変更履歴の全文と Markdown の組み立てを抱えるので、出す段になってから読み込む。
+  自動確認は起動から数秒後で、更新が無ければ最後まで読み込まれない。
+-->
+{#if updater.visible}
+  {#await import('$lib/update/UpdateDialog.svelte') then { default: UpdateDialog }}
+    <UpdateDialog />
+  {/await}
+{/if}
 
 <style>
   .shell {

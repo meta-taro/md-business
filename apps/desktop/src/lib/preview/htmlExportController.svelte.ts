@@ -12,7 +12,6 @@
 import { invoke } from '@tauri-apps/api/core';
 import { browser } from '$app/environment';
 import { workspace } from '$lib/workspace/workspace.svelte';
-import { buildExportHtml } from './htmlExport';
 
 /** 結果表示が自分で消えるまで。読めば用の済む知らせなので閉じる操作を増やさない。 */
 const NOTICE_MS = 8000;
@@ -46,6 +45,9 @@ class HtmlExportController {
     const relPath = workspace.activePath;
     if (root === null || relPath === null) return;
 
+    // 組み立てはプレビューと同じ描画一式を使う。起動時に読ませないよう、
+    // ボタンが押されたここで読み込む（[HTML] を押さない起動では読まれない）。
+    const { buildExportHtml } = await import('./htmlExport');
     const html = buildExportHtml(workspace.source);
     // canExport を満たしていれば通常ここには来ない（プレビューが出ている＝組める）。
     if (html === null) return;
