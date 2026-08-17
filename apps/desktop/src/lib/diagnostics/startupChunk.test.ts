@@ -6,10 +6,21 @@ import { fileURLToPath } from 'node:url';
 // エディタ一式（CodeMirror + 構文解析）はその中で最も大きく、実測で元ソース約 1.5MB。
 // 静的 import に戻すと、まだ何も開いていない時点でこれを全部読むことになり、
 // 起動が黙って重くなる（大きさは画面のどこにも出ないので気づけない）。
+//
+// 同じことが文書の描画側にも言える。6 スキーマぶんの検証器・文書 CSS・Markdown の
+// 組み立て（と、その先の HTML 消毒）は、窓が出るまでに 1 つも要らない。
 const PAGE = fileURLToPath(new URL('../../routes/+page.svelte', import.meta.url));
+const LAYOUT = fileURLToPath(new URL('../../routes/+layout.svelte', import.meta.url));
+const HTML_EXPORT = fileURLToPath(
+  new URL('../preview/htmlExportController.svelte.ts', import.meta.url),
+);
+const SITE_EXPORT = fileURLToPath(
+  new URL('../preview/siteExportController.svelte.ts', import.meta.url),
+);
 
 describe('起動時に読むもの', () => {
   const source = readFileSync(PAGE, 'utf8');
+  const layout = readFileSync(LAYOUT, 'utf8');
 
   it('エディタ一式は静的 import しない', () => {
     expect(source).not.toMatch(/^\s*import\s+\w+\s+from\s+'\$lib\/editor\/CodeMirrorEditor\.svelte'/m);
@@ -17,5 +28,33 @@ describe('起動時に読むもの', () => {
 
   it('エディタ一式は必要になってから読む', () => {
     expect(source).toMatch(/import\(\s*'\$lib\/editor\/CodeMirrorEditor\.svelte'\s*\)/);
+  });
+
+  it('プレビューの描画一式は静的 import しない', () => {
+    expect(source).not.toMatch(/^\s*import\s+.*from\s+'\$lib\/preview\/renderPreview'/m);
+  });
+
+  it('図（Mermaid）は文書を開いてから読む', () => {
+    expect(source).not.toMatch(/^\s*import\s+.*from\s+'\$lib\/preview\/renderMermaid'/m);
+    expect(source).toMatch(/import\(\s*'\$lib\/preview\/renderMermaid'\s*\)/);
+  });
+
+  it('更新モーダルは出す段になってから読む', () => {
+    expect(layout).not.toMatch(/^\s*import\s+\w+\s+from\s+'\$lib\/update\/UpdateDialog\.svelte'/m);
+    expect(layout).toMatch(/import\(\s*'\$lib\/update\/UpdateDialog\.svelte'\s*\)/);
+  });
+
+  // 書き出しはどちらもプレビューと同じ描画一式を通る。コントローラは常に起動時に
+  // 読まれるので、ここで静的 import に戻すとボタンを押さない起動でも全部読む。
+  it('HTML 書き出しはボタンを押してから読む', () => {
+    const controller = readFileSync(HTML_EXPORT, 'utf8');
+    expect(controller).not.toMatch(/^\s*import\s+.*from\s+'\.\/htmlExport'/m);
+    expect(controller).toMatch(/import\(\s*'\.\/htmlExport'\s*\)/);
+  });
+
+  it('サイト書き出しはボタンを押してから読む', () => {
+    const controller = readFileSync(SITE_EXPORT, 'utf8');
+    expect(controller).not.toMatch(/^\s*import\s+(?!type\b).*from\s+'\.\/staticSite'/m);
+    expect(controller).toMatch(/import\(\s*'\.\/staticSite'\s*\)/);
   });
 });

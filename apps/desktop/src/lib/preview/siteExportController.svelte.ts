@@ -12,7 +12,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { browser } from '$app/environment';
 import { workspace } from '$lib/workspace/workspace.svelte';
 import type { DocEntry } from '$lib/workspace/fileTree';
-import { buildStaticSite, type SiteSkip, type SiteSource } from './staticSite';
+import type { SiteSkip, SiteSource } from './staticSite';
 import { folderTitle, siteDocumentPaths } from './siteExport';
 
 /** 結果表示が自分で消えるまで。単一 HTML 書き出しと揃える。 */
@@ -71,6 +71,9 @@ class SiteExportController {
         docs.push({ path, source: await invoke<string>('read_document', { root, relPath: path }) });
       }
 
+      // ページの組み立てはプレビューと同じ描画一式を使う。起動時に読ませないよう、
+      // ボタンが押されたここで読み込む。
+      const { buildStaticSite } = await import('./staticSite');
       const plan = buildStaticSite(docs, { title: folderTitle(root) });
       if (plan.pages.length === 0) {
         // 全部プレビューに失敗した。中身の無いサイトを置いても使い道が無い。

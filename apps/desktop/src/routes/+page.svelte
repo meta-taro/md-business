@@ -1,12 +1,11 @@
 <script lang="ts">
   import { untrack, onMount, onDestroy } from 'svelte';
   import { themeController } from '$lib/theme.svelte';
-  import { renderPreview } from '$lib/preview/renderPreview';
-  import { renderMermaidInDocument } from '$lib/preview/renderMermaid';
+  import { previewRenderer } from '$lib/preview/previewRenderer.svelte';
   import { frontmatterMessage } from '$lib/preview/frontmatterMessage';
   import { pdfExport } from '$lib/preview/pdfExport.svelte';
   import { htmlExport } from '$lib/preview/htmlExportController.svelte';
-  import { previewReady } from '$lib/preview/previewGate';
+  import { previewReady, previewVisible } from '$lib/preview/previewGate';
   import { resolvePreviewLink } from '$lib/preview/previewLink';
   import { findHeadingOffset } from '$lib/editor/headingAnchor';
   import { debounce } from '$lib/util/debounce';
@@ -272,15 +271,24 @@
     // 図（Mermaid）は本文の組み立てとは別に、出来上がった文書を書き換える形で描く。
     // 本文側を同期のまま保つため。図が無ければ何も読み込まないので待たない。
     const doc = viewerFrame?.contentDocument;
-    if (doc) void renderMermaidInDocument(doc, { theme: themeController.value });
+    if (doc) {
+      const theme = themeController.value;
+      void import('$lib/preview/renderMermaid').then((module) =>
+        module.renderMermaidInDocument(doc, { theme }),
+      );
+    }
   }
 
   // frontmatter を registry で振り分け、該当スキーマのビューワーで描画する（6 スキーマ
   // 自動判定）。テーマ変更に追従して iframe 内 <html data-theme> も一致させる
   // （別ドキュメントなのでアプリの data-theme は継承されない）。debouncedSource / theme の
   // 変化で即再描画。
+  // 描画一式（検証器・文書 CSS・Markdown 組み立て）は起動時には読まず、プレビューを
+  // 出す用ができた時点で読む。読み終わるまで preview は null＝まだ描けない状態。
   const preview = $derived(
-    renderPreview(debouncedSource, { theme: themeController.value }),
+    previewRenderer.render === null
+      ? null
+      : previewRenderer.render(debouncedSource, { theme: themeController.value }),
   );
 
   // PDF 出力（DESIGN §6.4）。プレビュー iframe を print-to-PDF する関数を共有コントローラへ
@@ -449,8 +457,14 @@
   // 組み上がり（preview.ok）を確かめるのは、プレビューを出しているときだけにする。
   // preview は本文全体を HTML へ組み直す導出値なので、出していないときに読むと
   // 捨てるためだけの組み直しが 1 セル確定ごとに走る（2,000 行で 170ms）。
+  // プレビューを出す面になった時点で描画一式を読み込む。グリッドや差分で開いた起動では
+  // 読まない。
   $effect(() => {
-    const ready = previewReady(paneState, () => preview.ok);
+    if (previewVisible(paneState)) previewRenderer.load();
+  });
+
+  $effect(() => {
+    const ready = previewReady(paneState, () => preview?.ok === true);
     pdfExport.setReady(ready);
     // HTML 書き出しも同じ条件。プレビューに出せないものは書き出す中身が無い。
     htmlExport.setReady(ready);
@@ -575,7 +589,7 @@
   }
 
   // プレビュー iframe を検索対象にできる状態か（TSV グリッド／差分表示中は iframe が無い）。
-  const previewSearchable = $derived(previewReady(paneState, () => preview.ok));
+  const previewSearchable = $derived(previewReady(paneState, () => preview?.ok === true));
 
   // Escape で全画面を抜ける。ただしセル編集中（入力にフォーカス）の Escape は入力側へ譲る。
   // また Ctrl/Cmd+F は、エディター（CodeMirror が自前で処理）／プレビュー iframe（自前で
@@ -785,8 +799,8 @@
         />
       </div>
     {:else}
-    <div class="pane-head">{t('page.previewHead')}{#if preview.ok} — {preview.label}{/if}</div>
-    {#if preview.ok}
+    <div class="pane-head">{t('page.previewHead')}{#if preview?.ok} — {preview.label}{/if}</div>
+    {#if preview?.ok}
       <iframe
         class="viewer"
         bind:this={viewerFrame}
@@ -804,7 +818,7 @@
           {/each}
         </div>
       {/if}
-    {:else}
+    {:else if preview}
       <div class="pane-empty">
         <p class="hint">
           {preview.problem ? frontmatterMessage(preview.problem, t) : preview.reason}
