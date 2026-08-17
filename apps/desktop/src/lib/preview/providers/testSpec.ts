@@ -20,6 +20,7 @@ import { renderMarkdownToHtml } from '@md-business/core';
 import { renderTestSpecBody } from '@md-business/renderer-pdf';
 import testSpecCss from '@md-business/renderer-pdf/styles/test-spec.css?raw';
 import { createSchemaPreview } from '../previewFactory';
+import { TEST_SPEC_META } from './meta';
 import { sanitizeViewerHtml } from '../sanitizeHtml';
 
 function withPreviewDefaults(data: Record<string, unknown>): TestSpec {
@@ -38,21 +39,7 @@ function withPreviewDefaults(data: Record<string, unknown>): TestSpec {
 }
 
 export const testSpecProvider = createSchemaPreview<TestSpec>({
-  meta: {
-    id: 'test-spec',
-    label: '検証シート',
-    markers: [
-      'columns',
-      '列',
-      '列定義',
-      '検証項目列',
-      'googleSheetId',
-      'sheetId',
-      'SheetId',
-      'シートID',
-      '連携シートID',
-    ],
-  },
+  meta: TEST_SPEC_META,
   normalize: normalizeTestSpecFrontmatter,
   autofill: autofillTestSpec,
   validate: validateTestSpec,

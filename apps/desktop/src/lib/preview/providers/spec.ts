@@ -21,6 +21,7 @@ import { renderMarkdownToHtml } from '@md-business/core';
 import { renderSpecBody } from '@md-business/renderer-pdf';
 import specCss from '@md-business/renderer-pdf/styles/spec.css?raw';
 import { createSchemaPreview } from '../previewFactory';
+import { SPEC_META } from './meta';
 import { sanitizeViewerHtml } from '../sanitizeHtml';
 
 function withPreviewDefaults(data: Record<string, unknown>): Spec {
@@ -38,13 +39,7 @@ function withPreviewDefaults(data: Record<string, unknown>): Spec {
 }
 
 export const specProvider = createSchemaPreview<Spec>({
-  meta: {
-    id: 'spec',
-    label: '基本設計書',
-    // spec のマーカーは広い（documentNumber / reviewers は test-spec 以外も主張し得る）。
-    // registry の登録順で最後に置き、より厳格なスキーマ（test-spec 等）を先に判定させる。
-    markers: ['documentNumber', '文書番号', 'chapters', '章ファイル', 'reviewers', 'レビュアー'],
-  },
+  meta: SPEC_META,
   normalize: normalizeSpecFrontmatter,
   autofill: autofillSpec,
   validate: validateSpec,

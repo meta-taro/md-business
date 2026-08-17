@@ -17,6 +17,7 @@ import { renderMarkdownToHtml } from '@md-business/core';
 import { renderInvestigationBody } from '@md-business/renderer-pdf';
 import investigationCss from '@md-business/renderer-pdf/styles/investigation.css?raw';
 import { createSchemaPreview } from '../previewFactory';
+import { INVESTIGATION_META } from './meta';
 import { sanitizeViewerHtml } from '../sanitizeHtml';
 
 /**
@@ -45,13 +46,7 @@ function withPreviewDefaults(data: Record<string, unknown>): Investigation {
 }
 
 export const investigationProvider = createSchemaPreview<Investigation>({
-  meta: {
-    id: 'investigation',
-    label: '調査報告書',
-    // 所見 / 対象ファイル / 使用ツールは他スキーマが主張しないキー。spec の広い
-    // マーカー（文書番号 / レビュアー）に取られないよう spec より前に登録する。
-    markers: ['findings', '所見', 'targets', '対象ファイル', 'tools', '使用ツール'],
-  },
+  meta: INVESTIGATION_META,
   normalize: normalizeInvestigationFrontmatter,
   autofill: autofillInvestigation,
   validate: validateInvestigation,
