@@ -1,3 +1,4 @@
+pub mod capture_logic;
 mod fileinfo;
 mod git;
 mod logscan;
