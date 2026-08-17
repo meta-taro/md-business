@@ -2071,6 +2071,7 @@ dependencies = [
 name = "md-business-desktop"
 version = "0.9.0"
 dependencies = [
+ "base64 0.22.1",
  "getrandom 0.3.4",
  "notify",
  "notify-debouncer-full",
@@ -2083,6 +2084,8 @@ dependencies = [
  "tauri-plugin-opener",
  "tauri-plugin-process",
  "tauri-plugin-updater",
+ "webview2-com",
+ "windows",
 ]
 
 [[package]]

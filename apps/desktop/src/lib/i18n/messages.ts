@@ -24,6 +24,24 @@ export interface Messages {
   'action.html': string;
   'action.htmlTitle': string;
   'action.htmlDone': string;
+  'action.image': string;
+  'action.imageTitle': string;
+  'action.imageDone': string;
+  // 画像書き出しの選択欄
+  'image.size': string;
+  'image.scale': string;
+  'image.format': string;
+  'image.quality': string;
+  'image.shoot': string;
+  'image.preset.ogp': string;
+  'image.preset.x-post': string;
+  'image.preset.instagram-post': string;
+  'image.preset.instagram-story': string;
+  'image.preset.full-hd': string;
+  'image.preset.web-banner': string;
+  'image.format.png': string;
+  'image.format.pngTransparent': string;
+  'image.format.jpeg': string;
   'action.site': string;
   'action.siteTitle': string;
   'action.siteDone': string;
@@ -455,6 +473,23 @@ const en: Messages = {
   'action.html': 'HTML',
   'action.htmlTitle': 'Export HTML (one file, saved next to the document)',
   'action.htmlDone': 'Exported {path}',
+  'action.image': 'Image',
+  'action.imageTitle': 'Save this document as a PNG or JPEG image',
+  'action.imageDone': 'Exported {path}',
+  'image.size': 'Size',
+  'image.scale': 'Scale',
+  'image.format': 'Format',
+  'image.quality': 'Quality',
+  'image.shoot': 'Export',
+  'image.preset.ogp': 'OGP / link preview',
+  'image.preset.x-post': 'X post',
+  'image.preset.instagram-post': 'Instagram post',
+  'image.preset.instagram-story': 'Instagram story',
+  'image.preset.full-hd': 'Full HD',
+  'image.preset.web-banner': 'Web banner',
+  'image.format.png': 'PNG',
+  'image.format.pngTransparent': 'PNG (transparent)',
+  'image.format.jpeg': 'JPEG',
   'action.site': 'Site',
   'action.siteTitle': 'Export the whole folder as a website (into dist/)',
   'action.siteDone': 'Exported {count} files to {dir}/',
@@ -878,6 +913,23 @@ const ja: Messages = {
   'action.html': 'HTML',
   'action.htmlTitle': 'HTML 出力（1 ファイル・文書と同じ場所へ書き出す）',
   'action.htmlDone': '{path} へ書き出しました',
+  'action.image': '画像',
+  'action.imageTitle': 'この文書を PNG / JPEG の画像として書き出します',
+  'action.imageDone': '{path} へ書き出しました',
+  'image.size': '寸法',
+  'image.scale': '倍率',
+  'image.format': '形式',
+  'image.quality': '画質',
+  'image.shoot': 'この設定で書き出す',
+  'image.preset.ogp': 'OGP / リンク先の見出し画像',
+  'image.preset.x-post': 'X の投稿',
+  'image.preset.instagram-post': 'Instagram の投稿',
+  'image.preset.instagram-story': 'Instagram のストーリー',
+  'image.preset.full-hd': 'フル HD',
+  'image.preset.web-banner': 'Web バナー',
+  'image.format.png': 'PNG',
+  'image.format.pngTransparent': 'PNG（透過）',
+  'image.format.jpeg': 'JPEG',
   'action.site': 'サイト',
   'action.siteTitle': 'サイト出力（フォルダ内の文書をまとめて dist/ へ書き出す）',
   'action.siteDone': '{dir}/ へ {count} 件書き出しました',
@@ -1298,6 +1350,23 @@ const zh: Messages = {
   'action.html': 'HTML',
   'action.htmlTitle': '导出 HTML（单个文件・保存到文档所在位置）',
   'action.htmlDone': '已导出到 {path}',
+  'action.image': '图片',
+  'action.imageTitle': '将此文档导出为 PNG / JPEG 图片',
+  'action.imageDone': '已导出到 {path}',
+  'image.size': '尺寸',
+  'image.scale': '倍率',
+  'image.format': '格式',
+  'image.quality': '画质',
+  'image.shoot': '按此设置导出',
+  'image.preset.ogp': 'OGP / 链接预览图',
+  'image.preset.x-post': 'X 帖子',
+  'image.preset.instagram-post': 'Instagram 帖子',
+  'image.preset.instagram-story': 'Instagram 快拍',
+  'image.preset.full-hd': '全高清',
+  'image.preset.web-banner': '网页横幅',
+  'image.format.png': 'PNG',
+  'image.format.pngTransparent': 'PNG（透明）',
+  'image.format.jpeg': 'JPEG',
   'action.site': '网站',
   'action.siteTitle': '导出网站（将文件夹内的文档一并导出到 dist/）',
   'action.siteDone': '已导出 {count} 个文件到 {dir}/',
@@ -1715,6 +1784,23 @@ const ko: Messages = {
   'action.html': 'HTML',
   'action.htmlTitle': 'HTML 내보내기 (한 파일 · 문서와 같은 위치에 저장)',
   'action.htmlDone': '{path}(으)로 내보냈습니다',
+  'action.image': '이미지',
+  'action.imageTitle': '이 문서를 PNG / JPEG 이미지로 내보냅니다',
+  'action.imageDone': '{path}(으)로 내보냈습니다',
+  'image.size': '크기',
+  'image.scale': '배율',
+  'image.format': '형식',
+  'image.quality': '화질',
+  'image.shoot': '이 설정으로 내보내기',
+  'image.preset.ogp': 'OGP / 링크 미리보기',
+  'image.preset.x-post': 'X 게시물',
+  'image.preset.instagram-post': 'Instagram 게시물',
+  'image.preset.instagram-story': 'Instagram 스토리',
+  'image.preset.full-hd': '풀 HD',
+  'image.preset.web-banner': '웹 배너',
+  'image.format.png': 'PNG',
+  'image.format.pngTransparent': 'PNG(투명)',
+  'image.format.jpeg': 'JPEG',
   'action.site': '사이트',
   'action.siteTitle': '사이트 내보내기 (폴더 안의 문서를 한꺼번에 dist/ 로 내보냄)',
   'action.siteDone': '{dir}/ 에 {count}개를 내보냈습니다',

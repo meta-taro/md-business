@@ -1,3 +1,7 @@
+mod capture;
+pub mod capture_logic;
+#[cfg(windows)]
+mod capture_win;
 mod fileinfo;
 mod git;
 mod logscan;
@@ -45,6 +49,7 @@ pub fn run() {
             workspace::directory_exists,
             workspace::export_html,
             workspace::export_site,
+            capture::export_image,
             watch::watch_workspace,
             watch::unwatch_workspace,
             git::git_status,

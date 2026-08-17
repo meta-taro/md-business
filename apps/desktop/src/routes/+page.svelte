@@ -6,6 +6,7 @@
   import { frontmatterMessage } from '$lib/preview/frontmatterMessage';
   import { pdfExport } from '$lib/preview/pdfExport.svelte';
   import { htmlExport } from '$lib/preview/htmlExportController.svelte';
+  import { imageExport } from '$lib/preview/imageExportController.svelte';
   import { previewReady, previewVisible } from '$lib/preview/previewGate';
   import { resolvePreviewLink } from '$lib/preview/previewLink';
   import { findHeadingOffset } from '$lib/editor/headingAnchor';
@@ -483,6 +484,8 @@
     pdfExport.setReady(ready);
     // HTML 書き出しも同じ条件。プレビューに出せないものは書き出す中身が無い。
     htmlExport.setReady(ready);
+    // 画像も同じ中身を撮るので条件は同じ。
+    imageExport.setReady(ready);
   });
 
   // グリッド編集 → 正本ソースへ書き戻し、エディターと即同期する。

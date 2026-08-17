@@ -6,6 +6,12 @@
   import { autosave } from '$lib/workspace/autosave.svelte';
   import { pdfExport } from '$lib/preview/pdfExport.svelte';
   import { htmlExport } from '$lib/preview/htmlExportController.svelte';
+  import { imageExport } from '$lib/preview/imageExportController.svelte';
+  import {
+    IMAGE_PRESETS,
+    type ImageFormatChoice,
+    type ImagePresetName,
+  } from '$lib/preview/imageExport';
   import {
     siteExport,
     type SiteExportResult,
@@ -228,6 +234,136 @@
           {htmlExport.result.ok
             ? t('action.htmlDone', { path: htmlExport.result.path })
             : htmlExport.result.message}
+        </span>
+      {/if}
+      <!-- 画像出力。押すとすぐ撮らず、まず何を撮るかを選ばせる。寸法・倍率・形式は
+           貼る先によって毎回変わるので、既定のまま撮って捨てる往復が起きる。
+           アイコンは山と太陽＝画像ファイルの慣習的な絵。 -->
+      <div class="picker">
+        <button
+          class="btn ghost with-icon"
+          type="button"
+          onclick={() => imageExport.toggle()}
+          disabled={!imageExport.canExport && !imageExport.picking}
+          aria-expanded={imageExport.picking}
+          title={t('action.imageTitle')}
+          aria-label={t('action.image')}
+        >
+          <svg class="btn-ico" viewBox="0 0 16 16" aria-hidden="true">
+            <rect
+              x="1.75"
+              y="2.75"
+              width="12.5"
+              height="10.5"
+              rx="1.2"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.2"
+            />
+            <circle cx="5.6" cy="6.1" r="1.1" fill="none" stroke="currentColor" stroke-width="1.2" />
+            <path
+              d="M2.4 12.2 6 8.7l2.4 2.3 2.3-2.6 3 3.8"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+          <span>{t('action.image')}</span>
+        </button>
+        {#if imageExport.picking}
+          <!-- 外側を押したら閉じる。閉じるためだけのボタンを増やすより、
+               どこを押しても閉じるほうが迷わない。 -->
+          <div
+            class="picker-scrim"
+            role="presentation"
+            onclick={() => imageExport.close()}
+          ></div>
+          <div class="picker-pane" role="group" aria-label={t('action.image')}>
+            <label class="picker-row">
+              <span class="picker-label">{t('image.size')}</span>
+              <select
+                value={imageExport.order.preset}
+                onchange={(event) =>
+                  imageExport.choose({ preset: event.currentTarget.value as ImagePresetName })}
+              >
+                {#each IMAGE_PRESETS as preset (preset.name)}
+                  <option value={preset.name}>
+                    {t(`image.preset.${preset.name}`)}（{preset.width}×{preset.height}）
+                  </option>
+                {/each}
+              </select>
+            </label>
+            <label class="picker-row">
+              <span class="picker-label">{t('image.scale')}</span>
+              <select
+                value={String(imageExport.order.scale)}
+                onchange={(event) =>
+                  imageExport.choose({ scale: Number(event.currentTarget.value) })}
+              >
+                <option value="1">1×</option>
+                <option value="1.5">1.5×</option>
+                <option value="2">2×</option>
+                <option value="3">3×</option>
+              </select>
+            </label>
+            <label class="picker-row">
+              <span class="picker-label">{t('image.format')}</span>
+              <select
+                value={imageExport.order.format}
+                onchange={(event) =>
+                  imageExport.choose({
+                    format: event.currentTarget.value as ImageFormatChoice,
+                  })}
+              >
+                <option value="png">{t('image.format.png')}</option>
+                <option value="png-transparent">{t('image.format.pngTransparent')}</option>
+                <option value="jpeg">{t('image.format.jpeg')}</option>
+              </select>
+            </label>
+            {#if imageExport.order.format === 'jpeg'}
+              <!-- 画質は JPEG のときだけ効く。PNG のときも並べると、動かない欄を
+                   触って「効かない」と受け取られる。 -->
+              <label class="picker-row">
+                <span class="picker-label">{t('image.quality')}</span>
+                <input
+                  type="range"
+                  min="30"
+                  max="100"
+                  step="5"
+                  value={imageExport.order.quality}
+                  oninput={(event) =>
+                    imageExport.choose({ quality: Number(event.currentTarget.value) })}
+                />
+              </label>
+            {/if}
+            <!-- 押す前に、倍率を掛けた後の実寸を出す。型の名前だけだと、貼る先の
+                 ピクセル規定に合っているか判断できない。 -->
+            <p class="picker-summary">{imageExport.summary}</p>
+            <button
+              class="btn picker-go"
+              type="button"
+              onclick={() => void imageExport.run()}
+              disabled={!imageExport.canExport}
+            >
+              {t('image.shoot')}
+            </button>
+          </div>
+        {/if}
+      </div>
+      {#if imageExport.result !== null}
+        <span
+          class="export-note"
+          class:is-error={!imageExport.result.ok}
+          role="status"
+          title={imageExport.result.ok
+            ? t('action.imageDone', { path: imageExport.result.path })
+            : imageExport.result.message}
+        >
+          {imageExport.result.ok
+            ? t('action.imageDone', { path: imageExport.result.path })
+            : imageExport.result.message}
         </span>
       {/if}
       <!-- サイト出力。フォルダ内の .md をまとめて dist/ へ置く。開いている文書に依らないので
@@ -647,6 +783,86 @@
   .export-note.is-error {
     background: var(--danger-bg);
     color: var(--danger-fg);
+  }
+
+  /* ── 画像出力の選択欄 ────────────────────────────────────────────
+     帯からはみ出して下に垂らす。帯そのものは高さ固定なので、中に収めようとすると
+     帯が伸びて文書名の位置が動く。 */
+  .picker {
+    position: relative;
+    display: inline-flex;
+  }
+
+  /* 選んでいる間、外側のどこを押しても閉じられるようにする層。 */
+  .picker-scrim {
+    position: fixed;
+    inset: 0;
+    z-index: 40;
+  }
+
+  .picker-pane {
+    position: absolute;
+    top: calc(100% + var(--space-1));
+    right: 0;
+    z-index: 41;
+    width: 17rem;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    padding: var(--space-3);
+    background: var(--bg-elevated, var(--bg-subtle));
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-lg, 0 8px 24px rgb(0 0 0 / 0.18));
+    text-align: left;
+  }
+
+  .picker-row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+  }
+
+  .picker-label {
+    flex: none;
+    width: 4.5em;
+    font-size: var(--text-2xs-size);
+    color: var(--text-secondary);
+  }
+
+  .picker-row select,
+  .picker-row input[type='range'] {
+    flex: 1;
+    min-width: 0;
+    height: 26px;
+    font-size: var(--text-2xs-size);
+    color: var(--text-primary);
+    background: var(--bg-base, transparent);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+  }
+
+  .picker-row input[type='range'] {
+    border: none;
+    background: transparent;
+  }
+
+  /* 出来上がりの実寸。押す前に見えている必要があるので、控えめでも消さない。 */
+  .picker-summary {
+    margin: 0;
+    font-size: var(--text-2xs-size);
+    color: var(--text-secondary);
+  }
+
+  .picker-go {
+    width: 100%;
+    background: var(--accent-subtle);
+    color: var(--text-primary);
+  }
+
+  /* 帯が狭いときもここだけはラベルを残す（アイコンだけの確定ボタンは押しにくい）。 */
+  .picker-pane :global(.btn > span) {
+    display: inline;
   }
 
   /* ── ウィンドウコントロール（Windows 慣習：右上角に密着・フル高） ── */
