@@ -37,6 +37,22 @@ sha2 = "0.10"
 # MSRV 1.63 で本クレート(1.77.2)に収まる。OS の口を呼ぶだけのクレートで、
 # 自前で並びを作ると先読みできる鍵になりかねないため使う。
 getrandom = "0.3"
+# 撮った画像は base64 で返ってくるので、それを戻す（MIT/Apache-2.0）。
+# 自前で書ける規模だが、境目（`=` の詰め方・改行の混入）を間違えても
+# 「少し壊れた画像」として出てしまい気づけないので、標準的な実装を使う。
+base64 = "0.22"
+
+# 画像出力は OS ごとに撮る口が違う。Windows は WebView2 の DevTools Protocol を叩く。
+# どちらも Tauri が既に連れてきているものなので、配布物は増えない。
+[target.'cfg(windows)'.dependencies]
+webview2-com = "0.38"
+windows = { version = "0.61", features = [
+  "Win32_Foundation",
+  "Win32_Graphics_Gdi",
+  "Win32_System_Com",
+  "Win32_System_LibraryLoader",
+  "Win32_UI_WindowsAndMessaging",
+] }
 
 # 自動アップデートはデスクトップ専用（モバイルは対象外）。GitHub Releases の
 # 署名付き成果物を取得・検証・適用する。ターゲット cfg でデスクトップに限定する。
