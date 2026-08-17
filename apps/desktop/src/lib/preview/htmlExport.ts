@@ -18,8 +18,10 @@ import { renderPreview } from './renderPreview';
 /**
  * 書き出す HTML を組む。frontmatter が壊れていて描画対象にならないときは null
  * （＝押せるボタンにしない）。
+ *
+ * 非同期なのはプレビューと同じ理由で、そのスキーマの描画一式を読んでから組むため。
  */
-export function buildExportHtml(source: string): string | null {
-  const result = renderPreview(source, { theme: 'light', shortcuts: false });
+export async function buildExportHtml(source: string): Promise<string | null> {
+  const result = await renderPreview(source, { theme: 'light', shortcuts: false });
   return result.ok ? result.srcdoc : null;
 }

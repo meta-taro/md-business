@@ -2,6 +2,7 @@
   import { untrack, onMount, onDestroy } from 'svelte';
   import { themeController } from '$lib/theme.svelte';
   import { previewRenderer } from '$lib/preview/previewRenderer.svelte';
+  import type { PreviewResult } from '$lib/preview/previewFactory';
   import { frontmatterMessage } from '$lib/preview/frontmatterMessage';
   import { pdfExport } from '$lib/preview/pdfExport.svelte';
   import { htmlExport } from '$lib/preview/htmlExportController.svelte';
@@ -285,11 +286,25 @@
   // 変化で即再描画。
   // 描画一式（検証器・文書 CSS・Markdown 組み立て）は起動時には読まず、プレビューを
   // 出す用ができた時点で読む。読み終わるまで preview は null＝まだ描けない状態。
-  const preview = $derived(
-    previewRenderer.render === null
-      ? null
-      : previewRenderer.render(debouncedSource, { theme: themeController.value }),
-  );
+  //
+  // 描画が非同期なのは、スキーマごとの検証器を「開いた文書のぶんだけ」読むため。
+  // 打つたびに走るので、先に始めた描画が後から返ることがある。世代を数えて、
+  // 最後に始めたものの結果だけを採る（古い結果で今の本文を上書きしない）。
+  let preview = $state<PreviewResult | null>(null);
+  let previewGeneration = 0;
+  $effect(() => {
+    const render = previewRenderer.render;
+    const source = debouncedSource;
+    const theme = themeController.value;
+    if (render === null) {
+      preview = null;
+      return;
+    }
+    const generation = ++previewGeneration;
+    void render(source, { theme }).then((result) => {
+      if (generation === previewGeneration) preview = result;
+    });
+  });
 
   // PDF 出力（DESIGN §6.4）。プレビュー iframe を print-to-PDF する関数を共有コントローラへ
   // 登録し、Top bar の [PDF] から起動する。iframe の srcdoc は renderer-pdf の @page

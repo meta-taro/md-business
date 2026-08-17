@@ -162,10 +162,10 @@ function buildIndexPage(title: string, pages: readonly RenderedPage[]): string {
   });
 }
 
-export function buildStaticSite(
+export async function buildStaticSite(
   docs: readonly SiteSource[],
   options: BuildStaticSiteOptions = {},
-): SitePlan {
+): Promise<SitePlan> {
   const sources = docs
     .map((doc) => ({ path: normalizePath(doc.path), source: doc.source }))
     // 走査順は OS 依存なので、出力（一覧の並び）を決定的にする。
@@ -182,7 +182,9 @@ export function buildStaticSite(
       continue;
     }
     const path = toHtmlPath(doc.path);
-    const result = renderPreview(doc.source, {
+    // 1 枚ずつ順に待つ。スキーマの描画一式は初回だけ読み込まれ、以降は使い回されるので、
+    // 同じ書式が続くフォルダでは待ちが増えない。
+    const result = await renderPreview(doc.source, {
       // 書き出しは常に明るい配色・ショートカット無し（単一 HTML 書き出しと同じ理由）。
       theme: 'light',
       shortcuts: false,

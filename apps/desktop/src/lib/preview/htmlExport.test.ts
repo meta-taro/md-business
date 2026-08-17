@@ -27,8 +27,8 @@ title: ただの覚書
 `;
 
 describe('buildExportHtml', () => {
-  it('プレビューと同じ完全な HTML 文書を返す', () => {
-    const html = buildExportHtml(INVOICE);
+  it('プレビューと同じ完全な HTML 文書を返す', async () => {
+    const html = await buildExportHtml(INVOICE);
     expect(html).not.toBeNull();
     expect(html?.startsWith('<!doctype html>')).toBe(true);
     expect(html).toContain('</html>');
@@ -38,26 +38,26 @@ describe('buildExportHtml', () => {
   });
 
   // 送った先で keydown を横取りすると、相手のブラウザの印刷・検索が奪われる。
-  it('プレビュー専用のスクリプトを含まない', () => {
-    const html = buildExportHtml(INVOICE);
+  it('プレビュー専用のスクリプトを含まない', async () => {
+    const html = await buildExportHtml(INVOICE);
     expect(html).not.toContain('parent.postMessage');
     expect(html).not.toContain('<script>');
   });
 
   // 受け取る側の環境は分からないし、印刷すれば地は白になる。
   // テーマを引数で受け取らないので、アプリ側の配色が書き出しへ漏れようがない。
-  it('常に明るい配色で書き出す', () => {
-    const html = buildExportHtml(INVOICE);
+  it('常に明るい配色で書き出す', async () => {
+    const html = await buildExportHtml(INVOICE);
     expect(html).toContain('data-theme="light"');
     expect(html).not.toContain('data-theme="dark"');
   });
 
-  it('業務スキーマでない Markdown も書き出せる', () => {
-    const html = buildExportHtml(PLAIN);
+  it('業務スキーマでない Markdown も書き出せる', async () => {
+    const html = await buildExportHtml(PLAIN);
     expect(html).toContain('見出し');
   });
 
-  it('frontmatter が壊れていれば null（押せるボタンにしない）', () => {
-    expect(buildExportHtml('---\n: : :\n---\n')).toBeNull();
+  it('frontmatter が壊れていれば null（押せるボタンにしない）', async () => {
+    await expect(buildExportHtml('---\n: : :\n---\n')).resolves.toBeNull();
   });
 });

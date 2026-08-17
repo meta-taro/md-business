@@ -10,7 +10,7 @@ import { renderPreview } from './renderPreview';
 const SHA256 = 'ab12cd34'.repeat(8);
 
 describe('renderPreview — prose スキーマ（spec / test-spec）ルーティング', () => {
-  it('spec を documentNumber マーカーで振り分け、本文を HTML 化して描く', () => {
+  it('spec を documentNumber マーカーで振り分け、本文を HTML 化して描く', async () => {
     const md = [
       '---',
       'schemaVersion: spec/v1',
@@ -21,7 +21,7 @@ describe('renderPreview — prose スキーマ（spec / test-spec）ルーティ
       '',
       '本システムは決済を担う。',
     ].join('\n');
-    const r = renderPreview(md);
+    const r = await renderPreview(md);
     expect(r.ok).toBe(true);
     if (!r.ok) return;
     expect(r.label).toBe('基本設計書');
@@ -31,7 +31,7 @@ describe('renderPreview — prose スキーマ（spec / test-spec）ルーティ
     expect(r.srcdoc).toContain('本システムは決済を担う。');
   });
 
-  it('spec 本文の <script> はサニタイズで落ちる（XSS 防御）', () => {
+  it('spec 本文の <script> はサニタイズで落ちる（XSS 防御）', async () => {
     const md = [
       '---',
       'schemaVersion: spec/v1',
@@ -42,14 +42,14 @@ describe('renderPreview — prose スキーマ（spec / test-spec）ルーティ
       '',
       '<script>alert(1)</script>',
     ].join('\n');
-    const r = renderPreview(md);
+    const r = await renderPreview(md);
     expect(r.ok).toBe(true);
     if (!r.ok) return;
     expect(r.srcdoc).not.toContain('<script>alert(1)</script>');
     expect(r.srcdoc).not.toContain('alert(1)');
   });
 
-  it('investigation を schema prefix で振り分け、本文を HTML 化して描く', () => {
+  it('investigation を schema prefix で振り分け、本文を HTML 化して描く', async () => {
     const md = [
       '---',
       'schema: investigation/v1',
@@ -74,7 +74,7 @@ describe('renderPreview — prose スキーマ（spec / test-spec）ルーティ
       '',
       '送信元 IP の素性が判明するまで断定しない。',
     ].join('\n');
-    const r = renderPreview(md);
+    const r = await renderPreview(md);
     expect(r.ok).toBe(true);
     if (!r.ok) return;
     expect(r.label).toBe('調査報告書');
@@ -87,7 +87,7 @@ describe('renderPreview — prose スキーマ（spec / test-spec）ルーティ
     expect(r.srcdoc).toContain('送信元 IP の素性が判明するまで断定しない。');
   });
 
-  it('investigation 本文の <script> はサニタイズで落ちる', () => {
+  it('investigation 本文の <script> はサニタイズで落ちる', async () => {
     const md = [
       '---',
       'schema: investigation/v1',
@@ -96,21 +96,21 @@ describe('renderPreview — prose スキーマ（spec / test-spec）ルーティ
       '---',
       '<script>alert(1)</script>',
     ].join('\n');
-    const r = renderPreview(md);
+    const r = await renderPreview(md);
     expect(r.ok).toBe(true);
     if (!r.ok) return;
     expect(r.srcdoc).not.toContain('alert(1)');
   });
 
-  it('日本語だけの調査報告書も所見マーカーで振り分ける', () => {
+  it('日本語だけの調査報告書も所見マーカーで振り分ける', async () => {
     const md = ['---', '所見: []', 'タイトル: 通信調査', '---', '# 通信調査'].join('\n');
-    const r = renderPreview(md);
+    const r = await renderPreview(md);
     expect(r.ok).toBe(true);
     if (!r.ok) return;
     expect(r.label).toBe('調査報告書');
   });
 
-  it('test-spec を columns マーカーで振り分ける', () => {
+  it('test-spec を columns マーカーで振り分ける', async () => {
     const md = [
       '---',
       'schema: test-spec/v1',
@@ -122,7 +122,7 @@ describe('renderPreview — prose スキーマ（spec / test-spec）ルーティ
       '',
       '正常系と異常系を分ける。',
     ].join('\n');
-    const r = renderPreview(md);
+    const r = await renderPreview(md);
     expect(r.ok).toBe(true);
     if (!r.ok) return;
     expect(r.label).toBe('検証シート');
@@ -130,26 +130,26 @@ describe('renderPreview — prose スキーマ（spec / test-spec）ルーティ
     expect(r.srcdoc).toContain('検証観点');
   });
 
-  it('reviewers を共有していても test-spec 固有マーカー（列）があれば test-spec に行く', () => {
+  it('reviewers を共有していても test-spec 固有マーカー（列）があれば test-spec に行く', async () => {
     // spec も reviewers を主張するが、列定義があれば厳格な test-spec が先に取る。
     const md = ['---', 'schema: test-spec/v1', '列: []', 'reviewers: []', '---', '本文'].join('\n');
-    const r = renderPreview(md);
+    const r = await renderPreview(md);
     expect(r.ok).toBe(true);
     if (!r.ok) return;
     expect(r.label).toBe('検証シート');
   });
 
-  it('reviewers のみ（列定義なし）は spec が受け皿になる', () => {
+  it('reviewers のみ（列定義なし）は spec が受け皿になる', async () => {
     const md = ['---', 'reviewers: []', '---', '本文'].join('\n');
-    const r = renderPreview(md);
+    const r = await renderPreview(md);
     expect(r.ok).toBe(true);
     if (!r.ok) return;
     expect(r.label).toBe('基本設計書');
   });
 
-  it('未完成 spec でも ok:true で描画し、検証エラーは側チャネルで返す', () => {
+  it('未完成 spec でも ok:true で描画し、検証エラーは側チャネルで返す', async () => {
     const md = ['---', 'schemaVersion: spec/v1', 'chapters: []', '---', '# 下書き'].join('\n');
-    const r = renderPreview(md);
+    const r = await renderPreview(md);
     expect(r.ok).toBe(true);
     if (!r.ok) return;
     expect(r.srcdoc).toContain('<!doctype html>');

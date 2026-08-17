@@ -4,10 +4,13 @@
  * source（生 .md）を 1 回だけ parse → frontmatter を registry で振り分け →
  * 該当 provider の permissive パイプラインで iframe srcdoc を生成する。対応
  * スキーマが無い / 解析不能なら not-applicable を返す（呼び出し側が理由表示）。
+ *
+ * 非同期なのは、振り分けた後にそのスキーマの描画一式を読み込むため（providers/lazy）。
+ * 「どのスキーマか」が決まるまで、どのスキーマの中身も読まない。
  */
 import { describeFrontmatterError, parseMarkdown } from '@md-business/core';
 import { resolveProvider } from './registry';
-import { PROVIDERS } from './providers';
+import { LAZY_PROVIDERS } from './providers/lazy';
 import { renderMarkdownFallback } from './providers/markdownFallback';
 import type { PreviewResult, RenderPreviewOptions } from './previewFactory';
 
@@ -15,10 +18,10 @@ function messageOf(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
-export function renderPreview(
+export async function renderPreview(
   source: string,
   options: RenderPreviewOptions = {},
-): PreviewResult {
+): Promise<PreviewResult> {
   let frontmatter: Record<string, unknown>;
   let body: string;
   try {
@@ -36,13 +39,14 @@ export function renderPreview(
     };
   }
 
-  const provider = resolveProvider(frontmatter, PROVIDERS);
-  if (!provider) {
+  const lazy = resolveProvider(frontmatter, LAZY_PROVIDERS);
+  if (!lazy) {
     // 業務スキーマ非該当は空表示にせず、GitHub のように素の Markdown を描く。
     // frontmatter が解析できた（＝描画対象になる）ケースのみここへ来る。
     return renderMarkdownFallback(body, options);
   }
 
+  const provider = await lazy.load();
   return provider.render(frontmatter, body, options);
 }
 
