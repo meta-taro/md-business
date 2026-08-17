@@ -58,3 +58,38 @@ describe('createSchemaPreview（本文配線）', () => {
     expect(result.srcdoc).toContain('<main>2</main>');
   });
 });
+
+describe('createSchemaPreview（テーマ）', () => {
+  it('読めないテーマ指定を警告に出す（黙って既定に落とさない）', () => {
+    const preview = createSchemaPreview(makeEchoConfig());
+    const result = preview.render({ theme: 'みどり' });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.warnings.some((w) => w.includes('みどり'))).toBe(true);
+  });
+
+  it('選べるテーマ・指定なしでは警告を出さない', () => {
+    const preview = createSchemaPreview(makeEchoConfig());
+    for (const frontmatter of [{ theme: 'blue' }, { theme: '#2a4d7a' }, {}]) {
+      const result = preview.render(frontmatter);
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+      expect(result.warnings).toEqual([]);
+    }
+  });
+
+  it('見るのは normalize / autofill を通した後の値（日本語の色名は先に英語へ直る）', () => {
+    const config = makeEchoConfig();
+    const translating: SchemaPreviewConfig<Record<string, unknown>> = {
+      ...config,
+      normalize: (fm) => ({
+        data: { ...fm, theme: fm.theme === '青' ? 'blue' : fm.theme },
+        warnings: [],
+      }),
+    };
+    const result = createSchemaPreview(translating).render({ theme: '青' });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.warnings).toEqual([]);
+  });
+});

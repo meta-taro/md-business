@@ -10,34 +10,8 @@ import type {
   NosqlTtl,
 } from '@md-business/schema-nosql-db-spec';
 import { escapeHtml } from './escape.js';
+import { themeStyleAttr } from './theme.js';
 import { formatDateIso } from './format.js';
-
-/**
- * Accent color presets — shared with the invoice / spec / db-spec templates so
- * every document type speaks one design vocabulary. Authors can pass an
- * explicit `#rrggbb` instead of a preset name.
- */
-const THEME_PRESETS: Record<string, string> = {
-  blue: '#2a4d7a',
-  red: '#b91c1c',
-  yellow: '#b8860b',
-  orange: '#c2410c',
-  purple: '#6d28d9',
-  black: '#1f1f1f',
-  gray: '#4b5563',
-};
-
-const HEX_COLOR = /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/;
-
-function resolveThemeColor(theme: string | undefined): string | null {
-  if (!theme) return null;
-  const trimmed = theme.trim();
-  if (!trimmed) return null;
-  const preset = THEME_PRESETS[trimmed.toLowerCase()];
-  if (preset) return preset;
-  if (HEX_COLOR.test(trimmed)) return trimmed;
-  return null;
-}
 
 const STATUS_LABELS: Record<string, string> = {
   draft: 'ドラフト',
@@ -308,8 +282,7 @@ export function renderNosqlDbSpecBody(
   options: RenderNosqlDbSpecBodyOptions = {},
 ): string {
   const { hideCover = false } = options;
-  const themeColor = resolveThemeColor(nosqlDbSpec.theme);
-  const themeStyle = themeColor ? ` style="--mdb-color-accent:${themeColor}"` : '';
+  const themeStyle = themeStyleAttr(nosqlDbSpec.theme);
 
   const regionRow = nosqlDbSpec.multiRegion
     ? `<dt>リージョン</dt><dd>${escapeHtml(nosqlDbSpec.multiRegion)}</dd>`

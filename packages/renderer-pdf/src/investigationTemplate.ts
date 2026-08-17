@@ -6,33 +6,7 @@ import type {
   InvestigationTool,
 } from '@md-business/schema-investigation';
 import { escapeHtml } from './escape.js';
-
-/**
- * Accent color presets — shared with the other document templates so every
- * document type speaks one design vocabulary. Authors can pass an explicit
- * `#rrggbb` instead of a preset name.
- */
-const THEME_PRESETS: Record<string, string> = {
-  blue: '#2a4d7a',
-  red: '#b91c1c',
-  yellow: '#b8860b',
-  orange: '#c2410c',
-  purple: '#6d28d9',
-  black: '#1f1f1f',
-  gray: '#4b5563',
-};
-
-const HEX_COLOR = /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/;
-
-function resolveThemeColor(theme: string | undefined): string | null {
-  if (!theme) return null;
-  const trimmed = theme.trim();
-  if (!trimmed) return null;
-  const preset = THEME_PRESETS[trimmed.toLowerCase()];
-  if (preset) return preset;
-  if (HEX_COLOR.test(trimmed)) return trimmed;
-  return null;
-}
+import { themeStyleAttr } from './theme.js';
 
 const STATUS_LABELS: Record<string, string> = {
   investigating: '調査中',
@@ -233,8 +207,7 @@ export function renderInvestigationBody(
   options: RenderInvestigationBodyOptions = {},
 ): string {
   const { bodyHtml = '', hideCover = false, linkEvidence = false } = options;
-  const themeColor = resolveThemeColor(investigation.theme);
-  const themeStyle = themeColor ? ` style="--mdb-color-accent:${themeColor}"` : '';
+  const themeStyle = themeStyleAttr(investigation.theme);
   const status = investigation.status;
   const kindLabel = KIND_LABELS[investigation.kind] ?? investigation.kind;
 

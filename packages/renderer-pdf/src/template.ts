@@ -5,6 +5,7 @@ import {
   type InvoiceTaxBucket,
 } from '@md-business/schema-invoice';
 import { escapeHtml } from './escape.js';
+import { themeStyleAttr } from './theme.js';
 import { formatJpy, formatNumber, formatDateIso } from './format.js';
 import { renderStampSvg } from './stamp.js';
 
@@ -52,33 +53,6 @@ function renderParty(label: string, party: {
       ${registration}
     </section>
   `;
-}
-
-/**
- * Accent color presets. Hex values picked to be visually distinct yet
- * print-safe (≥40% darkness so 2px borders remain legible). Authors who
- * need a brand-specific color can pass an explicit `#rrggbb` instead.
- */
-const THEME_PRESETS: Record<string, string> = {
-  blue: '#2a4d7a',
-  red: '#b91c1c',
-  yellow: '#b8860b',
-  orange: '#c2410c',
-  purple: '#6d28d9',
-  black: '#1f1f1f',
-  gray: '#4b5563',
-};
-
-const HEX_COLOR = /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/;
-
-function resolveThemeColor(theme: string | undefined): string | null {
-  if (!theme) return null;
-  const trimmed = theme.trim();
-  if (!trimmed) return null;
-  const preset = THEME_PRESETS[trimmed.toLowerCase()];
-  if (preset) return preset;
-  if (HEX_COLOR.test(trimmed)) return trimmed;
-  return null;
 }
 
 // Logo URL whitelist. Inline data URIs are allowed for the four raster
@@ -258,8 +232,7 @@ export function renderInvoiceBody(invoice: Invoice, options: RenderInvoiceBodyOp
     !stamp && signatureArea
       ? `<section class="mdb-invoice__signature"><div class="seal-area">印</div></section>`
       : '';
-  const themeColor = resolveThemeColor(invoice.theme);
-  const themeStyle = themeColor ? ` style="--mdb-color-accent:${themeColor}"` : '';
+  const themeStyle = themeStyleAttr(invoice.theme);
 
   // 免税事業者モード: 適格請求書発行事業者ではない（登録番号なし）旨を
   // 本文末尾の経過措置案内で明示。インボイス制度経過措置（2023-10〜2029-9）に
