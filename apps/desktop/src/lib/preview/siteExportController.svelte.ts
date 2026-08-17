@@ -11,17 +11,11 @@
 import { invoke } from '@tauri-apps/api/core';
 import { browser } from '$app/environment';
 import { workspace } from '$lib/workspace/workspace.svelte';
-import type { DocEntry } from '$lib/workspace/fileTree';
-import type { SiteSkip, SiteSource } from './staticSite';
-import { folderTitle, siteDocumentPaths } from './siteExport';
+import type { SiteSkip } from './staticSite';
+import { collectSitePlan } from './collectSite';
 
 /** 結果表示が自分で消えるまで。単一 HTML 書き出しと揃える。 */
 const NOTICE_MS = 8000;
-
-/** Rust `scan_documents` の戻り。 */
-interface ScanResult {
-  entries: DocEntry[];
-}
 
 /** Rust `export_site` の戻り。 */
 interface SiteWriteResult {
@@ -57,26 +51,10 @@ class SiteExportController {
 
     this.busy = true;
     try {
-      // ワークスペースのツリーは表示用に組み替えてあるので、走査をやり直して平坦な
-      // 一覧を取る。除外（.git / node_modules / dist）は Rust 側が済ませている。
-      const scan = await invoke<ScanResult>('scan_documents', { root });
-      const paths = siteDocumentPaths(scan.entries);
-      if (paths.length === 0) {
-        this.#notify({ kind: 'none', skipped: [] });
-        return;
-      }
-
-      const docs: SiteSource[] = [];
-      for (const path of paths) {
-        docs.push({ path, source: await invoke<string>('read_document', { root, relPath: path }) });
-      }
-
-      // ページの組み立てはプレビューと同じ描画一式を使う。起動時に読ませないよう、
-      // ボタンが押されたここで読み込む。
-      const { buildStaticSite } = await import('./staticSite');
-      const plan = await buildStaticSite(docs, { title: folderTitle(root) });
+      // 組み立てはブラウザ表示と同じ手順を通す（collectSite）。
+      const plan = await collectSitePlan(root);
       if (plan.pages.length === 0) {
-        // 全部プレビューに失敗した。中身の無いサイトを置いても使い道が無い。
+        // 出せる文書が無いか、全部プレビューに失敗した。中身の無いサイトを置いても使い道が無い。
         this.#notify({ kind: 'none', skipped: plan.skipped });
         return;
       }

@@ -10,6 +10,10 @@
     siteExport,
     type SiteExportResult,
   } from '$lib/preview/siteExportController.svelte';
+  import {
+    browserPreview,
+    type BrowserPreviewNotice,
+  } from '$lib/preview/browserPreviewController.svelte';
   import { timelineView } from '$lib/logs/timelineView.svelte';
   import { documentDisplayName } from '$lib/window/docTitle';
   import { t } from '$lib/i18n/i18n.svelte';
@@ -48,6 +52,11 @@
 
   // 出せなかった文書は、どれがなぜ駄目だったかを hover で読めるようにしておく。
   // 件数だけだと、直しようがない。
+  // ブラウザ表示が始められなかった理由。出せている間は URL の方を出すので、ここは通らない。
+  function browserNote(notice: BrowserPreviewNotice): string {
+    return notice.kind === 'error' ? notice.message : t('action.siteNone');
+  }
+
   function siteNoteTitle(result: SiteExportResult): string {
     const note = siteNote(result);
     if (result.kind === 'error' || result.skipped.length === 0) return note;
@@ -252,6 +261,54 @@
           title={siteNoteTitle(siteExport.result)}
         >
           {siteNote(siteExport.result)}
+        </span>
+      {/if}
+      <!-- ブラウザで見る。サイト出力と同じ中身を、置かずにこの PC の中だけで出す。
+           出している間は押すと畳む（同じボタンで入り切りする）。
+           アイコンは窓＝ブラウザのウィンドウ。 -->
+      <button
+        class="btn ghost with-icon"
+        type="button"
+        onclick={() =>
+          browserPreview.serving === null
+            ? workspace.root && void browserPreview.start(workspace.root)
+            : void browserPreview.stop()}
+        disabled={browserPreview.busy || (browserPreview.serving === null && workspace.root === null)}
+        aria-pressed={browserPreview.serving !== null}
+        title={browserPreview.serving === null
+          ? t('action.browserTitle')
+          : t('action.browserStopTitle')}
+        aria-label={t('action.browser')}
+      >
+        <svg class="btn-ico" viewBox="0 0 16 16" aria-hidden="true">
+          <rect
+            x="1.75"
+            y="2.75"
+            width="12.5"
+            height="10.5"
+            rx="1.2"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.2"
+          />
+          <path d="M1.75 5.75h12.5" fill="none" stroke="currentColor" stroke-width="1.2" />
+          <circle cx="4" cy="4.25" r="0.55" fill="currentColor" />
+          <circle cx="5.9" cy="4.25" r="0.55" fill="currentColor" />
+        </svg>
+        <span>{t('action.browser')}</span>
+      </button>
+      {#if browserPreview.serving !== null}
+        <!-- 出している間はアドレスを出しっぱなしにする。消すと、開き直す先が分からなくなる。 -->
+        <span
+          class="export-note"
+          role="status"
+          title={t('action.browserServing', { url: browserPreview.serving.url })}
+        >
+          {t('action.browserServing', { url: browserPreview.serving.url })}
+        </span>
+      {:else if browserPreview.notice !== null}
+        <span class="export-note is-error" role="status" title={browserNote(browserPreview.notice)}>
+          {browserNote(browserPreview.notice)}
         </span>
       {/if}
       <!-- 時系列。ログは文書ツリーに出ない（出すとエディタで開けてしまう）ので、

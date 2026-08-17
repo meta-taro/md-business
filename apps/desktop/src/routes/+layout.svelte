@@ -10,6 +10,7 @@
   import { autosave } from '$lib/workspace/autosave.svelte';
   import { decideFileChangeAction, type FileChangeEvent } from '$lib/workspace/watchLogic';
   import { pdfExport } from '$lib/preview/pdfExport.svelte';
+  import { browserPreview } from '$lib/preview/browserPreviewController.svelte';
   import {
     matchShortcut,
     resolvePreviewMessage,
@@ -223,6 +224,9 @@
       if (action === 'reload') void workspace.select(change.relPath);
       else if (action === 'rescan') void workspace.rescanPreservingActive();
       else if (action === 'conflict') workspace.flagConflict(change.relPath);
+      // ブラウザで出している間は、外の編集も出している中身へ反映する。画面の反応
+      // （reload / rescan / conflict）とは別で、どれになっても中身は変わっている。
+      browserPreview.onFileChanged(change.relPath);
     };
     let unlisten: (() => void) | undefined;
     void listen<FileChangeEvent>('workspace-file-changed', (event) => {
