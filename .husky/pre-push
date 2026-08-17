@@ -1,5 +1,5 @@
 #!/usr/bin/env sh
-# プッシュ前ゲート — build + バンドルスキャン。
+# プッシュ前ゲート — build + バンドルスキャン + 起動時 JS の上限。
 # Vite/Rollup の EVAL warning を error 化し、bundle 内の eval / new Function を
 # 静的検出することで、依存パッケージ由来の CSP 違反コードを push 前に弾く。
 set -e
@@ -9,5 +9,8 @@ pnpm -w run build
 
 echo "[pre-push] bundle scan (CSP-unsafe constructs)..."
 pnpm -w run scan-bundle
+
+echo "[pre-push] startup budget (JS loaded before first paint)..."
+pnpm -w run startup-budget
 
 echo "[pre-push] OK"
