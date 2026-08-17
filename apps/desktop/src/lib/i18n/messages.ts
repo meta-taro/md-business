@@ -325,6 +325,10 @@ export interface Messages {
   'page.gridRestoreTitle': string;
   'page.gridFullscreenBtn': string;
   'page.gridRestoreBtn': string;
+  'page.viewportPhoneTitle': string;
+  'page.viewportPcTitle': string;
+  'page.viewportPhoneBtn': string;
+  'page.viewportPcBtn': string;
   'page.previewHead': string;
   'page.previewTitle': string;
   'page.frontmatterHint': string;
@@ -751,6 +755,10 @@ const en: Messages = {
   'page.gridRestoreTitle': 'Back to split view (Esc)',
   'page.gridFullscreenBtn': '⤢ Fullscreen',
   'page.gridRestoreBtn': '↙ Back to split',
+  'page.viewportPhoneTitle': 'View at phone width',
+  'page.viewportPcTitle': 'Back to desktop width',
+  'page.viewportPhoneBtn': 'Phone width',
+  'page.viewportPcBtn': 'Desktop width',
   'page.previewHead': 'Preview',
   'page.previewTitle': '{label} preview',
   'page.frontmatterHint': 'Check the frontmatter format (the top block enclosed by ---)',
@@ -1173,6 +1181,10 @@ const ja: Messages = {
   'page.gridRestoreTitle': '分割表示に戻す（Esc）',
   'page.gridFullscreenBtn': '⤢ 全画面',
   'page.gridRestoreBtn': '↙ 分割に戻す',
+  'page.viewportPhoneTitle': 'スマートフォンの幅で見る',
+  'page.viewportPcTitle': 'PC の幅に戻す',
+  'page.viewportPhoneBtn': 'スマホ幅',
+  'page.viewportPcBtn': 'PC 幅',
   'page.previewHead': 'プレビュー',
   'page.previewTitle': '{label}プレビュー',
   'page.frontmatterHint': 'frontmatter（--- で囲む先頭ブロック）の書式を確認してください',
@@ -1590,6 +1602,10 @@ const zh: Messages = {
   'page.gridRestoreTitle': '返回分屏视图（Esc）',
   'page.gridFullscreenBtn': '⤢ 全屏',
   'page.gridRestoreBtn': '↙ 返回分屏',
+  'page.viewportPhoneTitle': '以手机宽度查看',
+  'page.viewportPcTitle': '恢复电脑宽度',
+  'page.viewportPhoneBtn': '手机宽度',
+  'page.viewportPcBtn': '电脑宽度',
   'page.previewHead': '预览',
   'page.previewTitle': '{label}预览',
   'page.frontmatterHint': '请检查 frontmatter（由 --- 包围的开头块）的格式',
@@ -2010,6 +2026,10 @@ const ko: Messages = {
   'page.gridRestoreTitle': '분할 보기로 복귀 (Esc)',
   'page.gridFullscreenBtn': '⤢ 전체 화면',
   'page.gridRestoreBtn': '↙ 분할로 복귀',
+  'page.viewportPhoneTitle': '스마트폰 폭으로 보기',
+  'page.viewportPcTitle': 'PC 폭으로 되돌리기',
+  'page.viewportPhoneBtn': '모바일 폭',
+  'page.viewportPcBtn': 'PC 폭',
   'page.previewHead': '미리보기',
   'page.previewTitle': '{label} 미리보기',
   'page.frontmatterHint': 'frontmatter(--- 로 감싼 첫 블록) 형식을 확인하세요',
