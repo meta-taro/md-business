@@ -3,6 +3,8 @@ mod git;
 mod logscan;
 mod mcp;
 mod mcp_logic;
+mod preview_server;
+mod preview_server_logic;
 mod watch;
 mod watch_logic;
 mod workspace;
@@ -22,6 +24,8 @@ pub fn run() {
         .manage(watch::WatchState::default())
         // 組み込み MCP サーバー（サイドカー）の実行時状態。
         .manage(mcp::McpRuntime::default())
+        // ブラウザ表示用ローカルサーバーの実行時状態（立っているのは 0 個か 1 個）。
+        .manage(preview_server::PreviewServerState::default())
         .setup(|app| {
             // 自動アップデータはデスクトップのみ対応。AppHandle 確定後に登録する。
             #[cfg(desktop)]
@@ -62,14 +66,20 @@ pub fn run() {
             mcp::mcp_respond,
             mcp::mcp_write_client_config,
             mcp::mcp_client_config,
-            mcp::mcp_retry
+            mcp::mcp_retry,
+            preview_server::start_preview_server,
+            preview_server::update_preview_server,
+            preview_server::stop_preview_server,
+            preview_server::preview_server_status
         ])
         .build(tauri::generate_context!())
         .expect("error while running tauri application")
         .run(|app, event| {
-            // 終了時にサイドカーを畳む。放置すると子プロセスが孤児として残りうる。
+            // 終了時に外へ出したものを畳む。放置すると子プロセスが孤児として残り、
+            // ブラウザ表示の待ち受けもポートを掴んだままになりうる。
             if let tauri::RunEvent::Exit = event {
                 mcp::shutdown(app);
+                preview_server::shutdown(app);
             }
         });
 }

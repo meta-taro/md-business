@@ -2071,6 +2071,7 @@ dependencies = [
 name = "md-business-desktop"
 version = "0.9.0"
 dependencies = [
+ "getrandom 0.3.4",
  "notify",
  "notify-debouncer-full",
  "serde",
