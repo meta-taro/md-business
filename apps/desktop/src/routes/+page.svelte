@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { untrack, onMount, onDestroy } from 'svelte';
+  import { untrack, onMount, onDestroy, tick } from 'svelte';
   import { themeController } from '$lib/theme.svelte';
   import { previewRenderer } from '$lib/preview/previewRenderer.svelte';
   import type { PreviewResult } from '$lib/preview/previewFactory';
@@ -9,6 +9,12 @@
   import { imageExport } from '$lib/preview/imageExportController.svelte';
   import { previewReady, previewVisible } from '$lib/preview/previewGate';
   import { resolvePreviewLink } from '$lib/preview/previewLink';
+  import {
+    frameWidth,
+    nextViewport,
+    needsResetForPrint,
+    type ViewportName,
+  } from '$lib/preview/viewport';
   import { findHeadingOffset } from '$lib/editor/headingAnchor';
   import { debounce } from '$lib/util/debounce';
   import type {
@@ -311,10 +317,22 @@
   // 登録し、Top bar の [PDF] から起動する。iframe の srcdoc は renderer-pdf の @page
   // CSS を内包するので、印刷（→「PDF として保存」）で画面と 1:1 の A4 正本になる。
   let viewerFrame = $state<HTMLIFrameElement | undefined>(undefined);
+  // プレビュー枠の幅。狭い幅での折り返しを見るための切り替えで、アプリを開き直すと PC に戻る。
+  let viewport = $state<ViewportName>('pc');
   onMount(() => {
-    pdfExport.register(() => {
+    pdfExport.register(async () => {
       const win = viewerFrame?.contentWindow;
       if (!win) return;
+      // 狭い表示のまま印刷すると、版面が変わっていても出来た PDF を開くまで気づけない。
+      // 戻してから印刷し、何が印刷されるのかを画面に出す。
+      if (needsResetForPrint(viewport)) {
+        viewport = 'pc';
+        await tick();
+        // 幅を戻した中身が組み直されるまで待つ（枠の幅は次の描画で効く）。
+        await new Promise((resolve) =>
+          requestAnimationFrame(() => requestAnimationFrame(() => resolve(undefined))),
+        );
+      }
       win.focus();
       win.print();
     });
@@ -817,15 +835,31 @@
         />
       </div>
     {:else}
-    <div class="pane-head">{t('page.previewHead')}{#if preview?.ok} — {preview.label}{/if}</div>
+    <div class="pane-head preview-head">
+      <span>{t('page.previewHead')}{#if preview?.ok} — {preview.label}{/if}</span>
+      {#if preview?.ok}
+        <button
+          type="button"
+          class="head-btn"
+          onclick={() => (viewport = nextViewport(viewport))}
+          aria-pressed={viewport === 'phone'}
+          title={viewport === 'pc' ? t('page.viewportPhoneTitle') : t('page.viewportPcTitle')}
+        >
+          {viewport === 'pc' ? t('page.viewportPhoneBtn') : t('page.viewportPcBtn')}
+        </button>
+      {/if}
+    </div>
     {#if preview?.ok}
-      <iframe
-        class="viewer"
-        bind:this={viewerFrame}
-        srcdoc={preview.srcdoc}
-        title={t('page.previewTitle', { label: preview.label })}
-        onload={onPreviewLoad}
-      ></iframe>
+      <div class="viewer-wrap" class:narrow={viewport === 'phone'}>
+        <iframe
+          class="viewer"
+          style:width={frameWidth(viewport)}
+          bind:this={viewerFrame}
+          srcdoc={preview.srcdoc}
+          title={t('page.previewTitle', { label: preview.label })}
+          onload={onPreviewLoad}
+        ></iframe>
+      </div>
       {#if preview.errors.length > 0 || preview.warnings.length > 0}
         <div class="notices" role="status">
           {#each preview.errors as err (err)}
@@ -1015,7 +1049,8 @@
   }
 
   /* グリッドのペインヘッダは右端に全画面トグルを置く。 */
-  .grid-head {
+  .grid-head,
+  .preview-head {
     justify-content: space-between;
     gap: var(--space-3);
   }
@@ -1069,10 +1104,22 @@
     text-align: center;
   }
 
-  .viewer {
+  /* 枠の幅は style 属性（frameWidth）で与える。狭めたときは中央へ寄せ、周りは
+     地のままにして、どこまでが枠なのかが見て分かるようにする。 */
+  .viewer-wrap {
     flex: 1;
     min-height: 0;
-    width: 100%;
+    display: flex;
+    justify-content: center;
+  }
+
+  .viewer-wrap.narrow {
+    background: var(--bg-subtle);
+  }
+
+  .viewer {
+    flex: none;
+    height: 100%;
     border: none;
     background: var(--bg-app);
   }
