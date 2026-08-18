@@ -109,11 +109,16 @@
   interface Props {
     /** 表示・編集対象の TSV ドキュメント（`parseTsv` を `withRowIds` に通した結果）。 */
     doc: IdentifiedTsv;
-    /** セル編集で得た新ドキュメントを親へ通知（省略時は読み取り専用）。 */
-    onChange?: (next: IdentifiedTsv) => void;
-    /** ナビ中の Ctrl+Z。履歴は親（正本ソース）が持つ。 */
+    /**
+     * セル編集で得た新ドキュメントを親へ通知（省略時は読み取り専用）。
+     *
+     * `edit` は「同じ 1 手の続き」を親の履歴へ伝える識別子。同じセルを打っている間は
+     * 同じ値が続く。渡さない変更（貼り付け・行操作など）は常に別の手として積まれる。
+     */
+    onChange?: (next: IdentifiedTsv, edit?: string) => void;
+    /** Ctrl+Z。履歴は親（正本ソース）が持つ。 */
     onUndo?: () => void;
-    /** ナビ中の Ctrl+Y / Ctrl+Shift+Z。 */
+    /** Ctrl+Y / Ctrl+Shift+Z。 */
     onRedo?: () => void;
     /** 控え行（`#@ hidden`）も表に出しているか。外すのは親（読み込み）の担当。 */
     reveal?: boolean;
@@ -697,8 +702,8 @@
 
   // 親へ通知する唯一の出口。計算列をここで算出値へ揃える。書き込み経路ごとにガードを
   // 置くと、経路が増えたときに漏れる（行の複製・一括埋め・貼り付けは列を選ばない）。
-  function emit(next: IdentifiedTsv): void {
-    onChange?.(applyComputed(next, computed, counts));
+  function emit(next: IdentifiedTsv, edit?: string): void {
+    onChange?.(applyComputed(next, computed, counts), edit);
   }
 
   // 開いたファイルの計算列がずれていれば直す。算出値と一致していれば applyComputed が
@@ -708,17 +713,21 @@
     if (healed !== doc) onChange?.(healed);
   });
 
-  function commit(row: number, col: number, value: string): void {
+  function commit(row: number, col: number, value: string, coalesce = true): void {
     if (isLocked(col)) return;
+    // 打鍵ごとに呼ばれるので、同じセルにいる間は 1 手として親へ伝える。1 文字ずつ別の手に
+    // すると、一言打ち直すだけで undo を何度も押すことになる。まとめてよいのは打鍵だけで、
+    // 消去のような一撃の操作は前の打鍵に飲み込ませない。
+    const edit = coalesce ? `${row}:${col}` : undefined;
     // 実データ行はそのまま setCell（挙動不変）。pad 行（実データ末尾より下）への入力は
     // gridBlankRows で実体化し、pad 数を詰め直してから通知する。
     if (row < doc.rows.length) {
-      emit(setCell(doc, row, col, value));
+      emit(setCell(doc, row, col, value), edit);
       return;
     }
     const res = editPaddedCell(doc.rows, doc.rowIds, padRows, row, col, value);
     padRows = res.padRows;
-    emit({ ...doc, rows: res.rows, rowIds: res.rowIds });
+    emit({ ...doc, rows: res.rows, rowIds: res.rowIds }, edit);
   }
 
   // datetime-local 入力は `YYYY-MM-DDTHH:MM`（T 区切り）を期待する。正本セルは
@@ -1065,19 +1074,6 @@
         fillSelectionDown();
         return;
       }
-      // undo / redo は履歴を持つ親へ委譲（正本ソースが真）。編集中セルの入力は
-      // それ自身のテキスト undo を使うため、ここ（nav）でだけ横取りする。
-      const key = event.key.toLowerCase();
-      if ((event.ctrlKey || event.metaKey) && key === 'z' && !event.shiftKey) {
-        event.preventDefault();
-        onUndo?.();
-        return;
-      }
-      if ((event.ctrlKey || event.metaKey) && (key === 'y' || (key === 'z' && event.shiftKey))) {
-        event.preventDefault();
-        onRedo?.();
-        return;
-      }
     }
     const action = planGridKey(
       {
@@ -1132,7 +1128,18 @@
         break;
       case 'clear':
         event.preventDefault();
-        if (editable) commit(row, col, '');
+        if (editable) commit(row, col, '', false);
+        break;
+      case 'undo':
+        event.preventDefault();
+        // 編集中に戻すと、入力に残った古い値が次の打鍵で書き戻る。選択へ抜けてから渡す。
+        mode = 'nav';
+        onUndo?.();
+        break;
+      case 'redo':
+        event.preventDefault();
+        mode = 'nav';
+        onRedo?.();
         break;
       case 'pass':
         break;

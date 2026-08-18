@@ -192,3 +192,39 @@ describe('planGridKey / edit モード', () => {
     }
   });
 });
+
+describe('planGridKey の undo / redo', () => {
+  const dims: GridDims = { rows: 3, cols: 3 };
+  const at = (row: number, col: number): CellPos => ({ row, col });
+
+  // セル入力は value を親から与える制御入力なので、ブラウザ既定の文字 undo は働かない。
+  // 編集中でもグリッドの履歴へ回さないと、打ち間違いを戻す手段が無くなる。
+  for (const mode of ['nav', 'edit'] as const) {
+    it(`${mode} 中の Ctrl+Z は undo`, () => {
+      expect(
+        planGridKey({ key: 'z', ctrl: true }, at(1, 1), dims, { mode, multiline: false }),
+      ).toEqual({ kind: 'undo' });
+    });
+
+    it(`${mode} 中の Ctrl+Y と Ctrl+Shift+Z は redo`, () => {
+      expect(
+        planGridKey({ key: 'y', ctrl: true }, at(1, 1), dims, { mode, multiline: false }),
+      ).toEqual({ kind: 'redo' });
+      expect(
+        planGridKey({ key: 'Z', ctrl: true, shift: true }, at(1, 1), dims, {
+          mode,
+          multiline: false,
+        }),
+      ).toEqual({ kind: 'redo' });
+    });
+  }
+
+  it('修飾なしの z / y は通常のキーとして扱う', () => {
+    expect(planGridKey({ key: 'z' }, at(1, 1), dims, { mode: 'nav', multiline: false })).toEqual({
+      kind: 'edit',
+    });
+    expect(planGridKey({ key: 'z' }, at(1, 1), dims, { mode: 'edit', multiline: false })).toEqual({
+      kind: 'pass',
+    });
+  });
+});

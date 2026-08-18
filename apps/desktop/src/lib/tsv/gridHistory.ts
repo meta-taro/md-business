@@ -10,6 +10,24 @@ export interface GridHistory {
   readonly past: readonly string[];
   readonly present: string;
   readonly future: readonly string[];
+  /**
+   * 現在値を作った編集の識別子（例: セルの座標）。次の push が同じ識別子なら、
+   * 同じ 1 手の続きとみなして present を差し替える。undo / redo で確定した値へ
+   * 移った時点で消える（戻ってきた値は確定済みの手なので、続きを結合できない）。
+   */
+  readonly key?: string;
+}
+
+/** [`pushHistory`] の指定。 */
+export interface PushOptions {
+  /** past の上限。省略時は既定値。 */
+  readonly cap?: number;
+  /**
+   * この編集の識別子。同じ識別子が続く間は 1 手にまとめる。
+   * 1 文字ごとに 1 手にすると、セルに一言打っただけで undo を何度も押す羽目になる。
+   * 貼り付け・行の挿入削除のような構造の変更は識別子を渡さず、常に別の手にする。
+   */
+  readonly key?: string;
 }
 
 /** past の既定上限。深すぎる履歴の際限ないメモリ増加を防ぐ。 */
@@ -32,12 +50,19 @@ export function canRedo(h: GridHistory): boolean {
  * 新しいスナップショットを積む。現在値と同じなら何もしない（no-op）。
  * 新しい編集が入ったら redo 候補（future）は破棄する。past は cap を超えたら
  * 古い方から捨てる。
+ *
+ * `key` が直前と同じときは past へ積まず present だけ差し替える（同じセルの打鍵を
+ * 1 手にまとめる）。
  */
-export function pushHistory(h: GridHistory, next: string, cap: number = DEFAULT_CAP): GridHistory {
+export function pushHistory(h: GridHistory, next: string, opts: PushOptions = {}): GridHistory {
   if (next === h.present) return h;
+  const { cap = DEFAULT_CAP, key } = opts;
+  if (key !== undefined && key === h.key) {
+    return { past: h.past, present: next, future: [], key };
+  }
   const grown = [...h.past, h.present];
   const past = grown.length > cap ? grown.slice(grown.length - cap) : grown;
-  return { past, present: next, future: [] };
+  return { past, present: next, future: [], key };
 }
 
 /**

@@ -18,6 +18,7 @@ export type GridMode = 'nav' | 'edit';
  * - break: edit 中にセル内へ改行を入れる（複数行の列のみ）
  * - cancel: edit → nav（同セルに留まる。端での Enter 確定もこれ）
  * - clear: nav 中に選択セルを空にする
+ * - undo / redo: 表の履歴を 1 手戻す・進める
  * - pass: 何もしない（テキスト入力へ委ねる / グリッド外への Tab 等）
  */
 export type GridAction =
@@ -27,6 +28,8 @@ export type GridAction =
   | { kind: 'break' }
   | { kind: 'cancel' }
   | { kind: 'clear' }
+  | { kind: 'undo' }
+  | { kind: 'redo' }
   | { kind: 'pass' };
 
 export interface GridKeyContext {
@@ -57,6 +60,14 @@ export function planGridKey(
   ctx: GridKeyContext,
 ): GridAction {
   const ctrl = intent.ctrl ?? false;
+
+  // undo / redo は編集中でも表の履歴へ回す。セル入力は値を親から与える制御入力なので、
+  // 委ねた先のブラウザ既定の文字 undo は働かない（押しても何も起きないだけになる）。
+  if (ctrl) {
+    const lower = intent.key.toLowerCase();
+    if (lower === 'z' && !(intent.shift ?? false)) return { kind: 'undo' };
+    if (lower === 'y' || (lower === 'z' && (intent.shift ?? false))) return { kind: 'redo' };
+  }
 
   if (ctx.mode === 'nav') {
     // Alt+↓ はコンボボックスを開く一般的な合図。移動より先に見る。
