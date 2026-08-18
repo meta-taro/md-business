@@ -337,11 +337,28 @@ pub fn git_status_impl(root: &Path) -> GitStatus {
     status
 }
 
+/// `Result` を返す git 操作を別スレッドで実行する。スレッドが落ちた場合だけ Err を作り、
+/// それ以外は実体の結果をそのまま返す。
+async fn spawn_git<T, F>(job: F) -> Result<T, String>
+where
+    T: Send + 'static,
+    F: FnOnce() -> Result<T, String> + Send + 'static,
+{
+    tauri::async_runtime::spawn_blocking(job)
+        .await
+        .map_err(|e| format!("git を実行できませんでした: {}", e))?
+}
+
 /// フロントから `invoke("git_status", { root })` で呼ぶ薄いラッパ。
 /// 失敗は Err にせず `is_repo=false` を返す（UI はマーク非表示で劣化）。
+/// git はどれも子プロセスを起こして待つ。同期コマンドはメインスレッドで動くので、
+/// そのまま呼ぶと待っている間ずっと画面が固まる（保存のたびに走る `git_status` は
+/// 打鍵の合間に効いてくる）。別スレッドへ出して返りだけ待つ。
 #[tauri::command]
-pub fn git_status(root: String) -> GitStatus {
-    git_status_impl(Path::new(&root))
+pub async fn git_status(root: String) -> GitStatus {
+    tauri::async_runtime::spawn_blocking(move || git_status_impl(Path::new(&root)))
+        .await
+        .unwrap_or_else(|_| GitStatus::not_a_repo())
 }
 
 /// 開いたフォルダ基準の相対パスを、フォージ上のファイル閲覧 URL へ解決する（Tauri 非依存の実体）。
@@ -367,8 +384,10 @@ pub fn forge_file_url_impl(root: &Path, rel_path: &str) -> Option<String> {
 /// フロントから `invoke("forge_file_url", { root, relPath })` で呼ぶ薄いラッパ。
 /// URL を作れないときは None（フロントはメニュー項目を非表示にする）。
 #[tauri::command]
-pub fn forge_file_url(root: String, rel_path: String) -> Option<String> {
-    forge_file_url_impl(Path::new(&root), &rel_path)
+pub async fn forge_file_url(root: String, rel_path: String) -> Option<String> {
+    tauri::async_runtime::spawn_blocking(move || forge_file_url_impl(Path::new(&root), &rel_path))
+        .await
+        .unwrap_or(None)
 }
 
 /// 1 ファイルに絞った `git status --porcelain=v2 --ignored=matching -z -- <path>` の
@@ -430,8 +449,10 @@ pub fn git_file_state_impl(root: &Path, rel_path: &str) -> String {
 
 /// フロントから `invoke("git_file_state", { root, relPath })` で呼ぶ薄いラッパ。
 #[tauri::command]
-pub fn git_file_state(root: String, rel_path: String) -> String {
-    git_file_state_impl(Path::new(&root), &rel_path)
+pub async fn git_file_state(root: String, rel_path: String) -> String {
+    tauri::async_runtime::spawn_blocking(move || git_file_state_impl(Path::new(&root), &rel_path))
+        .await
+        .unwrap_or_else(|_| "notRepo".to_string())
 }
 
 /// `run_git` の Result 版。失敗時は stderr（無ければ終了コード）を Err で返す。
@@ -483,8 +504,10 @@ pub fn git_branches_impl(root: &Path) -> Vec<String> {
 
 /// フロントから `invoke("git_branches", { root })` で呼ぶラッパ。非リポジトリ等は空一覧。
 #[tauri::command]
-pub fn git_branches(root: String) -> Vec<String> {
-    git_branches_impl(Path::new(&root))
+pub async fn git_branches(root: String) -> Vec<String> {
+    tauri::async_runtime::spawn_blocking(move || git_branches_impl(Path::new(&root)))
+        .await
+        .unwrap_or_default()
 }
 
 /// ブランチを切り替え、成功時は最新の GitStatus を返す。失敗時は git の stderr を Err で返す。
@@ -500,8 +523,8 @@ pub fn git_switch_impl(root: &Path, branch: &str) -> Result<GitStatus, String> {
 /// フロントから `invoke("git_switch", { root, branch })` で呼ぶラッパ。
 /// 成功で最新ステータス、失敗（衝突・不明ブランチ等）は Err(メッセージ)。
 #[tauri::command]
-pub fn git_switch(root: String, branch: String) -> Result<GitStatus, String> {
-    git_switch_impl(Path::new(&root), &branch)
+pub async fn git_switch(root: String, branch: String) -> Result<GitStatus, String> {
+    spawn_git(move || git_switch_impl(Path::new(&root), &branch)).await
 }
 
 /// コミットメッセージとして受け付けてよいか（空・空白のみを弾く＝空コミット防止）。
@@ -528,8 +551,8 @@ pub fn git_commit_impl(root: &Path, message: &str) -> Result<GitStatus, String> 
 
 /// フロントから `invoke("git_commit", { root, message })` で呼ぶラッパ。
 #[tauri::command]
-pub fn git_commit(root: String, message: String) -> Result<GitStatus, String> {
-    git_commit_impl(Path::new(&root), &message)
+pub async fn git_commit(root: String, message: String) -> Result<GitStatus, String> {
+    spawn_git(move || git_commit_impl(Path::new(&root), &message)).await
 }
 
 /// upstream へ push する。成功時は最新の GitStatus（ahead が解消される）を返す。
@@ -543,8 +566,8 @@ pub fn git_push_impl(root: &Path) -> Result<GitStatus, String> {
 
 /// フロントから `invoke("git_push", { root })` で呼ぶラッパ。
 #[tauri::command]
-pub fn git_push(root: String) -> Result<GitStatus, String> {
-    git_push_impl(Path::new(&root))
+pub async fn git_push(root: String) -> Result<GitStatus, String> {
+    spawn_git(move || git_push_impl(Path::new(&root))).await
 }
 
 /// upstream から pull する。成功時は最新の GitStatus（behind が解消される）を返す。
@@ -558,8 +581,8 @@ pub fn git_pull_impl(root: &Path) -> Result<GitStatus, String> {
 
 /// フロントから `invoke("git_pull", { root })` で呼ぶラッパ。
 #[tauri::command]
-pub fn git_pull(root: String) -> Result<GitStatus, String> {
-    git_pull_impl(Path::new(&root))
+pub async fn git_pull(root: String) -> Result<GitStatus, String> {
+    spawn_git(move || git_pull_impl(Path::new(&root))).await
 }
 
 /// 未追跡ファイルの内容から「全行追加」の合成 unified diff を作る（Tauri 非依存の純関数）。
@@ -652,8 +675,8 @@ fn read_untracked_diff(repo_root: &Path, rel_path: &str) -> Result<String, Strin
 /// フロントから `invoke("git_diff", { root, relPath })` で呼ぶラッパ。
 /// 成功で unified diff テキスト（空文字列 = 差分なし）、非リポジトリ・不正パスは Err(メッセージ)。
 #[tauri::command]
-pub fn git_diff(root: String, rel_path: String) -> Result<String, String> {
-    git_diff_impl(Path::new(&root), &rel_path)
+pub async fn git_diff(root: String, rel_path: String) -> Result<String, String> {
+    spawn_git(move || git_diff_impl(Path::new(&root), &rel_path)).await
 }
 
 /// 1 ファイルの行別の履歴を `git blame --line-porcelain` のまま返す（Tauri 非依存の実体）。
@@ -685,8 +708,8 @@ pub fn git_blame_impl(root: &Path, rel_path: &str) -> Result<String, String> {
 /// フロントから `invoke("git_blame", { root, relPath })` で呼ぶラッパ。
 /// 成功で porcelain テキスト（空文字列 = 履歴なし）、非リポジトリ・不正パスは Err(メッセージ)。
 #[tauri::command]
-pub fn git_blame(root: String, rel_path: String) -> Result<String, String> {
-    git_blame_impl(Path::new(&root), &rel_path)
+pub async fn git_blame(root: String, rel_path: String) -> Result<String, String> {
+    spawn_git(move || git_blame_impl(Path::new(&root), &rel_path)).await
 }
 
 #[cfg(test)]

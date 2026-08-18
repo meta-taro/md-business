@@ -10,6 +10,7 @@
  */
 
 import { invoke } from '@tauri-apps/api/core';
+import { coalesce } from './coalesce';
 import {
   emptyGitStatus,
   buildStatusMap,
@@ -65,8 +66,13 @@ class GitStore {
     return lookupState(this.statusMap, this.status.prefix, treeRelPath);
   }
 
-  /** root の git 状態を取得して反映する。失敗時は空へ（UI はマーク非表示）。 */
-  async refresh(root: string): Promise<void> {
+  /**
+   * root の git 状態を取得して反映する。失敗時は空へ（UI はマーク非表示）。
+   *
+   * 保存のたびに呼ばれるので、取得が終わる前に来た要求は 1 回へ畳む。畳まないと
+   * 打っている間じゅう git の子プロセスが行列で残る。
+   */
+  refresh = coalesce(async (root: string): Promise<void> => {
     try {
       this.status = await invoke<GitStatus>('git_status', { root });
     } catch {
@@ -74,7 +80,7 @@ class GitStore {
       // 想定外の invoke 失敗時のみここへ来る。安全側で空へ倒す。
       this.status = emptyGitStatus();
     }
-  }
+  });
 
   /** ローカルブランチ一覧を取得して反映する。失敗時は空（UI は切替不可表示）。 */
   async loadBranches(root: string): Promise<void> {

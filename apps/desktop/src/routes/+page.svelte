@@ -512,7 +512,7 @@
   // 控え行は編集中の doc に載っていないので、読み込み時に外したものをここで戻す。
   // 区間ごとに時間を測るのは、1 セル確定するたびにファイル全文を組み直しており、
   // どこで時間を使っているかが分からないと直す場所が決まらないため（診断タブに出る）。
-  function handleGridChange(next: IdentifiedTsv): void {
+  function handleGridChange(next: IdentifiedTsv, edit?: string): void {
     perf.startEdit();
     const text = perf.measure('serialize', () =>
       saveGridDoc(
@@ -522,7 +522,7 @@
       ),
     );
     perf.measure('history', () => {
-      gridHistory = pushHistory(gridHistory, text);
+      gridHistory = pushHistory(gridHistory, text, { key: edit });
     });
     workspace.setSource(text);
     debouncedSource = text;
