@@ -131,10 +131,23 @@ fn handle_debounced(app: &AppHandle, res: DebounceEventResult) {
 
 /// `root` の再帰監視を開始する。既存の監視は先に停止してから張り替える（フォルダ切替対応）。
 /// 分類・エコー抑制のパス比較を合わせるため、canonical な root を保存して監視する。
+///
+/// 監視を張る処理は待たされる（canonicalize と file-id キャッシュの初期走査が、
+/// 相手が遠いフォルダだと 1 件ごとに往復する）。同期コマンドはメインスレッドで動くので、
+/// そのまま呼ぶと画面ごと止まる。別スレッドへ出して返りだけ待つ。
 #[tauri::command]
-pub fn watch_workspace(
-    app: AppHandle,
-    state: State<WatchState>,
+pub async fn watch_workspace(app: AppHandle, root: String) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let state = app.state::<WatchState>();
+        watch_workspace_blocking(&app, &state, root)
+    })
+    .await
+    .map_err(|e| format!("監視を開始できませんでした: {}", e))?
+}
+
+fn watch_workspace_blocking(
+    app: &AppHandle,
+    state: &WatchState,
     root: String,
 ) -> Result<(), String> {
     let canon_root =

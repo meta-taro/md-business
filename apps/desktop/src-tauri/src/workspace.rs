@@ -11,6 +11,7 @@
 
 use serde::{Deserialize, Serialize};
 use std::path::{Component, Path, PathBuf};
+use std::time::{Duration, Instant};
 use tauri::State;
 
 use crate::watch::{record_self_write, WatchState};
@@ -43,6 +44,48 @@ pub(crate) const ALLOWED_EXTS: [&str; 4] = ["md", "tsv", "json", "xml"];
 const MAX_DEPTH: usize = 12;
 /// 収集ファイル数の上限（設計書 §3.2）。超過分は打ち切り truncated=true。
 const MAX_ENTRIES: usize = 5_000;
+/// **辿った**エントリ数の上限。超過分は打ち切り truncated=true。
+///
+/// `MAX_ENTRIES` は対象拡張子のファイルしか数えない。写真や動画ばかりのフォルダでは
+/// 対象が 1 件も見つからないまま端まで歩き切ろうとするので、収集数だけでは止まらない。
+const MAX_VISITED: usize = 100_000;
+/// 走査に許す時間。
+///
+/// ネットワーク越しの共有では 1 件あたりに往復が入るため、件数が上限に届く前に
+/// 実用的な待ち時間を超える。件数と時間の両方で止める。
+const SCAN_TIME_LIMIT: Duration = Duration::from_secs(10);
+
+/// 走査の残り予算。件数と時間の両方を見る。
+struct ScanBudget {
+    visited: usize,
+    max_visited: usize,
+    deadline: Option<Instant>,
+}
+
+impl ScanBudget {
+    fn new(max_visited: usize, limit: Option<Duration>) -> Self {
+        ScanBudget {
+            visited: 0,
+            max_visited,
+            deadline: limit.map(|d| Instant::now() + d),
+        }
+    }
+
+    /// 1 エントリ見たことを記録し、まだ続けてよければ true。
+    ///
+    /// 時刻の取得は 1 件ごとに行う。ローカルなら数十ナノ秒で、遠いフォルダでは
+    /// 1 件あたりの往復に比べて無視できる。
+    fn tick(&mut self) -> bool {
+        self.visited += 1;
+        if self.visited > self.max_visited {
+            return false;
+        }
+        match self.deadline {
+            Some(at) => Instant::now() < at,
+            None => true,
+        }
+    }
+}
 
 /// 走査から除外するディレクトリ名。ドット始まり（`.git` 等）と既知のビルド生成物。
 /// 走査（scan）とファイル監視（watch_logic）で同じ除外判定を共有する。
@@ -87,6 +130,15 @@ pub(crate) fn resolve_in_root(root: &Path, rel_path: &str) -> Result<PathBuf, St
 /// ルート配下を再帰走査し、対象拡張子（`ALLOWED_EXTS`）を収集する（Tauri 非依存の実体）。
 /// 除外ディレクトリはスキップし、深さ / 件数上限で打ち切って truncated=true を返す。
 pub fn scan_documents_impl(root: &Path) -> Result<ScanResult, String> {
+    scan_documents_with_limits(root, MAX_VISITED, Some(SCAN_TIME_LIMIT))
+}
+
+/// 上限を指定して走査する（[`scan_documents_impl`] の実体）。上限は検査から差し替える。
+pub fn scan_documents_with_limits(
+    root: &Path,
+    max_visited: usize,
+    time_limit: Option<Duration>,
+) -> Result<ScanResult, String> {
     if !root.is_dir() {
         return Err(format!(
             "ルートがディレクトリではありません: {}",
@@ -95,38 +147,79 @@ pub fn scan_documents_impl(root: &Path) -> Result<ScanResult, String> {
     }
     let mut entries: Vec<DocEntry> = Vec::new();
     let mut truncated = false;
-    walk(root, root, 0, &mut entries, &mut truncated)?;
+    let mut budget = ScanBudget::new(max_visited, time_limit);
+    walk(root, root, 0, &mut entries, &mut truncated, &mut budget)?;
     // readdir 順は OS 依存のため rel_path で安定ソート（フロント buildTree でも再ソートするが決定化しておく）。
     entries.sort_by(|a, b| a.rel_path.cmp(&b.rel_path));
     Ok(ScanResult { entries, truncated })
 }
 
+/// 種別が確定しているエントリ。
+struct Child {
+    path: PathBuf,
+    is_dir: bool,
+    is_file: bool,
+}
+
+/// 1 ディレクトリ分を読み、パス順に並べて返す。
+///
+/// 種別は列挙した時点で分かっているものをそのまま使う。`path.is_dir()` で問い合わせ直すと
+/// 1 エントリごとに追加の往復が発生し、ネットワーク越しの共有では走査時間を数倍にする。
+/// シンボリックリンクだけは辿った先を見ないと分からないので、そこでだけ問い合わせる。
+fn read_children(dir: &Path) -> Result<Vec<Child>, String> {
+    let read_dir = std::fs::read_dir(dir)
+        .map_err(|e| format!("ディレクトリ読み取り失敗 {}: {}", dir.display(), e))?;
+    let mut children: Vec<Child> = read_dir
+        .filter_map(|r| r.ok())
+        .map(|entry| {
+            let path = entry.path();
+            match entry.file_type() {
+                Ok(t) if !t.is_symlink() => Child {
+                    path,
+                    is_dir: t.is_dir(),
+                    is_file: t.is_file(),
+                },
+                // リンク（と種別が取れなかったもの）は辿った先で判定する。
+                _ => Child {
+                    is_dir: path.is_dir(),
+                    is_file: path.is_file(),
+                    path,
+                },
+            }
+        })
+        .collect();
+    // readdir 順は OS 依存のためパス順に並べる（決定的な走査順）。
+    children.sort_by(|a, b| a.path.cmp(&b.path));
+    Ok(children)
+}
+
 /// `dir`（深さ `depth`）配下を再帰し、対象拡張子のファイルを `out` に収集する。
-/// 除外ディレクトリはスキップ、深さ / 件数超過は `truncated` を立てて打ち切る。
+/// 除外ディレクトリはスキップ、深さ / 件数 / 予算の超過は `truncated` を立てて打ち切る。
 fn walk(
     root: &Path,
     dir: &Path,
     depth: usize,
     out: &mut Vec<DocEntry>,
     truncated: &mut bool,
+    budget: &mut ScanBudget,
 ) -> Result<(), String> {
-    let read_dir = std::fs::read_dir(dir)
-        .map_err(|e| format!("ディレクトリ読み取り失敗 {}: {}", dir.display(), e))?;
-    // readdir を一旦集めてパス順に並べる（決定的な走査順）。
-    let mut children: Vec<PathBuf> = read_dir.filter_map(|r| r.ok()).map(|e| e.path()).collect();
-    children.sort();
-
-    for path in children {
+    for child in read_children(dir)? {
         if out.len() >= MAX_ENTRIES {
             *truncated = true;
             return Ok(());
         }
+        // 対象拡張子でなくても「見た」に数える。数えないと、対象の無いフォルダで止まらない。
+        if !budget.tick() {
+            *truncated = true;
+            return Ok(());
+        }
+        let path = child.path;
         let file_name = match path.file_name().and_then(|n| n.to_str()) {
             Some(n) => n.to_string(),
             None => continue, // 非 UTF-8 名はスキップ
         };
 
-        if path.is_dir() {
+        if child.is_dir {
             if is_excluded_dir(&file_name) {
                 continue;
             }
@@ -135,8 +228,8 @@ fn walk(
                 *truncated = true;
                 continue;
             }
-            walk(root, &path, depth + 1, out, truncated)?;
-        } else if path.is_file() {
+            walk(root, &path, depth + 1, out, truncated, budget)?;
+        } else if child.is_file {
             if let Some(ext) = allowed_ext(&path) {
                 let rel = path
                     .strip_prefix(root)
@@ -428,9 +521,15 @@ pub fn export_site(root: String, files: Vec<SiteFile>) -> Result<SiteWriteResult
 }
 
 /// フロントから `invoke("scan_documents", { root })` で呼ぶ薄いラッパ。
+///
+/// 走査は待たされる（ネットワーク越しのフォルダでは 1 件ごとに往復が入る）。同期コマンドは
+/// メインスレッドで動くので、そのまま呼ぶと待っている間そのウィンドウは操作できなくなる。
+/// 別スレッドへ出して返りだけ待つ。
 #[tauri::command]
-pub fn scan_documents(root: String) -> Result<ScanResult, String> {
-    scan_documents_impl(Path::new(&root))
+pub async fn scan_documents(root: String) -> Result<ScanResult, String> {
+    tauri::async_runtime::spawn_blocking(move || scan_documents_impl(Path::new(&root)))
+        .await
+        .map_err(|e| format!("走査を実行できませんでした: {}", e))?
 }
 
 /// フロントから `invoke("directory_exists", { path })` で呼ぶ薄いラッパ。
@@ -617,6 +716,51 @@ mod tests {
             "上限より深いファイルは収集されない"
         );
         assert!(rel_paths(&result).contains(&"shallow.md".to_string()));
+    }
+
+    #[test]
+    fn scan_見た数の上限で打ち切る() {
+        // 収集数（MAX_ENTRIES）は「対象拡張子のファイル」しか数えないので、対象がほとんど
+        // 無いフォルダでは永遠に上限へ届かず、共有の端まで歩き切ってしまう。ネットワーク
+        // ドライブでは 1 件ごとに往復が入るため、これが起動不能に見えるほどの停止になる。
+        let root = TempRoot::new("scan_visited");
+        for i in 0..40 {
+            root.file(&format!("noise/{}.bin", i), "x");
+        }
+        root.file("noise/z.md", "ok");
+        let result = scan_documents_with_limits(&root.path, 10, None).expect("走査成功");
+        assert!(
+            result.truncated,
+            "見た数が上限に達したら truncated=true になる"
+        );
+        assert!(
+            result.entries.len() <= 1,
+            "打ち切り後は集め続けない: {:?}",
+            rel_paths(&result)
+        );
+    }
+
+    #[test]
+    fn scan_時間の上限で打ち切る() {
+        // 件数が少なくても 1 件あたりが遅い相手（ネットワーク越しの共有）では件数上限が効かない。
+        let root = TempRoot::new("scan_deadline");
+        root.file("a.md", "ok");
+        root.file("b/c.md", "ok");
+        let result = scan_documents_with_limits(&root.path, MAX_VISITED, Some(Duration::ZERO))
+            .expect("走査成功");
+        assert!(result.truncated, "時間切れなら truncated=true になる");
+    }
+
+    #[test]
+    fn scan_上限に余裕があれば打ち切らない() {
+        let root = TempRoot::new("scan_within");
+        root.file("a.md", "ok");
+        root.file("sub/b.tsv", "ok");
+        let result =
+            scan_documents_with_limits(&root.path, MAX_VISITED, Some(Duration::from_secs(60)))
+                .expect("走査成功");
+        assert!(!result.truncated);
+        assert_eq!(rel_paths(&result), vec!["a.md", "sub/b.tsv"]);
     }
 
     #[test]
