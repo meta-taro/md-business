@@ -4,6 +4,33 @@ Changes to this app. Versions follow [Semantic Versioning](https://semver.org/).
 
 Japanese is the source of truth for this file; see [CHANGELOG.md](./CHANGELOG.md).
 
+## 0.10.0
+
+### Added
+
+- **Investigation findings can now be kept in a form you can hand over as-is**. Opening an investigation report renders it in the preview. The evidence field takes no prose — only a reference to a file and the lines inside it. This is to keep out reports written from "it looked like", and reports whose source file can no longer be confirmed later.
+- **Several logs can now be interleaved in time order** (timeline). Every line keeps the file and line number it came from. What you need while investigating is the order across logs, not the order inside one log, and until now that was matched up by hand.
+- **The same HTML you see in the preview can now be written out as a single file**. Until now the only output was PDF, which is bound to paper and suits neither reading on screen nor sending to someone. Images and styling all go into that one file, so it does not fall apart at the other end.
+- **The documents in a folder can now be written out together as a static site**. A single-file export is not enough to hand over something made of several documents. The output goes to `dist/` directly under the folder, and links between documents still work.
+- **You can now view the open folder in a browser before writing anything out**. It is served at an address that only reaches this PC, so nothing is visible from outside. You can preview without creating `dist/`.
+- **The open document can now be written out as PNG or JPEG** (Windows). No need to open the PDF and re-capture it to paste into a deck or a chat. It is captured with the display engine the app already carries, so the installer does not grow.
+- **The preview can now be viewed at phone width**. Where lines wrap on a narrow screen cannot be told without changing the width and letting it re-flow. Scaling it down only makes the text smaller — the wrapping stays as it was on a PC.
+- **An AI can now switch which document is shown** (built-in MCP server). Until now the only way to move the display was PDF export, so even just showing something ran all the way to printing. It will not open anything outside the folder you have open.
+
+### Changed
+
+- **Startup is lighter again**. The JS read before the window appears went from 1,009KB to 298KB. With nothing opened yet, it was waiting on six validators, the whole PDF renderer, and the full changelog.
+- **Opening a document now reads only what that document's format needs**. Opening a single invoice was loading the validators for API specs and database designs too.
+- **How a document's accent colour (headings, rules, emphasis) is taken has been brought into one place**. The same handling was copied per format, so a difference in one of them only showed up once you lined the outputs up side by side. A colour that cannot be read is now reported instead of being silently dropped.
+
+### Fixed
+
+- **Black windows no longer flash open on every startup**. On Windows three console windows opened before the app became usable. They take the foreground, so clicks during that time were lost.
+- **Fixed the display jumping when you scroll with a cell selected in the verification grid**. It was pulled back to the selected row, which made longer sheets unreadable.
+- **Fixed the app freezing when opening a folder over the network (a shared folder)**. Once it happened, restoring the folder at the next startup put it in the same state. The folder scan was blocking the main work.
+- **Fixed the freeze that happened when you kept typing after a pause**. The change check that runs after an autosave was holding the screen for its whole duration. File reads and writes and the git calls were moved off the path that blocks the screen.
+- **Fixed Ctrl+Z / Ctrl+Y not working while editing a cell in the verification grid**. Undo while editing was left to the browser, where nothing happens by design, so pressing it did nothing. Undo also now steps back a whole cell's worth of typing at once instead of one character at a time.
+
 ## 0.9.0
 
 ### Added
