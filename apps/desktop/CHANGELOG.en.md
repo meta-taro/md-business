@@ -30,6 +30,7 @@ Japanese is the source of truth for this file; see [CHANGELOG.md](./CHANGELOG.md
 - **Fixed the app freezing when opening a folder over the network (a shared folder)**. Once it happened, restoring the folder at the next startup put it in the same state. The folder scan was blocking the main work.
 - **Fixed the freeze that happened when you kept typing after a pause**. The change check that runs after an autosave was holding the screen for its whole duration. File reads and writes and the git calls were moved off the path that blocks the screen.
 - **Fixed Ctrl+Z / Ctrl+Y not working while editing a cell in the verification grid**. Undo while editing was left to the browser, where nothing happens by design, so pressing it did nothing. Undo also now steps back a whole cell's worth of typing at once instead of one character at a time.
+- **Fixed the table shaking and scrolling unevenly on sheets that have rows holding long text**. The height of the whole table changed as you scrolled, by the amount the wrapped rows had grown.
 
 ## 0.9.0
 

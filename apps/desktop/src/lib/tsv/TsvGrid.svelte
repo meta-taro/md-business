@@ -50,6 +50,8 @@
     setRowHeight,
   } from './gridRowLayout';
   import { rowWindow, scrollToRow } from './gridWindow';
+  import { effectiveRowHeights, mergeMeasuredHeights } from './gridRowMeasure';
+  import type { MeasuredSample } from './gridRowMeasure';
   import {
     type ColOverflowMode,
     defaultColModes,
@@ -388,10 +390,17 @@
   // 表示領域を測れるのは 1 フレーム後。それまでに描く高さの当て（画面に出るぶんは
   // 足りる大きさ）。測れたら実測へ置き換わる。
   const VIEWPORT_FALLBACK = 720;
+  // 折り返す列を持つ行は宣言した高さより実際は高く出る（tr の height は最小高）。描いた
+  // 行を測って控え、窓と詰め物の計算へ返す。これをしないと窓がずれるたび表全体の高さが
+  // 変わり、スクロールががたつき表が震える。控えの出し入れは gridRowMeasure の純ロジック。
+  let measuredHeights = $state<number[]>([]);
+  const winHeights = $derived(
+    effectiveRowHeights(rowHeights, measuredHeights, displayRows, DEFAULT_ROW_HEIGHT),
+  );
   const win = $derived(
     perf.measure('layout', () =>
       rowWindow({
-        heights: rowHeights,
+        heights: winHeights,
         total: displayRows,
         defaultHeight: DEFAULT_ROW_HEIGHT,
         scrollTop,
@@ -412,6 +421,39 @@
     perf.markGrid();
   });
 
+  // 描いた行を測って控える。控えが動かなければ同じ並びが返るので、ここで描き直しは
+  // 起きない（＝測る→描く→測る の堂々巡りにならない）。
+  $effect(() => {
+    // 窓・行高・列幅・列モード・本文のどれが変わっても行の高さは変わりうる。
+    visibleRows;
+    rowHeights;
+    colWidths;
+    colModes;
+    doc.rows;
+    if (!gridEl) return;
+    const samples: MeasuredSample[] = [];
+    for (const tr of gridEl.querySelectorAll<HTMLTableRowElement>('tbody tr[data-row]')) {
+      samples.push({ row: Number(tr.dataset.row), height: tr.getBoundingClientRect().height });
+    }
+    untrack(() => {
+      measuredHeights = mergeMeasuredHeights(measuredHeights, samples);
+    });
+  });
+
+  // 行が増減すると控えの行番号がずれ、列幅・列モードが変わると折り返し位置ごと変わる。
+  // どちらも控えを捨てて測り直す（測り直しは次に描いたときに走る）。
+  let lastMeasureKey = untrack(
+    () => `${doc.rows.length}|${colWidths.join(',')}|${colModes.join(',')}`,
+  );
+  $effect(() => {
+    const key = `${doc.rows.length}|${colWidths.join(',')}|${colModes.join(',')}`;
+    if (key === lastMeasureKey) return;
+    lastMeasureKey = key;
+    untrack(() => {
+      measuredHeights = [];
+    });
+  });
+
   function onGridScroll(): void {
     if (gridEl) scrollTop = gridEl.scrollTop;
   }
@@ -420,7 +462,7 @@
   function revealRow(row: number): void {
     if (!gridEl) return;
     gridEl.scrollTop = scrollToRow({
-      heights: rowHeights,
+      heights: winHeights,
       defaultHeight: DEFAULT_ROW_HEIGHT,
       row,
       scrollTop: gridEl.scrollTop,
@@ -1453,8 +1495,9 @@
       </thead>
       <tbody>
         <!-- 実データ行 + pad 空行を通し番号で描く。pad 行のセルは cellValue が '' を返す。
-             描くのは見えている範囲だけで、上下の残りは高さだけの詰め物で埋める。表全体の
-             高さは間引きの有無で変わらないので、スクロールバーの長さも掴んだ位置も動かない。 -->
+             描くのは見えている範囲だけで、上下の残りは高さだけの詰め物で埋める。詰め物は
+             実測を混ぜた高さで積むので、表全体の高さは間引きの有無で変わらない＝スクロール
+             バーの長さも掴んだ位置も動かない。 -->
         {#if win.topPad > 0}
           <tr class="pad-row" aria-hidden="true" style={`height:${win.topPad}px`}>
             <td colspan={doc.columns.length + 1}></td>
@@ -1463,6 +1506,7 @@
         {#each visibleRows as r (r)}
           {@const tint = rowTintOf(rowTints, doc.rows[r] ?? [])}
           <tr
+            data-row={r}
             class:hidden-row={reveal && r < doc.rows.length && isHiddenRow(doc, r)}
             style={`height:${rowHeights[r] ?? DEFAULT_ROW_HEIGHT}px${tint ? `; --row-tint:${tint}` : ''}`}
           >
