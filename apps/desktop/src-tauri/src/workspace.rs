@@ -12,7 +12,7 @@
 use serde::{Deserialize, Serialize};
 use std::path::{Component, Path, PathBuf};
 use std::time::{Duration, Instant};
-use tauri::State;
+use tauri::{AppHandle, Manager};
 
 use crate::watch::{record_self_write, WatchState};
 
@@ -425,8 +425,8 @@ pub fn export_html_impl(root: &Path, rel_path: &str, html: &str) -> Result<Strin
 /// フロントから `invoke("export_html", { root, relPath, html })` で呼ぶ薄いラッパ。
 /// 成功で書き出し先の相対パス、失敗はメッセージ。
 #[tauri::command]
-pub fn export_html(root: String, rel_path: String, html: String) -> Result<String, String> {
-    export_html_impl(Path::new(&root), &rel_path, &html)
+pub async fn export_html(root: String, rel_path: String, html: String) -> Result<String, String> {
+    spawn_fs(move || export_html_impl(Path::new(&root), &rel_path, &html)).await
 }
 
 /// 静的サイトの書き出し先フォルダ名（ルート直下）。走査の除外対象でもあるので、
@@ -516,8 +516,8 @@ pub fn export_site_impl(root: &Path, files: &[SiteFile]) -> Result<SiteWriteResu
 
 /// フロントから `invoke("export_site", { root, files })` で呼ぶ薄いラッパ。
 #[tauri::command]
-pub fn export_site(root: String, files: Vec<SiteFile>) -> Result<SiteWriteResult, String> {
-    export_site_impl(Path::new(&root), &files)
+pub async fn export_site(root: String, files: Vec<SiteFile>) -> Result<SiteWriteResult, String> {
+    spawn_fs(move || export_site_impl(Path::new(&root), &files)).await
 }
 
 /// フロントから `invoke("scan_documents", { root })` で呼ぶ薄いラッパ。
@@ -534,58 +534,86 @@ pub async fn scan_documents(root: String) -> Result<ScanResult, String> {
 
 /// フロントから `invoke("directory_exists", { path })` で呼ぶ薄いラッパ。
 #[tauri::command]
-pub fn directory_exists(path: String) -> bool {
-    directory_exists_impl(Path::new(&path))
+pub async fn directory_exists(path: String) -> bool {
+    tauri::async_runtime::spawn_blocking(move || directory_exists_impl(Path::new(&path)))
+        .await
+        .unwrap_or(false)
+}
+
+/// ファイルを触る処理を別スレッドで実行する。スレッドが落ちた場合だけ Err を作り、
+/// それ以外は実体の結果をそのまま返す。
+async fn spawn_fs<T, F>(job: F) -> Result<T, String>
+where
+    T: Send + 'static,
+    F: FnOnce() -> Result<T, String> + Send + 'static,
+{
+    tauri::async_runtime::spawn_blocking(job)
+        .await
+        .map_err(|e| format!("処理を実行できませんでした: {}", e))?
 }
 
 /// フロントから `invoke("read_document", { root, relPath })` で呼ぶ薄いラッパ。
 /// Tauri が camelCase(`relPath`) → snake_case(`rel_path`) を自動変換する。
+///
+/// 読み書きは相手が遠いフォルダ（共有フォルダなど）だと待たされる。同期コマンドは
+/// メインスレッドで動くので、そのまま呼ぶと待っている間ずっと画面が固まる。
+/// 別スレッドへ出して返りだけ待つ。
 #[tauri::command]
-pub fn read_document(root: String, rel_path: String) -> Result<String, String> {
-    read_document_impl(Path::new(&root), &rel_path)
+pub async fn read_document(root: String, rel_path: String) -> Result<String, String> {
+    spawn_fs(move || read_document_impl(Path::new(&root), &rel_path)).await
 }
 
 /// フロントから `invoke("write_document", { root, relPath, content })` で呼ぶ薄いラッパ。
 /// 保存成功後に、その canonical パスを自己書き込みとして記録し、監視のエコー（自分の保存が
 /// watcher で跳ね返って再読込・再走査される）を抑制する。
 #[tauri::command]
-pub fn write_document(
-    state: State<WatchState>,
+pub async fn write_document(
+    app: AppHandle,
     root: String,
     rel_path: String,
     content: String,
 ) -> Result<(), String> {
-    let root_path = Path::new(&root);
-    write_document_impl(root_path, &rel_path, &content)?;
-    if let Ok(canon) = std::fs::canonicalize(root_path.join(&rel_path)) {
-        record_self_write(&state, canon);
-    }
-    Ok(())
+    spawn_fs(move || {
+        let root_path = Path::new(&root);
+        write_document_impl(root_path, &rel_path, &content)?;
+        if let Ok(canon) = std::fs::canonicalize(root_path.join(&rel_path)) {
+            record_self_write(&app.state::<WatchState>(), canon);
+        }
+        Ok(())
+    })
+    .await
 }
 
 /// フロントから `invoke("create_document", { root, relPath, content })` で呼ぶ薄いラッパ。
 /// 新規検証シート（テンプレ）作成に使う。既存は上書きしない（`write_document` と分担）。
 /// 作成成功後は自己書き込みとして記録し、監視のエコーを抑制する。
 #[tauri::command]
-pub fn create_document(
-    state: State<WatchState>,
+pub async fn create_document(
+    app: AppHandle,
     root: String,
     rel_path: String,
     content: String,
 ) -> Result<(), String> {
-    let root_path = Path::new(&root);
-    create_document_impl(root_path, &rel_path, &content)?;
-    if let Ok(canon) = std::fs::canonicalize(root_path.join(&rel_path)) {
-        record_self_write(&state, canon);
-    }
-    Ok(())
+    spawn_fs(move || {
+        let root_path = Path::new(&root);
+        create_document_impl(root_path, &rel_path, &content)?;
+        if let Ok(canon) = std::fs::canonicalize(root_path.join(&rel_path)) {
+            record_self_write(&app.state::<WatchState>(), canon);
+        }
+        Ok(())
+    })
+    .await
 }
 
 /// フロントから `invoke("rename_entry", { root, relPath, newName })` で呼ぶ薄いラッパ。
 /// 左レールの右クリックメニュー「名前の変更」から使う。戻り値は新しい相対パス。
 #[tauri::command]
-pub fn rename_entry(root: String, rel_path: String, new_name: String) -> Result<String, String> {
-    rename_entry_impl(Path::new(&root), &rel_path, &new_name)
+pub async fn rename_entry(
+    root: String,
+    rel_path: String,
+    new_name: String,
+) -> Result<String, String> {
+    spawn_fs(move || rename_entry_impl(Path::new(&root), &rel_path, &new_name)).await
 }
 
 #[cfg(test)]

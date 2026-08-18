@@ -272,9 +272,14 @@ pub fn file_digest_impl(root: &Path, rel_path: &str) -> Result<FileDigest, Strin
 }
 
 /// フロントから `invoke("file_stat", { root, relPath })` で呼ぶ薄いラッパ。
+///
+/// 中身は読まないが、相手が遠いフォルダだと問い合わせ自体が待たされる。非 async の
+/// コマンドは main スレッドで走るので、待つ側を別スレッドへ出す。
 #[tauri::command]
-pub fn file_stat(root: String, rel_path: String) -> Result<FileStat, String> {
-    file_stat_impl(Path::new(&root), &rel_path)
+pub async fn file_stat(root: String, rel_path: String) -> Result<FileStat, String> {
+    tauri::async_runtime::spawn_blocking(move || file_stat_impl(Path::new(&root), &rel_path))
+        .await
+        .map_err(|e| format!("情報を取得できませんでした: {}", e))?
 }
 
 /// フロントから `invoke("file_digest", { root, relPath })` で呼ぶ薄いラッパ。
