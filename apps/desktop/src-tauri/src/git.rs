@@ -807,6 +807,149 @@ pub async fn git_blame(root: String, rel_path: String) -> Result<String, String>
     spawn_git(move || git_blame_impl(Path::new(&root), &rel_path)).await
 }
 
+/// コミット 1 件分の見出し。中身の差分は `git_diff` 側で見る。
+#[derive(Serialize, Debug, Clone, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct GitLogEntry {
+    /// 完全なコミットハッシュ（短縮は表示側で行う）。
+    pub hash: String,
+    pub author: String,
+    /// 著者の日時（ISO 8601・オフセット付き）。並べ替えと表示は受け取った側が決める。
+    pub date: String,
+    /// コミットメッセージの 1 行目。
+    pub subject: String,
+}
+
+/// 1 件を 4 つの欄に分け、件ごとに区切る書式。
+/// 区切りに制御文字を使うのは、コミットメッセージに現れないため
+/// （タブや `|` を使うと件名に混ざった瞬間に欄がずれる）。
+const LOG_FORMAT: &str = "--pretty=format:%H\u{1f}%an\u{1f}%aI\u{1f}%s\u{1e}";
+
+/// 既定の取得件数と上限。
+///
+/// 期間ではなく件数で切る。期間で切ると、動きの少ないリポジトリでは
+/// 履歴があるのに何も出ない（無いのか出していないのかが利用者に分からない）。
+const LOG_LIMIT_DEFAULT: u32 = 50;
+const LOG_LIMIT_MAX: u32 = 200;
+
+/// 要求された取得件数を実際に使う値へ丸める。
+fn clamp_log_limit(limit: Option<u32>) -> u32 {
+    limit.unwrap_or(LOG_LIMIT_DEFAULT).clamp(1, LOG_LIMIT_MAX)
+}
+
+/// `git log` の出力（LOG_FORMAT）をコミット一覧へ。
+///
+/// 欄が 4 つ揃っていない記録は捨てる。件名に区切り文字が混ざっても
+/// 4 つ目以降は分けないので、見出しが黙って短くなることはない。
+fn parse_log(stdout: &str) -> Vec<GitLogEntry> {
+    stdout
+        .split('\u{1e}')
+        .filter_map(|record| {
+            // 記録の間に改行が入る書式なので、次の記録の頭から落とす。
+            let record = record.trim_start_matches(['\n', '\r']);
+            if record.is_empty() {
+                return None;
+            }
+            let mut parts = record.splitn(4, '\u{1f}');
+            Some(GitLogEntry {
+                hash: parts.next()?.to_string(),
+                author: parts.next()?.to_string(),
+                date: parts.next()?.to_string(),
+                subject: parts.next()?.to_string(),
+            })
+        })
+        .collect()
+}
+
+/// コミット履歴を新しい順に返す（Tauri 非依存の実体）。
+///
+/// `rel_path` を渡すとそのファイルに触れたコミットだけに絞る。
+/// コミットが 1 つも無いリポジトリでは `git log` が失敗するが、それは
+/// 「まだ無い」だけなので空の一覧へ無害に劣化させる（非リポジトリだけを Err にする）。
+pub fn git_log_impl(
+    root: &Path,
+    rel_path: Option<&str>,
+    limit: Option<u32>,
+) -> Result<Vec<GitLogEntry>, String> {
+    if let Some(path) = rel_path {
+        if !is_valid_commit_path(path) {
+            return Err(format!("履歴を見られないパスです: {path}"));
+        }
+    }
+    let toplevel = run_git_result(root, &["rev-parse", "--show-toplevel"])
+        .map(|s| s.trim().to_string())
+        .map_err(|e| format!("git リポジトリを解決できません（root={}）: {e}", root.display()))?;
+    if toplevel.is_empty() {
+        return Err(format!("git リポジトリではありません（root={}）", root.display()));
+    }
+
+    let max_count = clamp_log_limit(limit).to_string();
+    let mut args = vec!["log", "--max-count", max_count.as_str(), LOG_FORMAT];
+    // pathspec は `--` の後ろに置く（先頭 '-' の名前でもオプションに化けない）。
+    if let Some(path) = rel_path {
+        args.push("--");
+        args.push(path);
+    }
+
+    Ok(parse_log(&run_git(root, &args).unwrap_or_default()))
+}
+
+/// フロントから `invoke("git_log", { root, relPath, limit })` で呼ぶラッパ。
+/// `relPath` 省略でリポジトリ全体、`limit` 省略で既定件数。
+#[tauri::command]
+pub async fn git_log(
+    root: String,
+    rel_path: Option<String>,
+    limit: Option<u32>,
+) -> Result<Vec<GitLogEntry>, String> {
+    spawn_git(move || git_log_impl(Path::new(&root), rel_path.as_deref(), limit)).await
+}
+
+/// 既定ブランチ名の設定が無いときに使う名前。
+///
+/// git 自身の既定は `master` だが、置き先（GitHub 等）の既定は `main` で、
+/// 食い違ったまま最初の push をすると、同じ中身のブランチが 2 つ並ぶ。
+const INIT_DEFAULT_BRANCH: &str = "main";
+
+/// `git init` に渡す引数を決める。
+///
+/// 利用者が `init.defaultBranch` を設定しているならそれに従う（設定を上書きしない）。
+/// 設定が無いときだけ既定を明示する。
+fn init_args(configured_default: Option<&str>) -> Vec<&'static str> {
+    match configured_default {
+        Some(name) if !name.trim().is_empty() => vec!["init"],
+        _ => vec!["init", "-b", INIT_DEFAULT_BRANCH],
+    }
+}
+
+/// フォルダを Git リポジトリにする（Tauri 非依存の実体）。成功時は最新の GitStatus。
+///
+/// リモートは設定しない。作るのは手元の履歴だけで、どこへ出すかは別の操作にする。
+pub fn git_init_impl(root: &Path) -> Result<GitStatus, String> {
+    if !root.is_dir() {
+        return Err(format!("フォルダがありません: {}", root.display()));
+    }
+    // `git init` は既にリポジトリでも成功する。ここで断らないと「押しても何も
+    // 起きないボタン」になり、利用者からは失敗と区別が付かない。
+    // 既存リポジトリのサブフォルダを開いている場合もここで止まる（既に管理下なので正しい）。
+    if run_git(root, &["rev-parse", "--git-dir"]).is_some() {
+        return Err("このフォルダは既に Git で管理されています".to_string());
+    }
+
+    let configured = run_git(root, &["config", "--get", "init.defaultBranch"])
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty());
+    run_git_result(root, &init_args(configured.as_deref()))?;
+    Ok(git_status_impl(root))
+}
+
+/// フロントから `invoke("git_init", { root })` で呼ぶラッパ。
+/// 成功で最新ステータス、失敗（既にリポジトリ・フォルダ無し・git 未導入）は Err(メッセージ)。
+#[tauri::command]
+pub async fn git_init(root: String) -> Result<GitStatus, String> {
+    spawn_git(move || git_init_impl(Path::new(&root))).await
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1372,5 +1515,159 @@ mod tests {
         assert!(head_content(&dir, "a.md").is_some());
         assert!(head_content(&dir, "b.md").is_some());
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// テスト用に log 出力を組む（区切りは実装と同じ制御文字）。
+    fn log_record(hash: &str, author: &str, date: &str, subject: &str) -> String {
+        format!("{hash}\u{1f}{author}\u{1f}{date}\u{1f}{subject}\u{1e}\n")
+    }
+
+    #[test]
+    fn log出力を1件ずつに分解する() {
+        let stdout = log_record("abc123", "田中", "2026-08-15T09:00:00+09:00", "最初のコミット")
+            + &log_record("def456", "sou", "2026-08-14T18:30:00+09:00", "直した");
+        let entries = parse_log(&stdout);
+
+        assert_eq!(entries.len(), 2);
+        assert_eq!(entries[0].hash, "abc123");
+        assert_eq!(entries[0].author, "田中");
+        assert_eq!(entries[0].date, "2026-08-15T09:00:00+09:00");
+        assert_eq!(entries[0].subject, "最初のコミット");
+        assert_eq!(entries[1].hash, "def456");
+    }
+
+    #[test]
+    fn 履歴が空なら空の一覧になる() {
+        assert_eq!(parse_log(""), Vec::new());
+        assert_eq!(parse_log("\n"), Vec::new());
+    }
+
+    // 件名に区切り文字が混ざっても、そこで切らずに件名の一部として残す
+    // （切ると履歴の見出しが黙って短くなる＝別のコミットに見える）。
+    #[test]
+    fn 件名に区切り文字が混ざっても切り落とさない() {
+        let stdout = log_record("h1", "a", "d", "前\u{1f}後");
+        let entries = parse_log(&stdout);
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0].subject, "前\u{1f}後");
+    }
+
+    #[test]
+    fn 欠けた行は捨てる() {
+        let stdout = format!("こわれた記録\u{1e}\n{}", log_record("h1", "a", "d", "s"));
+        let entries = parse_log(&stdout);
+        assert_eq!(entries.len(), 1, "形が揃っている分だけ残る");
+        assert_eq!(entries[0].hash, "h1");
+    }
+
+    // 全部返すと大きいので件数で切る。期間で切ると動きの少ないリポジトリで何も出ない。
+    #[test]
+    fn 取得件数には既定と上限がある() {
+        assert_eq!(clamp_log_limit(None), 50, "指定なしは 50 件");
+        assert_eq!(clamp_log_limit(Some(10)), 10);
+        assert_eq!(clamp_log_limit(Some(0)), 1, "0 件では何も見えない");
+        assert_eq!(clamp_log_limit(Some(9999)), 200, "上限で頭打ち");
+    }
+
+    #[test]
+    fn 履歴を新しい順に返す() {
+        let dir = temp_repo("gitlog");
+        std::fs::write(dir.join("a.md"), "1\n").expect("書き込み");
+        git_commit_impl(&dir, "ひとつ目", &[]).expect("コミット成功");
+        std::fs::write(dir.join("a.md"), "2\n").expect("書き込み");
+        git_commit_impl(&dir, "ふたつ目", &[]).expect("コミット成功");
+
+        let entries = git_log_impl(&dir, None, None).expect("履歴取得成功");
+        assert_eq!(entries.len(), 2);
+        assert_eq!(entries[0].subject, "ふたつ目", "新しいものが先頭");
+        assert_eq!(entries[1].subject, "ひとつ目");
+        assert_eq!(entries[0].author, "test");
+        assert!(!entries[0].hash.is_empty());
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn パスを指定するとそのファイルの履歴だけ返る() {
+        let dir = temp_repo("gitlogpath");
+        std::fs::write(dir.join("a.md"), "1\n").expect("書き込み");
+        git_commit_impl(&dir, "a を足した", &[]).expect("コミット成功");
+        std::fs::write(dir.join("b.md"), "1\n").expect("書き込み");
+        git_commit_impl(&dir, "b を足した", &[]).expect("コミット成功");
+
+        let entries = git_log_impl(&dir, Some("b.md"), None).expect("履歴取得成功");
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0].subject, "b を足した");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn 件数の指定を超えて返さない() {
+        let dir = temp_repo("gitloglimit");
+        for i in 0..3 {
+            std::fs::write(dir.join("a.md"), format!("{i}\n")).expect("書き込み");
+            git_commit_impl(&dir, &format!("{i} 回目"), &[]).expect("コミット成功");
+        }
+
+        let entries = git_log_impl(&dir, None, Some(2)).expect("履歴取得成功");
+        assert_eq!(entries.len(), 2);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    // コミットが 1 つも無いリポジトリで git log は失敗するが、それは「まだ無い」だけ。
+    #[test]
+    fn コミットが無いリポジトリは空の一覧になる() {
+        let dir = temp_repo("gitlogempty");
+        assert_eq!(git_log_impl(&dir, None, None).expect("エラーにしない"), Vec::new());
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn 履歴もリポジトリ外のパスは_git実行前にエラー() {
+        let dir = temp_repo("gitlogbad");
+        assert!(git_log_impl(&dir, Some("../外.md"), None).is_err());
+        assert!(git_log_impl(&dir, Some("C:\\Windows\\win.ini"), None).is_err());
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// git を持たない素のフォルダ（init を試す相手）。
+    fn temp_plain_dir(tag: &str) -> std::path::PathBuf {
+        let dir = std::env::temp_dir().join(format!("mdbiz_{}_{}", tag, std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).expect("temp 作成");
+        dir
+    }
+
+    // 既定ブランチ名の設定があるならそれに従う（利用者の設定を上書きしない）。
+    #[test]
+    fn init_の引数は既定ブランチ設定の有無で決まる() {
+        assert_eq!(init_args(None), vec!["init", "-b", "main"]);
+        assert_eq!(init_args(Some("")), vec!["init", "-b", "main"], "空の設定は無いのと同じ");
+        assert_eq!(init_args(Some("trunk")), vec!["init"], "設定があるなら git に任せる");
+    }
+
+    #[test]
+    fn 素のフォルダをリポジトリにできる() {
+        let dir = temp_plain_dir("gitinit");
+        assert!(!git_status_impl(&dir).is_repo, "まだリポジトリではない");
+
+        let status = git_init_impl(&dir).expect("init 成功");
+        assert!(status.is_repo, "init 後はリポジトリとして見える");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    // `git init` は既にリポジトリでも成功してしまう。ここで断らないと
+    // 「押しても何も起きないボタン」になり、利用者からは失敗と区別が付かない。
+    #[test]
+    fn 既にリポジトリなら断る() {
+        let dir = temp_repo("gitinitagain");
+        assert!(git_init_impl(&dir).is_err());
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn 無いフォルダは_git実行前にエラー() {
+        let dir = std::env::temp_dir().join("mdbiz_gitinit_absent");
+        let _ = std::fs::remove_dir_all(&dir);
+        assert!(git_init_impl(&dir).is_err());
     }
 }

@@ -135,3 +135,36 @@ export function commitTargets(
   if (kept.length === files.length) return { paths: undefined, count: files.length };
   return { paths: kept.map((f) => f.relPath), count: kept.length };
 }
+
+/** Rust GitLogEntry のミラー。コミット 1 件の見出し（差分は git_diff で見る）。 */
+export interface GitLogEntry {
+  /** 完全なコミットハッシュ。表示は shortHash で切る。 */
+  hash: string;
+  author: string;
+  /** ISO 8601（オフセット付き）。 */
+  date: string;
+  /** コミットメッセージの 1 行目。 */
+  subject: string;
+}
+
+/** 表示用に切り詰めたハッシュ（git の短縮表記と同じ 7 桁）。 */
+export function shortHash(hash: string): string {
+  return hash.slice(0, 7);
+}
+
+/**
+ * コミット日時を表示用に整える。
+ * git の出力をそのまま渡す作りなので、日付として読めない値は加工せずに返す
+ * （"Invalid Date" と出すより、届いた文字列を見せたほうが原因を追える）。
+ */
+export function formatCommitDate(iso: string, locale: string): string {
+  const at = new Date(iso);
+  if (Number.isNaN(at.getTime())) return iso;
+  return at.toLocaleString(locale, {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
