@@ -7,6 +7,7 @@ mod git;
 mod logscan;
 mod mcp;
 mod mcp_logic;
+mod open_arg;
 mod preview_server;
 mod preview_server_logic;
 mod watch;
@@ -17,7 +18,14 @@ mod workspace;
 /// Git / フォージ / PDF / MCP の Tauri command はこの Builder に順次登録する（Phase 3-4）。
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
+    let builder = tauri::Builder::default();
+    // 二重起動の抑止は最初に登録する（後続のプラグインが立ち上がる前に決める必要がある）。
+    // 既に動いていれば、こちらのプロセスは引数を渡して終わる。
+    #[cfg(desktop)]
+    let builder = builder.plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| {
+        open_arg::handle_second_instance(app, &argv);
+    }));
+    builder
         // フォルダ選択（tauri-plugin-dialog）。権限は capability で open のみに絞る（設計書 §8.2）。
         .plugin(tauri_plugin_dialog::init())
         // 更新適用後の再起動に使うプロセス制御プラグイン。
@@ -30,6 +38,8 @@ pub fn run() {
         .manage(mcp::McpRuntime::default())
         // ブラウザ表示用ローカルサーバーの実行時状態（立っているのは 0 個か 1 個）。
         .manage(preview_server::PreviewServerState::default())
+        // 起動引数で頼まれたファイル（画面が受け取りに来るまでの預かり）。
+        .manage(open_arg::PendingOpen::default())
         .setup(|app| {
             // 自動アップデータはデスクトップのみ対応。AppHandle 確定後に登録する。
             #[cfg(desktop)]
@@ -37,6 +47,8 @@ pub fn run() {
                 .plugin(tauri_plugin_updater::Builder::new().build())?;
             // MCP は付加機能。起動に失敗しても劣化表示に留め、setup は成功させる。
             mcp::start(app.handle());
+            // 起動引数で開くよう頼まれていれば預かる（画面ができてから取りに来る）。
+            open_arg::remember_startup_args(app.handle());
             Ok(())
         })
         // 文書ツリーの走査 / 読込 / 書込コマンド（設計書 §5）。
@@ -72,6 +84,7 @@ pub fn run() {
             mcp::mcp_write_client_config,
             mcp::mcp_client_config,
             mcp::mcp_retry,
+            open_arg::take_open_request,
             preview_server::start_preview_server,
             preview_server::update_preview_server,
             preview_server::stop_preview_server,

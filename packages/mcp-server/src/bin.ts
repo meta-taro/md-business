@@ -14,6 +14,7 @@ import { resolve } from 'node:path';
 import { createServer, SERVER_NAME, SERVER_VERSION } from './server.js';
 import { FileDocumentStore } from './fileStore.js';
 import { createGitRunner } from './gitRunner.js';
+import { createDesktopOpener } from './desktopOpener.js';
 import { parseCliArgs, runInfoCommand } from './cli.js';
 
 async function main(): Promise<void> {
@@ -34,7 +35,11 @@ async function main(): Promise<void> {
 
   const store = new FileDocumentStore(root);
   // ワークスペースが git 管理でなければ、各 git ツールが理由付きで失敗するだけ。
-  const server = createServer(store, { git: createGitRunner(() => store.getRoot()) });
+  const server = createServer(store, {
+    git: createGitRunner(() => store.getRoot()),
+    // 画面へ出す依頼は、アプリが動いていない状態から来ることの方が多い。
+    desktop: createDesktopOpener({ getRoot: () => store.getRoot() }),
+  });
   const transport = new StdioServerTransport();
 
   await server.connect(transport);

@@ -15,6 +15,7 @@ import { FileDocumentStore } from './fileStore.js';
 import { startHttpServer } from './httpServer.js';
 import { createGitRunner, type GitExec } from './gitRunner.js';
 import { createAppBridge } from './appBridge.js';
+import { createDesktopOpener } from './desktopOpener.js';
 import { encodeSidecarEvent, parseControlLine, splitControlLines } from './control.js';
 
 /** サイドカーが使う入出力。実行時は process.stdin / process.stdout を渡す。 */
@@ -68,6 +69,9 @@ export async function startSidecar(options: StartSidecarOptions): Promise<Sideca
         ? createGitRunner(() => store.getRoot())
         : createGitRunner(() => store.getRoot(), gitExec),
     app,
+    // アプリは動いているが、開いているフォルダが違うことがある。フォルダごと切り替える
+    // 判断はアプリ側にあるので、動いていても同じ口を通す。
+    desktop: createDesktopOpener({ getRoot: () => store.getRoot() }),
     onLog: (entry: ToolLogEntry) => io.write(encodeSidecarEvent(entry)),
   };
   // 前回と同じポートを希望しても、別のアプリに取られていることはある。そのときは

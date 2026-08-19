@@ -212,8 +212,26 @@
     autosave.init();
     // 過去に開いたフォルダ一覧を復元する（空状態から選び直せるように）。
     workspace.loadRecent();
+    // 外から「このファイルを見せてほしい」と頼まれた分を画面へ出す。
+    const openExternal = (path: unknown): void => {
+      if (typeof path !== 'string' || path === '') return;
+      void workspace.openExternal(path);
+    };
     // 前回開いていたフォルダがあれば自動で開き直す（毎回の選択を不要にする）。
-    void workspace.restoreLastFolder();
+    // 起動そのものが依頼だった場合は、その後で受け取る。先に受け取ると、後から届く
+    // 復元が上書きして、頼まれたファイルが閉じたように見える。
+    void workspace
+      .restoreLastFolder()
+      .then(() => invoke<string | null>('take_open_request'))
+      .then(openExternal)
+      .catch(() => undefined);
+    // 既に動いている状態で頼まれた分（二重起動を止めたときに引数だけが回ってくる）。
+    let unlistenOpenRequest: (() => void) | undefined;
+    void listen<unknown>('open-request', (event) => {
+      openExternal(event.payload);
+    }).then((fn) => {
+      unlistenOpenRequest = fn;
+    });
     // 外部（AI/CLI/他エディタ）編集を Rust の watcher から受け、画面状態に応じて反応する。
     // 判断は純ロジック（decideFileChangeAction）に委譲し、ここは副作用の割り当てだけ持つ。
     const applyFileChange = (change: FileChangeEvent): void => {
@@ -267,6 +285,7 @@
       unlisten?.();
       unlistenMcpSync?.();
       unlistenMcpRequest?.();
+      unlistenOpenRequest?.();
       unlistenMcp?.();
     };
   });

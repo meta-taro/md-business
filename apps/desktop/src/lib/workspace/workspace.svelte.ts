@@ -44,6 +44,7 @@ import {
   restoreRecentFolders,
   serializeRecentFolders,
 } from './recentFolders';
+import { resolveOpenTarget } from './openTarget';
 
 /** 最後に開いたフォルダの localStorage キー（左レール幅等と同じ名前空間）。 */
 const LAST_FOLDER_KEY = 'md-business:desktop:last-folder';
@@ -282,6 +283,34 @@ class WorkspaceStore {
     }
     if (selected === null) return; // ユーザーがキャンセル
     await this.scan(selected);
+  }
+
+  /**
+   * 外から渡された絶対パスのファイルを画面へ出す（起動引数・他のプロセスからの依頼）。
+   *
+   * 頼む側はアプリが今どこを開いているかを知らないので、フォルダの切り替えまでここで見る。
+   * ただし切り替え先は利用者が過去に開いたフォルダに限る。未知の場所まで開けるようにすると、
+   * 外からの依頼ひとつで、開くつもりのなかった場所の中身が画面に並ぶことになる。
+   */
+  async openExternal(absolutePath: string): Promise<void> {
+    const target = resolveOpenTarget(absolutePath, this.root, this.recent);
+    if (target.kind === 'unknown') {
+      this.error =
+        `開く場所が分かりませんでした: ${absolutePath}` +
+        '（このファイルのあるフォルダを一度開いてから、もう一度お試しください）';
+      return;
+    }
+    if (target.kind === 'switch') {
+      await this.openRecent(target.root);
+      // 開けなければ切り替わっていない。ここで進むと別のフォルダの同名ファイルを開く。
+      if (this.root !== target.root) {
+        if (this.error === null) this.error = `フォルダを開けませんでした: ${target.root}`;
+        return;
+      }
+    }
+    // 開いたファイルがツリー上でも見えるようにする（選択だけだと畳まれたままになる）。
+    this.expanded = withAncestorsExpanded(this.expanded, target.relPath);
+    await this.select(target.relPath);
   }
 
   /** ルート配下を走査し、ツリー・展開状態を更新する。 */

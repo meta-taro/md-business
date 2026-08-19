@@ -155,6 +155,11 @@ fn build_command(node: &Path, sidecar: &Path, root: &Path, state: Option<&Path>)
         .stdout(Stdio::piped())
         // 起動しきれなかったときに理由が残るのはここだけなので、捨てずに受け取る。
         .stderr(Stdio::piped());
+    // 「画面へ出して」の依頼で起こす実行ファイルを、いま動いているもの自身に固定する。
+    // 探しにいかせると、開発ビルドや配布物を移動した環境で別のものを起こしうる。
+    if let Ok(exe) = std::env::current_exe() {
+        command.env("MD_BUSINESS_APP", exe);
+    }
     #[cfg(windows)]
     {
         use std::os::windows::process::CommandExt;
