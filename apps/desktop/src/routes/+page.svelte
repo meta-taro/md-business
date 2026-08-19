@@ -26,7 +26,8 @@
   import { openUrl } from '@tauri-apps/plugin-opener';
   import { isTsvSource } from '$lib/tsv/detect';
   import { loadGridDoc, saveGridDoc } from '$lib/tsv/gridDoc';
-  import { checkSheetLinks, type SheetLinkIssue } from '$lib/tsv/linkCheck';
+  import { checkSheetLinks, type SheetLinkIssue, type SheetReader } from '$lib/tsv/linkCheck';
+  import { createSheetCache } from '$lib/tsv/sheetCache';
   import { readSheetEnums } from '$lib/tsv/sheetEnums';
   import { parseRowBlame, type RowBlame } from '$lib/tsv/rowBlame';
   import { countSheetReferences } from '$lib/tsv/sheetCounts';
@@ -460,7 +461,7 @@
   });
 
   /** 参照先 1 ファイルを読む。読めないもの（未オープン・別形式）は null で返す。 */
-  async function readSheet(relPath: string): Promise<string | null> {
+  async function readSheetFile(relPath: string): Promise<string | null> {
     const root = workspace.root;
     if (root === null) return null;
     try {
@@ -469,6 +470,18 @@
       return null;
     }
   }
+
+  // 下の 3 つの照合はどれも開いている文書を見て動くので、1 文字打つたびに走る。読む相手は
+  // ヘッダだけで決まっていて行の中身とは関係がないのに、そのたび同じファイルを読み直していた。
+  // 参照先がネットワーク越しにあると 1 回が数百 ms かかり、打鍵のたびに待たされる。
+  const sheetCache = createSheetCache(readSheetFile);
+  const readSheet: SheetReader = (relPath) => sheetCache.read(relPath);
+
+  // 開くフォルダが変われば相手ごと入れ替わる。控えを持ち越さない。
+  $effect(() => {
+    workspace.root;
+    sheetCache.clear();
+  });
 
   // 参考データ（.json / .xml）は正本ではなく、隣に置いてある資料として読むだけ。
   // 判定は開いているファイルの拡張子だけで行う（中身を覗いて形式を当てにいかない）。
