@@ -4,6 +4,13 @@ Changes to this app. Versions follow [Semantic Versioning](https://semver.org/).
 
 Japanese is the source of truth for this file; see [CHANGELOG.md](./CHANGELOG.md).
 
+## 0.10.1
+
+### Fixed
+
+- **Typing in a test sheet no longer stalls.** When a column pointed at another sheet — a link, a count, or a list of choices read from elsewhere — the referenced file was read again on every keystroke. Which file gets read is decided by the sheet's header alone and has nothing to do with what you type. If that file lived somewhere not local, such as a shared folder, the read time landed directly on the keystroke.
+- **Editing a test sheet after opening a preview no longer gets heavy.** While the table was on screen, the preview nobody was looking at was still being rebuilt from the whole document on every keystroke.
+
 ## 0.10.0
 
 ### Added
