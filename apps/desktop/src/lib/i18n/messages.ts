@@ -380,6 +380,7 @@ export interface Messages {
   'imageView.actual': string;
   'imageView.fitTitle': string;
   'imageView.actualTitle': string;
+  'imageView.inlineFailed': string;
   'frontmatter.failed': string;
   'frontmatter.atLine': string;
   'frontmatter.indentation': string;
@@ -841,6 +842,7 @@ const en: Messages = {
   'imageView.actual': 'Actual size',
   'imageView.fitTitle': 'Fit the whole image in the pane',
   'imageView.actualTitle': 'Show the image at its actual size',
+  'imageView.inlineFailed': 'Cannot read the image: {ref} ({message})',
   'frontmatter.failed': 'Could not read the frontmatter. {detail}',
   'frontmatter.atLine': 'Line {line}: {detail}',
   'frontmatter.indentation': 'the indentation does not line up with the lines above.',
@@ -1298,6 +1300,7 @@ const ja: Messages = {
   'imageView.actual': '原寸',
   'imageView.fitTitle': '画面に合わせて全体を出す',
   'imageView.actualTitle': '原寸で出す',
+  'imageView.inlineFailed': '画像を読めません: {ref}（{message}）',
   'frontmatter.failed': 'frontmatter を読み取れませんでした。{detail}',
   'frontmatter.atLine': '{line} 行目: {detail}',
   'frontmatter.indentation': '行頭の字下げが、上の行とそろっていません。',
@@ -1750,6 +1753,7 @@ const zh: Messages = {
   'imageView.actual': '原始尺寸',
   'imageView.fitTitle': '缩放到窗口内显示整幅图片',
   'imageView.actualTitle': '按原始尺寸显示',
+  'imageView.inlineFailed': '无法读取图片: {ref}（{message}）',
   'frontmatter.failed': '无法读取 frontmatter。{detail}',
   'frontmatter.atLine': '第 {line} 行：{detail}',
   'frontmatter.indentation': '行首缩进与上面几行没有对齐。',
@@ -2205,6 +2209,7 @@ const ko: Messages = {
   'imageView.actual': '원본 크기',
   'imageView.fitTitle': '화면에 맞춰 전체를 표시',
   'imageView.actualTitle': '원본 크기로 표시',
+  'imageView.inlineFailed': '이미지를 읽을 수 없습니다: {ref}({message})',
   'frontmatter.failed': 'frontmatter를 읽을 수 없습니다. {detail}',
   'frontmatter.atLine': '{line}번째 줄: {detail}',
   'frontmatter.indentation': '줄 앞 들여쓰기가 위 줄과 맞지 않습니다.',

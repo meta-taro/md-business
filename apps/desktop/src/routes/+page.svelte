@@ -36,6 +36,8 @@
   import DataTreeView from '$lib/data/DataTreeView.svelte';
   import ImageView from '$lib/image/ImageView.svelte';
   import { imageKindLabel, nextFitMode, type ImageFitMode } from '$lib/image/imageView';
+  import { inlineImages } from '$lib/image/inlineImages';
+  import { loadInlineImages, type InlineImageFailure } from '$lib/image/loadInlineImages';
   import { formatSize } from '$lib/components/fileInfo';
   import { isDataFile, readDataDocument } from '$lib/data/dataDocument';
   import { perf } from '$lib/diagnostics/perf.svelte';
@@ -301,11 +303,50 @@
   // 描画が非同期なのは、スキーマごとの検証器を「開いた文書のぶんだけ」読むため。
   // 打つたびに走るので、先に始めた描画が後から返ることがある。世代を数えて、
   // 最後に始めたものの結果だけを採る（古い結果で今の本文を上書きしない）。
+  // 本文が指している画像（`![](./領収書.png)`）を読み、描く前に data URL へ置き換える。
+  // プレビューは中身を持たない枠なので、相対パスのままでは届かない。
+  // 一度読んだものは同じ文書を開いている間だけ覚えておく（打つたびに読み直さない）。
+  const imageCache = new Map<string, string>();
+  let imageCacheKey = '';
+  let inlineUrls = $state<ReadonlyMap<string, string>>(new Map());
+  let inlineFailures = $state<InlineImageFailure[]>([]);
+  let inlineGeneration = 0;
+  $effect(() => {
+    const root = workspace.root;
+    const relPath = workspace.activePath;
+    const source = debouncedSource;
+    if (root === null || relPath === null || !shouldRenderPreview(paneState)) {
+      inlineUrls = new Map();
+      inlineFailures = [];
+      return;
+    }
+    const key = `${root}\n${relPath}`;
+    if (key !== imageCacheKey) {
+      imageCache.clear();
+      imageCacheKey = key;
+    }
+    const generation = ++inlineGeneration;
+    void loadInlineImages(source, relPath, async (path) => {
+      const cached = imageCache.get(path);
+      if (cached !== undefined) return cached;
+      const image = await invoke<{ dataUrl: string }>('read_image', { root, relPath: path });
+      imageCache.set(path, image.dataUrl);
+      return image.dataUrl;
+    }).then((result) => {
+      if (generation !== inlineGeneration) return;
+      inlineUrls = result.urls;
+      inlineFailures = result.failures;
+    });
+  });
+
+  // 描くのは画像を埋めた本文。読めたものが 1 つも無ければ元の本文がそのまま返る。
+  const previewSource = $derived(inlineImages(debouncedSource, inlineUrls));
+
   let preview = $state<PreviewResult | null>(null);
   let previewGeneration = 0;
   $effect(() => {
     const render = previewRenderer.render;
-    const source = debouncedSource;
+    const source = previewSource;
     const theme = themeController.value;
     // 組み立て一式は一度読み込むと面を切り替えても残る。残っているだけで組み直しが動くと、
     // 検証グリッドで 1 文字打つたびに誰も見ない HTML を本文全体から組み直すことになる。
@@ -919,13 +960,19 @@
           onload={onPreviewLoad}
         ></iframe>
       </div>
-      {#if preview.errors.length > 0 || preview.warnings.length > 0}
+      {#if preview.errors.length > 0 || preview.warnings.length > 0 || inlineFailures.length > 0}
         <div class="notices" role="status">
           {#each preview.errors as err (err)}
             <span class="notice err">{err}</span>
           {/each}
           {#each preview.warnings as warn (warn)}
             <span class="notice warn">{warn}</span>
+          {/each}
+          <!-- 読めなかった画像。出ない理由が分からないと、書いた側は本文を疑い続ける。 -->
+          {#each inlineFailures as failure (failure.ref)}
+            <span class="notice warn">
+              {t('imageView.inlineFailed', { ref: failure.ref, message: failure.message })}
+            </span>
           {/each}
         </div>
       {/if}

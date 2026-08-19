@@ -10,8 +10,9 @@
  *   - 文書どうしの `.md` リンクを `.html` へ書き換える（サイト内で行き先が切れないように）
  *   - 一覧ページ（index.html）を作る
  *
- * 画像は扱わない。プレビューは `https:` と `data:` の画像しか通さないため
- * （sanitizeHtml.ts）、ローカル画像は元から描かれておらず、運ぶべき実体が無い。
+ * ローカル画像は出ない。プレビューと単一 HTML は、描く前に本文の画像を data URL へ
+ * 置き換えている（inlineImages）。ここは中身を渡されるだけの純関数で読み込む口を持たず、
+ * まとめて出す以上「実体を `assets/` へ運ぶか、各ページへ埋めるか」の判断も別に要る。
  */
 import { renderPreview } from './renderPreview';
 import { buildPreviewDocument } from './previewDocument';
