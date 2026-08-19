@@ -2,6 +2,7 @@ mod capture;
 pub mod capture_logic;
 #[cfg(windows)]
 mod capture_win;
+mod deep_link;
 mod fileinfo;
 mod git;
 mod logscan;
@@ -25,6 +26,10 @@ pub fn run() {
     let builder = builder.plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| {
         open_arg::handle_second_instance(app, &argv);
     }));
+    // 共有リンク（md-business://...）の受け口。single-instance より後に登録する
+    // （既に動いているときは、そちらが窓を決めてからリンクが回ってくる）。
+    #[cfg(desktop)]
+    let builder = builder.plugin(tauri_plugin_deep_link::init());
     builder
         // フォルダ選択（tauri-plugin-dialog）。権限は capability で open のみに絞る（設計書 §8.2）。
         .plugin(tauri_plugin_dialog::init())
@@ -40,6 +45,8 @@ pub fn run() {
         .manage(preview_server::PreviewServerState::default())
         // 起動引数で頼まれたファイル（画面が受け取りに来るまでの預かり）。
         .manage(open_arg::PendingOpen::default())
+        // 共有リンクで頼まれた文書（同上）。
+        .manage(deep_link::PendingLink::default())
         .setup(|app| {
             // 自動アップデータはデスクトップのみ対応。AppHandle 確定後に登録する。
             #[cfg(desktop)]
@@ -49,6 +56,23 @@ pub fn run() {
             mcp::start(app.handle());
             // 起動引数で開くよう頼まれていれば預かる（画面ができてから取りに来る）。
             open_arg::remember_startup_args(app.handle());
+            #[cfg(desktop)]
+            {
+                use tauri_plugin_deep_link::DeepLinkExt;
+                // 配布物では OS への登録をインストーラが行う。開発ビルドにはインストーラが
+                // 無いので、その場合だけ自分で登録する（登録先はこのビルドの実行ファイル）。
+                #[cfg(all(debug_assertions, any(windows, target_os = "linux")))]
+                let _ = app.deep_link().register_all();
+                // 起動のきっかけが共有リンクだった場合の分。
+                deep_link::remember_startup_link(app.handle());
+                // 起動した後に届く分（既に動いている窓へ回ってくる）。
+                let handle = app.handle().clone();
+                app.deep_link().on_open_url(move |event| {
+                    if let Some(url) = event.urls().first() {
+                        deep_link::remember(&handle, url.as_str());
+                    }
+                });
+            }
             Ok(())
         })
         // 文書ツリーの走査 / 読込 / 書込コマンド（設計書 §5）。
@@ -73,6 +97,7 @@ pub fn run() {
             git::git_diff,
             git::git_blame,
             git::forge_file_url,
+            git::git_identity,
             git::git_file_state,
             fileinfo::file_stat,
             fileinfo::file_digest,
@@ -85,6 +110,7 @@ pub fn run() {
             mcp::mcp_client_config,
             mcp::mcp_retry,
             open_arg::take_open_request,
+            deep_link::take_link_request,
             preview_server::start_preview_server,
             preview_server::update_preview_server,
             preview_server::stop_preview_server,

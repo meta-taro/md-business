@@ -217,6 +217,12 @@
       if (typeof path !== 'string' || path === '') return;
       void workspace.openExternal(path);
     };
+    // 共有リンク（md-business://open?...）で頼まれた分。どのファイルかはリンクの中身から
+    // 引き当てるので、渡すのは文字列一本だけ。
+    const openShare = (url: unknown): void => {
+      if (typeof url !== 'string' || url === '') return;
+      void workspace.openShareLink(url);
+    };
     // 前回開いていたフォルダがあれば自動で開き直す（毎回の選択を不要にする）。
     // 起動そのものが依頼だった場合は、その後で受け取る。先に受け取ると、後から届く
     // 復元が上書きして、頼まれたファイルが閉じたように見える。
@@ -224,6 +230,8 @@
       .restoreLastFolder()
       .then(() => invoke<string | null>('take_open_request'))
       .then(openExternal)
+      .then(() => invoke<string | null>('take_link_request'))
+      .then(openShare)
       .catch(() => undefined);
     // 既に動いている状態で頼まれた分（二重起動を止めたときに引数だけが回ってくる）。
     let unlistenOpenRequest: (() => void) | undefined;
@@ -231,6 +239,13 @@
       openExternal(event.payload);
     }).then((fn) => {
       unlistenOpenRequest = fn;
+    });
+    // 既に動いている状態で届いた共有リンク。
+    let unlistenLinkRequest: (() => void) | undefined;
+    void listen<unknown>('link-request', (event) => {
+      openShare(event.payload);
+    }).then((fn) => {
+      unlistenLinkRequest = fn;
     });
     // 外部（AI/CLI/他エディタ）編集を Rust の watcher から受け、画面状態に応じて反応する。
     // 判断は純ロジック（decideFileChangeAction）に委譲し、ここは副作用の割り当てだけ持つ。
@@ -286,6 +301,7 @@
       unlistenMcpSync?.();
       unlistenMcpRequest?.();
       unlistenOpenRequest?.();
+      unlistenLinkRequest?.();
       unlistenMcp?.();
     };
   });

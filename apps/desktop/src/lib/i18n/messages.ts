@@ -147,6 +147,7 @@ export interface Messages {
   'tree.menuCopyName': string;
   'tree.menuCopyRelPath': string;
   'tree.menuCopyPath': string;
+  'tree.menuCopyShareLink': string;
   'tree.menuOpenForge': string;
   'tree.renameHint': string;
   'tree.renameErrorEmpty': string;
@@ -592,6 +593,7 @@ const en: Messages = {
   'tree.menuCopyName': 'Copy name',
   'tree.menuCopyRelPath': 'Copy relative path',
   'tree.menuCopyPath': 'Copy full path',
+  'tree.menuCopyShareLink': 'Copy share link',
   'tree.menuOpenForge': 'Open on remote',
   'tree.renameHint': 'Enter to apply, Esc to cancel',
   'tree.renameErrorEmpty': 'Enter a name',
@@ -1036,6 +1038,7 @@ const ja: Messages = {
   'tree.menuCopyName': '名前をコピー',
   'tree.menuCopyRelPath': '相対パスをコピー',
   'tree.menuCopyPath': 'フルパスをコピー',
+  'tree.menuCopyShareLink': '共有リンクをコピー',
   'tree.menuOpenForge': 'リモートで開く',
   'tree.renameHint': 'Enter で確定・Esc で取り消し',
   'tree.renameErrorEmpty': '名前を入力してください',
@@ -1477,6 +1480,7 @@ const zh: Messages = {
   'tree.menuCopyName': '复制名称',
   'tree.menuCopyRelPath': '复制相对路径',
   'tree.menuCopyPath': '复制完整路径',
+  'tree.menuCopyShareLink': '复制共享链接',
   'tree.menuOpenForge': '在远程仓库打开',
   'tree.renameHint': 'Enter 确认，Esc 取消',
   'tree.renameErrorEmpty': '请输入名称',
@@ -1915,6 +1919,7 @@ const ko: Messages = {
   'tree.menuCopyName': '이름 복사',
   'tree.menuCopyRelPath': '상대 경로 복사',
   'tree.menuCopyPath': '전체 경로 복사',
+  'tree.menuCopyShareLink': '공유 링크 복사',
   'tree.menuOpenForge': '원격 저장소에서 열기',
   'tree.renameHint': 'Enter로 확정, Esc로 취소',
   'tree.renameErrorEmpty': '이름을 입력하세요',

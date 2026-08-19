@@ -390,6 +390,52 @@ pub async fn forge_file_url(root: String, rel_path: String) -> Option<String> {
         .unwrap_or(None)
 }
 
+/// 共有リンクが指すリポジトリの見分け方と、開いたフォルダのその中での位置。
+#[derive(Serialize, Debug, Clone, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct GitIdentity {
+    /// `github.com/owner/repo` の形。共有リンクに載せ、受け取った側で突き合わせる。
+    pub repo: String,
+    /// 現在ブランチ名。detached HEAD では空。
+    pub branch: String,
+    /// リポジトリ root から「開いたフォルダ」までのパス（"/"-終端 or 空）。
+    pub prefix: String,
+}
+
+/// remote URL からリポジトリの呼び名（`host/owner/repo`）を作る。
+/// フォージ種別を問わないのは、リンクは閲覧 URL ではなく突き合わせの鍵として使うため。
+pub fn repo_name(remote_url: Option<&str>) -> Option<String> {
+    let base = remote_to_web_base(remote_url?.trim())?;
+    let name = base.strip_prefix("https://")?;
+    if name.is_empty() {
+        return None;
+    }
+    Some(name.to_string())
+}
+
+/// 開いたフォルダから、共有リンクに必要な情報を集める（Tauri 非依存の実体）。
+/// git 未導入・非リポジトリ・remote 無しでは None（共有リンクは作れない）。
+pub fn git_identity_impl(root: &Path) -> Option<GitIdentity> {
+    let remote = run_git(root, &["remote", "get-url", "origin"]).map(|s| s.trim().to_string())?;
+    let repo = repo_name(Some(&remote))?;
+    let branch = run_git(root, &["rev-parse", "--abbrev-ref", "HEAD"])
+        .map(|s| s.trim().to_string())
+        .filter(|b| !b.is_empty() && b != "HEAD")
+        .unwrap_or_default();
+    let prefix = run_git(root, &["rev-parse", "--show-prefix"])
+        .map(|s| normalize_prefix(&s))
+        .unwrap_or_default();
+    Some(GitIdentity { repo, branch, prefix })
+}
+
+/// フロントから `invoke("git_identity", { root })` で呼ぶ薄いラッパ。
+#[tauri::command]
+pub async fn git_identity(root: String) -> Option<GitIdentity> {
+    tauri::async_runtime::spawn_blocking(move || git_identity_impl(Path::new(&root)))
+        .await
+        .unwrap_or(None)
+}
+
 /// 1 ファイルに絞った `git status --porcelain=v2 --ignored=matching -z -- <path>` の
 /// stdout を、ファイル情報ダイアログ用の管理状態へ写像する（Tauri 非依存の純関数）。
 ///
@@ -845,6 +891,29 @@ mod tests {
             detect_forge(Some("git@bitbucket.org:t/r.git")).as_deref(),
             Some("bitbucket")
         );
+    }
+
+    #[test]
+    fn repo_name_はホストと所有者と名前を並べる() {
+        assert_eq!(
+            repo_name(Some("https://github.com/o/r.git")).as_deref(),
+            Some("github.com/o/r")
+        );
+        assert_eq!(
+            repo_name(Some("git@github.com:o/r.git")).as_deref(),
+            Some("github.com/o/r")
+        );
+        assert_eq!(
+            repo_name(Some("ssh://git@gitlab.example.jp/group/sub/r.git")).as_deref(),
+            Some("gitlab.example.jp/group/sub/r")
+        );
+    }
+
+    #[test]
+    fn repo_name_は判定できないものをnoneにする() {
+        assert_eq!(repo_name(None), None);
+        assert_eq!(repo_name(Some("")), None);
+        assert_eq!(repo_name(Some("/srv/git/r.git")), None);
     }
 
     #[test]

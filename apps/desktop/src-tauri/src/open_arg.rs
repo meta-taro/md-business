@@ -71,13 +71,21 @@ pub fn remember_startup_args(app: &AppHandle) {
 /// 窓を前へ出すところまでを行う。頼んだ側から見て「開いた」と分かる必要があるが、
 /// 裏に隠れたままでは開いたことに気づけない。
 pub fn handle_second_instance(app: &AppHandle, argv: &[String]) {
+    focus_main(app);
+    if let Some(raw) = parse_open_arg(argv) {
+        remember(app, &raw);
+    }
+}
+
+/// 主窓を前へ出す。
+///
+/// 外から頼まれたときは、頼んだ側から見て「開いた」と分かる必要がある。畳んだままでも
+/// 裏に隠れたままでも、押しても何も起きなかったように映る。
+pub fn focus_main(app: &AppHandle) {
     if let Some(window) = app.get_webview_window("main") {
         let _ = window.unminimize();
         let _ = window.show();
         let _ = window.set_focus();
-    }
-    if let Some(raw) = parse_open_arg(argv) {
-        remember(app, &raw);
     }
 }
 
