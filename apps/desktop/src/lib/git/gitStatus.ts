@@ -114,3 +114,24 @@ export function forgeLabel(forge: string | null): string {
       return '未判定';
   }
 }
+
+/** コミット対象の絞り込み結果。`paths` が undefined なら「全変更」（Rust 側で `git add -A`）。 */
+export interface CommitTargets {
+  paths: string[] | undefined;
+  count: number;
+}
+
+/**
+ * 一覧のうちコミットに含めるものを決める。`excluded` はチェックを外した relPath。
+ *
+ * 除外が実際の一覧に 1 つも当たらないときは `paths: undefined`（全変更）を返す。
+ * 一覧に無いパスを外したままにしておいても、選び直さずに全部コミットできる状態へ戻る。
+ */
+export function commitTargets(
+  files: GitFileStatus[],
+  excluded: ReadonlySet<string>,
+): CommitTargets {
+  const kept = files.filter((f) => !excluded.has(f.relPath));
+  if (kept.length === files.length) return { paths: undefined, count: files.length };
+  return { paths: kept.map((f) => f.relPath), count: kept.length };
+}

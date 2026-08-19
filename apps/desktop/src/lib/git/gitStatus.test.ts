@@ -7,6 +7,7 @@ import {
   gitMarkLetter,
   forgeLabel,
   toTreeRelPath,
+  commitTargets,
   type GitStatus,
 } from './gitStatus';
 
@@ -112,5 +113,45 @@ describe('forgeLabel — StatusBar 表示名', () => {
     expect(forgeLabel('bitbucket')).toBe('Bitbucket');
     expect(forgeLabel('other')).toBe('Git');
     expect(forgeLabel(null)).toBe('未判定');
+  });
+});
+
+describe('commitTargets — コミット対象の絞り込み', () => {
+  const files = status({
+    files: [
+      { relPath: 'a.md', state: 'modified' },
+      { relPath: 'b.md', state: 'untracked' },
+      { relPath: 'c.md', state: 'deleted' },
+    ],
+  }).files;
+
+  it('除外なしなら paths は undefined（= 全変更をコミット）', () => {
+    const r = commitTargets(files, new Set());
+    expect(r.paths).toBeUndefined();
+    expect(r.count).toBe(3);
+  });
+
+  it('除外があるとその分を落とした paths を返す', () => {
+    const r = commitTargets(files, new Set(['b.md']));
+    expect(r.paths).toEqual(['a.md', 'c.md']);
+    expect(r.count).toBe(2);
+  });
+
+  it('全部除外すると count=0・paths は空配列（コミットさせない判定に使う）', () => {
+    const r = commitTargets(files, new Set(['a.md', 'b.md', 'c.md']));
+    expect(r.paths).toEqual([]);
+    expect(r.count).toBe(0);
+  });
+
+  it('既に無くなったファイルの除外指定は無視する（一覧に残らない）', () => {
+    // 除外したまま別の誰かがコミットして一覧から消えた場合。全選択と同じ扱いに戻す。
+    const r = commitTargets(files, new Set(['gone.md']));
+    expect(r.paths).toBeUndefined();
+    expect(r.count).toBe(3);
+  });
+
+  it('変更が無ければ count=0', () => {
+    const r = commitTargets([], new Set());
+    expect(r.count).toBe(0);
   });
 });

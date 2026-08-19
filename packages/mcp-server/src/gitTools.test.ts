@@ -186,6 +186,14 @@ describe('gitCommit', () => {
     expect(git.calls[0]).toEqual(['add', '--', 'docs/a.md', 'docs/b.md']);
   });
 
+  // ステージするだけだと、利用者が別に `git add` 済みの変更が同じコミットへ紛れ込む。
+  // 混ざったことは後から履歴でしか分からないので、commit 側にも同じパスを渡す。
+  it('パスを指定したコミットは先にステージ済みの別変更を巻き込まない', async () => {
+    const git = new FakeGit([ok(''), ok(''), ok('h\n'), ok(nul('# branch.head main'))]);
+    await gitCommit(git, { message: '一部だけ', paths: ['docs/a.md'] });
+    expect(git.calls[1]).toEqual(['commit', '-m', '一部だけ', '--', 'docs/a.md']);
+  });
+
   it('空メッセージは git を呼ばずに断る', async () => {
     const git = new FakeGit([]);
     const r = await gitCommit(git, { message: '   ' });
