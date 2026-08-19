@@ -4,6 +4,24 @@ Changes to this app. Versions follow [Semantic Versioning](https://semver.org/).
 
 Japanese is the source of truth for this file; see [CHANGELOG.md](./CHANGELOG.md).
 
+## 0.11.0
+
+### Added
+
+- **You can now choose which files go into a commit.** Everything that had changed was taken as one, so holding a half-written file meant either putting it all in a single commit or reaching for `git` outside the app.
+- **Commit history is now visible in the source control panel.** Seeing only the current changes meant leaving the app just to check what went in last.
+- **A folder that is not under Git can now be made into a repository on the spot.** Until now the source control features were unavailable entirely, and `git init` had to be run with another tool first.
+- **A share link now opens the same document on the other person's machine.** Even when documents are shared through one repository, *which file* had to be conveyed by voice or chat. Hand over the link and the recipient lands in the same place. The app starts if it is not running, and comes to the front if it is.
+- **An AI can now say which document to open** (built-in MCP server). If that folder is not open yet, it is opened first.
+
+### Changed
+
+- **The window no longer freezes while history is read or a repository is created.** On a repository with many commits, nothing responded for the whole read.
+
+### Fixed
+
+- **Asking an AI to commit specific files no longer sweeps in other changes.** The named files were added to the commit, but anything staged separately beforehand went in with them — and that only shows up later, in the history.
+
 ## 0.10.1
 
 ### Fixed
