@@ -48,16 +48,24 @@ class HtmlExportController {
     // 組み立てはプレビューと同じ描画一式を使う。起動時に読ませないよう、
     // ボタンが押されたここで読み込む（[HTML] を押さない起動では読まれない）。
     const { buildExportHtml } = await import('./htmlExport');
-    // 本文が指している画像は、書き出した 1 枚の HTML の中に入れる。
-    // 相対パスのまま出すと、HTML だけ渡された相手には画像が届かない。
-    // 読めなかったものは元の記法のまま残る（書き出し自体は止めない）。
-    const { loadInlineImages } = await import('$lib/image/loadInlineImages');
-    const { inlineImages } = await import('$lib/image/inlineImages');
-    const { urls } = await loadInlineImages(workspace.source, relPath, async (path) => {
-      const image = await invoke<{ dataUrl: string }>('read_image', { root, relPath: path });
-      return image.dataUrl;
+    // 本文が指している画像は、書き出した 1 枚の HTML の中に入れる。相対パスのまま出すと、
+    // HTML だけ渡された相手には画像が届かない。図も同じで、囲みのまま出すと絵にならない。
+    // 読めなかったものは元の記法と理由が残る（書き出し自体は止めない）。
+    const { composeExportSource } = await import('./composeSource');
+    const { workspaceIo } = await import('./workspaceIo');
+    const { chartMessage } = await import('$lib/chart/chartMessage');
+    const { CHART_INK } = await import('$lib/chart/chartInk');
+    const { t } = await import('$lib/i18n/i18n.svelte');
+    const { renderMermaidSvg } = await import('./renderMermaid');
+    const source = await composeExportSource(workspace.source, {
+      docPath: relPath,
+      io: workspaceIo(root),
+      describe: (problem) => chartMessage(problem, t),
+      mermaid: { theme: 'light', render: renderMermaidSvg },
+      // 書き出す HTML は明るい配色で組む（buildExportHtml）。図の色もそちらに合わせる。
+      ink: CHART_INK.light,
     });
-    const html = await buildExportHtml(inlineImages(workspace.source, urls));
+    const html = await buildExportHtml(source);
     // canExport を満たしていれば通常ここには来ない（プレビューが出ている＝組める）。
     if (html === null) return;
 

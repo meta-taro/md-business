@@ -73,8 +73,23 @@ class ImageExportController {
     if (root === null || relPath === null) return;
 
     // 撮る中身はプレビューと同じ描画一式。[画像] を押さない起動では読まれない。
+    // 撮影は別に立てた画面で行うので、本文が指す画像や図を先に埋めておかないと
+    // そこだけ空いた絵が撮れる。
     const { buildExportHtml } = await import('./htmlExport');
-    const html = await buildExportHtml(workspace.source);
+    const { composeExportSource } = await import('./composeSource');
+    const { workspaceIo } = await import('./workspaceIo');
+    const { chartMessage } = await import('$lib/chart/chartMessage');
+    const { CHART_INK } = await import('$lib/chart/chartInk');
+    const { t } = await import('$lib/i18n/i18n.svelte');
+    const { renderMermaidSvg } = await import('./renderMermaid');
+    const source = await composeExportSource(workspace.source, {
+      docPath: relPath,
+      io: workspaceIo(root),
+      describe: (problem) => chartMessage(problem, t),
+      mermaid: { theme: 'light', render: renderMermaidSvg },
+      ink: CHART_INK.light,
+    });
+    const html = await buildExportHtml(source);
     // canExport を満たしていれば通常ここには来ない（プレビューが出ている＝組める）。
     if (html === null) return;
 

@@ -31,9 +31,27 @@ export async function collectSitePlan(root: string): Promise<SitePlan> {
   const paths = siteDocumentPaths(scan.entries);
   if (paths.length === 0) return { files: [], pages: [], assets: [], skipped: [] };
 
+  // 図は本文の段階で絵に替えてから渡す。囲みのまま渡すと、サイトだけ図が出ない。
+  // 画像はページの組み立て側がファイルとして運ぶので、ここでは埋めない。
+  const { composeExportSource } = await import('./composeSource');
+  const { chartMessage } = await import('$lib/chart/chartMessage');
+  const { CHART_INK } = await import('$lib/chart/chartInk');
+  const { renderMermaidSvg } = await import('./renderMermaid');
+  const { t } = await import('$lib/i18n/i18n.svelte');
+
   const docs: SiteSource[] = [];
   for (const path of paths) {
-    docs.push({ path, source: await invoke<string>('read_document', { root, relPath: path }) });
+    const source = await invoke<string>('read_document', { root, relPath: path });
+    docs.push({
+      path,
+      source: await composeExportSource(source, {
+        docPath: path,
+        io: { readText: (target) => invoke<string>('read_document', { root, relPath: target }) },
+        describe: (problem) => chartMessage(problem, t),
+        ink: CHART_INK.light,
+        mermaid: { theme: 'light', render: renderMermaidSvg },
+      }),
+    });
   }
 
   // ページの組み立てはプレビューと同じ描画一式を使う。起動時に読ませないよう、
