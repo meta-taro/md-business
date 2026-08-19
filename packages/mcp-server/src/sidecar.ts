@@ -17,6 +17,7 @@ import { createGitRunner, type GitExec } from './gitRunner.js';
 import { createAppBridge } from './appBridge.js';
 import { createDesktopOpener } from './desktopOpener.js';
 import { encodeSidecarEvent, parseControlLine, splitControlLines } from './control.js';
+import { createLogSink, nodeLogFs, type LogFs } from './logSink.js';
 
 /** サイドカーが使う入出力。実行時は process.stdin / process.stdout を渡す。 */
 export interface SidecarIo {
@@ -38,6 +39,8 @@ export interface StartSidecarOptions {
   now?: () => number;
   /** `git` の実行部（テスト用に注入可能。既定は実際の子プロセス起動）。 */
   gitExec?: GitExec;
+  /** 作業ログの置き場（テスト用に注入可能。既定は実際のファイル）。 */
+  logFs?: LogFs;
 }
 
 export interface SidecarHandle {
@@ -58,6 +61,11 @@ export async function startSidecar(options: StartSidecarOptions): Promise<Sideca
   const store = new FileDocumentStore(options.root);
   // 画面操作の依頼は制御チャネルへ流し、親からの応答で解決する。
   const app = createAppBridge({ send: (event) => io.write(encodeSidecarEvent(event)) });
+  const toFile = createLogSink({
+    getRoot: () => store.getRoot(),
+    fs: options.logFs ?? nodeLogFs(),
+    warn: (message) => io.write(encodeSidecarEvent({ type: 'error', message })),
+  });
 
   const base = {
     store,
@@ -72,7 +80,11 @@ export async function startSidecar(options: StartSidecarOptions): Promise<Sideca
     // アプリは動いているが、開いているフォルダが違うことがある。フォルダごと切り替える
     // 判断はアプリ側にあるので、動いていても同じ口を通す。
     desktop: createDesktopOpener({ getRoot: () => store.getRoot() }),
-    onLog: (entry: ToolLogEntry) => io.write(encodeSidecarEvent(entry)),
+    // 画面へ流すのは今までどおり。残す側を足しただけで、閉じれば消える状態を無くす。
+    onLog: (entry: ToolLogEntry) => {
+      io.write(encodeSidecarEvent(entry));
+      toFile(entry);
+    },
   };
   // 前回と同じポートを希望しても、別のアプリに取られていることはある。そのときは
   // 起動を諦めず OS 割当へ落とす（接続先が変わるだけで、機能は失われない）。

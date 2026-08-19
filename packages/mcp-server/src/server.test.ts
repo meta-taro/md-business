@@ -115,6 +115,7 @@ describe('createServer / MCP 配線', () => {
       'list_schemas',
       'read_data',
       'read_document',
+      'read_har',
       'read_lines',
       'read_tsv',
       'save_evidence',
@@ -290,6 +291,51 @@ describe('createServer / MCP 配線', () => {
     expect(payload.ok).toBe(true);
     expect(payload.format).toBe('json');
     expect(payload.root.children.map((c) => c.name)).toEqual(['番号', '金額']);
+  });
+
+  // 通信の記録も同じく読む口だけ。伏せ字が境目で必ず効くことまで配線で確かめる。
+  it('read_har は概況と一覧を返し、秘密は伏せ字を通る', async () => {
+    const store = new MemoryDocumentStore();
+    await store.write(
+      'investigations/通信.har',
+      JSON.stringify({
+        log: {
+          version: '1.2',
+          creator: { name: 'WebInspector' },
+          entries: [
+            {
+              startedDateTime: '2026-08-11T10:00:00.000Z',
+              time: 120,
+              request: {
+                method: 'POST',
+                url: 'https://api.example.com/v1/login',
+                headers: [{ name: 'Authorization', value: 'Bearer eyJhbGciOiJIUzI1NiJ9.sig' }],
+                queryString: [],
+                cookies: [],
+              },
+              response: {
+                status: 500,
+                statusText: 'Internal Server Error',
+                headers: [],
+                cookies: [],
+                content: { mimeType: 'application/json', size: 16, text: '{"error":"boom"}' },
+              },
+            },
+          ],
+        },
+      }),
+    );
+    const client = await connect(store);
+    const res = (await client.callTool({
+      name: 'read_har',
+      arguments: { path: 'investigations/通信.har', index: 0, includeBody: true },
+    })) as CallToolResult;
+    const { text, isError } = parse(res);
+    expect(isError).toBe(false);
+    const payload = text as { ok: boolean; entry: { response: { status: number } } };
+    expect(payload.ok).toBe(true);
+    expect(payload.entry.response.status).toBe(500);
+    expect(JSON.stringify(payload)).not.toContain('eyJhbGciOiJIUzI1NiJ9');
   });
 
   it('read_data は at と depth を受け取り、部分木だけを返す', async () => {

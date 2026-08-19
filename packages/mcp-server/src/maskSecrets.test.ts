@@ -135,6 +135,22 @@ describe('maskRecord', () => {
     expect(r.counts.cookie).toBe(1);
   });
 
+  it('cookies の配列は名前が自由でも中の値を伏せる', () => {
+    // Cookie の名前は付ける側の自由なので、名前からは秘密だと判らない。
+    // 入れ物の名前で Cookie だと分かるほうを使う。名前は残すので何が付いていたかは読める。
+    const r = maskRecord({
+      request: {
+        cookies: [
+          { name: 'session', value: 'deadbeef' },
+          { name: 'theme', value: 'dark' },
+        ],
+      },
+    });
+    expect(JSON.stringify(r.value)).not.toContain('deadbeef');
+    expect(JSON.stringify(r.value)).toContain('session');
+    expect(r.counts.cookie).toBe(2);
+  });
+
   it('キーの名前で分かるものは種別を分ける', () => {
     const r = maskRecord({ api_key: 'ak_1', password: 'p@ss', access_token: 'tk_1' });
     expect(r.counts.apiKey).toBe(1);

@@ -16,6 +16,7 @@ import { FileDocumentStore } from './fileStore.js';
 import { createGitRunner } from './gitRunner.js';
 import { createDesktopOpener } from './desktopOpener.js';
 import { parseCliArgs, runInfoCommand } from './cli.js';
+import { createLogSink, nodeLogFs } from './logSink.js';
 
 async function main(): Promise<void> {
   const command = parseCliArgs(process.argv.slice(2));
@@ -39,6 +40,14 @@ async function main(): Promise<void> {
     git: createGitRunner(() => store.getRoot()),
     // 画面へ出す依頼は、アプリが動いていない状態から来ることの方が多い。
     desktop: createDesktopOpener({ getRoot: () => store.getRoot() }),
+    // アプリ抜きで起動したときも作業ログは残す。設定はワークスペースの中にあるので、
+    // どちらの起動でも同じ場所を読む。
+    onLog: createLogSink({
+      getRoot: () => store.getRoot(),
+      fs: nodeLogFs(),
+      warn: (message) => process.stderr.write(`[${SERVER_NAME}] ${message}
+`),
+    }),
   });
   const transport = new StdioServerTransport();
 

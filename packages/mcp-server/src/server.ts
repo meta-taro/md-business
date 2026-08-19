@@ -21,6 +21,7 @@ import type { UpdateDocumentInput } from './tools.js';
 import { readTsv, appendTsvRow, updateTsvRow } from './tsvTools.js';
 import { readData, type ReadDataOptions } from './dataTools.js';
 import { dataToTable, type DataToTableOptions } from './dataToTable.js';
+import { readHar, type ReadHarInput } from './harTools.js';
 import { searchLines, readLines, type SearchLinesInput, type ReadLinesInput } from './logTools.js';
 import { filterRecords, type FilterRecordsInput, type Condition } from './records.js';
 import { aggregate, type AggregateInput } from './aggregate.js';
@@ -80,6 +81,10 @@ export const SERVER_INSTRUCTIONS = `md-business は Markdown / TSV の業務文�
   中身を業務文書にするなら、読んだ内容をもとに create_document / append_tsv_row で作る。
   明細のような繰り返しを表として引用するなら **data_to_table** を使う。木から自前で
   表を組むと列の抜けや \`|\` による桁ずれが起きるが、壊れた表は読める形をしているので気づけない。
+- 通信の記録（\`.har\`）は **read_har** で読む。index を省けば概況（件数・時間の範囲・
+  ステータス別・ホスト別・遅い順）と一覧、index を指せばその 1 件の中身。
+  応答本文は既定で返らないので、要るときだけ \`includeBody\` を付ける。
+  「繋ぐと失敗する」の調べ物は、コードを読む前にここで失敗した往復を特定する。
 - ログ（\`.log\` / \`.jsonl\` など）は業務文書ではないが、**全文を読み込まない**。
   **search_lines** で当たりを付け、**read_lines** で周辺だけ読む。1 行 1 レコードの形
   （JSONL / TSV）なら **filter_records** で条件を付けて絞り、**aggregate** で
@@ -88,6 +93,10 @@ export const SERVER_INSTRUCTIONS = `md-business は Markdown / TSV の業務文�
   全文を開くと調べる前に文脈が埋まるうえ、
   Authorization / Cookie / token / メールアドレスが伏せ字を通らずに入る。
   これらのツールの戻り値は必ず伏せ字がかかり、上限で切ったときは切ったと返る。
+- **このサーバー自身の作業ログ**は \`.md-business/logs/<YYYY-MM-DD>.jsonl\` に 1 日 1 本で残る。
+  上のログ用ツールがそのまま使える（\`tool\` / \`ok\` / \`path\` / \`detail\` を持つ）。
+  時刻の \`ts\` は数値なので、時間帯や時系列にするときは \`epoch: "milliseconds"\` を添える。
+  「昨日どのファイルを触ったか」「どのツールが失敗したか」はここを見る。
 - 調べて取り出した中身のうち、報告書の根拠にするものは **save_evidence** で残す。
   返ってきた参照（\`evidence/EV-001.md\`）を所見から指す。会話の中だけに残した抜粋は、
   後から確かめられないので根拠にならない。
@@ -407,6 +416,63 @@ export function createServer(store: DocumentStore, options: CreateServerOptions 
       if (limit !== undefined) options.limit = limit;
       const r = await dataToTable(store, path, options);
       emit('data_to_table', path, r);
+      return jsonResult(r, !r.ok);
+    },
+  );
+
+  // 通信の記録も正本ではないので読む口だけ。切り口ごとにツールを分けず、
+  // 引数で「概況 → 1 件」の順に降りられるようにする。
+  server.registerTool(
+    'read_har',
+    {
+      description:
+        'HAR（通信の記録・DevTools や Charles などが書き出す）を読む。index を省くと概況（件数・時間の範囲・ステータス別・ホスト別・遅い順）と一覧を返し、index を指すとその 1 件の見出し・クエリ・Cookie・本文の形を返す。応答本文は既定では返さない（includeBody で取る）。Authorization / Cookie / token などは伏せ字を通り、伏せた件数が masked に返る。読むだけで、このツールでは書き換えられない。',
+      inputSchema: {
+        path: z.string().describe('ワークスペース相対パス（例 investigations/通信.har）'),
+        index: z
+          .number()
+          .int()
+          .optional()
+          .describe('中身を出す 1 件（一覧の index）。省略すると概況と一覧'),
+        includeBody: z
+          .boolean()
+          .optional()
+          .describe('応答・要求の本文を返すか（index を指したときだけ効く）。省略すると返さない'),
+        maxBodyLength: z.number().int().optional().describe('本文の長さの上限。省略時は 2000'),
+        status: z.number().int().optional().describe('このステータスだけ'),
+        statusMin: z.number().int().optional().describe('これ以上のステータスだけ（400 で失敗だけ）'),
+        statusMax: z.number().int().optional().describe('これ以下のステータスだけ'),
+        host: z.string().optional().describe('このホストだけ（大文字小文字を問わない）'),
+        urlContains: z.string().optional().describe('URL にこの文字列を含むものだけ'),
+        method: z.string().optional().describe('この手立てだけ（GET / POST。大文字小文字を問わない）'),
+        from: z.string().optional().describe('この時刻以降（ISO 8601）'),
+        to: z.string().optional().describe('この時刻以前（ISO 8601）'),
+        limit: z.number().int().optional().describe('一覧に返す件数。省略時は 50'),
+        offset: z.number().int().optional().describe('一覧の開始位置。省略時は 0'),
+      },
+    },
+    async (args) => {
+      const input: ReadHarInput = { path: args.path };
+      for (const key of [
+        'index',
+        'includeBody',
+        'maxBodyLength',
+        'status',
+        'statusMin',
+        'statusMax',
+        'host',
+        'urlContains',
+        'method',
+        'from',
+        'to',
+        'limit',
+        'offset',
+      ] as const) {
+        const value = args[key];
+        if (value !== undefined) Object.assign(input, { [key]: value });
+      }
+      const r = await readHar(store, input);
+      emit('read_har', args.path, r);
       return jsonResult(r, !r.ok);
     },
   );

@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { PassThrough } from 'node:stream';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
@@ -99,6 +99,22 @@ describe('startSidecar', () => {
 
     expect(handle.root()).toBe(resolve(other));
     expect(out.lines).toContainEqual({ type: 'root', root: resolve(other) });
+  });
+
+  it('ツール実行が作業ログとしてワークスペースに残る', async () => {
+    // 画面へ流すだけだと、アプリを閉じた時点で消える。後から追えることがこの経路の要件。
+    handle = await startSidecar({ root: workspace, token: 'tok', io: { input, write: out.write } });
+    const client = await connectMcp(handle.url, 'tok');
+    await client.callTool({ name: 'list_schemas', arguments: {} });
+
+    const at = new Date();
+    const day = `${at.getFullYear()}-${String(at.getMonth() + 1).padStart(2, '0')}-${String(
+      at.getDate(),
+    ).padStart(2, '0')}`;
+    const written = await readFile(join(workspace, '.md-business', 'logs', `${day}.jsonl`), 'utf8');
+    expect(JSON.parse(written.trimEnd().split('\n')[0] ?? '{}').tool).toBe('list_schemas');
+    // 触ったファイルのパスが業務文書のリポジトリへ毎回 diff として乗るのは困る。
+    expect(await readFile(join(workspace, '.md-business', '.gitignore'), 'utf8')).toContain('logs/');
   });
 
   it('壊れた制御行はエラー通知に留め、その後のコマンドを受け付け続ける', async () => {
