@@ -4,6 +4,17 @@ Changes to this app. Versions follow [Semantic Versioning](https://semver.org/).
 
 Japanese is the source of truth for this file; see [CHANGELOG.md](./CHANGELOG.md).
 
+## 0.14.0
+
+### Added
+
+- **A record of the work asked of the AI now stays in the folder.** It used to scroll past on screen while the app was open and vanish when it closed. There was no way to check afterwards what had been written to which file, so tracing "what changed in last week's work" meant inferring it from the commit history. The record accumulates inside the workspace, one line per entry, split by day, so the existing filtering and aggregation tools work on it as they are. Whether to keep it, how many days to hold, and whether to fold or drop what expires are decided per folder (the default keeps and folds).
+- **Network recordings (`.har`) can now be read.** Looking into "it works on screen but fails over the wire" starts with finding which exchange failed, and there was nothing in the app for that. The format written by browser developer tools and capture tools is read as-is. An overview comes first — count, time range, by status, by host, slowest — and one entry is then pointed at for its contents. Response bodies come back only when asked for; most of them are images and scripts and are no help to an investigation.
+
+### Fixed
+
+- **Cookie values inside a network recording no longer come back unredacted.** Cookies are named freely, so a rule that decides by the name let them through. When the container itself says these are cookies, every value inside is redacted; the names remain, so which cookies were attached can still be read.
+
 ## 0.13.0
 
 ### Added

@@ -143,6 +143,10 @@ const MAX_DEPTH = 32;
  *（HAR のヘッダ配列 `{"name":"Authorization","value":"..."}` が代表例。行として読むと
  * 名前の後ろは `,` なので規則が 1 つも発火しない）、構造を歩く側でも塞ぐ。
  * どちらか一方ではなく**両方**を通す。
+ *
+ * `cookies` の配列だけは、名前の側から種別が分からない（`session` `sid` など付け方が自由）。
+ * 入れ物の名前で Cookie だと分かるので、中の値はすべて伏せる。名前は残るので
+ * 「どの Cookie が付いていたか」は読める。
  */
 export function maskRecord(value: unknown): MaskRecordResult {
   const counts: Partial<Record<SecretKind, number>> = {};
@@ -154,22 +158,22 @@ export function maskRecord(value: unknown): MaskRecordResult {
     }
   };
 
-  const walk = (node: unknown, depth: number): unknown => {
+  const walk = (node: unknown, depth: number, inCookies: boolean): unknown => {
     if (typeof node === 'string') {
       const masked = maskSecrets(node);
       addFrom(masked.counts);
       return masked.text;
     }
     if (node === null || typeof node !== 'object') return node;
-    if (depth >= MAX_DEPTH) return walk(JSON.stringify(node) ?? '', MAX_DEPTH);
-    if (Array.isArray(node)) return node.map((item) => walk(item, depth + 1));
+    if (depth >= MAX_DEPTH) return walk(JSON.stringify(node) ?? '', MAX_DEPTH, false);
+    if (Array.isArray(node)) return node.map((item) => walk(item, depth + 1, inCookies));
 
     const entries = Object.entries(node as Record<string, unknown>);
     // 名前が値の位置にいる組（`{name, value}`）。HAR のヘッダ・クエリ・Cookie 配列がこの形。
     const nameField = (node as Record<string, unknown>)['name'];
     const pairKind =
       typeof nameField === 'string' && 'value' in (node as Record<string, unknown>)
-        ? classifyName(nameField)
+        ? (classifyName(nameField) ?? (inCookies ? 'cookie' : undefined))
         : undefined;
 
     const out: Record<string, unknown> = {};
@@ -180,12 +184,12 @@ export function maskRecord(value: unknown): MaskRecordResult {
         out[key] = MASK;
         continue;
       }
-      out[key] = walk(child, depth + 1);
+      out[key] = walk(child, depth + 1, key.toLowerCase() === 'cookies');
     }
     return out;
   };
 
-  return { value: walk(value, 0), counts };
+  return { value: walk(value, 0, false), counts };
 }
 
 /**
