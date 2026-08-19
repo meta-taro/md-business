@@ -46,7 +46,15 @@ import {
 } from './recentFolders';
 import { isImagePath } from './imageFile';
 import { imageDoc, openedDoc, seedDoc, type DocState, type DocTab, type OpenImage } from './docState';
-import { findByPath } from './tabs';
+import {
+  MAX_TABS,
+  evictionTarget,
+  findByPath,
+  keepExistingTabs,
+  nextActiveId,
+  survivingActiveId,
+  withoutTab,
+} from './tabs';
 import { resolveOpenTarget } from './openTarget';
 import { parseShareLink, resolveShareFolder, type ShareCandidate } from './shareLink';
 
@@ -168,29 +176,85 @@ class WorkspaceStore {
     return tab !== null && tab.conflict ? { relPath: tab.relPath } : null;
   }
 
+  /** タブ帯に出す並び。画面が要るのは名前と、未保存かどうかと、どれが手前かだけ。 */
+  get openTabs(): { id: string; relPath: string; dirty: boolean; active: boolean }[] {
+    return this.tabs.map((t) => ({
+      id: t.id,
+      relPath: t.relPath,
+      dirty: t.source !== t.savedSource,
+      active: t.id === this.activeId,
+    }));
+  }
+
   /**
-   * 読み込んだ中身を手前のタブへ入れる。開いていなければ 1 枚作る。
-   * 「別のタブで開く」はこの版では持たないので、選び直しは今までどおり置き換えになる。
+   * 読み込んだ中身をタブへ入れる。同じファイルが開いていればそれを読み直し、
+   * 無ければ 1 枚増やす。どちらでも手前に出す。
    */
   private placeDoc(relPath: string, doc: DocState): void {
     this.tabSeq += 1;
-    const at = this.tabs.findIndex((t) => t.id === this.activeId);
-    if (at < 0) {
-      const id = `tab-${this.tabSeq}`;
-      this.tabs = [...this.tabs, { id, relPath, touchSeq: this.tabSeq, ...doc }];
-      this.activeId = id;
+    const existing = findByPath(this.tabs, relPath);
+    if (existing !== null) {
+      Object.assign(existing, doc, { touchSeq: this.tabSeq });
+      this.activeId = existing.id;
     } else {
-      const { id } = this.tabs[at];
-      this.tabs[at] = { id, relPath, touchSeq: this.tabSeq, ...doc };
+      const id = `tab-${this.tabSeq}`;
+      this.tabs.push({ id, relPath, touchSeq: this.tabSeq, ...doc });
+      this.activeId = id;
     }
     this.loadSeq += 1;
   }
 
-  /** 開いているものを全部閉じて雛形へ戻す。本文は残す（フォルダを開き直しただけのため）。 */
-  private closeAllTabs(): void {
-    this.scratch = { ...this.doc, image: null, savedAt: null, saving: false, conflict: false };
-    this.tabs = [];
-    this.activeId = null;
+  /**
+   * 上限に当たっていたら、最後に触ってから一番経ったタブを閉じて 1 枚ぶん空ける。
+   * 手前のタブは対象にしない（見ているものが消えることになる）。
+   */
+  private async makeRoom(): Promise<void> {
+    const id = evictionTarget(this.tabs, MAX_TABS, this.activeId);
+    if (id !== null) await this.closeTab(id);
+  }
+
+  /**
+   * タブを閉じる。未保存なら黙って捨てず、先に書いてから閉じる。書けなければ閉じない
+   * （閉じてしまうと、書けなかったことを直す先が画面から消える）。
+   */
+  async closeTab(id: string): Promise<void> {
+    const tab = this.tabs.find((t) => t.id === id);
+    if (tab === undefined) return;
+    if (tab.source !== tab.savedSource && !(await this.writeTab(tab))) return;
+    this.activeId = nextActiveId(this.tabs, id, this.activeId);
+    this.tabs = withoutTab(this.tabs, id);
+    this.persistView();
+  }
+
+  /** タブを手前に出す。中身は読み直さない（そのタブの編集をそのまま見せる）。 */
+  selectTab(id: string): void {
+    if (this.activeId === id) return;
+    const tab = this.tabs.find((t) => t.id === id);
+    if (tab === undefined) return;
+    this.tabSeq += 1;
+    tab.touchSeq = this.tabSeq;
+    this.activeId = id;
+    // 開いたときと同じ扱いにする。プレビューは loadSeq を見て即座に描き替える。
+    this.loadSeq += 1;
+    this.persistView();
+  }
+
+  /**
+   * 走査結果にタブを合わせる。
+   * 別のフォルダへ移ったときは全部閉じる（本文だけ残す＝フォルダを開き直しただけの見え方）。
+   * 同じフォルダの取り直しなら、消えたファイルのタブだけ閉じて、ほかは開いたままにする。
+   */
+  private syncTabs(sameRoot: boolean): void {
+    if (!sameRoot) {
+      this.scratch = { ...this.doc, image: null, savedAt: null, saving: false, conflict: false };
+      this.tabs = [];
+      this.activeId = null;
+      return;
+    }
+    const kept = keepExistingTabs(this.tabs, new Set(this.allFilePaths()));
+    if (kept.length === this.tabs.length) return;
+    this.tabs = kept;
+    this.activeId = survivingActiveId(kept, this.activeId);
   }
   /**
    * 共有リンクで開いたときの但し書き（失敗ではないが、頼まれたとおりではない場合）。
@@ -507,7 +571,7 @@ class WorkspaceStore {
       this.expanded = new Set(
         restoreExpanded(keep, collectFolderPaths(tree), initialExpandedPaths(tree)),
       );
-      this.closeAllTabs();
+      this.syncTabs(sameRoot);
       // フォルダを開き直したら前フォルダの差分表示は無効。通常プレビューへ戻す。
       diffView.reset();
       // 時系列も同じ。前フォルダのログ一覧と結果を残すと、開き直した先のものに見える。
@@ -674,6 +738,8 @@ class WorkspaceStore {
   /** ファイルを読み込み source に反映する。失敗時はエラー表示のみで前回内容を保持する。 */
   async select(relPath: string): Promise<void> {
     if (this.root === null) return;
+    // 既に開いているものを選び直したときは増えないので、空ける必要も無い。
+    if (findByPath(this.tabs, relPath) === null) await this.makeRoom();
     if (isImagePath(relPath)) {
       await this.selectImage(relPath);
       return;
@@ -742,13 +808,22 @@ class WorkspaceStore {
   }
 
   /**
-   * 編集中 source を開いているファイルへ書き戻す。ファイル未オープン時・保存中は no-op。
-   * 保存する内容は呼び出し時点で固定し、成功時に savedSource をそのスナップショットへ
-   * 同期する（保存中にタイプが進んでも取りこぼさない）。失敗時はエラー表示のみ。
+   * 手前のタブをディスクへ書き戻す。ファイル未オープン時は no-op。
    */
   async save(): Promise<void> {
     const tab = this.activeTab;
-    if (this.root === null || tab === null || tab.saving) return;
+    if (tab !== null) await this.writeTab(tab);
+  }
+
+  /**
+   * タブ 1 枚の中身をディスクへ書く。書けたら true、失敗したらエラーを出して false。
+   * 保存中は no-op。書く内容は呼び出し時点で固定し、成功時に savedSource をその
+   * スナップショットへ同期する（保存中にタイプが進んでも取りこぼさない）。
+   *
+   * 受け取るのは手前のタブとは限らない（上限に当たって閉じるタブも、ここを通って書く）。
+   */
+  private async writeTab(tab: DocTab): Promise<boolean> {
+    if (this.root === null || tab.saving) return false;
     const { relPath } = tab;
     const snapshot = tab.source;
     tab.saving = true;
@@ -764,8 +839,10 @@ class WorkspaceStore {
       // ブラウザ表示にも反映する。自分の保存は監視イベントとして戻ってこない（エコー
       // 抑制）ので、ここで知らせないとアプリ内の編集だけ反映されないことになる。
       browserPreview.onFileChanged(relPath);
+      return true;
     } catch (e) {
       this.error = errorMessage(e);
+      return false;
     } finally {
       tab.saving = false;
     }

@@ -68,3 +68,24 @@ export function nextActiveId(
 export function withoutTab<T extends TabRef>(tabs: readonly T[], id: string): T[] {
   return tabs.filter((t) => t.id !== id);
 }
+
+/**
+ * 走査結果に残っているファイルのタブだけを残す。並びは変えない。
+ * 外部で消された・改名されたファイルのタブは、開いたままにすると保存先が無い。
+ */
+export function keepExistingTabs<T extends TabRef>(
+  tabs: readonly T[],
+  filePaths: ReadonlySet<string>,
+): T[] {
+  return tabs.filter((t) => filePaths.has(t.relPath));
+}
+
+/**
+ * 整理したあと、どのタブを手前に出すか。
+ * 手前だったタブが残っていればそのまま。消えていたら最後のタブへ移る（1 枚も無ければ null）。
+ */
+export function survivingActiveId(tabs: readonly TabRef[], activeId: string | null): string | null {
+  if (activeId === null) return null;
+  if (tabs.some((t) => t.id === activeId)) return activeId;
+  return tabs.at(-1)?.id ?? null;
+}

@@ -56,6 +56,7 @@
   import { diffView } from '$lib/git/diffView.svelte';
   import { timelineView } from '$lib/logs/timelineView.svelte';
   import TimelineView from '$lib/components/TimelineView.svelte';
+  import TabBar from '$lib/components/TabBar.svelte';
   import DiffView from '$lib/components/DiffView.svelte';
   import SearchBar from '$lib/search/SearchBar.svelte';
   import { search } from '$lib/search/search.svelte';
@@ -794,6 +795,7 @@
 <svelte:window onkeydown={onWindowKey} />
 
 <div class="page-root">
+<TabBar />
 {#if workspace.externalConflict}
   <!-- 開いているファイルが外部（AI/CLI/他エディタ）で変更されたが、未保存編集があるため
        自動再読込しない。どちらを採るかはユーザーが選ぶ。 -->

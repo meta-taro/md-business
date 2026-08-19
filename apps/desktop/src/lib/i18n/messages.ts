@@ -341,6 +341,9 @@ export interface Messages {
   'page.conflictChanged': string;
   'page.conflictReload': string;
   'page.conflictKeep': string;
+  'page.tabsLabel': string;
+  'page.tabClose': string;
+  'page.tabUnsaved': string;
   'page.editorHead': string;
   'page.editorPaneLabel': string;
   'page.previewPaneLabel': string;
@@ -804,6 +807,9 @@ const en: Messages = {
   'page.conflictChanged': 'This file was changed externally',
   'page.conflictReload': 'Reload (discard edits)',
   'page.conflictKeep': 'Keep edits',
+  'page.tabsLabel': 'Open documents',
+  'page.tabClose': 'Close',
+  'page.tabUnsaved': 'Unsaved',
   'page.editorHead': 'Editor — Markdown',
   'page.editorPaneLabel': 'Markdown editor',
   'page.previewPaneLabel': 'Viewer (preview)',
@@ -1262,6 +1268,9 @@ const ja: Messages = {
   'page.conflictChanged': '外部でこのファイルが変更されました',
   'page.conflictReload': '再読込（編集を破棄）',
   'page.conflictKeep': '編集を残す',
+  'page.tabsLabel': '開いている文書',
+  'page.tabClose': '閉じる',
+  'page.tabUnsaved': '未保存',
   'page.editorHead': 'エディター — Markdown',
   'page.editorPaneLabel': 'Markdown エディター',
   'page.previewPaneLabel': 'ビューワー（プレビュー）',
@@ -1715,6 +1724,9 @@ const zh: Messages = {
   'page.conflictChanged': '此文件已被外部更改',
   'page.conflictReload': '重新加载（放弃编辑）',
   'page.conflictKeep': '保留编辑',
+  'page.tabsLabel': '打开的文档',
+  'page.tabClose': '关闭',
+  'page.tabUnsaved': '未保存',
   'page.editorHead': '编辑器 — Markdown',
   'page.editorPaneLabel': 'Markdown 编辑器',
   'page.previewPaneLabel': '查看器（预览）',
@@ -2171,6 +2183,9 @@ const ko: Messages = {
   'page.conflictChanged': '이 파일이 외부에서 변경되었습니다',
   'page.conflictReload': '다시 불러오기 (편집 삭제)',
   'page.conflictKeep': '편집 유지',
+  'page.tabsLabel': '열려 있는 문서',
+  'page.tabClose': '닫기',
+  'page.tabUnsaved': '저장 안 됨',
   'page.editorHead': '편집기 — Markdown',
   'page.editorPaneLabel': 'Markdown 편집기',
   'page.previewPaneLabel': '뷰어 (미리보기)',

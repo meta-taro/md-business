@@ -1,5 +1,14 @@
 import { describe, it, expect } from 'vitest';
-import { MAX_TABS, findByPath, evictionTarget, nextActiveId, withoutTab, type TabRef } from './tabs';
+import {
+  MAX_TABS,
+  evictionTarget,
+  findByPath,
+  keepExistingTabs,
+  nextActiveId,
+  survivingActiveId,
+  withoutTab,
+  type TabRef,
+} from './tabs';
 
 const tabs = (...specs: string[]): TabRef[] =>
   specs.map((spec, i) => {
@@ -74,5 +83,39 @@ describe('withoutTab', () => {
 describe('MAX_TABS', () => {
   it('帯に並べられる枚数を上限とする', () => {
     expect(MAX_TABS).toBe(12);
+  });
+});
+
+describe('keepExistingTabs', () => {
+  it('走査結果に無いファイルのタブを落とす', () => {
+    const kept = keepExistingTabs(tabs('a', 'b', 'c'), new Set(['a.md', 'c.md']));
+    expect(kept.map((t) => t.id)).toEqual(['a', 'c']);
+  });
+
+  it('全部残るときは並びも変わらない', () => {
+    const before = tabs('a', 'b');
+    expect(keepExistingTabs(before, new Set(['a.md', 'b.md']))).toEqual(before);
+  });
+
+  it('1 つも残らなければ空になる', () => {
+    expect(keepExistingTabs(tabs('a'), new Set())).toEqual([]);
+  });
+});
+
+describe('survivingActiveId', () => {
+  it('手前のタブが残っていればそのまま', () => {
+    expect(survivingActiveId(tabs('a', 'b'), 'b')).toBe('b');
+  });
+
+  it('手前のタブが消えたら最後のタブへ移る', () => {
+    expect(survivingActiveId(tabs('a', 'b'), 'c')).toBe('b');
+  });
+
+  it('1 つも残っていなければ何も開いていない状態へ戻す', () => {
+    expect(survivingActiveId([], 'a')).toBeNull();
+  });
+
+  it('もともと何も開いていなければ null のまま', () => {
+    expect(survivingActiveId(tabs('a'), null)).toBeNull();
   });
 });

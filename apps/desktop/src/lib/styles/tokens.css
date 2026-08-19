@@ -125,6 +125,7 @@
   /* ── レイアウト寸法（DESIGN §6 のワイヤーフレーム） ─────────── */
   --topbar-h: 44px;
   --statusbar-h: 32px;
+  --tabbar-h: 34px; /* 12 枚並べて 1 枚 100px を切らない高さ */
   --filetree-w: 260px; /* 220–300px の中央 */
   --sidepanel-w: 320px; /* 300–400px */
   --pane-min: 360px;
