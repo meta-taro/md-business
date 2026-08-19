@@ -40,6 +40,12 @@ const WRITABLE_EXTS: [&str; 2] = ["md", "tsv"];
 /// 読めるが書けない——書き込みは `WRITABLE_EXTS` が別に塞ぐ。
 /// ファイル監視（watch_logic）でも同じ対象範囲を共有する。
 pub(crate) const ALLOWED_EXTS: [&str; 4] = ["md", "tsv", "json", "xml"];
+/// ツリーに出す画像の種類（小文字比較）。
+///
+/// 画像は**読むだけ**で、書き込みの対象（`WRITABLE_EXTS`）には入れない。
+/// 掃除（`sanitizeHtml.ts`）が `data:image/…` として通す並びと揃えてある。揃っていないと、
+/// ツリーには出るのに画面へ出ない種類ができる。
+pub(crate) const IMAGE_EXTS: [&str; 6] = ["png", "jpg", "jpeg", "gif", "webp", "svg"];
 /// ディレクトリのネスト上限（設計書 §3.2）。超過分は打ち切り truncated=true。
 const MAX_DEPTH: usize = 12;
 /// 収集ファイル数の上限（設計書 §3.2）。超過分は打ち切り truncated=true。
@@ -108,6 +114,33 @@ fn allowed_ext(path: &Path) -> Option<String> {
 /// 書き込んでよい拡張子か。参考データ（`.json` / `.xml`）はここで落ちる。
 fn is_writable_ext(path: &Path) -> bool {
     lower_ext(path).is_some_and(|e| WRITABLE_EXTS.contains(&e.as_str()))
+}
+
+/// ツリーに出す拡張子か（文書 ＋ 画像）。走査・監視・外から開く口で同じ範囲を使う。
+pub(crate) fn is_tree_ext(ext: &str) -> bool {
+    ALLOWED_EXTS.contains(&ext) || IMAGE_EXTS.contains(&ext)
+}
+
+/// パスの拡張子がツリーの対象なら小文字化して返す。対象外・拡張子なしは None。
+fn tree_ext(path: &Path) -> Option<String> {
+    lower_ext(path).filter(|e| is_tree_ext(e.as_str()))
+}
+
+/// ルート配下の既存**画像**を解決する（画像読み取りの入口ゲート）。
+///
+/// 文書用の [`resolve_in_root`] とは別に持つ。あちらは書き込みと UTF-8 読み取りの入口でも
+/// あるので、画像を通すとバイト列が文字列として扱われる経路ができる。
+pub(crate) fn resolve_image_in_root(root: &Path, rel_path: &str) -> Result<PathBuf, String> {
+    let canon_root = std::fs::canonicalize(root).map_err(|e| format!("ルート解決失敗: {}", e))?;
+    let canon = std::fs::canonicalize(root.join(rel_path))
+        .map_err(|e| format!("ファイル解決失敗: {}", e))?;
+    if !canon.starts_with(&canon_root) {
+        return Err("ルート外へのアクセスは拒否されます".to_string());
+    }
+    match lower_ext(&canon) {
+        Some(ext) if IMAGE_EXTS.contains(&ext.as_str()) => Ok(canon),
+        _ => Err("画像として開けるのは png / jpg / gif / webp / svg のみです".to_string()),
+    }
 }
 
 /// ルート配下の既存ファイルを解決する（読み取り系コマンドの入口ゲート）。
@@ -230,7 +263,7 @@ fn walk(
             }
             walk(root, &path, depth + 1, out, truncated, budget)?;
         } else if child.is_file {
-            if let Some(ext) = allowed_ext(&path) {
+            if let Some(ext) = tree_ext(&path) {
                 let rel = path
                     .strip_prefix(root)
                     .map_err(|e| format!("相対パス化失敗: {}", e))?;
@@ -664,10 +697,62 @@ mod tests {
         root.file("a.md", "# a");
         root.file("b.tsv", "x\ty");
         root.file("c.txt", "ignore");
-        root.file("d.png", "ignore");
+        root.file("d.exe", "ignore");
         let result = scan_documents_impl(&root.path).expect("走査成功");
         assert_eq!(rel_paths(&result), vec!["a.md", "b.tsv"]);
         assert!(!result.truncated);
+    }
+
+    #[test]
+    fn scan_画像も収集する() {
+        // 経費のレシートは文書の隣に置かれる。ツリーに出ないと、金額を書き写す相手が
+        // 画面に出せない。
+        let root = TempRoot::new("scan_img");
+        root.file("receipts/a.png", "x");
+        root.file("receipts/b.JPG", "x");
+        root.file("receipts/c.jpeg", "x");
+        root.file("receipts/d.gif", "x");
+        root.file("receipts/e.webp", "x");
+        root.file("receipts/f.svg", "x");
+        let result = scan_documents_impl(&root.path).expect("走査成功");
+        assert_eq!(
+            rel_paths(&result),
+            vec![
+                "receipts/a.png",
+                "receipts/b.JPG",
+                "receipts/c.jpeg",
+                "receipts/d.gif",
+                "receipts/e.webp",
+                "receipts/f.svg",
+            ]
+        );
+    }
+
+    #[test]
+    fn resolve_in_root_は画像を通さない() {
+        // 文書用の入口。ここを画像へ広げると read_document がバイト列を UTF-8 として
+        // 読もうとするし、書き込みの入口も同じ関数を通っている。
+        let root = TempRoot::new("resolve_img_gate");
+        root.file("a.png", "x");
+        assert!(resolve_in_root(&root.path, "a.png").is_err());
+    }
+
+    #[test]
+    fn resolve_image_in_root_は画像だけ通す() {
+        let root = TempRoot::new("resolve_img");
+        root.file("a.png", "x");
+        root.file("b.md", "x");
+        assert!(resolve_image_in_root(&root.path, "a.png").is_ok());
+        assert!(resolve_image_in_root(&root.path, "b.md").is_err());
+    }
+
+    #[test]
+    fn resolve_image_in_root_はルート外を拒む() {
+        let root = TempRoot::new("resolve_img_escape");
+        let outside = root.path.parent().expect("親").join("mdbiz_outside.png");
+        std::fs::write(&outside, "x").expect("外に置く");
+        assert!(resolve_image_in_root(&root.path, "../mdbiz_outside.png").is_err());
+        let _ = std::fs::remove_file(&outside);
     }
 
     #[test]

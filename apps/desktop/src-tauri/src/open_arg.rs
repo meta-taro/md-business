@@ -38,7 +38,7 @@ pub fn parse_open_arg(argv: &[String]) -> Option<String> {
 /// 引数には関係のない文字列が混ざりうる。存在しないものを通すと、画面が今開いている
 /// フォルダを見当違いの場所へ切り替えてしまう（利用者から見ると勝手に閉じたように映る）。
 ///
-/// 種類を画面と同じ範囲（`ALLOWED_EXTS`）へ絞るのは、この経路が外から任意のパスで
+/// 種類を画面と同じ範囲（`workspace::is_tree_ext`）へ絞るのは、この経路が外から任意のパスで
 /// 叩けるため。今は関連付けを登録していないので実行ファイルを渡しても実行はされないが、
 /// 「開けないものを開こうとして画面が別の場所を向く」ところまでは起こせる。
 fn accept(raw: &str) -> Option<String> {
@@ -47,7 +47,7 @@ fn accept(raw: &str) -> Option<String> {
         return None;
     }
     let ext = path.extension()?.to_string_lossy().to_lowercase();
-    if !crate::workspace::ALLOWED_EXTS.contains(&ext.as_str()) {
+    if !crate::workspace::is_tree_ext(ext.as_str()) {
         return None;
     }
     Some(path.to_string_lossy().into_owned())
@@ -183,6 +183,13 @@ mod tests {
     #[test]
     fn 拡張子の大小は問わない() {
         let path = temp_file("UPPER.TSV");
+        assert!(accept(&path.to_string_lossy()).is_some());
+        let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
+    fn 画像も受け取る() {
+        let path = temp_file("shot.png");
         assert!(accept(&path.to_string_lossy()).is_some());
         let _ = std::fs::remove_file(&path);
     }

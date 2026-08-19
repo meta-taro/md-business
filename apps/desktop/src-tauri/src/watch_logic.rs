@@ -8,7 +8,7 @@ use serde::Serialize;
 use std::path::{Component, Path, PathBuf};
 use std::time::{Duration, Instant};
 
-use crate::workspace::{is_excluded_dir, ALLOWED_EXTS};
+use crate::workspace::{is_excluded_dir, is_tree_ext};
 
 /// notify のイベント種別を、判断に必要な粒度へ畳んだもの。
 /// 配線層（lib.rs）が `notify::EventKind` からこの値へ写像して渡す。
@@ -46,7 +46,7 @@ pub enum FileChangeKind {
 
 /// 監視イベントを、フロントへ通知する [`FileChange`] 群へ分類する。
 ///
-/// - 対象拡張子（`workspace::ALLOWED_EXTS`）以外、除外ディレクトリ（`.git` / `node_modules` /
+/// - ツリーに出す拡張子（`workspace::is_tree_ext`）以外、除外ディレクトリ（`.git` / `node_modules` /
 ///   `dist` / `build`）配下、root 外のパスは捨てる。
 /// - 作成 / 削除 / リネームは `rescan`、内容変更は `modified` に写す。
 /// - `Other` は空 Vec（何も通知しない）。
@@ -84,7 +84,7 @@ fn rel_under_root(path: &Path, root: &Path) -> Option<String> {
         .and_then(|e| e.to_str())
         .map(|e| e.to_ascii_lowercase());
     match ext {
-        Some(e) if ALLOWED_EXTS.contains(&e.as_str()) => {}
+        Some(e) if is_tree_ext(e.as_str()) => {}
         _ => return None,
     }
     Some(rel.to_string_lossy().replace('\\', "/"))
@@ -172,7 +172,7 @@ mod tests {
     #[test]
     fn md_tsv以外の拡張子は捨てる() {
         assert!(classify_event(RawEvent::Modified, &[join("a.txt")], &root()).is_empty());
-        assert!(classify_event(RawEvent::Created, &[join("img.png")], &root()).is_empty());
+        assert!(classify_event(RawEvent::Created, &[join("a.exe")], &root()).is_empty());
         // 拡張子なし（ディレクトリ等）も捨てる。
         assert!(classify_event(RawEvent::Created, &[join("subdir")], &root()).is_empty());
     }
@@ -181,6 +181,16 @@ mod tests {
     fn 参考データのjson_xmlも通知する() {
         for rel in ["a.json", "docs/b.xml"] {
             let changes = classify_event(RawEvent::Modified, &[join(rel)], &root());
+            assert_eq!(changes.len(), 1, "rel={}", rel);
+            assert_eq!(changes[0].rel_path, rel);
+        }
+    }
+
+    #[test]
+    fn 画像の増減も通知する() {
+        // ツリーに出る種類はここでも拾う。片方だけだと、写真を足しても一覧が追いつかない。
+        for rel in ["receipts/a.png", "receipts/b.JPG", "c.svg"] {
+            let changes = classify_event(RawEvent::Created, &[join(rel)], &root());
             assert_eq!(changes.len(), 1, "rel={}", rel);
             assert_eq!(changes[0].rel_path, rel);
         }

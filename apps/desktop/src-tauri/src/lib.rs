@@ -5,6 +5,8 @@ mod capture_win;
 mod deep_link;
 mod fileinfo;
 mod git;
+mod image;
+pub mod image_logic;
 mod logscan;
 mod mcp;
 mod mcp_logic;
@@ -86,6 +88,7 @@ pub fn run() {
             workspace::export_html,
             workspace::export_site,
             capture::export_image,
+            image::read_image,
             watch::watch_workspace,
             watch::unwatch_workspace,
             git::git_status,

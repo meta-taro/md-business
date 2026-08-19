@@ -373,6 +373,13 @@ export interface Messages {
   'data.doctype': string;
   'data.entity': string;
   'data.unsupported': string;
+  // 画像の表示（書き出しの image.* とは別）
+  'imageView.head': string;
+  'imageView.readOnly': string;
+  'imageView.fit': string;
+  'imageView.actual': string;
+  'imageView.fitTitle': string;
+  'imageView.actualTitle': string;
   'frontmatter.failed': string;
   'frontmatter.atLine': string;
   'frontmatter.indentation': string;
@@ -828,6 +835,12 @@ const en: Messages = {
     'Files with a document type declaration (DTD) are not opened, because reading one can pull in other files and expand a small file into a very large one.',
   'data.entity': 'Files that reference an externally defined entity are not opened.',
   'data.unsupported': 'This view opens .json and .xml files.',
+  'imageView.head': 'Image',
+  'imageView.readOnly': 'Read-only',
+  'imageView.fit': 'Fit',
+  'imageView.actual': 'Actual size',
+  'imageView.fitTitle': 'Fit the whole image in the pane',
+  'imageView.actualTitle': 'Show the image at its actual size',
   'frontmatter.failed': 'Could not read the frontmatter. {detail}',
   'frontmatter.atLine': 'Line {line}: {detail}',
   'frontmatter.indentation': 'the indentation does not line up with the lines above.',
@@ -1279,6 +1292,12 @@ const ja: Messages = {
     '文書型宣言（DTD）を含むファイルは開きません。読み込むと、ほかのファイルを引き込んだり、小さなファイルが巨大に展開されたりするためです。',
   'data.entity': '外部で定義された実体参照を含むファイルは開きません。',
   'data.unsupported': 'この画面で開けるのは .json と .xml です。',
+  'imageView.head': '画像',
+  'imageView.readOnly': '読み取り専用',
+  'imageView.fit': '全体',
+  'imageView.actual': '原寸',
+  'imageView.fitTitle': '画面に合わせて全体を出す',
+  'imageView.actualTitle': '原寸で出す',
   'frontmatter.failed': 'frontmatter を読み取れませんでした。{detail}',
   'frontmatter.atLine': '{line} 行目: {detail}',
   'frontmatter.indentation': '行頭の字下げが、上の行とそろっていません。',
@@ -1725,6 +1744,12 @@ const zh: Messages = {
     '不打开含文档类型声明（DTD）的文件，因为读取它可能引入其他文件，并使小文件展开为极大的内容。',
   'data.entity': '不打开引用了外部定义实体的文件。',
   'data.unsupported': '此视图可打开 .json 与 .xml。',
+  'imageView.head': '图片',
+  'imageView.readOnly': '只读',
+  'imageView.fit': '适应窗口',
+  'imageView.actual': '原始尺寸',
+  'imageView.fitTitle': '缩放到窗口内显示整幅图片',
+  'imageView.actualTitle': '按原始尺寸显示',
   'frontmatter.failed': '无法读取 frontmatter。{detail}',
   'frontmatter.atLine': '第 {line} 行：{detail}',
   'frontmatter.indentation': '行首缩进与上面几行没有对齐。',
@@ -2174,6 +2199,12 @@ const ko: Messages = {
     '문서 형식 선언(DTD)이 있는 파일은 열지 않습니다. 읽어들이면 다른 파일을 끌어오거나 작은 파일이 거대하게 부풀 수 있기 때문입니다.',
   'data.entity': '외부에서 정의된 엔터티 참조가 있는 파일은 열지 않습니다.',
   'data.unsupported': '이 화면에서 열 수 있는 것은 .json 과 .xml 입니다.',
+  'imageView.head': '이미지',
+  'imageView.readOnly': '읽기 전용',
+  'imageView.fit': '전체',
+  'imageView.actual': '원본 크기',
+  'imageView.fitTitle': '화면에 맞춰 전체를 표시',
+  'imageView.actualTitle': '원본 크기로 표시',
   'frontmatter.failed': 'frontmatter를 읽을 수 없습니다. {detail}',
   'frontmatter.atLine': '{line}번째 줄: {detail}',
   'frontmatter.indentation': '줄 앞 들여쓰기가 위 줄과 맞지 않습니다.',
