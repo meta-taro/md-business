@@ -59,7 +59,12 @@ class SiteExportController {
         return;
       }
 
-      const written = await invoke<SiteWriteResult>('export_site', { root, files: plan.files });
+      // 画像は中身を渡さず「どれをどこへ」だけを渡す。読むのも置くのも Rust 側。
+      const written = await invoke<SiteWriteResult>('export_site', {
+        root,
+        files: plan.files,
+        assets: plan.assets,
+      });
       this.#notify({
         kind: 'done',
         dir: written.dir,

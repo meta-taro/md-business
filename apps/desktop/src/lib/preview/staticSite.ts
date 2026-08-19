@@ -10,9 +10,11 @@
  *   - 文書どうしの `.md` リンクを `.html` へ書き換える（サイト内で行き先が切れないように）
  *   - 一覧ページ（index.html）を作る
  *
- * 画像は扱わない。プレビューは `https:` と `data:` の画像しか通さないため
- * （sanitizeHtml.ts）、ローカル画像は元から描かれておらず、運ぶべき実体が無い。
+ * ローカル画像は出ない。プレビューと単一 HTML は、描く前に本文の画像を data URL へ
+ * 置き換えている（inlineImages）。ここは中身を渡されるだけの純関数で読み込む口を持たず、
+ * まとめて出す以上「実体を `assets/` へ運ぶか、各ページへ埋めるか」の判断も別に要る。
  */
+import { collectImageRefs, inlineImages, resolveImagePath } from '../image/inlineImages';
 import { renderPreview } from './renderPreview';
 import { buildPreviewDocument } from './previewDocument';
 import { MARKDOWN_STYLE } from './providers/markdownFallback';
@@ -31,6 +33,14 @@ export interface SiteFile {
   content: string;
 }
 
+/** 一緒に運ぶ画像。中身はここでは読まない（書き込む側が元の場所から写す）。 */
+export interface SiteAsset {
+  /** ワークスペース相対の元の場所。 */
+  src: string;
+  /** サイトのルートから見た置き場。 */
+  dest: string;
+}
+
 /** 出さなかった文書と、その理由。数だけ数えて黙らせない。 */
 export interface SiteSkip {
   path: string;
@@ -42,6 +52,8 @@ export interface SitePlan {
   files: SiteFile[];
   /** 生成したページのパス（サイト相対）。 */
   pages: string[];
+  /** ページが指している画像。ファイルとして運ぶ（ページには埋め込まない）。 */
+  assets: SiteAsset[];
   skipped: SiteSkip[];
 }
 
@@ -52,6 +64,14 @@ export interface BuildStaticSiteOptions {
 
 const MD_EXT = /\.md$/i;
 const HREF = /href="([^"]*)"/g;
+const SRC = /src="([^"]*)"/g;
+/** サイトの中の画像置き場。 */
+const IMAGE_DIR = 'assets/img';
+/**
+ * 描く前に画像へ差しておく道。掃除（sanitizeHtml）は `src` の相対パスを落とすが、
+ * `/` で始まるものは通す。描き終えてから、そのページの深さに合わせた道へ付け替える。
+ */
+const IMAGE_MARK = '/__image/';
 /** `scheme:` で始まる（= 外部 URL）。相対パスとして解決してはいけない。 */
 const HAS_SCHEME = /^[a-z][a-z0-9+.-]*:/i;
 
@@ -133,6 +153,30 @@ function rewriteLinks(html: string, fromPath: string, pages: ReadonlySet<string>
   });
 }
 
+/** 描く前に差した目印を、そのページから画像置き場までの道へ付け替える。 */
+function rewriteImages(html: string, fromPath: string): string {
+  return html.replace(SRC, (whole, raw: string) =>
+    raw.startsWith(IMAGE_MARK)
+      ? `src="${upToRoot(fromPath)}${IMAGE_DIR}/${raw.slice(IMAGE_MARK.length)}"`
+      : whole,
+  );
+}
+
+/**
+ * 文書が指している画像を、運ぶ先の目印へ差し替える。
+ * 解決できないもの（フォルダの外・外部）はそのまま置く（掃除の段で落ちる）。
+ */
+function markImages(doc: SiteSource, assets: Map<string, SiteAsset>): string {
+  const marks = new Map<string, string>();
+  for (const image of collectImageRefs(doc.source)) {
+    const target = resolveImagePath(doc.path, image.ref);
+    if (target === null) continue;
+    assets.set(target, { src: target, dest: `${IMAGE_DIR}/${target}` });
+    marks.set(image.raw, `${IMAGE_MARK}${encodeURI(target)}`);
+  }
+  return inlineImages(doc.source, marks);
+}
+
 interface RenderedPage {
   /** 元の `.md` のパス。 */
   source: string;
@@ -173,6 +217,8 @@ export async function buildStaticSite(
 
   const rendered: RenderedPage[] = [];
   const skipped: SiteSkip[] = [];
+  /** 運ぶ画像。同じ画像を複数の文書が指しても 1 つにまとめる。 */
+  const assets = new Map<string, SiteAsset>();
   /** 書式 ID → CSS。同じ書式のページは 1 本を共有する。 */
   const styles = new Map<string, string>();
 
@@ -184,7 +230,7 @@ export async function buildStaticSite(
     const path = toHtmlPath(doc.path);
     // 1 枚ずつ順に待つ。スキーマの描画一式は初回だけ読み込まれ、以降は使い回されるので、
     // 同じ書式が続くフォルダでは待ちが増えない。
-    const result = await renderPreview(doc.source, {
+    const result = await renderPreview(markImages(doc, assets), {
       // 書き出しは常に明るい配色・ショートカット無し（単一 HTML 書き出しと同じ理由）。
       theme: 'light',
       shortcuts: false,
@@ -201,7 +247,7 @@ export async function buildStaticSite(
   const pagePaths = new Set(rendered.map((page) => page.path));
   const files: SiteFile[] = rendered.map((page) => ({
     path: page.path,
-    content: rewriteLinks(page.html, page.path, pagePaths),
+    content: rewriteImages(rewriteLinks(page.html, page.path, pagePaths), page.path),
   }));
 
   // 利用者が自分で index.md を置いているなら、そちらが一覧より意図に近い。
@@ -217,5 +263,10 @@ export async function buildStaticSite(
     files.push({ path: `assets/${id}.css`, content: css });
   }
 
-  return { files, pages: rendered.map((page) => page.path), skipped };
+  return {
+    files,
+    pages: rendered.map((page) => page.path),
+    assets: [...assets.values()],
+    skipped,
+  };
 }

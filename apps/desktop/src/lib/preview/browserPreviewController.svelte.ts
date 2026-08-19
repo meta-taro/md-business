@@ -61,7 +61,12 @@ class BrowserPreviewController {
         this.#notify({ kind: 'none' });
         return;
       }
-      const info = await invoke<PreviewServerInfo>('start_preview_server', { files: plan.files });
+      // 画像は覚えさせず、開いているフォルダのどれを指すかだけ渡す（Rust 側が要求のたびに読む）。
+      const info = await invoke<PreviewServerInfo>('start_preview_server', {
+        root,
+        files: plan.files,
+        assets: plan.assets,
+      });
       this.serving = info;
       this.#servingRoot = root;
       this.#clearNotice();
@@ -130,7 +135,7 @@ class BrowserPreviewController {
         // 組んでいる間に畳まれていたら、Rust 側は何もしない（立っていない間の
         // 作り直しは無視される）。ここで止める必要はない。
         if (plan.pages.length === 0) continue;
-        await invoke('update_preview_server', { files: plan.files });
+        await invoke('update_preview_server', { root, files: plan.files, assets: plan.assets });
       } while (this.#queued);
     } catch (e) {
       this.#notify({ kind: 'error', message: e instanceof Error ? e.message : String(e) });

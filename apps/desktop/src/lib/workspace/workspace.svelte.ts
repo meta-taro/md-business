@@ -44,8 +44,23 @@ import {
   restoreRecentFolders,
   serializeRecentFolders,
 } from './recentFolders';
+import { isImagePath } from './imageFile';
 import { resolveOpenTarget } from './openTarget';
 import { parseShareLink, resolveShareFolder, type ShareCandidate } from './shareLink';
+
+/**
+ * いま開いている画像。文書と違って本文を持たない（読むだけで、書き戻す先が無い）。
+ */
+export interface OpenImage {
+  /** ルートからの相対パス。 */
+  relPath: string;
+  /** `<img src>` にそのまま入る形。 */
+  dataUrl: string;
+  /** `image/png` など。拡張子だけから決まる。 */
+  mime: string;
+  /** ファイルの大きさ（バイト）。 */
+  byteSize: number;
+}
 
 /** Rust `git_identity` の戻り（serde camelCase）。 */
 interface GitIdentity {
@@ -105,6 +120,14 @@ class WorkspaceStore {
   savedAt = $state<Date | null>(null);
   /** 走査が深さ / 件数上限で打ち切られたか（警告表示用）。 */
   truncated = $state<boolean>(false);
+
+  /**
+   * いま開いている画像。文書を開いているとき・何も開いていないときは null。
+   *
+   * 画像と本文はどちらか一方しか立たない。両方持つと、画像を出しながら前の文書を
+   * 保存できてしまう（開いているファイルと書き込む先が食い違う）。
+   */
+  image = $state<OpenImage | null>(null);
   /**
    * 共有リンクで開いたときの但し書き（失敗ではないが、頼まれたとおりではない場合）。
    * 枝の食い違いがこれにあたる。リンクで枝を切り替えることはしないので、
@@ -421,6 +444,7 @@ class WorkspaceStore {
         restoreExpanded(keep, collectFolderPaths(tree), initialExpandedPaths(tree)),
       );
       this.activePath = null;
+      this.image = null;
       // フォルダを開き直したら前フォルダの差分表示は無効。通常プレビューへ戻す。
       diffView.reset();
       // 時系列も同じ。前フォルダのログ一覧と結果を残すと、開き直した先のものに見える。
@@ -584,8 +608,13 @@ class WorkspaceStore {
   /** ファイルを読み込み source に反映する。失敗時はエラー表示のみで前回内容を保持する。 */
   async select(relPath: string): Promise<void> {
     if (this.root === null) return;
+    if (isImagePath(relPath)) {
+      await this.selectImage(relPath);
+      return;
+    }
     try {
       const content = await invoke<string>('read_document', { root: this.root, relPath });
+      this.image = null;
       this.source = content;
       this.savedSource = content; // 開いた直後は未編集（dirty=false）
       this.activePath = relPath;
@@ -594,6 +623,27 @@ class WorkspaceStore {
       this.loadSeq += 1;
       this.error = null;
       // 次にこのフォルダを開いたとき、同じファイルから再開できるようにする。
+      this.persistView();
+    } catch (e) {
+      this.error = errorMessage(e);
+    }
+  }
+
+  /**
+   * 画像を開く。読むだけなので本文は空にし、未保存差分が立たないようにする
+   * （保存も書き出しも、押せる状態にならない）。
+   */
+  private async selectImage(relPath: string): Promise<void> {
+    if (this.root === null) return;
+    try {
+      const data = await invoke<Omit<OpenImage, 'relPath'>>('read_image', { root: this.root, relPath });
+      this.image = { relPath, ...data };
+      this.source = '';
+      this.savedSource = '';
+      this.activePath = relPath;
+      this.savedAt = null;
+      this.loadSeq += 1;
+      this.error = null;
       this.persistView();
     } catch (e) {
       this.error = errorMessage(e);

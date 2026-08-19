@@ -34,6 +34,11 @@
   import { invoke } from '@tauri-apps/api/core';
   import TsvGrid from '$lib/tsv/TsvGrid.svelte';
   import DataTreeView from '$lib/data/DataTreeView.svelte';
+  import ImageView from '$lib/image/ImageView.svelte';
+  import { imageKindLabel, nextFitMode, type ImageFitMode } from '$lib/image/imageView';
+  import { inlineImages } from '$lib/image/inlineImages';
+  import { loadInlineImages, type InlineImageFailure } from '$lib/image/loadInlineImages';
+  import { formatSize } from '$lib/components/fileInfo';
   import { isDataFile, readDataDocument } from '$lib/data/dataDocument';
   import { perf } from '$lib/diagnostics/perf.svelte';
   import {
@@ -298,11 +303,50 @@
   // 描画が非同期なのは、スキーマごとの検証器を「開いた文書のぶんだけ」読むため。
   // 打つたびに走るので、先に始めた描画が後から返ることがある。世代を数えて、
   // 最後に始めたものの結果だけを採る（古い結果で今の本文を上書きしない）。
+  // 本文が指している画像（`![](./領収書.png)`）を読み、描く前に data URL へ置き換える。
+  // プレビューは中身を持たない枠なので、相対パスのままでは届かない。
+  // 一度読んだものは同じ文書を開いている間だけ覚えておく（打つたびに読み直さない）。
+  const imageCache = new Map<string, string>();
+  let imageCacheKey = '';
+  let inlineUrls = $state<ReadonlyMap<string, string>>(new Map());
+  let inlineFailures = $state<InlineImageFailure[]>([]);
+  let inlineGeneration = 0;
+  $effect(() => {
+    const root = workspace.root;
+    const relPath = workspace.activePath;
+    const source = debouncedSource;
+    if (root === null || relPath === null || !shouldRenderPreview(paneState)) {
+      inlineUrls = new Map();
+      inlineFailures = [];
+      return;
+    }
+    const key = `${root}\n${relPath}`;
+    if (key !== imageCacheKey) {
+      imageCache.clear();
+      imageCacheKey = key;
+    }
+    const generation = ++inlineGeneration;
+    void loadInlineImages(source, relPath, async (path) => {
+      const cached = imageCache.get(path);
+      if (cached !== undefined) return cached;
+      const image = await invoke<{ dataUrl: string }>('read_image', { root, relPath: path });
+      imageCache.set(path, image.dataUrl);
+      return image.dataUrl;
+    }).then((result) => {
+      if (generation !== inlineGeneration) return;
+      inlineUrls = result.urls;
+      inlineFailures = result.failures;
+    });
+  });
+
+  // 描くのは画像を埋めた本文。読めたものが 1 つも無ければ元の本文がそのまま返る。
+  const previewSource = $derived(inlineImages(debouncedSource, inlineUrls));
+
   let preview = $state<PreviewResult | null>(null);
   let previewGeneration = 0;
   $effect(() => {
     const render = previewRenderer.render;
-    const source = debouncedSource;
+    const source = previewSource;
     const theme = themeController.value;
     // 組み立て一式は一度読み込むと面を切り替えても残る。残っているだけで組み直しが動くと、
     // 検証グリッドで 1 文字打つたびに誰も見ない HTML を本文全体から組み直すことになる。
@@ -491,13 +535,28 @@
   const dataPath = $derived(isDataFile(workspace.activePath) ? workspace.activePath : null);
   const dataDoc = $derived(dataPath === null ? null : readDataDocument(dataPath, debouncedSource));
 
+  // 画像は文書ではないので本文を持たない。開いている間は編集も書き出しも起きない
+  // （プレビューを出さない＝[PDF] / [HTML] / [画像] の活性条件が立たない）。
+  const openImage = $derived(workspace.image);
+  const imageKind = $derived(openImage === null ? '' : imageKindLabel(openImage.mime));
+  let imageFit = $state<ImageFitMode>('fit');
+  let imageNatural = $state<{ width: number; height: number } | null>(null);
+  // 別の画像へ移ったら見せ方と実寸を捨てる。前の画像の設定と数字が、大きさの違う
+  // 次の画像にそのまま効く／そのまま出るのを防ぐ。
+  $effect(() => {
+    openImage?.relPath;
+    imageFit = 'fit';
+    imageNatural = null;
+  });
+
   // 右ペインがいま何を出しているか。マークアップの分岐（時系列 → 差分 → 参考データ
-  // → 検証グリッド → プレビュー）と同じ条件で持つ。
+  // → 画像 → 検証グリッド → プレビュー）と同じ条件で持つ。
   const paneState = $derived({
     timeline: timelineView.active,
     diff: diffView.active,
     data: dataDoc !== null,
     grid: isTsv && tsvDoc !== null,
+    image: openImage !== null,
   });
 
   // schema / Markdown ビューワー描画中だけ [PDF] を活性化する。TSV 編集グリッドは
@@ -757,6 +816,7 @@
   class="split"
   class:dragging
   class:grid-full={isTsv && !!tsvDoc && gridFullscreen && !diffView.active && !timelineView.active}
+  class:image-full={openImage !== null && !diffView.active && !timelineView.active}
   bind:this={splitEl}
   style="--split-cols: {dividerColumns(splitRatio)}"
 >
@@ -818,6 +878,31 @@
         <span class="chip">{t('data.readOnly')}</span>
       </div>
       <DataTreeView doc={dataDoc} />
+    {:else if openImage}
+      <!-- 画像。読むだけで、書き戻す先も、書き出す中身も無い。 -->
+      <div class="pane-head image-head">
+        <span>{t('imageView.head')}</span>
+        {#if imageKind !== ''}<span class="chip fmt">{imageKind}</span>{/if}
+        <span class="chip">{formatSize(openImage.byteSize)}</span>
+        {#if imageNatural}
+          <span class="chip">{imageNatural.width} × {imageNatural.height}</span>
+        {/if}
+        <span class="chip">{t('imageView.readOnly')}</span>
+        <button
+          type="button"
+          class="head-btn"
+          onclick={() => (imageFit = nextFitMode(imageFit))}
+          aria-pressed={imageFit === 'actual'}
+          title={imageFit === 'fit' ? t('imageView.actualTitle') : t('imageView.fitTitle')}
+        >
+          {imageFit === 'fit' ? t('imageView.actual') : t('imageView.fit')}
+        </button>
+      </div>
+      <ImageView
+        image={openImage}
+        fit={imageFit}
+        onMeasure={(size) => (imageNatural = size)}
+      />
     {:else if isTsv && tsvDoc}
       <div class="pane-head grid-head">
         <span>{t('page.gridHead')}</span>
@@ -875,13 +960,19 @@
           onload={onPreviewLoad}
         ></iframe>
       </div>
-      {#if preview.errors.length > 0 || preview.warnings.length > 0}
+      {#if preview.errors.length > 0 || preview.warnings.length > 0 || inlineFailures.length > 0}
         <div class="notices" role="status">
           {#each preview.errors as err (err)}
             <span class="notice err">{err}</span>
           {/each}
           {#each preview.warnings as warn (warn)}
             <span class="notice warn">{warn}</span>
+          {/each}
+          <!-- 読めなかった画像。出ない理由が分からないと、書いた側は本文を疑い続ける。 -->
+          {#each inlineFailures as failure (failure.ref)}
+            <span class="notice warn">
+              {t('imageView.inlineFailed', { ref: failure.ref, message: failure.message })}
+            </span>
           {/each}
         </div>
       {/if}
@@ -976,12 +1067,15 @@
 
   /* 検証グリッド全画面（DESIGN §5.8/§6）。エディター + ディバイダを畳み、グリッド（右ペイン）
      を単一カラムで全幅表示する。条件が外れれば class が落ち自動で分割へ戻る。 */
-  .split.grid-full {
+  .split.grid-full,
+  .split.image-full {
     grid-template-columns: minmax(0, 1fr);
   }
 
   .split.grid-full .pane.editor,
-  .split.grid-full .divider {
+  .split.grid-full .divider,
+  .split.image-full .pane.editor,
+  .split.image-full .divider {
     display: none;
   }
 
@@ -1048,6 +1142,15 @@
   /* 参考データのペインヘッダは、見出しの右に形式と「読み取り専用」を並べる。 */
   .data-head {
     gap: var(--space-2);
+  }
+
+  /* 画像のペインヘッダは、見出しの右に種類と大きさを並べ、見せ方の切り替えを右端へ寄せる。 */
+  .image-head {
+    gap: var(--space-2);
+  }
+
+  .image-head .head-btn {
+    margin-left: auto;
   }
 
   .chip {

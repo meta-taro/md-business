@@ -1,7 +1,7 @@
 /**
  * プレビューを組み直すかどうかの判定。
  *
- * 右ペインは 5 つの見せ方を入れ替えて使う（時系列・差分・参考データ・検証グリッド・プレビュー）。
+ * 右ペインは 6 つの見せ方を入れ替えて使う（時系列・差分・参考データ・検証グリッド・画像・プレビュー）。
  * プレビューは本文全体を HTML へ組み直して作るため、出していないときに組み直すと
  * 丸ごと捨てるだけの作業になる。判定を画面側の条件式に散らすと並び順ひとつで戻るので、
  * ここへ出して固定する。
@@ -17,11 +17,13 @@ export interface PaneState {
   grid: boolean;
   /** 時系列を出している。 */
   timeline: boolean;
+  /** 画像を出している。 */
+  image: boolean;
 }
 
 /** プレビューが画面に出るか。ほかの見せ方が 1 つでも出ていれば出ない。 */
 export function previewVisible(pane: PaneState): boolean {
-  return !pane.diff && !pane.data && !pane.grid && !pane.timeline;
+  return !pane.diff && !pane.data && !pane.grid && !pane.timeline && !pane.image;
 }
 
 /**

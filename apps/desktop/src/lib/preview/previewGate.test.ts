@@ -7,7 +7,7 @@ import {
 } from './previewGate';
 
 function pane(over: Partial<PaneState> = {}): PaneState {
-  return { diff: false, data: false, grid: false, timeline: false, ...over };
+  return { diff: false, data: false, grid: false, timeline: false, image: false, ...over };
 }
 
 describe('previewVisible', () => {
@@ -20,6 +20,14 @@ describe('previewVisible', () => {
     expect(previewVisible(pane({ data: true }))).toBe(false);
     expect(previewVisible(pane({ grid: true }))).toBe(false);
     expect(previewVisible(pane({ timeline: true }))).toBe(false);
+    expect(previewVisible(pane({ image: true }))).toBe(false);
+  });
+
+  it('画像を開いている間はプレビューを出さない', () => {
+    // 画像には本文が無い。出すと、前に開いていた文書の中身が
+    // そのまま残っているように見えるし、そのまま PDF へも出せてしまう。
+    expect(previewReady(pane({ image: true }), () => true)).toBe(false);
+    expect(shouldRenderPreview(pane({ image: true }))).toBe(false);
   });
 });
 
@@ -42,7 +50,13 @@ describe('previewReady', () => {
 });
 
 describe('出していない間は組み直さない', () => {
-  const shown: PaneState = { diff: false, data: false, grid: false, timeline: false };
+  const shown: PaneState = {
+    diff: false,
+    data: false,
+    grid: false,
+    timeline: false,
+    image: false,
+  };
 
   it('プレビューを出していれば組み直す', () => {
     expect(shouldRenderPreview(shown)).toBe(true);

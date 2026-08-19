@@ -48,7 +48,16 @@ class HtmlExportController {
     // 組み立てはプレビューと同じ描画一式を使う。起動時に読ませないよう、
     // ボタンが押されたここで読み込む（[HTML] を押さない起動では読まれない）。
     const { buildExportHtml } = await import('./htmlExport');
-    const html = await buildExportHtml(workspace.source);
+    // 本文が指している画像は、書き出した 1 枚の HTML の中に入れる。
+    // 相対パスのまま出すと、HTML だけ渡された相手には画像が届かない。
+    // 読めなかったものは元の記法のまま残る（書き出し自体は止めない）。
+    const { loadInlineImages } = await import('$lib/image/loadInlineImages');
+    const { inlineImages } = await import('$lib/image/inlineImages');
+    const { urls } = await loadInlineImages(workspace.source, relPath, async (path) => {
+      const image = await invoke<{ dataUrl: string }>('read_image', { root, relPath: path });
+      return image.dataUrl;
+    });
+    const html = await buildExportHtml(inlineImages(workspace.source, urls));
     // canExport を満たしていれば通常ここには来ない（プレビューが出ている＝組める）。
     if (html === null) return;
 
