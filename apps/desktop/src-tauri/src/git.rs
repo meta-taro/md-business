@@ -897,12 +897,12 @@ pub fn git_log_impl(
 /// フロントから `invoke("git_log", { root, relPath, limit })` で呼ぶラッパ。
 /// `relPath` 省略でリポジトリ全体、`limit` 省略で既定件数。
 #[tauri::command]
-pub fn git_log(
+pub async fn git_log(
     root: String,
     rel_path: Option<String>,
     limit: Option<u32>,
 ) -> Result<Vec<GitLogEntry>, String> {
-    git_log_impl(Path::new(&root), rel_path.as_deref(), limit)
+    spawn_git(move || git_log_impl(Path::new(&root), rel_path.as_deref(), limit)).await
 }
 
 /// 既定ブランチ名の設定が無いときに使う名前。
@@ -946,8 +946,8 @@ pub fn git_init_impl(root: &Path) -> Result<GitStatus, String> {
 /// フロントから `invoke("git_init", { root })` で呼ぶラッパ。
 /// 成功で最新ステータス、失敗（既にリポジトリ・フォルダ無し・git 未導入）は Err(メッセージ)。
 #[tauri::command]
-pub fn git_init(root: String) -> Result<GitStatus, String> {
-    git_init_impl(Path::new(&root))
+pub async fn git_init(root: String) -> Result<GitStatus, String> {
+    spawn_git(move || git_init_impl(Path::new(&root))).await
 }
 
 #[cfg(test)]
