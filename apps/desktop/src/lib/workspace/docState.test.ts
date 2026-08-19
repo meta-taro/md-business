@@ -53,3 +53,13 @@ describe('imageDoc', () => {
     expect(imageDoc(img).image).toBe(img);
   });
 });
+
+describe('グリッドの見ていた位置', () => {
+  it('開いた直後は覚えていない', () => {
+    expect(openedDoc('a\tb').grid).toBeNull();
+  });
+
+  it('画像で開いたときも覚えていない', () => {
+    expect(imageDoc(image('a.png')).grid).toBeNull();
+  });
+});

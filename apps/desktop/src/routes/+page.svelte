@@ -919,8 +919,13 @@
         </button>
       </div>
       <div class="grid-wrap">
+        <!-- 列幅・行高・折り返しは文書ごとの指定なので、タブが変わったら器ごと作り直す。
+             使い回すと前の文書の見た目のまま次の文書が出る。 -->
+        {#key workspace.activeTabId}
         <TsvGrid
           doc={tsvDoc}
+          view={workspace.gridView}
+          onViewChange={(v) => workspace.setGridView(v)}
           onChange={handleGridChange}
           onUndo={handleGridUndo}
           onRedo={handleGridRedo}
@@ -935,6 +940,7 @@
           {blameOn}
           onToggleBlame={() => (blameOn = !blameOn)}
         />
+        {/key}
       </div>
     {:else}
     <div class="pane-head preview-head">

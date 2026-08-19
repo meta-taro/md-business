@@ -7,6 +7,7 @@
  * 組み立ての場所ごとに起きるため。
  */
 
+import type { GridView } from '$lib/tsv/gridView';
 import type { TabRef } from './tabs';
 
 /**
@@ -35,6 +36,11 @@ export interface DocState {
   /** 画像を開いているならその中身。文書なら null。 */
   image: OpenImage | null;
   /**
+   * 検証シートを開いているとき、どのセルを選んでどこまでスクロールしていたか。
+   * これを覚えないと、タブを戻るたび先頭へ飛んで実質使えない。
+   */
+  grid: GridView | null;
+  /**
    * 外部（AI/CLI/他エディタ）で変わったが、こちらに未保存編集があって自動再読込
    * できない状態。文書ごとに立つので、別のタブを見ている間も消えない。
    */
@@ -52,6 +58,7 @@ export function seedDoc(seed: string): DocState {
     savedAt: null,
     saving: false,
     image: null,
+    grid: null,
     conflict: false,
   };
 }

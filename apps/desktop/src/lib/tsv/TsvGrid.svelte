@@ -50,6 +50,7 @@
     setRowHeight,
   } from './gridRowLayout';
   import { rowWindow, scrollToRow } from './gridWindow';
+  import { clampView, type GridView } from './gridView';
   import { effectiveRowHeights, mergeMeasuredHeights } from './gridRowMeasure';
   import type { MeasuredSample } from './gridRowMeasure';
   import {
@@ -169,6 +170,13 @@
     blameOn?: boolean;
     /** 履歴表示の切り替えを親へ通知（省略時は切り替えボタンを出さない）。 */
     onToggleBlame?: () => void;
+    /**
+     * 前にこの文書を見ていたときの選択位置とスクロール量。**組み立て時に 1 度だけ**読む。
+     * あとから追うと、人が動かした先へ古い位置が割り込む。
+     */
+    view?: GridView | null;
+    /** 選択位置とスクロール量が変わったことを親へ返す（文書ごとに控えてもらう）。 */
+    onViewChange?: (view: GridView) => void;
   }
 
   let {
@@ -186,7 +194,13 @@
     blame = new Map(),
     blameOn = false,
     onToggleBlame,
+    view = null,
+    onViewChange,
   }: Props = $props();
+
+  // 前に見ていた位置。組み立て時に 1 度だけ読み、今の表の大きさへ収める。
+  // 別のタブを見ている間に行が削られていることがあるので、そのまま使わない。
+  const restored = untrack(() => clampView(view, doc.rows.length, doc.columns.length));
 
   /**
    * その行を最後に変えたのが誰でいつか、の 1 行。履歴が無い行は undefined。
@@ -385,7 +399,7 @@
   // ── 行の間引き。見えている範囲だけを DOM へ出す。
   //    表は 1 セル確定するたびに組み直されるので、全行を出していると行数に比例して
   //    確定が重くなる（2,000 行で 1 回 0.5 秒超）。窓の計算は gridWindow の純ロジック。 ──
-  let scrollTop = $state(0);
+  let scrollTop = $state(restored?.scrollTop ?? 0);
   let viewportHeight = $state(0);
   // 表示領域を測れるのは 1 フレーム後。それまでに描く高さの当て（画面に出るぶんは
   // 足りる大きさ）。測れたら実測へ置き換わる。
@@ -457,6 +471,28 @@
   function onGridScroll(): void {
     if (gridEl) scrollTop = gridEl.scrollTop;
   }
+
+  // 表が組み上がってから 1 度だけスクロール量を戻す。器ができる前には書けない。
+  let scrollRestored = false;
+  $effect(() => {
+    if (scrollRestored || restored === null || !gridEl) return;
+    scrollRestored = true;
+    gridEl.scrollTop = restored.scrollTop;
+  });
+
+  // 見ていた位置を親へ返す。ここは読むだけで、返した値が戻ってくることはない
+  // （`view` は組み立て時にしか読まないため、往復して人の操作を巻き戻すことがない）。
+  $effect(() => {
+    const { anchor, focus } = selection;
+    const top = scrollTop;
+    onViewChange?.({
+      anchorRow: anchor.row,
+      anchorCol: anchor.col,
+      focusRow: focus.row,
+      focusCol: focus.col,
+      scrollTop: top,
+    });
+  });
 
   /** 窓の外にある行を表示領域へ入れる（間引き中は DOM に無いので焦点を当てられない）。 */
   function revealRow(row: number): void {
@@ -801,7 +837,14 @@
 
   // 選択範囲（anchor＝起点固定・focus＝伸長先＝アクティブセル）と現在モード。
   // 単一セル選択は anchor === focus。Shift+矢印 / Shift+クリックで矩形に広げる。
-  let selection = $state<CellRange>({ anchor: { row: 0, col: 0 }, focus: { row: 0, col: 0 } });
+  let selection = $state<CellRange>(
+    restored === null
+      ? { anchor: { row: 0, col: 0 }, focus: { row: 0, col: 0 } }
+      : {
+          anchor: { row: restored.anchorRow, col: restored.anchorCol },
+          focus: { row: restored.focusRow, col: restored.focusCol },
+        },
+  );
   // アクティブセル＝範囲の focus 角（input 化・フォーカス・行操作の対象はここ）。
   const activeCell = $derived(selection.focus);
   let mode = $state<GridMode>('nav');

@@ -45,6 +45,7 @@ import {
   serializeRecentFolders,
 } from './recentFolders';
 import { isImagePath } from './imageFile';
+import type { GridView } from '$lib/tsv/gridView';
 import { imageDoc, openedDoc, seedDoc, type DocState, type DocTab, type OpenImage } from './docState';
 import {
   MAX_TABS,
@@ -162,6 +163,28 @@ class WorkspaceStore {
    */
   get image(): OpenImage | null {
     return this.doc.image;
+  }
+
+  /**
+   * いま手前のタブでグリッドのどこを見ていたか。開き直したときの復元にだけ使う。
+   */
+  get gridView(): GridView | null {
+    return this.doc.grid;
+  }
+
+  /** グリッド側から見ていた位置を預かる。文書ごとに持つので、タブを戻ると同じ場所へ戻る。 */
+  setGridView(view: GridView): void {
+    this.doc.grid = view;
+  }
+
+  /**
+   * 手前のタブの識別子。グリッドを作り直す単位に使う。
+   *
+   * 列幅・行高・折り返しの指定は文書ごとに違うので、同じ器を使い回すと前の文書の
+   * 見た目のまま次の文書が出る。
+   */
+  get activeTabId(): string | null {
+    return this.activeId;
   }
 
   /**
