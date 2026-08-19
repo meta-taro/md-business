@@ -10,6 +10,8 @@
  * 絶対パス化（workspaceRoot への join）は fs レイヤーの責務。
  */
 
+import { unusableSegmentReason } from '@md-business/core';
+
 /** 正規化に成功した相対パス（ワークスペース内で完結）。 */
 export interface SafePathOk {
   ok: true;
@@ -33,31 +35,11 @@ function isAbsoluteLike(input: string): boolean {
 }
 
 /**
- * Windows の予約デバイス名。拡張子を付けても予約のまま扱われる。
- * ワークスペース外へ抜ける経路ではないが、これらの名前で作った文書は
- * エクスプローラや多くのエディタから開けず削除もしづらいので受け付けない。
- */
-const RESERVED_DEVICE_NAMES = new Set([
-  'con',
-  'prn',
-  'aux',
-  'nul',
-  ...Array.from({ length: 10 }, (_, i) => `com${i}`),
-  ...Array.from({ length: 10 }, (_, i) => `lpt${i}`),
-]);
-
-/** 1 セグメントが予約デバイス名か（`CON` / `con.md` はいずれも該当・`console.md` は非該当）。 */
-function isReservedDeviceName(segment: string): boolean {
-  const stem = segment.split('.')[0] ?? '';
-  return RESERVED_DEVICE_NAMES.has(stem.toLowerCase());
-}
-
-/**
  * 相対パスをワークスペース内で完結する正規相対パスへ整える。
  * - 区切りは `/`（バックスラッシュも受理して正規化）。
  * - `.` と空セグメントは除去、`..` は 1 段戻す（ルートを越えるなら拒否）。
  * - 空 / 空白のみ / 絶対パス / UNC / 全部畳むと空になる入力は拒否。
- * - コロンを含むセグメント・予約デバイス名は拒否（下の各コメント参照）。
+ * - コロンを含むセグメント・予約デバイス名は拒否（理由は unusableSegmentReason 側にある）。
  *
  * 判定は OS を見ずに常に同じにする。ワークスペースが OS をまたいで持ち運ばれても、
  * 片方でしか開けない文書を作らないため。
@@ -81,12 +63,11 @@ export function safeRelativePath(requested: string): SafePathResult {
       stack.pop();
       continue;
     }
-    // NTFS の代替データストリーム（`a.md:x`）。書き込みは通るが、内容は本体ファイルの
-    // 裏側へ入りファイル一覧には現れない＝アプリから見えない文書ができてしまう。
-    if (segment.includes(':')) {
+    const unusable = unusableSegmentReason(segment);
+    if (unusable === 'stream-separator') {
       return { ok: false, reason: `コロンを含む名前は指定できません: ${segment}` };
     }
-    if (isReservedDeviceName(segment)) {
+    if (unusable === 'reserved-device-name') {
       return { ok: false, reason: `この名前は使えません（予約された名前です）: ${segment}` };
     }
     stack.push(segment);

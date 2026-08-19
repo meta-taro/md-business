@@ -747,6 +747,58 @@ describe('createServer / export_pdf ツール', () => {
   });
 });
 
+describe('createServer / open_in_app', () => {
+  function fakeOpener(result: { ok: true; path: string } | { ok: false; error: string }) {
+    const opened: string[] = [];
+    return {
+      opened,
+      open: async (relativePath: string) => {
+        opened.push(relativePath);
+        return result;
+      },
+    };
+  }
+
+  async function connectWithDesktop(desktop: ReturnType<typeof fakeOpener>): Promise<Client> {
+    const server = createServer(new MemoryDocumentStore(), { desktop });
+    const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+    const client = new Client({ name: 'test-client', version: '0.0.0' });
+    await Promise.all([client.connect(clientTransport), server.connect(serverTransport)]);
+    return client;
+  }
+
+  it('起こす口が無ければ公開しない', async () => {
+    const client = await connect(new MemoryDocumentStore());
+    const { tools } = await client.listTools();
+    expect(tools.map((t) => t.name)).not.toContain('open_in_app');
+  });
+
+  it('アプリを起こして対象を開く', async () => {
+    const desktop = fakeOpener({ ok: true, path: 'docs/test-specs/001-login.tsv' });
+    const client = await connectWithDesktop(desktop);
+    const res = (await client.callTool({
+      name: 'open_in_app',
+      arguments: { path: 'docs/test-specs/001-login.tsv' },
+    })) as CallToolResult;
+    const { text, isError } = parse(res);
+    expect(isError).toBe(false);
+    expect(text).toMatchObject({ ok: true, path: 'docs/test-specs/001-login.tsv' });
+    expect(desktop.opened).toEqual(['docs/test-specs/001-login.tsv']);
+  });
+
+  it('起こせなかった理由はそのまま返す', async () => {
+    const desktop = fakeOpener({ ok: false, error: '実行ファイルが見つかりませんでした' });
+    const client = await connectWithDesktop(desktop);
+    const res = (await client.callTool({
+      name: 'open_in_app',
+      arguments: { path: 'a.tsv' },
+    })) as CallToolResult;
+    const { text, isError } = parse(res);
+    expect(isError).toBe(true);
+    expect(text).toMatchObject({ ok: false });
+  });
+});
+
 describe('createServer / onLog フック', () => {
   it('成功ツールは ok=true・path 付きのログを 1 件発火する', async () => {
     const { client, logs } = await connectWithLog(new MemoryDocumentStore());

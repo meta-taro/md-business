@@ -19,6 +19,8 @@ export {
   MAX_FRONTMATTER_NODES,
 } from './depth.js';
 export type { StructureOverflow, StructureLimits } from './depth.js';
+export { unusableSegmentReason } from './pathSegment.js';
+export type { UnusableSegmentReason } from './pathSegment.js';
 export { serializeMarkdown } from './serialize.js';
 export { buildDocument } from './buildDocument.js';
 export type { BuildDocumentInput, BuildDocumentResult } from './buildDocument.js';

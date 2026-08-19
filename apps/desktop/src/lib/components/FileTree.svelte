@@ -19,6 +19,7 @@
   import { t } from '$lib/i18n/i18n.svelte';
   import type { MessageKey } from '$lib/i18n/messages';
   import { folderLabel } from '$lib/workspace/recentFolders';
+  import { buildShareLink } from '$lib/workspace/shareLink';
   import { fileLabel } from '$lib/workspace/treeState';
   import {
     toAbsolutePath,
@@ -129,6 +130,7 @@
     kind: 'file' | 'folder';
     actions: FileTreeMenuAction[];
     forgeUrl: string | null;
+    shareLink: string | null;
   } | null>(null);
 
   const MENU_LABEL_KEYS: Record<FileTreeMenuAction, MessageKey> = {
@@ -138,6 +140,7 @@
     copyName: 'tree.menuCopyName',
     copyRelPath: 'tree.menuCopyRelPath',
     copyPath: 'tree.menuCopyPath',
+    copyShareLink: 'tree.menuCopyShareLink',
     openForge: 'tree.menuOpenForge',
     fileInfo: 'tree.menuFileInfo',
   };
@@ -146,13 +149,34 @@
 
   function openMenu(event: MouseEvent, path: string, kind: 'folder' | 'file'): void {
     event.preventDefault();
-    menu = { x: event.clientX, y: event.clientY, path, kind, actions: menuActionsForKind(kind), forgeUrl: null };
+    menu = {
+      x: event.clientX,
+      y: event.clientY,
+      path,
+      kind,
+      actions: menuActionsForKind(kind),
+      forgeUrl: null,
+      shareLink: null,
+    };
     // フォージ URL は Rust 側で git remote/branch から非同期解決する。作れなければ項目を隠す。
     if (kind === 'file' && workspace.root !== null) {
-      void invoke<string | null>('forge_file_url', { root: workspace.root, relPath: path })
+      const root = workspace.root;
+      void invoke<string | null>('forge_file_url', { root, relPath: path })
         .then((url) => {
           // メニューが同じノードで開いたままのときだけ反映（別ノードへ開き直し後の遅延解決を無視）。
           if (menu !== null && menu.path === path) menu = { ...menu, forgeUrl: url };
+        })
+        .catch(() => undefined);
+      // 共有リンクも git の素性（リポジトリ名・枝・ルートからの位置）が要る。作れなければ隠す。
+      void invoke<{ repo: string; branch: string; prefix: string } | null>('git_identity', { root })
+        .then((identity) => {
+          if (identity === null || menu === null || menu.path !== path) return;
+          const link = buildShareLink({
+            repo: identity.repo,
+            path: `${identity.prefix}${path}`,
+            ref: identity.branch === '' ? null : identity.branch,
+          });
+          menu = { ...menu, shareLink: link };
         })
         .catch(() => undefined);
     }
@@ -180,6 +204,8 @@
       await navigator.clipboard.writeText(m.path).catch(() => undefined);
     } else if (action === 'copyPath') {
       await navigator.clipboard.writeText(abs).catch(() => undefined);
+    } else if (action === 'copyShareLink' && m.shareLink !== null) {
+      await navigator.clipboard.writeText(m.shareLink).catch(() => undefined);
     } else if (action === 'openForge' && m.forgeUrl !== null) {
       await openUrl(m.forgeUrl).catch(() => undefined);
     } else if (action === 'fileInfo') {
@@ -481,6 +507,10 @@
     <p class="banner err" role="alert">{workspace.error}</p>
   {/if}
 
+  {#if workspace.shareNotice !== null}
+    <p class="banner warn" role="status">{workspace.shareNotice}</p>
+  {/if}
+
   {#if workspace.root === null}
     <!-- 空状態: フォルダ未選択 -->
     <div class="empty">
@@ -632,8 +662,8 @@
   ></button>
   <ul class="ctx-menu" style="left: {menu.x}px; top: {menu.y}px;" role="menu">
     {#each menu.actions as action (action)}
-      <!-- フォージ項目は URL を作れたときだけ出す（remote 無し・非リポジトリでは非表示）。 -->
-      {#if action !== 'openForge' || menu.forgeUrl !== null}
+      <!-- フォージ項目と共有リンクは、作れたときだけ出す（remote 無し・非リポジトリでは非表示）。 -->
+      {#if (action !== 'openForge' || menu.forgeUrl !== null) && (action !== 'copyShareLink' || menu.shareLink !== null)}
         <li role="none">
           <button class="ctx-item" type="button" role="menuitem" onclick={() => runMenuAction(action)}>
             {menuLabel(action)}

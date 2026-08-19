@@ -35,19 +35,20 @@ describe('toAbsolutePath', () => {
 });
 
 describe('menuActionsForKind', () => {
-  it('ファイルは openForge・ファイル情報まで含む全項目を持つ', () => {
+  it('ファイルは共有リンク・openForge・ファイル情報まで含む全項目を持つ', () => {
     expect(menuActionsForKind('file')).toEqual([
       'rename',
       'reveal',
       'copyName',
       'copyRelPath',
       'copyPath',
+      'copyShareLink',
       'openForge',
       'fileInfo',
     ]);
   });
 
-  it('フォルダは openForge を持たず、代わりに新規作成を先頭に持つ', () => {
+  it('フォルダは共有リンクと openForge を持たず、代わりに新規作成を先頭に持つ', () => {
     expect(menuActionsForKind('folder')).toEqual([
       'newTestSheet',
       'rename',

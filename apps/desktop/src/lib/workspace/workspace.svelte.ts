@@ -44,6 +44,15 @@ import {
   restoreRecentFolders,
   serializeRecentFolders,
 } from './recentFolders';
+import { resolveOpenTarget } from './openTarget';
+import { parseShareLink, resolveShareFolder, type ShareCandidate } from './shareLink';
+
+/** Rust `git_identity` の戻り（serde camelCase）。 */
+interface GitIdentity {
+  repo: string;
+  branch: string;
+  prefix: string;
+}
 
 /** 最後に開いたフォルダの localStorage キー（左レール幅等と同じ名前空間）。 */
 const LAST_FOLDER_KEY = 'md-business:desktop:last-folder';
@@ -96,6 +105,12 @@ class WorkspaceStore {
   savedAt = $state<Date | null>(null);
   /** 走査が深さ / 件数上限で打ち切られたか（警告表示用）。 */
   truncated = $state<boolean>(false);
+  /**
+   * 共有リンクで開いたときの但し書き（失敗ではないが、頼まれたとおりではない場合）。
+   * 枝の食い違いがこれにあたる。リンクで枝を切り替えることはしないので、
+   * 見えている中身が送り手の見ていたものと違いうることだけを伝える。
+   */
+  shareNotice = $state<string | null>(null);
   /** 直近の走査 / 読込エラー（左レールに表示）。 */
   error = $state<string | null>(null);
   /** 走査中フラグ。 */
@@ -284,11 +299,114 @@ class WorkspaceStore {
     await this.scan(selected);
   }
 
+  /**
+   * 外から渡された絶対パスのファイルを画面へ出す（起動引数・他のプロセスからの依頼）。
+   *
+   * 頼む側はアプリが今どこを開いているかを知らないので、フォルダの切り替えまでここで見る。
+   * ただし切り替え先は利用者が過去に開いたフォルダに限る。未知の場所まで開けるようにすると、
+   * 外からの依頼ひとつで、開くつもりのなかった場所の中身が画面に並ぶことになる。
+   */
+  async openExternal(absolutePath: string): Promise<void> {
+    const target = resolveOpenTarget(absolutePath, this.root, this.recent);
+    if (target.kind === 'unknown') {
+      this.error =
+        `開く場所が分かりませんでした: ${absolutePath}` +
+        '（このファイルのあるフォルダを一度開いてから、もう一度お試しください）';
+      return;
+    }
+    if (target.kind === 'switch') {
+      await this.openRecent(target.root);
+      // 開けなければ切り替わっていない。ここで進むと別のフォルダの同名ファイルを開く。
+      if (this.root !== target.root) {
+        if (this.error === null) this.error = `フォルダを開けませんでした: ${target.root}`;
+        return;
+      }
+    }
+    // 開いたファイルがツリー上でも見えるようにする（選択だけだと畳まれたままになる）。
+    this.expanded = withAncestorsExpanded(this.expanded, target.relPath);
+    await this.select(target.relPath);
+  }
+
+  /**
+   * 共有リンク（md-business://open?...）で頼まれた文書を画面へ出す。
+   *
+   * リンクは他人の手を経て届く。中身は絶対パスではなく「どのリポジトリの、どの相対パス」
+   * までしか書けないようにしてあり、その組に当たる複製をこちらが既に開いていた場合だけ開く。
+   * 当たりが無ければ開かずに知らせる（リンク一つで、開くつもりのなかった場所を探し回らせない）。
+   */
+  async openShareLink(url: string): Promise<void> {
+    this.error = null;
+    this.shareNotice = null;
+    const target = parseShareLink(url);
+    if (target === null) {
+      this.error = `共有リンクを読み取れませんでした: ${url}`;
+      return;
+    }
+    const identities = await this.collectShareCandidates();
+    const candidates: ShareCandidate[] = identities.map(([folder, id, current]) => ({
+      folder,
+      repo: id.repo,
+      prefix: id.prefix,
+      current,
+    }));
+    const found = resolveShareFolder(target, candidates);
+    if (found === null) {
+      this.error =
+        `このリンクの文書がある場所が分かりませんでした: ${target.repo} の ${target.path}` +
+        '（このリポジトリの複製を一度開いてから、もう一度お試しください）';
+      return;
+    }
+    if (found.folder !== this.root) {
+      if (this.dirty) {
+        this.error =
+          '未保存の編集があるため、フォルダを切り替えませんでした' +
+          '（保存するか元に戻してから、もう一度お試しください）';
+        return;
+      }
+      await this.openRecent(found.folder);
+      if (this.root !== found.folder) {
+        if (this.error === null) this.error = `フォルダを開けませんでした: ${found.folder}`;
+        return;
+      }
+    }
+    // 枝はこちらで切り替えない。切り替えれば、リンクを押しただけで手元の作業中の枝が変わる。
+    const branch = identities.find(([folder]) => folder === found.folder)?.[1].branch ?? '';
+    if (target.ref !== null && branch !== '' && target.ref !== branch) {
+      this.shareNotice = `このリンクは ${target.ref} のものですが、開いているのは ${branch} です`;
+    }
+    this.expanded = withAncestorsExpanded(this.expanded, found.relPath);
+    await this.select(found.relPath);
+  }
+
+  /**
+   * 共有リンクの当て先候補（今開いているフォルダ + 過去に開いたフォルダ）を、
+   * それぞれの git の素性つきで集める。git の下に無いフォルダは候補から落ちる。
+   */
+  private async collectShareCandidates(): Promise<[string, GitIdentity, boolean][]> {
+    const folders = [...(this.root === null ? [] : [this.root]), ...this.recent];
+    const seen = new Set<string>();
+    const out: [string, GitIdentity, boolean][] = [];
+    for (const folder of folders) {
+      if (seen.has(folder)) continue;
+      seen.add(folder);
+      if (this.missingRecent.has(folder)) continue;
+      let identity: GitIdentity | null = null;
+      try {
+        identity = await invoke<GitIdentity | null>('git_identity', { root: folder });
+      } catch {
+        identity = null; // 素性を読めないフォルダは候補にしないだけ
+      }
+      if (identity !== null) out.push([folder, identity, folder === this.root]);
+    }
+    return out;
+  }
+
   /** ルート配下を走査し、ツリー・展開状態を更新する。 */
   private async scan(root: string): Promise<void> {
     this.loading = true;
     // 前のフォルダで出した知らせを持ち越さない（失敗して開けなかった場合も含む）。
     this.noticeRestored(false);
+    this.shareNotice = null;
     try {
       const result = await invoke<ScanResult>('scan_documents', { root });
       const tree = buildTree(result.entries);

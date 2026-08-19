@@ -12,6 +12,7 @@ export type FileTreeMenuAction =
   | 'copyName'
   | 'copyRelPath'
   | 'copyPath'
+  | 'copyShareLink'
   | 'openForge'
   | 'fileInfo';
 
@@ -29,15 +30,17 @@ export function toAbsolutePath(root: string, relPath: string): string {
 
 /**
  * ノード種別ごとの利用可能なメニュー項目。フォルダは検証シートの新規作成・名前の変更・
- * reveal・各種コピー。ファイルは新規作成の代わりにフォージで開く（`/blob/` URL は個別
- * ファイル向けのため）。openForge の最終的な可否は forge_file_url の戻り（remote 無しなら
- * null）で更に絞る。
+ * reveal・各種コピー。ファイルは新規作成の代わりに共有リンクのコピーとフォージで開く
+ * （どちらも 1 本のファイルを指す操作のため）。共有リンク / openForge の最終的な可否は、
+ * git remote から素性を作れるかどうかで更に絞る。
  */
 export function menuActionsForKind(kind: 'file' | 'folder'): FileTreeMenuAction[] {
   const common: FileTreeMenuAction[] = ['rename', 'reveal', 'copyName', 'copyRelPath', 'copyPath'];
   // 新規作成は「どこに作るか」をフォルダで指す操作なので、フォルダにだけ出す。
   // ファイル情報は 1 本のファイルを読んで測る値なので、逆にファイルにだけ出す。
-  return kind === 'file' ? [...common, 'openForge', 'fileInfo'] : ['newTestSheet', ...common];
+  return kind === 'file'
+    ? [...common, 'copyShareLink', 'openForge', 'fileInfo']
+    : ['newTestSheet', ...common];
 }
 
 /** 相対パスの末尾の名前（改名の初期値・ファイル名のコピーで使う）。 */

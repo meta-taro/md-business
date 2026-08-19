@@ -42,6 +42,11 @@
     ]
   },
   "plugins": {
+    "deep-link": {
+      "desktop": {
+        "schemes": ["md-business"]
+      }
+    },
     "updater": {
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEI4N0VCQTg3MjFEQ0REQjEKUldTeDNkd2hoN3ArdUE3R2RTMkFTK1VGN0l5NEQ1TXc1SkU2dEUzaGd5aTVWM2xKSVY0aUJMWXAK",
       "endpoints": [

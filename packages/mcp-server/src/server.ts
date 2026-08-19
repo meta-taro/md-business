@@ -31,6 +31,7 @@ import type { SearchQuery } from './search.js';
 import { gitStatus, gitDiff, gitCommit } from './gitTools.js';
 import type { GitCommitInput, GitRunner } from './gitTools.js';
 import type { AppBridge } from './appBridge.js';
+import type { DesktopOpener } from './desktopOpener.js';
 import { safeRelativePath } from './workspacePath.js';
 import { buildToolLogEntry, type ToolLogEntry, type ToolResultLike } from './toolLog.js';
 
@@ -113,6 +114,11 @@ export interface CreateServerOptions {
    * 単体（stdio）起動では押すべき画面が無いので既定では公開しない。
    */
   app?: AppBridge;
+  /**
+   * デスクトップアプリを起こして対象を画面へ出す口。渡したときだけ open_in_app を公開する。
+   * アプリが動いていない状態から辿り着けるのはこの口だけなので、単体（stdio）起動でも渡す。
+   */
+  desktop?: DesktopOpener;
 }
 
 /** 任意ペイロードを MCP のテキスト結果へ包む。ToolError 相当は isError で明示する。 */
@@ -170,7 +176,7 @@ export function createServer(store: DocumentStore, options: CreateServerOptions 
     { name: SERVER_NAME, version: SERVER_VERSION },
     { instructions: SERVER_INSTRUCTIONS },
   );
-  const { onLog, now = () => Date.now(), git, app } = options;
+  const { onLog, now = () => Date.now(), git, app, desktop } = options;
 
   // ツール実行の直後に 1 件ログを流す。onLog 未指定なら完全に no-op（既存の挙動不変）。
   // argPath は失敗時にパスを拾うためのフォールバック（成功結果は自前の path を持つ）。
@@ -789,6 +795,26 @@ export function createServer(store: DocumentStore, options: CreateServerOptions 
         const result = await app.request({ action: 'export-pdf', path: safe.relative });
         const r = result.ok ? { ok: true as const, path: safe.relative } : result;
         emit('export_pdf', safe.relative, r);
+        return jsonResult(r, !r.ok);
+      },
+    );
+  }
+
+  // アプリが動いていなくても辿り着ける唯一の口。起動・フォルダの切り替え・表示を 1 手で行う。
+  // 二重起動の抑止と、動いている窓へパスを渡し直す判断はアプリ側が持つ。
+  if (desktop !== undefined) {
+    server.registerTool(
+      'open_in_app',
+      {
+        description:
+          'デスクトップアプリで対象ファイルを開く。アプリが起動していなければ起動し、開いているフォルダが違えばワークスペースのフォルダへ切り替えてから表示する。利用者に画面で見てもらうときに使う。',
+        inputSchema: {
+          path: z.string().describe('画面に出すワークスペース相対パス'),
+        },
+      },
+      async ({ path }) => {
+        const r = await desktop.open(path);
+        emit('open_in_app', path, r);
         return jsonResult(r, !r.ok);
       },
     );
