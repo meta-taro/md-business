@@ -4,6 +4,21 @@ Changes to this app. Versions follow [Semantic Versioning](https://semver.org/).
 
 Japanese is the source of truth for this file; see [CHANGELOG.md](./CHANGELOG.md).
 
+## 0.12.0
+
+### Added
+
+- **Images can now be opened and viewed inside the app.** They did not appear in the file list, so checking a photo or a screenshot meant opening the folder outside the app. Fit-to-window and actual-size can be toggled, and the dimensions and file size are shown.
+- **Images placed in a document now appear in the preview and in exports.** Pointing at a neighbouring file with `![](./figure.png)` produced nothing at all. A single-file HTML export carries the images with it, so nothing breaks on the receiving end. A static site export carries images as files rather than embedding them into every page, so reusing one photo across many documents costs nothing extra. The browser preview, before any export, shows the same thing.
+
+### Changed
+
+- **A missing image, or one pointing outside the folder, no longer takes the document down with it.** Only that one image is dropped; the rest of the text and the other images read as before.
+
+### Known limitations
+
+- An image written directly as HTML, such as `<img src="figure.png">`, does not appear: raw HTML is dropped when the text is turned into HTML. The `![](figure.png)` form works.
+
 ## 0.11.0
 
 ### Added
