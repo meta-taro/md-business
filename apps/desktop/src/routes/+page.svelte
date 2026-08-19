@@ -7,7 +7,7 @@
   import { pdfExport } from '$lib/preview/pdfExport.svelte';
   import { htmlExport } from '$lib/preview/htmlExportController.svelte';
   import { imageExport } from '$lib/preview/imageExportController.svelte';
-  import { previewReady, previewVisible } from '$lib/preview/previewGate';
+  import { previewReady, previewVisible, shouldRenderPreview } from '$lib/preview/previewGate';
   import { resolvePreviewLink } from '$lib/preview/previewLink';
   import {
     frameWidth,
@@ -304,7 +304,9 @@
     const render = previewRenderer.render;
     const source = debouncedSource;
     const theme = themeController.value;
-    if (render === null) {
+    // 組み立て一式は一度読み込むと面を切り替えても残る。残っているだけで組み直しが動くと、
+    // 検証グリッドで 1 文字打つたびに誰も見ない HTML を本文全体から組み直すことになる。
+    if (render === null || !shouldRenderPreview(paneState)) {
       preview = null;
       return;
     }
