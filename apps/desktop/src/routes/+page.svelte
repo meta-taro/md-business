@@ -36,6 +36,9 @@
   import DataTreeView from '$lib/data/DataTreeView.svelte';
   import ImageView from '$lib/image/ImageView.svelte';
   import { imageKindLabel, nextFitMode, type ImageFitMode } from '$lib/image/imageView';
+  import { replaceChartBlocks } from '$lib/chart/chartBlocks';
+  import { chartMessage } from '$lib/chart/chartMessage';
+  import { loadCharts } from '$lib/chart/loadCharts';
   import { inlineImages } from '$lib/image/inlineImages';
   import { loadInlineImages, type InlineImageFailure } from '$lib/image/loadInlineImages';
   import { formatSize } from '$lib/components/fileInfo';
@@ -56,6 +59,7 @@
   import { diffView } from '$lib/git/diffView.svelte';
   import { timelineView } from '$lib/logs/timelineView.svelte';
   import TimelineView from '$lib/components/TimelineView.svelte';
+  import TabBar from '$lib/components/TabBar.svelte';
   import DiffView from '$lib/components/DiffView.svelte';
   import SearchBar from '$lib/search/SearchBar.svelte';
   import { search } from '$lib/search/search.svelte';
@@ -339,8 +343,37 @@
     });
   });
 
-  // 描くのは画像を埋めた本文。読めたものが 1 つも無ければ元の本文がそのまま返る。
-  const previewSource = $derived(inlineImages(debouncedSource, inlineUrls));
+  // 本文の `chart` の囲みは、指した表を読んで図に描き替える。描き替えは本文の段階でやる
+  // （出来上がった画面を後から書き替えない）。プレビューも PDF も書き出しも同じ本文を通るので、
+  // 画面には出るのに PDF には出ない、が起きない。
+  // 図の色は文書の文字色に合わせる。画像として貼る絵は別の文書なので、テーマの色は継がない。
+  const CHART_INK = { light: '#1f2328', dark: '#e6edf3' } as const;
+  let chartMarkup = $state<ReadonlyMap<string, string>>(new Map());
+  let chartGeneration = 0;
+  $effect(() => {
+    const root = workspace.root;
+    const relPath = workspace.activePath;
+    const source = debouncedSource;
+    const theme = themeController.value;
+    if (root === null || relPath === null || !shouldRenderPreview(paneState)) {
+      chartMarkup = new Map();
+      return;
+    }
+    const generation = ++chartGeneration;
+    void loadCharts(source, {
+      docPath: relPath,
+      read: (path) => invoke<string>('read_document', { root, relPath: path }),
+      describe: (problem) => chartMessage(problem, t),
+      ink: CHART_INK[theme],
+    }).then((result) => {
+      if (generation === chartGeneration) chartMarkup = result;
+    });
+  });
+
+  // 描くのは画像と図を埋めた本文。読めたものが 1 つも無ければ元の本文がそのまま返る。
+  const previewSource = $derived(
+    replaceChartBlocks(inlineImages(debouncedSource, inlineUrls), chartMarkup),
+  );
 
   let preview = $state<PreviewResult | null>(null);
   let previewGeneration = 0;
@@ -794,6 +827,7 @@
 <svelte:window onkeydown={onWindowKey} />
 
 <div class="page-root">
+<TabBar />
 {#if workspace.externalConflict}
   <!-- 開いているファイルが外部（AI/CLI/他エディタ）で変更されたが、未保存編集があるため
        自動再読込しない。どちらを採るかはユーザーが選ぶ。 -->
@@ -917,8 +951,13 @@
         </button>
       </div>
       <div class="grid-wrap">
+        <!-- 列幅・行高・折り返しは文書ごとの指定なので、タブが変わったら器ごと作り直す。
+             使い回すと前の文書の見た目のまま次の文書が出る。 -->
+        {#key workspace.activeTabId}
         <TsvGrid
           doc={tsvDoc}
+          view={workspace.gridView}
+          onViewChange={(v) => workspace.setGridView(v)}
           onChange={handleGridChange}
           onUndo={handleGridUndo}
           onRedo={handleGridRedo}
@@ -933,6 +972,7 @@
           {blameOn}
           onToggleBlame={() => (blameOn = !blameOn)}
         />
+        {/key}
       </div>
     {:else}
     <div class="pane-head preview-head">

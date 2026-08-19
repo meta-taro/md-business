@@ -341,6 +341,9 @@ export interface Messages {
   'page.conflictChanged': string;
   'page.conflictReload': string;
   'page.conflictKeep': string;
+  'page.tabsLabel': string;
+  'page.tabClose': string;
+  'page.tabUnsaved': string;
   'page.editorHead': string;
   'page.editorPaneLabel': string;
   'page.previewPaneLabel': string;
@@ -392,6 +395,21 @@ export interface Messages {
   'frontmatter.tooManyAnchors': string;
   'frontmatter.tooManyAliases': string;
   'frontmatter.unknown': string;
+  // 図（chart ブロック）
+  'chart.failed': string;
+  'chart.atLine': string;
+  'chart.empty': string;
+  'chart.syntax': string;
+  'chart.unknownKey': string;
+  'chart.duplicateKey': string;
+  'chart.missing': string;
+  'chart.badType': string;
+  'chart.noColumn': string;
+  'chart.noRows': string;
+  'chart.noNumbers': string;
+  'chart.badPath': string;
+  'chart.readFailed': string;
+  'chart.unreadableCells': string;
   // 更新のお知らせ（7 状態 + 変更履歴）
   'update.dialogLabel': string;
   'update.checkingTitle': string;
@@ -804,6 +822,9 @@ const en: Messages = {
   'page.conflictChanged': 'This file was changed externally',
   'page.conflictReload': 'Reload (discard edits)',
   'page.conflictKeep': 'Keep edits',
+  'page.tabsLabel': 'Open documents',
+  'page.tabClose': 'Close',
+  'page.tabUnsaved': 'Unsaved',
   'page.editorHead': 'Editor — Markdown',
   'page.editorPaneLabel': 'Markdown editor',
   'page.previewPaneLabel': 'Viewer (preview)',
@@ -854,6 +875,20 @@ const en: Messages = {
   'frontmatter.tooManyAnchors': 'too many YAML anchors (&name) are declared.',
   'frontmatter.tooManyAliases': 'too many YAML references (*name) are used.',
   'frontmatter.unknown': 'reading stopped here ({raw}).',
+  'chart.failed': 'Could not draw the chart. {detail}',
+  'chart.atLine': 'Line {line}: {detail}',
+  'chart.empty': 'The block is empty. Write type, source, x and y.',
+  'chart.syntax': 'this line is not written as `name: value` ({raw}).',
+  'chart.unknownKey': 'unknown setting ({raw}).',
+  'chart.duplicateKey': 'the same setting is written twice ({raw}).',
+  'chart.missing': 'a setting is missing ({raw}).',
+  'chart.badType': 'unsupported chart type ({raw}). Use line, bar or pie.',
+  'chart.noColumn': 'the table has no such column ({raw}).',
+  'chart.noRows': 'the table has no rows.',
+  'chart.noNumbers': 'no value in this column reads as a number ({raw}).',
+  'chart.badPath': 'this file is not inside the open folder ({raw}).',
+  'chart.readFailed': 'could not read the table ({raw}).',
+  'chart.unreadableCells': '{raw} cell(s) did not read as a number and were left blank in the chart.',
   'update.dialogLabel': 'Application update',
   'update.checkingTitle': 'Checking for updates…',
   'update.upToDateTitle': 'You are up to date',
@@ -1262,6 +1297,9 @@ const ja: Messages = {
   'page.conflictChanged': '外部でこのファイルが変更されました',
   'page.conflictReload': '再読込（編集を破棄）',
   'page.conflictKeep': '編集を残す',
+  'page.tabsLabel': '開いている文書',
+  'page.tabClose': '閉じる',
+  'page.tabUnsaved': '未保存',
   'page.editorHead': 'エディター — Markdown',
   'page.editorPaneLabel': 'Markdown エディター',
   'page.previewPaneLabel': 'ビューワー（プレビュー）',
@@ -1312,6 +1350,20 @@ const ja: Messages = {
   'frontmatter.tooManyAnchors': 'YAML のアンカー（&名前）が多すぎます。',
   'frontmatter.tooManyAliases': 'YAML の参照（*名前）が多すぎます。',
   'frontmatter.unknown': 'ここで読み取りが止まりました（{raw}）。',
+  'chart.failed': '図を描けません。{detail}',
+  'chart.atLine': '{line} 行目: {detail}',
+  'chart.empty': '指定が空です。type / source / x / y を書いてください。',
+  'chart.syntax': '`名前: 値` の形になっていません（{raw}）。',
+  'chart.unknownKey': '知らない指定です（{raw}）。',
+  'chart.duplicateKey': '同じ指定が 2 度書かれています（{raw}）。',
+  'chart.missing': '指定が足りません（{raw}）。',
+  'chart.badType': '扱えない種類です（{raw}）。line / bar / pie のどれかを書いてください。',
+  'chart.noColumn': '表にその列がありません（{raw}）。',
+  'chart.noRows': '表に行がありません。',
+  'chart.noNumbers': 'その列に数として読める値がありません（{raw}）。',
+  'chart.badPath': '開いているフォルダの中にありません（{raw}）。',
+  'chart.readFailed': '表を読めません（{raw}）。',
+  'chart.unreadableCells': '数として読めないセルが {raw} 個ありました。その分は図では空けてあります。',
   'update.dialogLabel': 'アプリの更新',
   'update.checkingTitle': '更新を確認しています…',
   'update.upToDateTitle': '最新の状態です',
@@ -1715,6 +1767,9 @@ const zh: Messages = {
   'page.conflictChanged': '此文件已被外部更改',
   'page.conflictReload': '重新加载（放弃编辑）',
   'page.conflictKeep': '保留编辑',
+  'page.tabsLabel': '打开的文档',
+  'page.tabClose': '关闭',
+  'page.tabUnsaved': '未保存',
   'page.editorHead': '编辑器 — Markdown',
   'page.editorPaneLabel': 'Markdown 编辑器',
   'page.previewPaneLabel': '查看器（预览）',
@@ -1765,6 +1820,20 @@ const zh: Messages = {
   'frontmatter.tooManyAnchors': 'YAML 锚点（&名称）过多。',
   'frontmatter.tooManyAliases': 'YAML 引用（*名称）过多。',
   'frontmatter.unknown': '读取在此处中断（{raw}）。',
+  'chart.failed': '无法绘制图表。{detail}',
+  'chart.atLine': '第 {line} 行: {detail}',
+  'chart.empty': '内容为空。请写明 type / source / x / y。',
+  'chart.syntax': '该行不是 `名称: 值` 的形式（{raw}）。',
+  'chart.unknownKey': '无法识别的设置（{raw}）。',
+  'chart.duplicateKey': '同一设置写了两次（{raw}）。',
+  'chart.missing': '缺少设置（{raw}）。',
+  'chart.badType': '不支持的图表种类（{raw}）。请使用 line / bar / pie。',
+  'chart.noColumn': '表格中没有该列（{raw}）。',
+  'chart.noRows': '表格中没有数据行。',
+  'chart.noNumbers': '该列中没有可作为数字读取的值（{raw}）。',
+  'chart.badPath': '该文件不在已打开的文件夹内（{raw}）。',
+  'chart.readFailed': '无法读取表格（{raw}）。',
+  'chart.unreadableCells': '有 {raw} 个单元格无法作为数字读取，图中相应位置留空。',
   'update.dialogLabel': '应用更新',
   'update.checkingTitle': '正在检查更新…',
   'update.upToDateTitle': '已是最新版本',
@@ -2171,6 +2240,9 @@ const ko: Messages = {
   'page.conflictChanged': '이 파일이 외부에서 변경되었습니다',
   'page.conflictReload': '다시 불러오기 (편집 삭제)',
   'page.conflictKeep': '편집 유지',
+  'page.tabsLabel': '열려 있는 문서',
+  'page.tabClose': '닫기',
+  'page.tabUnsaved': '저장 안 됨',
   'page.editorHead': '편집기 — Markdown',
   'page.editorPaneLabel': 'Markdown 편집기',
   'page.previewPaneLabel': '뷰어 (미리보기)',
@@ -2221,6 +2293,20 @@ const ko: Messages = {
   'frontmatter.tooManyAnchors': 'YAML 앵커(&이름)가 너무 많습니다.',
   'frontmatter.tooManyAliases': 'YAML 참조(*이름)가 너무 많습니다.',
   'frontmatter.unknown': '여기에서 읽기가 중단되었습니다({raw}).',
+  'chart.failed': '차트를 그릴 수 없습니다. {detail}',
+  'chart.atLine': '{line}번째 줄: {detail}',
+  'chart.empty': '내용이 비어 있습니다. type / source / x / y 를 적어 주세요.',
+  'chart.syntax': '`이름: 값` 형식이 아닙니다({raw}).',
+  'chart.unknownKey': '알 수 없는 설정입니다({raw}).',
+  'chart.duplicateKey': '같은 설정이 두 번 적혀 있습니다({raw}).',
+  'chart.missing': '설정이 부족합니다({raw}).',
+  'chart.badType': '지원하지 않는 종류입니다({raw}). line / bar / pie 중에서 적어 주세요.',
+  'chart.noColumn': '표에 해당 열이 없습니다({raw}).',
+  'chart.noRows': '표에 행이 없습니다.',
+  'chart.noNumbers': '그 열에 숫자로 읽을 수 있는 값이 없습니다({raw}).',
+  'chart.badPath': '열려 있는 폴더 안에 없습니다({raw}).',
+  'chart.readFailed': '표를 읽을 수 없습니다({raw}).',
+  'chart.unreadableCells': '숫자로 읽지 못한 칸이 {raw}개 있어 차트에서는 비워 두었습니다.',
   'update.dialogLabel': '앱 업데이트',
   'update.checkingTitle': '업데이트를 확인하는 중…',
   'update.upToDateTitle': '최신 상태입니다',

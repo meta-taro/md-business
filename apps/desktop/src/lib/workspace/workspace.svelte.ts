@@ -45,22 +45,19 @@ import {
   serializeRecentFolders,
 } from './recentFolders';
 import { isImagePath } from './imageFile';
+import type { GridView } from '$lib/tsv/gridView';
+import { imageDoc, openedDoc, seedDoc, type DocState, type DocTab, type OpenImage } from './docState';
+import {
+  MAX_TABS,
+  evictionTarget,
+  findByPath,
+  keepExistingTabs,
+  nextActiveId,
+  survivingActiveId,
+  withoutTab,
+} from './tabs';
 import { resolveOpenTarget } from './openTarget';
 import { parseShareLink, resolveShareFolder, type ShareCandidate } from './shareLink';
-
-/**
- * いま開いている画像。文書と違って本文を持たない（読むだけで、書き戻す先が無い）。
- */
-export interface OpenImage {
-  /** ルートからの相対パス。 */
-  relPath: string;
-  /** `<img src>` にそのまま入る形。 */
-  dataUrl: string;
-  /** `image/png` など。拡張子だけから決まる。 */
-  mime: string;
-  /** ファイルの大きさ（バイト）。 */
-  byteSize: number;
-}
 
 /** Rust `git_identity` の戻り（serde camelCase）。 */
 interface GitIdentity {
@@ -100,26 +97,63 @@ class WorkspaceStore {
   tree = $state<TreeNode[]>([]);
   /** 展開中フォルダの path 集合。 */
   expanded = $state<Set<string>>(new Set());
-  /** 選択中ファイルの相対パス。ハイライト用。 */
-  activePath = $state<string | null>(null);
+  /** 走査が深さ / 件数上限で打ち切られたか（警告表示用）。 */
+  truncated = $state<boolean>(false);
+
   /**
-   * 開いているファイルが外部（AI/CLI/他エディタ）で変更されたが、こちらに未保存編集が
-   * あって自動再読込できない状態。競合バナーの表示に使う。解消（再読込 or 編集維持）で null。
+   * 開いている文書の並び。「編集の唯一の真実」は文書ごとに要るので、1 枚ぶんを
+   * まとめた `DocTab` を並べて持ち、外へ出す名前（`source` など）は手前の 1 枚を
+   * 指す読み取り口にしている（画面側は今までと同じ名前を読むだけで済む）。
    */
-  externalConflict = $state<{ relPath: string } | null>(null);
+  private tabs = $state<DocTab[]>([]);
+  /** 手前に出しているタブの id。1 枚も開いていなければ null。 */
+  private activeId = $state<string | null>(null);
+  /**
+   * ファイルを開いていないときの中身（雛形）。並びには入れない。書き戻す先が無いので、
+   * タブと同じ扱いにすると保存できるように見えてしまう。
+   */
+  private scratch = $state<DocState>(seedDoc(apiSpecSample));
+  /** タブの id と「最近触った順」の採番。増える一方で、減らさない。 */
+  private tabSeq = 0;
+
+  /** 手前のタブ（何も開いていなければ null）。 */
+  private get activeTab(): DocTab | null {
+    if (this.activeId === null) return null;
+    return this.tabs.find((t) => t.id === this.activeId) ?? null;
+  }
+
+  /** 手前に出している中身。タブが無ければ雛形。 */
+  private get doc(): DocState {
+    return this.activeTab ?? this.scratch;
+  }
+
+  /** 選択中ファイルの相対パス。ハイライト用。未選択は null（空状態）。 */
+  get activePath(): string | null {
+    return this.activeTab?.relPath ?? null;
+  }
+
   /** 編集の唯一の真実。既定は seed テンプレ（ファイル未オープン時）。 */
-  source = $state<string>(apiSpecSample);
+  get source(): string {
+    return this.doc.source;
+  }
+
   /** 直近にディスクへ反映された内容（read 直後 / save 成功時に同期）。dirty 判定の基準。 */
-  savedSource = $state<string>(apiSpecSample);
+  get savedSource(): string {
+    return this.doc.savedSource;
+  }
+
   /** 保存中フラグ（多重 save 抑止・UI の保存インジケータ用）。 */
-  saving = $state<boolean>(false);
+  get saving(): boolean {
+    return this.doc.saving;
+  }
+
   /**
    * 最後に保存できた時刻（未保存なら null）。
    * 自動保存は静止後に黙って走るため、効いていることを時刻で見せる。
    */
-  savedAt = $state<Date | null>(null);
-  /** 走査が深さ / 件数上限で打ち切られたか（警告表示用）。 */
-  truncated = $state<boolean>(false);
+  get savedAt(): Date | null {
+    return this.doc.savedAt;
+  }
 
   /**
    * いま開いている画像。文書を開いているとき・何も開いていないときは null。
@@ -127,7 +161,124 @@ class WorkspaceStore {
    * 画像と本文はどちらか一方しか立たない。両方持つと、画像を出しながら前の文書を
    * 保存できてしまう（開いているファイルと書き込む先が食い違う）。
    */
-  image = $state<OpenImage | null>(null);
+  get image(): OpenImage | null {
+    return this.doc.image;
+  }
+
+  /**
+   * いま手前のタブでグリッドのどこを見ていたか。開き直したときの復元にだけ使う。
+   */
+  get gridView(): GridView | null {
+    return this.doc.grid;
+  }
+
+  /** グリッド側から見ていた位置を預かる。文書ごとに持つので、タブを戻ると同じ場所へ戻る。 */
+  setGridView(view: GridView): void {
+    this.doc.grid = view;
+  }
+
+  /**
+   * 手前のタブの識別子。グリッドを作り直す単位に使う。
+   *
+   * 列幅・行高・折り返しの指定は文書ごとに違うので、同じ器を使い回すと前の文書の
+   * 見た目のまま次の文書が出る。
+   */
+  get activeTabId(): string | null {
+    return this.activeId;
+  }
+
+  /**
+   * 開いているファイルが外部（AI/CLI/他エディタ）で変更されたが、こちらに未保存編集が
+   * あって自動再読込できない状態。競合バナーの表示に使う。解消（再読込 or 編集維持）で null。
+   *
+   * 印はタブごとに立てる。別のタブを見ている間に消えると、戻ったときに黙って
+   * 外部の変更を踏むことになる。
+   */
+  get externalConflict(): { relPath: string } | null {
+    const tab = this.activeTab;
+    return tab !== null && tab.conflict ? { relPath: tab.relPath } : null;
+  }
+
+  /** タブ帯に出す並び。画面が要るのは名前と、未保存かどうかと、どれが手前かだけ。 */
+  get openTabs(): { id: string; relPath: string; dirty: boolean; active: boolean }[] {
+    return this.tabs.map((t) => ({
+      id: t.id,
+      relPath: t.relPath,
+      dirty: t.source !== t.savedSource,
+      active: t.id === this.activeId,
+    }));
+  }
+
+  /**
+   * 読み込んだ中身をタブへ入れる。同じファイルが開いていればそれを読み直し、
+   * 無ければ 1 枚増やす。どちらでも手前に出す。
+   */
+  private placeDoc(relPath: string, doc: DocState): void {
+    this.tabSeq += 1;
+    const existing = findByPath(this.tabs, relPath);
+    if (existing !== null) {
+      Object.assign(existing, doc, { touchSeq: this.tabSeq });
+      this.activeId = existing.id;
+    } else {
+      const id = `tab-${this.tabSeq}`;
+      this.tabs.push({ id, relPath, touchSeq: this.tabSeq, ...doc });
+      this.activeId = id;
+    }
+    this.loadSeq += 1;
+  }
+
+  /**
+   * 上限に当たっていたら、最後に触ってから一番経ったタブを閉じて 1 枚ぶん空ける。
+   * 手前のタブは対象にしない（見ているものが消えることになる）。
+   */
+  private async makeRoom(): Promise<void> {
+    const id = evictionTarget(this.tabs, MAX_TABS, this.activeId);
+    if (id !== null) await this.closeTab(id);
+  }
+
+  /**
+   * タブを閉じる。未保存なら黙って捨てず、先に書いてから閉じる。書けなければ閉じない
+   * （閉じてしまうと、書けなかったことを直す先が画面から消える）。
+   */
+  async closeTab(id: string): Promise<void> {
+    const tab = this.tabs.find((t) => t.id === id);
+    if (tab === undefined) return;
+    if (tab.source !== tab.savedSource && !(await this.writeTab(tab))) return;
+    this.activeId = nextActiveId(this.tabs, id, this.activeId);
+    this.tabs = withoutTab(this.tabs, id);
+    this.persistView();
+  }
+
+  /** タブを手前に出す。中身は読み直さない（そのタブの編集をそのまま見せる）。 */
+  selectTab(id: string): void {
+    if (this.activeId === id) return;
+    const tab = this.tabs.find((t) => t.id === id);
+    if (tab === undefined) return;
+    this.tabSeq += 1;
+    tab.touchSeq = this.tabSeq;
+    this.activeId = id;
+    // 開いたときと同じ扱いにする。プレビューは loadSeq を見て即座に描き替える。
+    this.loadSeq += 1;
+    this.persistView();
+  }
+
+  /**
+   * 走査結果にタブを合わせる。
+   * 別のフォルダへ移ったときは全部閉じる（本文だけ残す＝フォルダを開き直しただけの見え方）。
+   * 同じフォルダの取り直しなら、消えたファイルのタブだけ閉じて、ほかは開いたままにする。
+   */
+  private syncTabs(sameRoot: boolean): void {
+    if (!sameRoot) {
+      this.scratch = { ...this.doc, image: null, savedAt: null, saving: false, conflict: false };
+      this.tabs = [];
+      this.activeId = null;
+      return;
+    }
+    const kept = keepExistingTabs(this.tabs, new Set(this.allFilePaths()));
+    if (kept.length === this.tabs.length) return;
+    this.tabs = kept;
+    this.activeId = survivingActiveId(kept, this.activeId);
+  }
   /**
    * 共有リンクで開いたときの但し書き（失敗ではないが、頼まれたとおりではない場合）。
    * 枝の食い違いがこれにあたる。リンクで枝を切り替えることはしないので、
@@ -443,8 +594,7 @@ class WorkspaceStore {
       this.expanded = new Set(
         restoreExpanded(keep, collectFolderPaths(tree), initialExpandedPaths(tree)),
       );
-      this.activePath = null;
-      this.image = null;
+      this.syncTabs(sameRoot);
       // フォルダを開き直したら前フォルダの差分表示は無効。通常プレビューへ戻す。
       diffView.reset();
       // 時系列も同じ。前フォルダのログ一覧と結果を残すと、開き直した先のものに見える。
@@ -590,37 +740,37 @@ class WorkspaceStore {
 
   /** 開いているファイルの外部変更を競合として記録する（編集中なので自動再読込しない）。 */
   flagConflict(relPath: string): void {
-    this.externalConflict = { relPath };
+    const tab = findByPath(this.tabs, relPath);
+    if (tab !== null) tab.conflict = true;
   }
 
   /** 競合バナーの「再読込（編集を破棄）」。外部内容で開き直し、競合状態を解く。 */
   reloadConflict(): void {
-    const conflict = this.externalConflict;
-    this.externalConflict = null;
-    if (conflict !== null) void this.select(conflict.relPath);
+    const tab = this.activeTab;
+    if (tab === null || !tab.conflict) return;
+    tab.conflict = false;
+    void this.select(tab.relPath);
   }
 
   /** 競合バナーの「編集を残す」。再読込せず競合状態だけ解く（次の外部変更で再び出す）。 */
   dismissConflict(): void {
-    this.externalConflict = null;
+    const tab = this.activeTab;
+    if (tab !== null) tab.conflict = false;
   }
 
   /** ファイルを読み込み source に反映する。失敗時はエラー表示のみで前回内容を保持する。 */
   async select(relPath: string): Promise<void> {
     if (this.root === null) return;
+    // 既に開いているものを選び直したときは増えないので、空ける必要も無い。
+    if (findByPath(this.tabs, relPath) === null) await this.makeRoom();
     if (isImagePath(relPath)) {
       await this.selectImage(relPath);
       return;
     }
     try {
       const content = await invoke<string>('read_document', { root: this.root, relPath });
-      this.image = null;
-      this.source = content;
-      this.savedSource = content; // 開いた直後は未編集（dirty=false）
-      this.activePath = relPath;
-      // 保存時刻は開いているファイルのもの。別のファイルの時刻を引き継がせない。
-      this.savedAt = null;
-      this.loadSeq += 1;
+      // 保存時刻を持たない中身で入れ替える（別のファイルの時刻を引き継がせない）。
+      this.placeDoc(relPath, openedDoc(content));
       this.error = null;
       // 次にこのフォルダを開いたとき、同じファイルから再開できるようにする。
       this.persistView();
@@ -637,12 +787,7 @@ class WorkspaceStore {
     if (this.root === null) return;
     try {
       const data = await invoke<Omit<OpenImage, 'relPath'>>('read_image', { root: this.root, relPath });
-      this.image = { relPath, ...data };
-      this.source = '';
-      this.savedSource = '';
-      this.activePath = relPath;
-      this.savedAt = null;
-      this.loadSeq += 1;
+      this.placeDoc(relPath, imageDoc({ relPath, ...data }));
       this.error = null;
       this.persistView();
     } catch (e) {
@@ -662,7 +807,7 @@ class WorkspaceStore {
 
   /** エディター / グリッド編集からの source 書き戻し。 */
   setSource(value: string): void {
-    this.source = value;
+    this.doc.source = value;
   }
 
   /**
@@ -686,31 +831,43 @@ class WorkspaceStore {
   }
 
   /**
-   * 編集中 source を開いているファイルへ書き戻す。ファイル未オープン時・保存中は no-op。
-   * 保存する内容は呼び出し時点で固定し、成功時に savedSource をそのスナップショットへ
-   * 同期する（保存中にタイプが進んでも取りこぼさない）。失敗時はエラー表示のみ。
+   * 手前のタブをディスクへ書き戻す。ファイル未オープン時は no-op。
    */
   async save(): Promise<void> {
-    if (this.root === null || this.activePath === null || this.saving) return;
-    const relPath = this.activePath;
-    const snapshot = this.source;
-    this.saving = true;
+    const tab = this.activeTab;
+    if (tab !== null) await this.writeTab(tab);
+  }
+
+  /**
+   * タブ 1 枚の中身をディスクへ書く。書けたら true、失敗したらエラーを出して false。
+   * 保存中は no-op。書く内容は呼び出し時点で固定し、成功時に savedSource をその
+   * スナップショットへ同期する（保存中にタイプが進んでも取りこぼさない）。
+   *
+   * 受け取るのは手前のタブとは限らない（上限に当たって閉じるタブも、ここを通って書く）。
+   */
+  private async writeTab(tab: DocTab): Promise<boolean> {
+    if (this.root === null || tab.saving) return false;
+    const { relPath } = tab;
+    const snapshot = tab.source;
+    tab.saving = true;
     const startedAt = performance.now();
     try {
       await invoke('write_document', { root: this.root, relPath, content: snapshot });
       perf.recordSave(performance.now() - startedAt);
-      this.savedSource = snapshot;
-      this.savedAt = new Date();
+      tab.savedSource = snapshot;
+      tab.savedAt = new Date();
       this.error = null;
       // 保存でファイルの git 状態（modified など）が変わるので再取得する。
       void git.refresh(this.root);
       // ブラウザ表示にも反映する。自分の保存は監視イベントとして戻ってこない（エコー
       // 抑制）ので、ここで知らせないとアプリ内の編集だけ反映されないことになる。
       browserPreview.onFileChanged(relPath);
+      return true;
     } catch (e) {
       this.error = errorMessage(e);
+      return false;
     } finally {
-      this.saving = false;
+      tab.saving = false;
     }
   }
 }

@@ -9,7 +9,7 @@
    * 見出し（種類・大きさ・切り替え）は呼び出し側が持つ。参考データ（.json / .xml）の
    * 面と同じ並びに見せたいので、器の作りを揃えている。
    */
-  import type { OpenImage } from '$lib/workspace/workspace.svelte';
+  import type { OpenImage } from '$lib/workspace/docState';
   import type { ImageFitMode } from './imageView';
 
   interface Props {
