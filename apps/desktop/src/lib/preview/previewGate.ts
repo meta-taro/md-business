@@ -33,3 +33,14 @@ export function previewVisible(pane: PaneState): boolean {
 export function previewReady(pane: PaneState, isOk: () => boolean): boolean {
   return previewVisible(pane) && isOk();
 }
+
+/**
+ * プレビューを組み直すか。
+ *
+ * 組み立て一式は、プレビューを出す面になった時点で読み込まれ、そのあと面を切り替えても
+ * 読み込まれたまま残る。残っているだけで組み直しが動くと、検証グリッドで 1 文字打つたびに
+ * 誰も見ない HTML を本文全体から組み直すことになる。出していない面では組み直さない。
+ */
+export function shouldRenderPreview(pane: PaneState): boolean {
+  return previewVisible(pane);
+}

@@ -1,5 +1,10 @@
 import { describe, it, expect, vi } from 'vitest';
-import { previewVisible, previewReady, type PaneState } from './previewGate';
+import {
+  previewVisible,
+  previewReady,
+  shouldRenderPreview,
+  type PaneState,
+} from './previewGate';
 
 function pane(over: Partial<PaneState> = {}): PaneState {
   return { diff: false, data: false, grid: false, timeline: false, ...over };
@@ -33,5 +38,26 @@ describe('previewReady', () => {
     expect(previewReady(pane({ diff: true }), isOk)).toBe(false);
     expect(previewReady(pane({ timeline: true }), isOk)).toBe(false);
     expect(isOk).not.toHaveBeenCalled();
+  });
+});
+
+describe('出していない間は組み直さない', () => {
+  const shown: PaneState = { diff: false, data: false, grid: false, timeline: false };
+
+  it('プレビューを出していれば組み直す', () => {
+    expect(shouldRenderPreview(shown)).toBe(true);
+  });
+
+  // 一度プレビューを開くと組み立て一式が読み込まれたまま残る。そのあと検証グリッドへ
+  // 切り替えると、出していない HTML を 1 打ごとに組み直すことになる（大きなシートでは
+  // これだけで打鍵が止まる）。出していない面では組み直さない。
+  it('グリッドへ切り替えたら組み直さない', () => {
+    expect(shouldRenderPreview({ ...shown, grid: true })).toBe(false);
+  });
+
+  it('差分・参考データ・時系列でも組み直さない', () => {
+    expect(shouldRenderPreview({ ...shown, diff: true })).toBe(false);
+    expect(shouldRenderPreview({ ...shown, data: true })).toBe(false);
+    expect(shouldRenderPreview({ ...shown, timeline: true })).toBe(false);
   });
 });
