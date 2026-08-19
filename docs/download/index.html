@@ -13,6 +13,10 @@
   .dl-hero .version {
     font-size: 0.95rem; color: var(--muted); margin: 4px 0 24px;
   }
+  /* 版を指定して見ているときの但し書き。最新と取り違えないよう、色を変えて残す。 */
+  .dl-hero .pinned { font-size: 0.9rem; color: var(--muted); margin: -18px 0 24px; }
+  .dl-hero .pinned a { margin-left: 8px; }
+  .pin-help { font-size: 0.9rem; color: var(--muted); }
   .btn-lg { padding: 16px 32px; font-size: 1.1rem; border-radius: 10px; }
   .btn-brand { background: var(--brand); color: #fff; }
   .btn-brand:hover { opacity: 0.9; }
@@ -60,7 +64,8 @@
 
   <div class="dl-hero">
     <div class="dl-primary" id="primary">
-      <span class="spin">最新版を確認しています…</span>
+      <!-- 下の script が置き換える。動かなかった場合はこのリンクがそのまま残る。 -->
+      <a class="btn btn-lg btn-brand" href="https://github.com/meta-taro/md-business/releases/latest">Releases ページでダウンロード</a>
     </div>
     <div class="version" id="version"></div>
     <div class="dl-sub" id="sub"></div>
@@ -170,6 +175,10 @@
     <p style="margin-top:16px">
       <a href="https://github.com/meta-taro/md-business/releases/latest" id="release-link">GitHub Releases ページを開く →</a>
     </p>
+    <p class="pin-help">
+      版を指定して配りたいときは、このページの URL に <code>?v=0.9.0</code> のように付けてください
+      （例: <code>.../download/?v=0.9.0</code>）。指定が無いときは最新版を表示します。
+    </p>
   </section>
 
 </main>
@@ -199,11 +208,20 @@
       });
     });
   })();
+</script>
 
-  // 最新リリースを GitHub API から取得し、OS 判定してダウンロードボタンを組み立てる。
+<script type="module">
+  import { requestedTag, releaseApiUrl } from '../assets/release-target.mjs';
+
+  // 指定が無ければ最新リリースを GitHub API から取得し、OS 判定してダウンロードボタンを組み立てる。
   // 公開リポの匿名 API を使うため、バージョンが上がってもこのページの編集は不要。
   const REPO = 'meta-taro/md-business';
   const RELEASES_LATEST = 'https://github.com/' + REPO + '/releases/latest';
+  // `?v=0.9.0` が付いていればその版を、無ければ最新を見せる。
+  const TAG = requestedTag(location.search);
+  const RELEASES_PAGE = TAG === null
+    ? RELEASES_LATEST
+    : 'https://github.com/' + REPO + '/releases/tag/' + TAG;
 
   function detectOS() {
     const ua = navigator.userAgent;
@@ -228,16 +246,18 @@
 
   function fallback(msg) {
     document.getElementById('primary').innerHTML =
-      '<a class="btn btn-lg btn-brand" href="' + RELEASES_LATEST + '">Releases ページでダウンロード</a>';
+      '<a class="btn btn-lg btn-brand" href="' + RELEASES_PAGE + '">Releases ページでダウンロード</a>';
     document.getElementById('version').textContent = msg || '';
     const note = document.getElementById('all-note');
     note.classList.remove('spin');
-    note.textContent = '成果物一覧を自動取得できませんでした。上のボタンから Releases ページを開いてください。';
+    note.textContent = TAG === null
+      ? '成果物一覧を自動取得できませんでした。上のボタンから Releases ページを開いてください。'
+      : '指定された版の成果物を読み込めませんでした。版の指定を外すと最新版を表示します。';
   }
 
   (async function () {
     try {
-      const res = await fetch('https://api.github.com/repos/' + REPO + '/releases/latest', {
+      const res = await fetch(releaseApiUrl(REPO, TAG), {
         headers: { 'Accept': 'application/vnd.github+json' }
       });
       if (!res.ok) throw new Error('HTTP ' + res.status);
@@ -261,14 +281,23 @@
           + osLabel + ' 版をダウンロード</a>';
       } else {
         primaryEl.innerHTML =
-          '<a class="btn btn-lg btn-brand" href="' + RELEASES_LATEST + '">ダウンロード一覧を開く</a>';
+          '<a class="btn btn-lg btn-brand" href="' + RELEASES_PAGE + '">ダウンロード一覧を開く</a>';
       }
 
       // バージョン表示
       const ver = rel.tag_name || '';
       const date = rel.published_at ? new Date(rel.published_at).toLocaleDateString('ja-JP') : '';
-      document.getElementById('version').textContent =
+      const versionEl = document.getElementById('version');
+      versionEl.textContent =
         [ver && ('バージョン ' + ver), date && ('公開日 ' + date)].filter(Boolean).join(' ・ ');
+      // 版を固定して見ている間は、それが最新とは限らないことを明示し、戻る道を必ず出す。
+      if (TAG !== null) {
+        const back = document.createElement('p');
+        back.className = 'pinned';
+        back.innerHTML = 'この版を指定して表示しています。'
+          + '<a href="./">最新版を見る →</a>';
+        versionEl.after(back);
+      }
 
       // 他プラットフォームへのサブリンク
       const sub = document.getElementById('sub');
@@ -299,8 +328,11 @@
       });
       document.getElementById('all-note').hidden = true;
       document.getElementById('asset-table').hidden = false;
+      document.getElementById('release-link').href = RELEASES_PAGE;
     } catch (e) {
-      fallback('');
+      // 版を指定していて見つからなかった場合は、最新を代わりに出さない。
+      // 頼まれたものと違うものを黙って渡すことになるため、指定が外れたことを伝える。
+      fallback(TAG === null ? '' : TAG + ' は見つかりませんでした');
     }
   })();
 </script>
