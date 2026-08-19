@@ -4,6 +4,18 @@ Changes to this app. Versions follow [Semantic Versioning](https://semver.org/).
 
 Japanese is the source of truth for this file; see [CHANGELOG.md](./CHANGELOG.md).
 
+## 0.13.0
+
+### Added
+
+- **Several documents can now be open at once, with tabs to move between them.** Only one could be open, which ruled out reading a spec against its test sheet, or two invoices side by side. A tab with unsaved work is saved before it closes. If a file changes outside the app while another tab is in front, a mark says so on return. Test sheets remember, per document, which cell was selected and how far it was scrolled.
+- **Figures can now be drawn from the numbers in a table.** A `chart` block in the text says which table, which columns, and how to draw them: line, bar, or pie. The numbers stay in the table, so correcting the table changes the figure on the spot — nothing is copied into the picture. When a figure cannot be drawn, the reason and the original block both remain.
+
+### Fixed
+
+- **An image export no longer drops the pictures placed in the document.** The shot is taken in a separate window, and the images were never carried there. The preview showed them, so this was invisible until the exported file was opened.
+- **Diagrams (Mermaid) no longer come out as a code block in HTML, image, and site exports.** They appeared on screen and in PDF, so only the exports fell back to text.
+
 ## 0.12.0
 
 ### Added

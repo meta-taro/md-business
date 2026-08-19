@@ -118,6 +118,16 @@ async function defaultRenderer(source: string, theme: PreviewTheme): Promise<str
   return renderWithMermaid(mermaid, `mdb-mermaid-${seq}`, source, theme, document);
 }
 
+/**
+ * 図 1 つを、書き出しに載せられる形（無害化済みの SVG）にする。
+ *
+ * 画面の中を描き替える経路（`renderMermaidInDocument`）は書き出しを通らないので、
+ * 書き出し側は本文の段階で図を画像に替える。その描画口がここ。
+ */
+export async function renderMermaidSvg(source: string, theme: PreviewTheme): Promise<string> {
+  return sanitizeViewerHtml(await defaultRenderer(source, theme), { allowSvg: true });
+}
+
 function remember(key: string, svg: string): void {
   if (cache.size >= CACHE_LIMIT) {
     const oldest = cache.keys().next().value;

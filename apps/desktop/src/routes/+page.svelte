@@ -37,6 +37,7 @@
   import ImageView from '$lib/image/ImageView.svelte';
   import { imageKindLabel, nextFitMode, type ImageFitMode } from '$lib/image/imageView';
   import { replaceChartBlocks } from '$lib/chart/chartBlocks';
+  import { CHART_INK } from '$lib/chart/chartInk';
   import { chartMessage } from '$lib/chart/chartMessage';
   import { loadCharts } from '$lib/chart/loadCharts';
   import { inlineImages } from '$lib/image/inlineImages';
@@ -346,8 +347,6 @@
   // 本文の `chart` の囲みは、指した表を読んで図に描き替える。描き替えは本文の段階でやる
   // （出来上がった画面を後から書き替えない）。プレビューも PDF も書き出しも同じ本文を通るので、
   // 画面には出るのに PDF には出ない、が起きない。
-  // 図の色は文書の文字色に合わせる。画像として貼る絵は別の文書なので、テーマの色は継がない。
-  const CHART_INK = { light: '#1f2328', dark: '#e6edf3' } as const;
   let chartMarkup = $state<ReadonlyMap<string, string>>(new Map());
   let chartGeneration = 0;
   $effect(() => {
