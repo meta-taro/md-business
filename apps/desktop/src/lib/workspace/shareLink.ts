@@ -15,6 +15,8 @@
  * - 一致するフォルダが手元に無ければ、開かずにその旨を返す。探しに行かない。
  */
 
+import { unusableSegmentReason } from '@md-business/core';
+
 /** 共有リンクが運ぶ中身。 */
 export interface ShareTarget {
   /** `github.com/owner/repo` の形。比較は大文字小文字を無視する。 */
@@ -57,7 +59,15 @@ function isSafeRepoPath(path: string): boolean {
   // `C:/...` のようなドライブ指定は相対パスではない。
   if (/^[A-Za-z]:/.test(path)) return false;
   const segments = path.split('/');
-  return segments.every((segment) => segment !== '' && segment !== '.' && segment !== '..');
+  return segments.every(
+    (segment) =>
+      segment !== '' &&
+      segment !== '.' &&
+      segment !== '..' &&
+      // 名前として使えない形（代替データストリーム・予約デバイス名）は、MCP のツール引数と
+      // 同じ判定で落とす。同じ「外から届いた相対パス」を、入口ごとに違う強さで見ない。
+      unusableSegmentReason(segment) === null,
+  );
 }
 
 /** `host/owner/repo` の形になっているか（ホストと最低 1 つの名前が要る）。 */

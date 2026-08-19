@@ -70,6 +70,27 @@ describe('parseShareLink', () => {
     expect(parseShareLink('md-business://open?repo=github.com/o/r&path=docs/%2E%2E/x.tsv')).toBeNull();
   });
 
+  it('コロンを含む名前は受け取らない', () => {
+    // NTFS の代替データストリーム。開けたように見えて、中身は本体ファイルの裏側に入る。
+    expect(parseShareLink('md-business://open?repo=github.com/o/r&path=docs/a.tsv:evil')).toBeNull();
+    expect(parseShareLink('md-business://open?repo=github.com/o/r&path=docs/%3Ahidden')).toBeNull();
+  });
+
+  it('予約デバイス名は受け取らない', () => {
+    for (const name of ['con', 'CON', 'con.md', 'aux.tsv', 'nul', 'com1', 'LPT9']) {
+      expect(
+        parseShareLink(`md-business://open?repo=github.com/o/r&path=docs/${name}`),
+        name,
+      ).toBeNull();
+    }
+  });
+
+  it('予約デバイス名に見えるだけの名前は受け取る', () => {
+    expect(
+      parseShareLink('md-business://open?repo=github.com/o/r&path=docs/console.md')?.path,
+    ).toBe('docs/console.md');
+  });
+
   it('円記号区切りは受け取らない', () => {
     expect(parseShareLink('md-business://open?repo=github.com/o/r&path=docs\\a.tsv')).toBeNull();
   });

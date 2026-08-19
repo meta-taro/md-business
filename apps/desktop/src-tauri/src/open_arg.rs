@@ -33,13 +33,21 @@ pub fn parse_open_arg(argv: &[String]) -> Option<String> {
         .cloned()
 }
 
-/// 実在するファイルのときだけ受け取る。
+/// 実在する、このアプリで開ける種類のファイルのときだけ受け取る。
 ///
 /// 引数には関係のない文字列が混ざりうる。存在しないものを通すと、画面が今開いている
 /// フォルダを見当違いの場所へ切り替えてしまう（利用者から見ると勝手に閉じたように映る）。
+///
+/// 種類を画面と同じ範囲（`ALLOWED_EXTS`）へ絞るのは、この経路が外から任意のパスで
+/// 叩けるため。今は関連付けを登録していないので実行ファイルを渡しても実行はされないが、
+/// 「開けないものを開こうとして画面が別の場所を向く」ところまでは起こせる。
 fn accept(raw: &str) -> Option<String> {
     let path = std::path::Path::new(raw);
     if !path.is_file() {
+        return None;
+    }
+    let ext = path.extension()?.to_string_lossy().to_lowercase();
+    if !crate::workspace::ALLOWED_EXTS.contains(&ext.as_str()) {
         return None;
     }
     Some(path.to_string_lossy().into_owned())
@@ -149,9 +157,33 @@ mod tests {
         assert_eq!(accept("C:/絶対に無いはずのフォルダ/none.tsv"), None);
     }
 
+    /// 一時ディレクトリに 1 ファイル作り、その絶対パスを返す。
+    fn temp_file(name: &str) -> std::path::PathBuf {
+        let path = std::env::temp_dir().join(format!("mdbiz_open_{}_{}", std::process::id(), name));
+        std::fs::write(&path, "x").unwrap();
+        path
+    }
+
     #[test]
     fn 実在するファイルは受け取る() {
-        let this = concat!(env!("CARGO_MANIFEST_DIR"), "/src/open_arg.rs");
-        assert!(accept(this).is_some());
+        let path = temp_file("ok.tsv");
+        assert!(accept(&path.to_string_lossy()).is_some());
+        let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
+    fn 扱えない拡張子は実在しても受け取らない() {
+        for name in ["deny.exe", "deny.ps1", "deny.rs", "denyless"] {
+            let path = temp_file(name);
+            assert_eq!(accept(&path.to_string_lossy()), None, "{name}");
+            let _ = std::fs::remove_file(&path);
+        }
+    }
+
+    #[test]
+    fn 拡張子の大小は問わない() {
+        let path = temp_file("UPPER.TSV");
+        assert!(accept(&path.to_string_lossy()).is_some());
+        let _ = std::fs::remove_file(&path);
     }
 }
