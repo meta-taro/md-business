@@ -5,10 +5,14 @@
 //!
 //! ディスクには書かない。組み立て済みのページを丸ごと覚えておき、要求が来たら
 //! そこから引く。書き出し（`export_site`）とは中身の作り方が同じで、置き場所だけが違う。
+//!
+//! 画像だけは覚えない。どこにあるかだけ控えておき、要求のたびに元のファイルを読む。
+//! 覚えると、保存のたびに写真の枚数ぶんの中身が丸ごと積み替わる。
 
 use std::collections::HashMap;
 use std::io::{BufRead, BufReader, Write};
 use std::net::{Ipv4Addr, TcpListener, TcpStream};
+use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread;
@@ -18,13 +22,16 @@ use serde::Serialize;
 use tauri::{AppHandle, Manager, State};
 
 use crate::preview_server_logic::{
-    content_type, http_response, inject_reload, parse_request_line, route, Route,
+    content_type, http_response, http_response_bytes, inject_reload, parse_request_line, route,
+    Route,
 };
-use crate::workspace::SiteFile;
+use crate::workspace::{resolve_image_in_root, SiteAsset, SiteFile};
 
 /// 覚えているページ一式と、その版。版はブラウザ側が入れ替わりを知るために使う。
 struct Site {
     pages: HashMap<String, String>,
+    /// サイト内での置き場所 → 元のファイル。中身ではなく在り処だけを持つ。
+    assets: HashMap<String, PathBuf>,
     version: u64,
 }
 
@@ -66,8 +73,24 @@ fn to_pages(files: Vec<SiteFile>) -> HashMap<String, String> {
         .collect()
 }
 
+/// 画像の在り処を控える。開いているフォルダの外・画像でないものはここで落ちる
+/// （読めない 1 枚のために、見せること自体を止めない）。
+fn to_assets(root: &Path, assets: Vec<SiteAsset>) -> HashMap<String, PathBuf> {
+    assets
+        .into_iter()
+        .filter_map(|asset| {
+            let source = resolve_image_in_root(root, &asset.src).ok()?;
+            Some((asset.dest.replace('\\', "/"), source))
+        })
+        .collect()
+}
+
 /// 待ち受けを立て、受け付けの繰り返しを別の筋で回す。
-fn start_server(files: Vec<SiteFile>) -> Result<Running, String> {
+fn start_server(
+    root: &Path,
+    files: Vec<SiteFile>,
+    assets: Vec<SiteAsset>,
+) -> Result<Running, String> {
     if files.is_empty() {
         return Err("見せるページがありません".to_string());
     }
@@ -83,6 +106,7 @@ fn start_server(files: Vec<SiteFile>) -> Result<Running, String> {
     let token = new_token();
     let site = Arc::new(Mutex::new(Site {
         pages: to_pages(files),
+        assets: to_assets(root, assets),
         version: 1,
     }));
     let stopping = Arc::new(AtomicBool::new(false));
@@ -142,21 +166,36 @@ fn respond(target: &str, token: &str, site: &Mutex<Site>) -> Vec<u8> {
             http_response(200, "text/plain; charset=utf-8", &site.version.to_string())
         }
         Route::Page(key) => {
-            let Some(content) = site.pages.get(&key) else {
+            if let Some(content) = site.pages.get(&key) {
+                let kind = content_type(&key);
+                return if kind.starts_with("text/html") {
+                    http_response(200, kind, &inject_reload(content, token))
+                } else {
+                    http_response(200, kind, content)
+                };
+            }
+            // 画像は覚えていないので元を読む。読んでいる間は錠を放す——大きな写真 1 枚で
+            // 同じページの他の要求まで待たせない。
+            let Some(source) = site.assets.get(&key).cloned() else {
                 return not_found();
             };
-            let kind = content_type(&key);
-            if kind.starts_with("text/html") {
-                http_response(200, kind, &inject_reload(content, token))
-            } else {
-                http_response(200, kind, content)
+            drop(site);
+            match std::fs::read(&source) {
+                Ok(bytes) => http_response_bytes(200, content_type(&key), &bytes),
+                // 出した後に消された・読めなくなった。ページ自体は出ているので、その 1 枚だけ落とす。
+                Err(_) => not_found(),
             }
         }
     }
 }
 
 /// 覚えている中身を入れ替え、版を進める。開いているブラウザはこの版を見て読み直す。
-fn replace_site(running: &Running, files: Vec<SiteFile>) -> Result<(), String> {
+fn replace_site(
+    running: &Running,
+    root: &Path,
+    files: Vec<SiteFile>,
+    assets: Vec<SiteAsset>,
+) -> Result<(), String> {
     if files.is_empty() {
         return Err("見せるページがありません".to_string());
     }
@@ -165,6 +204,7 @@ fn replace_site(running: &Running, files: Vec<SiteFile>) -> Result<(), String> {
         .lock()
         .map_err(|_| "中身を書き換えられません".to_string())?;
     site.pages = to_pages(files);
+    site.assets = to_assets(root, assets);
     site.version += 1;
     Ok(())
 }
@@ -188,7 +228,9 @@ fn info(running: &Running) -> PreviewServerInfo {
 #[tauri::command]
 pub fn start_preview_server(
     state: State<'_, PreviewServerState>,
+    root: String,
     files: Vec<SiteFile>,
+    assets: Vec<SiteAsset>,
 ) -> Result<PreviewServerInfo, String> {
     let mut slot = state
         .running
@@ -199,7 +241,7 @@ pub fn start_preview_server(
     if let Some(previous) = slot.take() {
         stop_server(&previous);
     }
-    let running = start_server(files)?;
+    let running = start_server(Path::new(&root), files, assets)?;
     let detail = info(&running);
     *slot = Some(running);
     Ok(detail)
@@ -208,14 +250,16 @@ pub fn start_preview_server(
 #[tauri::command]
 pub fn update_preview_server(
     state: State<'_, PreviewServerState>,
+    root: String,
     files: Vec<SiteFile>,
+    assets: Vec<SiteAsset>,
 ) -> Result<(), String> {
     let slot = state
         .running
         .lock()
         .map_err(|_| "状態を読めません".to_string())?;
     match slot.as_ref() {
-        Some(running) => replace_site(running, files),
+        Some(running) => replace_site(running, Path::new(&root), files, assets),
         // 立っていないときの作り直しは、何もしないのが正しい（立て直しはボタンの仕事）。
         None => Ok(()),
     }
@@ -259,6 +303,11 @@ pub fn shutdown(app: &AppHandle) {
 mod tests {
     use super::*;
 
+    /// 画像を伴わない待ち受け。ページの返し方を見るテストで使う。
+    fn start(files: Vec<SiteFile>) -> Result<Running, String> {
+        start_server(Path::new("."), files, vec![])
+    }
+
     fn site(path: &str, content: &str) -> SiteFile {
         SiteFile {
             path: path.to_string(),
@@ -287,7 +336,7 @@ mod tests {
 
     #[test]
     fn 手元だけで待ち受ける() {
-        let running = start_server(pages()).expect("立つ");
+        let running = start(pages()).expect("立つ");
         assert!(running.port > 0);
         assert_eq!(
             info(&running).url,
@@ -298,7 +347,7 @@ mod tests {
 
     #[test]
     fn 合鍵つきならページが返る() {
-        let running = start_server(pages()).expect("立つ");
+        let running = start(pages()).expect("立つ");
         let got = request(running.port, &format!("/{}/", running.token)).expect("返る");
         assert!(got.starts_with("HTTP/1.1 200 "));
         assert!(got.contains("一覧"));
@@ -308,7 +357,7 @@ mod tests {
     // 中身が入れ替わったことをブラウザ側が知る手立てが要る。
     #[test]
     fn ページには入れ替えの仕掛けが入る() {
-        let running = start_server(pages()).expect("立つ");
+        let running = start(pages()).expect("立つ");
         let got = request(running.port, &format!("/{}/index.html", running.token)).expect("返る");
         assert!(got.contains("<script>"));
         assert!(got.contains(&running.token));
@@ -318,7 +367,7 @@ mod tests {
     // 仕掛けは HTML の中でしか意味を持たない。CSS に混ぜると書式が壊れる。
     #[test]
     fn ページ以外には仕掛けを入れない() {
-        let running = start_server(pages()).expect("立つ");
+        let running = start(pages()).expect("立つ");
         let got = request(
             running.port,
             &format!("/{}/assets/markdown.css", running.token),
@@ -331,7 +380,7 @@ mod tests {
 
     #[test]
     fn 合鍵が無ければ中身を返さない() {
-        let running = start_server(pages()).expect("立つ");
+        let running = start(pages()).expect("立つ");
         let got = request(running.port, "/index.html").expect("返る");
         assert!(got.starts_with("HTTP/1.1 404 "));
         assert!(!got.contains("一覧"));
@@ -340,7 +389,7 @@ mod tests {
 
     #[test]
     fn 無いページは断る() {
-        let running = start_server(pages()).expect("立つ");
+        let running = start(pages()).expect("立つ");
         let got = request(running.port, &format!("/{}/無い.html", running.token)).expect("返る");
         assert!(got.starts_with("HTTP/1.1 404 "));
         stop_server(&running);
@@ -348,16 +397,18 @@ mod tests {
 
     #[test]
     fn 作り直すと版が上がり中身も入れ替わる() {
-        let running = start_server(pages()).expect("立つ");
+        let running = start(pages()).expect("立つ");
         let target = format!("/{}/__version", running.token);
         let before = request(running.port, &target).expect("返る");
 
         replace_site(
             &running,
+            Path::new("."),
             vec![site(
                 "index.html",
                 "<html><body><h1>作り直し</h1></body></html>",
             )],
+            vec![],
         )
         .expect("入れ替わる");
 
@@ -371,7 +422,7 @@ mod tests {
 
     #[test]
     fn 止めると繋がらなくなる() {
-        let running = start_server(pages()).expect("立つ");
+        let running = start(pages()).expect("立つ");
         let port = running.port;
         stop_server(&running);
         assert!(request(port, "/").is_none());
@@ -380,8 +431,8 @@ mod tests {
     // 合鍵を覚えて使い回すと、前に開いたままのブラウザから次の中身が見える。
     #[test]
     fn 合鍵は立てるたびに変わる() {
-        let first = start_server(pages()).expect("立つ");
-        let second = start_server(pages()).expect("立つ");
+        let first = start(pages()).expect("立つ");
+        let second = start(pages()).expect("立つ");
         assert_ne!(first.token, second.token);
         assert_eq!(first.token.len(), 32);
         stop_server(&first);
@@ -390,6 +441,102 @@ mod tests {
 
     #[test]
     fn 出すページが無ければ立てない() {
-        assert!(start_server(vec![]).is_err());
+        assert!(start(vec![]).is_err());
+    }
+
+    // ── 画像 ─────────────────────────────────────────────────────────────
+
+    /// 画像を 1 枚だけ置いた作業フォルダ。使い終わったら消す。
+    struct ImageRoot {
+        path: PathBuf,
+    }
+
+    impl ImageRoot {
+        fn new(tag: &str) -> Self {
+            let path =
+                std::env::temp_dir().join(format!("mdbiz_srv_{}_{}", tag, std::process::id()));
+            std::fs::create_dir_all(path.join("経費")).expect("作業フォルダ作成");
+            std::fs::write(path.join("経費/領収書.png"), "PNGDATA").expect("画像を置く");
+            ImageRoot { path }
+        }
+    }
+
+    impl Drop for ImageRoot {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_dir_all(&self.path);
+        }
+    }
+
+    fn asset(src: &str, dest: &str) -> SiteAsset {
+        SiteAsset {
+            src: src.to_string(),
+            dest: dest.to_string(),
+        }
+    }
+
+    // 中身を覚えずに在り処だけ控える。要求が来た時点で元を読む。
+    #[test]
+    fn 画像は元のファイルから返す() {
+        let root = ImageRoot::new("img");
+        let running = start_server(
+            &root.path,
+            pages(),
+            vec![asset("経費/領収書.png", "assets/img/経費/領収書.png")],
+        )
+        .expect("立つ");
+
+        let got = request(
+            running.port,
+            &format!("/{}/assets/img/経費/領収書.png", running.token),
+        )
+        .expect("返る");
+
+        assert!(got.starts_with("HTTP/1.1 200 "));
+        assert!(got.contains("image/png"));
+        assert!(got.contains("PNGDATA"));
+        stop_server(&running);
+    }
+
+    // 出した後に元を消しても、ページ自体は出続ける。
+    #[test]
+    fn 元が消えた画像だけを断る() {
+        let root = ImageRoot::new("img_gone");
+        let running = start_server(
+            &root.path,
+            pages(),
+            vec![asset("経費/領収書.png", "assets/img/領収書.png")],
+        )
+        .expect("立つ");
+        std::fs::remove_file(root.path.join("経費/領収書.png")).expect("消す");
+
+        let got = request(
+            running.port,
+            &format!("/{}/assets/img/領収書.png", running.token),
+        )
+        .expect("返る");
+        assert!(got.starts_with("HTTP/1.1 404 "));
+
+        let page = request(running.port, &format!("/{}/", running.token)).expect("返る");
+        assert!(page.contains("一覧"));
+        stop_server(&running);
+    }
+
+    #[test]
+    fn フォルダの外の画像は控えない() {
+        let root = ImageRoot::new("img_escape");
+        let running = start_server(
+            &root.path,
+            pages(),
+            vec![asset("../mdbiz_srv_外.png", "assets/img/外.png")],
+        )
+        .expect("立つ");
+
+        let got = request(
+            running.port,
+            &format!("/{}/assets/img/外.png", running.token),
+        )
+        .expect("返る");
+        assert!(got.starts_with("HTTP/1.1 404 "));
+        stop_server(&running);
     }
 }

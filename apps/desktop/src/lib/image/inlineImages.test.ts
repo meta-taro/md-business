@@ -96,3 +96,40 @@ describe('inlineImages', () => {
     expect(inlineImages(md, new Map())).toBe(md);
   });
 });
+
+describe('HTML で書いた画像', () => {
+  it('src を拾う', () => {
+    expect(collectImageRefs('<img src="./図.png" alt="図">')).toEqual([
+      { raw: './図.png', ref: './図.png' },
+    ]);
+  });
+
+  it('引用符の種類と属性の並びを問わない', () => {
+    expect(collectImageRefs("<img alt='図' width=320 src='a.png' />")).toEqual([
+      { raw: 'a.png', ref: 'a.png' },
+    ]);
+    expect(collectImageRefs('<img src=b.png>')).toEqual([{ raw: 'b.png', ref: 'b.png' }]);
+  });
+
+  it('外を指すものと画像でないものは拾わない', () => {
+    expect(collectImageRefs('<img src="https://example.com/a.png">')).toEqual([]);
+    expect(collectImageRefs('<img src="note.md">')).toEqual([]);
+  });
+
+  it('コードブロックの中は拾わない', () => {
+    const md = ['```html', '<img src="a.png">', '```'].join('\n');
+    expect(collectImageRefs(md)).toEqual([]);
+  });
+
+  it('読めた画像に差し替える', () => {
+    const out = inlineImages('<img src="a.png" alt="図">', new Map([['a.png', png]]));
+    expect(out).toBe(`<img src="${png}" alt="図">`);
+  });
+
+  it('読めなかった画像は書かれたまま残す', () => {
+    const md = '<img src="a.png"><img src="b.png">';
+    expect(inlineImages(md, new Map([['a.png', png]]))).toBe(
+      `<img src="${png}"><img src="b.png">`,
+    );
+  });
+});

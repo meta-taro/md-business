@@ -29,7 +29,7 @@ export async function collectSitePlan(root: string): Promise<SitePlan> {
   // 一覧を取る。除外（.git / node_modules / dist）は Rust 側が済ませている。
   const scan = await invoke<ScanResult>('scan_documents', { root });
   const paths = siteDocumentPaths(scan.entries);
-  if (paths.length === 0) return { files: [], pages: [], skipped: [] };
+  if (paths.length === 0) return { files: [], pages: [], assets: [], skipped: [] };
 
   const docs: SiteSource[] = [];
   for (const path of paths) {

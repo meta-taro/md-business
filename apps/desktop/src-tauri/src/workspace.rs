@@ -372,7 +372,8 @@ pub fn rename_entry_impl(root: &Path, rel_path: &str, new_name: &str) -> Result<
         return Err("その名前は使えません".to_string());
     }
     // OS が受け付けない文字は、分かりにくい OS エラーになる前に理由を付けて返す。
-    if name.contains(|c: char| matches!(c, ':' | '*' | '?' | '"' | '<' | '>' | '|') || c.is_control())
+    if name
+        .contains(|c: char| matches!(c, ':' | '*' | '?' | '"' | '<' | '>' | '|') || c.is_control())
     {
         return Err("名前に使えない文字が含まれています".to_string());
     }
@@ -467,7 +468,7 @@ pub async fn export_html(root: String, rel_path: String, html: String) -> Result
 const SITE_DIR: &str = "dist";
 
 /// サイトに置ける拡張子。ページと書式だけ。ここを広げると、任意の中身を任意の名前で
-/// 置ける口になる（画像は今のところ運ぶ実体が無い——プレビューが通さないため）。
+/// 置ける口になる。画像は中身を渡さない別の口（[`SiteAsset`]）で運ぶ。
 const SITE_EXTS: [&str; 2] = ["html", "css"];
 
 /// 書き出す 1 ファイル。`path` は `dist/` から見た相対パス（`/` 区切り）。
@@ -475,6 +476,18 @@ const SITE_EXTS: [&str; 2] = ["html", "css"];
 pub struct SiteFile {
     pub path: String,
     pub content: String,
+}
+
+/// サイトへ運ぶ画像 1 件。`src` は開いているフォルダから見た相対パス、
+/// `dest` は `dist/` から見た相対パス（`/` 区切り）。
+///
+/// 中身は受け取らない。画面側が読んで渡す形にすると、文書 1 つに大きな写真が
+/// 何枚も貼られたときに、その全部が一度に画面側の持ち物になる。ここでは
+/// 「どれをどこへ」だけを受け取り、読むのも書くのもこちら側で 1 件ずつ済ませる。
+#[derive(Deserialize, Debug, Clone, PartialEq, Eq)]
+pub struct SiteAsset {
+    pub src: String,
+    pub dest: String,
 }
 
 /// 書き出しの結果。どこへ何件置いたかだけ返す。
@@ -488,7 +501,7 @@ pub struct SiteWriteResult {
 ///
 /// 通すのは「普通の名前」だけ。`..`（上へ出る）・先頭の `/`（絶対）・`C:`（ドライブ指定）は
 /// いずれも `Component::Normal` にならないので、この一点で塞げる。
-fn site_relative_path(path: &str) -> Result<PathBuf, String> {
+fn site_normal_path(path: &str) -> Result<PathBuf, String> {
     let normalized = path.replace('\\', "/");
     let candidate = Path::new(&normalized);
     if !candidate
@@ -497,10 +510,28 @@ fn site_relative_path(path: &str) -> Result<PathBuf, String> {
     {
         return Err(format!("サイト内に置けない場所を指しています: {}", path));
     }
-    match lower_ext(candidate) {
-        Some(ext) if SITE_EXTS.contains(&ext.as_str()) => Ok(candidate.to_path_buf()),
+    Ok(candidate.to_path_buf())
+}
+
+fn site_relative_path(path: &str) -> Result<PathBuf, String> {
+    let candidate = site_normal_path(path)?;
+    match lower_ext(&candidate) {
+        Some(ext) if SITE_EXTS.contains(&ext.as_str()) => Ok(candidate),
         _ => Err(format!(
             "サイトに置けるのは .html / .css のみです: {}",
+            path
+        )),
+    }
+}
+
+/// 画像の置き先として受け付けてよいか確かめる。置ける場所の条件はページと同じで、
+/// 拡張子だけが画像に限られる。
+fn site_asset_path(path: &str) -> Result<PathBuf, String> {
+    let candidate = site_normal_path(path)?;
+    match lower_ext(&candidate) {
+        Some(ext) if IMAGE_EXTS.contains(&ext.as_str()) => Ok(candidate),
+        _ => Err(format!(
+            "サイトへ運べる画像は png / jpg / gif / webp / svg のみです: {}",
             path
         )),
     }
@@ -514,7 +545,15 @@ fn site_relative_path(path: &str) -> Result<PathBuf, String> {
 /// 既にあるファイルは上書きするが、**もう作られなかったファイルは消さない**。`dist/` は
 /// 他のビルド成果物の置き場でもありうるので、こちらの判断でフォルダごと掃除しない。
 /// （消えた文書のページが残る場合は、利用者が `dist/` を消してから出し直す）
-pub fn export_site_impl(root: &Path, files: &[SiteFile]) -> Result<SiteWriteResult, String> {
+///
+/// 画像（`assets`）は元のファイルをそのまま複製する。**読めなかった 1 枚でサイト全体を
+/// 止めない**——画像が 1 枚足りないことと、ページが 1 枚も出ないことは重さが違う。
+/// 置き先の指定が不正な場合は別で、これは組み立て側の誤りなので書き出す前に断る。
+pub fn export_site_impl(
+    root: &Path,
+    files: &[SiteFile],
+    assets: &[SiteAsset],
+) -> Result<SiteWriteResult, String> {
     if files.is_empty() {
         return Err("書き出すページがありません".to_string());
     }
@@ -531,26 +570,61 @@ pub fn export_site_impl(root: &Path, files: &[SiteFile]) -> Result<SiteWriteResu
                 .map(|rel| (canon_root.join(SITE_DIR).join(rel), &file.content))
         })
         .collect::<Result<Vec<_>, String>>()?;
+    let copies = assets
+        .iter()
+        .map(|asset| {
+            site_asset_path(&asset.dest)
+                .map(|rel| (canon_root.join(SITE_DIR).join(rel), &asset.src))
+        })
+        .collect::<Result<Vec<_>, String>>()?;
 
     for (target, content) in &targets {
-        if let Some(parent) = target.parent() {
-            std::fs::create_dir_all(parent)
-                .map_err(|e| format!("フォルダ作成失敗 {}: {}", parent.display(), e))?;
-        }
-        std::fs::write(target, content)
-            .map_err(|e| format!("書き出し失敗 {}: {}", target.display(), e))?;
+        write_into_site(target, |path| {
+            std::fs::write(path, content)
+                .map_err(|e| format!("書き出し失敗 {}: {}", path.display(), e))
+        })?;
+    }
+
+    let mut copied = 0usize;
+    for (target, src) in &copies {
+        // 元が消えている・フォルダの外を指している・画像でない、のいずれも「その 1 枚だけ運べない」。
+        let Ok(source) = resolve_image_in_root(&canon_root, src) else {
+            continue;
+        };
+        write_into_site(target, |path| {
+            std::fs::copy(&source, path)
+                .map(|_| ())
+                .map_err(|e| format!("画像の複製失敗 {}: {}", path.display(), e))
+        })?;
+        copied += 1;
     }
 
     Ok(SiteWriteResult {
         dir: SITE_DIR.to_string(),
-        count: targets.len(),
+        count: targets.len() + copied,
     })
 }
 
-/// フロントから `invoke("export_site", { root, files })` で呼ぶ薄いラッパ。
+/// `dist/` の中の 1 か所へ置く。途中のフォルダを作ってから渡された書き方で置く。
+fn write_into_site(
+    target: &Path,
+    put: impl FnOnce(&Path) -> Result<(), String>,
+) -> Result<(), String> {
+    if let Some(parent) = target.parent() {
+        std::fs::create_dir_all(parent)
+            .map_err(|e| format!("フォルダ作成失敗 {}: {}", parent.display(), e))?;
+    }
+    put(target)
+}
+
+/// フロントから `invoke("export_site", { root, files, assets })` で呼ぶ薄いラッパ。
 #[tauri::command]
-pub async fn export_site(root: String, files: Vec<SiteFile>) -> Result<SiteWriteResult, String> {
-    spawn_fs(move || export_site_impl(Path::new(&root), &files)).await
+pub async fn export_site(
+    root: String,
+    files: Vec<SiteFile>,
+    assets: Vec<SiteAsset>,
+) -> Result<SiteWriteResult, String> {
+    spawn_fs(move || export_site_impl(Path::new(&root), &files, &assets)).await
 }
 
 /// フロントから `invoke("scan_documents", { root })` で呼ぶ薄いラッパ。
@@ -961,7 +1035,10 @@ mod tests {
     #[test]
     fn read_日本語のファイル名とディレクトリ名で読める() {
         let root = TempRoot::new("read_ja");
-        root.file("検証シート/受発注ワークフロー.tsv", "No.:number\t項目\t結果");
+        root.file(
+            "検証シート/受発注ワークフロー.tsv",
+            "No.:number\t項目\t結果",
+        );
         let body =
             read_document_impl(&root.path, "検証シート/受発注ワークフロー.tsv").expect("読込成功");
         assert_eq!(body, "No.:number\t項目\t結果");
@@ -1076,7 +1153,10 @@ mod tests {
     fn create_md_tsv以外の拡張子は拒否する() {
         let root = TempRoot::new("create_ext");
         assert!(create_document_impl(&root.path, "c.txt", "text").is_err());
-        assert!(!root.path.join("c.txt").exists(), "拒否時はファイルを作らない");
+        assert!(
+            !root.path.join("c.txt").exists(),
+            "拒否時はファイルを作らない"
+        );
     }
 
     #[test]
@@ -1095,7 +1175,8 @@ mod tests {
         let outside_name = "mdbiz_csecret_outside.md";
         let outside = root.path.parent().unwrap().join(outside_name);
         let _ = std::fs::remove_file(&outside);
-        let result = create_document_impl(&root.path, "../mdbiz_csecret_outside.md", "外部作成試行");
+        let result =
+            create_document_impl(&root.path, "../mdbiz_csecret_outside.md", "外部作成試行");
         let created = outside.exists();
         let _ = std::fs::remove_file(&outside);
         assert!(result.is_err(), "root 外は Err");
@@ -1171,7 +1252,8 @@ mod tests {
     fn rename_サブディレクトリ内でも親の位置は保つ() {
         let root = TempRoot::new("ren_sub");
         root.file("docs/検証/旧名.tsv", "x\ty");
-        let rel = rename_entry_impl(&root.path, "docs/検証/旧名.tsv", "新名.tsv").expect("改名成功");
+        let rel =
+            rename_entry_impl(&root.path, "docs/検証/旧名.tsv", "新名.tsv").expect("改名成功");
         assert_eq!(rel, "docs/検証/新名.tsv");
     }
 
@@ -1276,10 +1358,13 @@ mod tests {
     #[test]
     fn 書き出し先は元の_md_と同じ場所の同名_html() {
         let root = TempRoot::new("export_ok");
-        root.file("設計書/基本設計書.md", "---
+        root.file(
+            "設計書/基本設計書.md",
+            "---
 schema: spec/v1
 ---
-");
+",
+        );
 
         let written = export_html_impl(&root.path, "設計書/基本設計書.md", "<!doctype html>")
             .expect("書き出し成功");
@@ -1308,8 +1393,11 @@ schema: spec/v1
     #[test]
     fn 元が_md_でなければ断る() {
         let root = TempRoot::new("export_ext");
-        root.file("a.tsv", "#! md-business:test-spec-tsv/v1
-");
+        root.file(
+            "a.tsv",
+            "#! md-business:test-spec-tsv/v1
+",
+        );
 
         assert!(export_html_impl(&root.path, "a.tsv", "<html>").is_err());
         assert!(!root.path.join("a.html").exists());
@@ -1332,6 +1420,11 @@ schema: spec/v1
 
     // ── export_site_impl ─────────────────────────────────────────────────
 
+    /// 画像を伴わない書き出し。ページの置き場所と拡張子を見るテストで使う。
+    fn export_pages(root: &Path, files: &[SiteFile]) -> Result<SiteWriteResult, String> {
+        export_site_impl(root, files, &[])
+    }
+
     fn site_file(path: &str, content: &str) -> SiteFile {
         SiteFile {
             path: path.to_string(),
@@ -1343,7 +1436,7 @@ schema: spec/v1
     fn サイトは_dist_配下へ書き出す() {
         let root = TempRoot::new("site_ok");
 
-        let result = export_site_impl(
+        let result = export_pages(
             &root.path,
             &[
                 site_file("index.html", "<!doctype html>"),
@@ -1368,7 +1461,7 @@ schema: spec/v1
     fn 階層のあるページは親フォルダごと作る() {
         let root = TempRoot::new("site_nested");
 
-        export_site_impl(&root.path, &[site_file("設計/基本設計書.html", "<h1>")])
+        export_pages(&root.path, &[site_file("設計/基本設計書.html", "<h1>")])
             .expect("書き出し成功");
 
         assert!(root.path.join("dist/設計/基本設計書.html").is_file());
@@ -1380,7 +1473,7 @@ schema: spec/v1
         let root = TempRoot::new("site_overwrite");
         root.file("dist/index.html", "古い");
 
-        export_site_impl(&root.path, &[site_file("index.html", "新しい")]).expect("書き出し成功");
+        export_pages(&root.path, &[site_file("index.html", "新しい")]).expect("書き出し成功");
 
         assert_eq!(
             std::fs::read_to_string(root.path.join("dist/index.html")).unwrap(),
@@ -1393,7 +1486,7 @@ schema: spec/v1
     fn 上へ出るパスが_1_つでもあれば何も書かない() {
         let root = TempRoot::new("site_escape");
 
-        assert!(export_site_impl(
+        assert!(export_pages(
             &root.path,
             &[site_file("a.html", "<h1>"), site_file("../外.html", "<h1>")]
         )
@@ -1407,8 +1500,8 @@ schema: spec/v1
     fn サイトの絶対パスは断る() {
         let root = TempRoot::new("site_abs");
 
-        assert!(export_site_impl(&root.path, &[site_file("/tmp/x.html", "<h1>")]).is_err());
-        assert!(export_site_impl(&root.path, &[site_file("C:/x.html", "<h1>")]).is_err());
+        assert!(export_pages(&root.path, &[site_file("/tmp/x.html", "<h1>")]).is_err());
+        assert!(export_pages(&root.path, &[site_file("C:/x.html", "<h1>")]).is_err());
     }
 
     // dist/ に置くのは描いたページと CSS だけ。ここを広げると、任意の中身を
@@ -1417,9 +1510,9 @@ schema: spec/v1
     fn html_と_css_以外は断る() {
         let root = TempRoot::new("site_ext");
 
-        assert!(export_site_impl(&root.path, &[site_file("a.exe", "MZ")]).is_err());
-        assert!(export_site_impl(&root.path, &[site_file("a.md", "# a")]).is_err());
-        assert!(export_site_impl(&root.path, &[site_file("noext", "x")]).is_err());
+        assert!(export_pages(&root.path, &[site_file("a.exe", "MZ")]).is_err());
+        assert!(export_pages(&root.path, &[site_file("a.md", "# a")]).is_err());
+        assert!(export_pages(&root.path, &[site_file("noext", "x")]).is_err());
     }
 
     // 空の dist/ を作っても、利用者には何が起きたか分からない。
@@ -1427,7 +1520,7 @@ schema: spec/v1
     fn 空の一覧は断る() {
         let root = TempRoot::new("site_empty");
 
-        assert!(export_site_impl(&root.path, &[]).is_err());
+        assert!(export_pages(&root.path, &[]).is_err());
         assert!(!root.path.join("dist").exists());
     }
 
@@ -1435,10 +1528,99 @@ schema: spec/v1
     fn ルートがフォルダでなければ断る() {
         let root = TempRoot::new("site_noroot");
 
-        assert!(export_site_impl(
+        assert!(export_pages(
             &root.path.join("無いフォルダ"),
             &[site_file("a.html", "<h1>")]
         )
         .is_err());
+    }
+
+    // ── export_site_impl（画像） ─────────────────────────────────────────
+
+    fn site_asset(src: &str, dest: &str) -> SiteAsset {
+        SiteAsset {
+            src: src.to_string(),
+            dest: dest.to_string(),
+        }
+    }
+
+    // ページごとに埋め込むと、同じ写真を 3 ページで指しただけで中身が 3 つに増える。
+    #[test]
+    fn 画像はファイルとして複製する() {
+        let root = TempRoot::new("site_img");
+        root.file("経費/領収書.png", "PNGDATA");
+
+        let result = export_site_impl(
+            &root.path,
+            &[site_file("index.html", "<img>")],
+            &[site_asset("経費/領収書.png", "assets/img/経費/領収書.png")],
+        )
+        .expect("書き出し成功");
+
+        assert_eq!(result.count, 2);
+        assert_eq!(
+            std::fs::read_to_string(root.path.join("dist/assets/img/経費/領収書.png")).unwrap(),
+            "PNGDATA"
+        );
+    }
+
+    // 画像が 1 枚足りないことと、ページが 1 枚も出ないことは重さが違う。
+    #[test]
+    fn 元が無い画像はその_1_枚だけ運ばない() {
+        let root = TempRoot::new("site_img_absent");
+
+        let result = export_site_impl(
+            &root.path,
+            &[site_file("index.html", "<img>")],
+            &[site_asset("無い.png", "assets/img/無い.png")],
+        )
+        .expect("書き出し成功");
+
+        assert_eq!(result.count, 1);
+        assert!(root.path.join("dist/index.html").is_file());
+        assert!(!root.path.join("dist/assets/img/無い.png").exists());
+    }
+
+    #[test]
+    fn フォルダの外の画像は運ばない() {
+        let root = TempRoot::new("site_img_escape");
+        let outside = root
+            .path
+            .parent()
+            .expect("親")
+            .join("mdbiz_site_outside.png");
+        std::fs::write(&outside, "PNGDATA").expect("外に置く");
+
+        let result = export_site_impl(
+            &root.path,
+            &[site_file("index.html", "<img>")],
+            &[site_asset("../mdbiz_site_outside.png", "assets/img/外.png")],
+        )
+        .expect("書き出し成功");
+
+        assert_eq!(result.count, 1);
+        assert!(!root.path.join("dist/assets/img/外.png").exists());
+        let _ = std::fs::remove_file(&outside);
+    }
+
+    // 置き先は組み立て側が作る。おかしいのは誤りなので、書き出す前に断る。
+    #[test]
+    fn 画像の置き先が不正なら何も書かない() {
+        let root = TempRoot::new("site_img_dest");
+        root.file("図.png", "PNGDATA");
+
+        assert!(export_site_impl(
+            &root.path,
+            &[site_file("index.html", "<img>")],
+            &[site_asset("図.png", "../外.png")],
+        )
+        .is_err());
+        assert!(export_site_impl(
+            &root.path,
+            &[site_file("index.html", "<img>")],
+            &[site_asset("図.png", "assets/img/図.exe")],
+        )
+        .is_err());
+        assert!(!root.path.join("dist/index.html").exists());
     }
 }

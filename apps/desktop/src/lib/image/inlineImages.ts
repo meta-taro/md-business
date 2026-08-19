@@ -6,8 +6,12 @@
  * 開く。そこで、描く前に本文の参照を data URL へ置き換える（読めるのは開いているフォルダの
  * 中の画像だけで、この置き換えは通す先を広げない）。
  *
- * 拾うのは「その場に書いた参照」だけ。コードブロックと行内コードは記法そのものを見せる場所
- * なので触らない。外を指すもの（https: / data: / //…）は元から届いているか、届かせない。
+ * 拾うのは「その場に書いた参照」だけ。`![](図.png)` と `<img src="図.png">` の両方を見る。
+ * コードブロックと行内コードは記法そのものを見せる場所なので触らない。
+ * 外を指すもの（https: / data: / //…）は元から届いているか、届かせない。
+ *
+ * 差し替える先は data URL とは限らない。静的サイトの書き出しは、画像をファイルとして
+ * 運んだうえで、その置き場を指す道に差し替えるのに同じ仕組みを使う。
  */
 import { isImagePath } from '../workspace/imageFile';
 
@@ -28,11 +32,21 @@ const CODE_SPAN = /`[^`]*`/g;
 /** 画像の記法。1=説明 2=参照 3=題名（前の空白ごと）。 */
 const IMAGE = /!\[([^\]]*)\]\(\s*(<[^>\n]*>|[^()\s]+)(\s+"[^"]*")?\s*\)/g;
 
+/** HTML で書いた画像。属性の並びは決め打ちにできないので、まずタグを取り、その中で src を探す。 */
+const IMG_TAG = /<img\b[^>]*>/gi;
+const IMG_SRC = /(\bsrc\s*=\s*)("[^"]*"|'[^']*'|[^\s"'`=<>]+)/i;
+
 /** 名前に scheme が付いているか（`https:` `data:` など）。 */
 const SCHEME = /^[a-z][a-z0-9+.-]*:/i;
 
 /** パスの区切り。円記号で書かれることもある。 */
 const SEPARATOR = /[\\/]/;
+
+/** 属性値の引用符を外す。引用符なしで書かれることもある。 */
+function unquote(value: string): string {
+  const quote = value[0];
+  return (quote === '"' || quote === "'") && value.endsWith(quote) ? value.slice(1, -1) : value;
+}
 
 function decodeRef(raw: string): string {
   const inner = raw.startsWith('<') && raw.endsWith('>') ? raw.slice(1, -1) : raw;
@@ -91,11 +105,15 @@ function mapOutsideCode(source: string, fn: (text: string) => string): string {
  */
 export function collectImageRefs(source: string): ImageRef[] {
   const found = new Map<string, ImageRef>();
+  const add = (raw: string): void => {
+    const ref = decodeRef(raw);
+    if (isLocalImageRef(ref) && !found.has(raw)) found.set(raw, { raw, ref });
+  };
   mapOutsideCode(source, (text) => {
-    for (const match of text.matchAll(IMAGE)) {
-      const raw = match[2];
-      const ref = decodeRef(raw);
-      if (isLocalImageRef(ref) && !found.has(raw)) found.set(raw, { raw, ref });
+    for (const match of text.matchAll(IMAGE)) add(match[2]);
+    for (const tag of text.matchAll(IMG_TAG)) {
+      const src = IMG_SRC.exec(tag[0]);
+      if (src !== null) add(unquote(src[2]));
     }
     return text;
   });
@@ -127,9 +145,16 @@ export function resolveImagePath(docPath: string, ref: string): string | null {
 export function inlineImages(source: string, dataUrls: ReadonlyMap<string, string>): string {
   if (dataUrls.size === 0) return source;
   return mapOutsideCode(source, (text) =>
-    text.replace(IMAGE, (whole, alt: string, raw: string, title: string | undefined) => {
-      const url = dataUrls.get(raw);
-      return url === undefined ? whole : `![${alt}](${url}${title ?? ''})`;
-    }),
+    text
+      .replace(IMAGE, (whole, alt: string, raw: string, title: string | undefined) => {
+        const url = dataUrls.get(raw);
+        return url === undefined ? whole : `![${alt}](${url}${title ?? ''})`;
+      })
+      .replace(IMG_TAG, (tag) =>
+        tag.replace(IMG_SRC, (whole, prefix: string, value: string) => {
+          const url = dataUrls.get(unquote(value));
+          return url === undefined ? whole : `${prefix}"${url}"`;
+        }),
+      ),
   );
 }

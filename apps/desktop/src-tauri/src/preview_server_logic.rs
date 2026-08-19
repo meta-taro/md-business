@@ -128,6 +128,11 @@ pub fn inject_reload(html: &str, token: &str) -> String {
 
 /// 応答を組む。長さは文字数ではなくバイト数で数える。
 pub fn http_response(status: u16, content_type: &str, body: &str) -> Vec<u8> {
+    http_response_bytes(status, content_type, body.as_bytes())
+}
+
+/// 文字にならない中身（画像）を返すときの応答。組み立ては上と同じ。
+pub fn http_response_bytes(status: u16, content_type: &str, body: &[u8]) -> Vec<u8> {
     let reason = match status {
         200 => "OK",
         400 => "Bad Request",
@@ -146,7 +151,7 @@ Connection: close\r\n\
         body.len()
     );
     let mut out = head.into_bytes();
-    out.extend_from_slice(body.as_bytes());
+    out.extend_from_slice(body);
     out
 }
 

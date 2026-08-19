@@ -49,9 +49,12 @@ const ALLOWED_URI_REGEXP =
 //
 // This covers navigation targets only. `src` stays scheme-restricted: the
 // preview is an `srcdoc` iframe whose base URL is the app itself, so a relative
-// image would resolve against the wrong place, and the static site export does
-// not carry image files either. Local images need their own path (asset
-// protocol + copying the files), not a wider allowlist.
+// image would resolve against the wrong place. Local images are handled before
+// they get here — the source is rewritten so that what reaches this point is
+// already an allowed form (a data URL in the preview and in the single-file
+// HTML, a root-anchored path in the static site, whose files are carried
+// alongside the pages). Widening the allowlist would not help: the reference
+// still has to be turned into something the renderer can resolve.
 function isRelativeReference(value: string): boolean {
   return !value.includes(':');
 }

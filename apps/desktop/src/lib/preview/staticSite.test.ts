@@ -146,3 +146,43 @@ describe('buildStaticSite', () => {
     expect(page?.content).not.toContain('parent.postMessage');
   });
 });
+
+describe('buildStaticSite — 画像', () => {
+  it('画像はファイルとして運び、ページからはそこを指す', async () => {
+    const plan = await buildStaticSite([
+      { path: '経費/8月.md', source: '# 8 月\n\n![領収書](img/2026-08-19.png)\n' },
+    ]);
+
+    expect(plan.assets).toEqual([
+      { src: '経費/img/2026-08-19.png', dest: 'assets/img/経費/img/2026-08-19.png' },
+    ]);
+    const page = plan.files.find((f) => f.path === '経費/8月.html');
+    expect(page?.content).toContain('src="../assets/img/%E7%B5%8C%E8%B2%BB/img/2026-08-19.png"');
+    expect(page?.content).not.toContain('data:image');
+  });
+
+  // 素の HTML は描画の手前（@md-business/core）で落ちるので、ページには出ない。
+  // それでも「文書が指している画像」ではあるので、運ぶ側からは数える。
+  it('HTML で書いた画像も運ぶ対象に数える', async () => {
+    const plan = await buildStaticSite([{ path: 'a.md', source: '<img src="fig.png" alt="図">' }]);
+
+    expect(plan.assets).toEqual([{ src: 'fig.png', dest: 'assets/img/fig.png' }]);
+  });
+
+  it('同じ画像を何度指しても運ぶのは 1 回', async () => {
+    const plan = await buildStaticSite([
+      { path: 'a.md', source: '![](fig.png)\n![](./fig.png)\n' },
+      { path: 'b.md', source: '![](fig.png)\n' },
+    ]);
+
+    expect(plan.assets).toEqual([{ src: 'fig.png', dest: 'assets/img/fig.png' }]);
+  });
+
+  it('フォルダの外・外部の画像は運ばない', async () => {
+    const plan = await buildStaticSite([
+      { path: 'a.md', source: '![](../外.png)\n![](https://example.com/b.png)\n' },
+    ]);
+
+    expect(plan.assets).toEqual([]);
+  });
+});
