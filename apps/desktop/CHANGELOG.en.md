@@ -4,6 +4,22 @@ Changes to this app. Versions follow [Semantic Versioning](https://semver.org/).
 
 Japanese is the source of truth for this file; see [CHANGELOG.md](./CHANGELOG.md).
 
+## 0.20.0
+
+### Added
+
+- **Ctrl+F now searches inside a verification sheet.** Until now the search bar only worked on the editor and the preview, so it was useless while a sheet was open as a table. Matching cells are tinted, and Enter / Shift+Enter step forward and back through them. Matches are counted per cell, so a term appearing several times in one cell is still a single stop. The search starts from the current cell and wraps to the top after the last match. Rows outside the visible area are scrolled into view, but focus stays in the search box — otherwise the next keystroke would land in a cell instead.
+- **A copied range now stays outlined with a dashed border.** Nothing happened on screen after a copy, so there was no clue as to what had been taken (a spreadsheet marches a dashed border around it). The copied range is now outlined, and Esc clears it. It also clears when the document changes, since an outline left behind would no longer match what is on the clipboard. Copying a whole row outlines it the same way.
+- **The AI can now ask what is open and close a given document.** Opening was all it could ask for, so there was no way to tidy up what it had opened and tabs piled up the more it was asked to do. The listing also says which document is in front and whether it has unsaved edits. Closing writes out unsaved edits first; if that write fails the document stays open and the failure is reported with its reason, so nothing carries on as though it had closed. A document that is not open cannot be closed.
+
+### Fixed
+
+- **Fixed selected text being invisible against the background.** The tint used behind a selection was almost the same colour as the page in both the light and the dark theme, so there was no way to see what had been selected. Both themes now carry a dedicated selection colour, and it looks the same whether the selection is in the editor, in the preview or anywhere else.
+
+### Changed
+
+- **Removed the empty headings (Git / Diff / AI) from the side panel.** They were listed as placeholders that could not be clicked, taking up width and showing nothing but unfinished work. Only headings with something behind them are listed now.
+
 ## 0.19.0
 
 ### Added
