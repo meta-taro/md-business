@@ -95,6 +95,11 @@ export interface ScrollToRowInput {
   row: number;
   scrollTop: number;
   viewportHeight: number;
+  /**
+   * 行の下に空けておきたい高さ。既定は 0（行が見えていればそれでよい）。
+   * 選択肢のセルはリストが下へ開くので、開く前にこの余白を作っておく。
+   */
+  bottomGap?: number;
 }
 
 /**
@@ -104,13 +109,37 @@ export interface ScrollToRowInput {
  * キーボードで表の外へ出たときは、ここで求めた位置へ先に送ってから焦点を当てる。
  */
 export function scrollToRow(input: ScrollToRowInput): number {
-  const { heights, defaultHeight, row, scrollTop, viewportHeight } = input;
+  const { heights, defaultHeight, row, scrollTop, viewportHeight, bottomGap = 0 } = input;
   const top = rowOffset(heights, defaultHeight, row);
   if (top < scrollTop) return top;
-  const bottom = top + (heights[row] ?? defaultHeight);
+  const bottom = top + (heights[row] ?? defaultHeight) + Math.max(0, bottomGap);
   if (bottom > scrollTop + viewportHeight) {
-    // 行が表示領域より高い場合は下端合わせだと上端が切れる。上端合わせを優先する。
+    // 行（と下余白）が表示領域より高い場合は下端合わせだと上端が切れる。上端合わせを優先する。
     return Math.min(top, bottom - viewportHeight);
   }
   return scrollTop;
+}
+
+/** 表の末尾に空けておく高さを決めるための入力。 */
+export interface TailSpaceInput {
+  /** 表そのものの高さ（見出しを含む）。 */
+  contentHeight: number;
+  /** 表示領域の高さ。 */
+  viewportHeight: number;
+  /** 最後の行の下に欲しい高さ。 */
+  gap: number;
+}
+
+/**
+ * 表の下に付ける空きの高さを返す。
+ *
+ * 最後の行は表の終わりなので、そのままでは下へ送れず、候補リストが画面の外へ出る。
+ * 送れるようにするには、表の下に空きが要る。
+ * ただし短い表にまで空きを付けると、中身が収まっているのにスクロール棒が出る。
+ * 最後の行の下に既に欲しいだけの高さが残っているなら 0 を返す。
+ */
+export function tailSpace(input: TailSpaceInput): number {
+  const { contentHeight, viewportHeight, gap } = input;
+  const free = Math.max(0, viewportHeight - contentHeight);
+  return Math.max(0, gap - free);
 }

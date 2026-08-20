@@ -51,7 +51,7 @@
     resizeRowHeight,
     setRowHeight,
   } from './gridRowLayout';
-  import { rowWindow, scrollToRow } from './gridWindow';
+  import { rowWindow, scrollToRow, tailSpace } from './gridWindow';
   import { NOTE_FOLD_MIN, noteFoldKey, noteFoldValue, resolveNoteFold } from './noteFold';
   import { clampView, type GridView } from './gridView';
   import { effectiveRowHeights, mergeMeasuredHeights } from './gridRowMeasure';
@@ -92,7 +92,7 @@
   import { rowMenuItems, rowMenuSelection, type RowMenuAction } from './gridRowMenu';
   import { blameAge, formatBlameAge, type RowBlame } from './rowBlame';
   import { canStartDrag, beginDrag } from './gridDrag';
-  import { takePickerRequest, opensOnSingleClick } from './gridPicker';
+  import { takePickerRequest, opensOnSingleClick, PICKER_BOTTOM_GAP } from './gridPicker';
   import { displayRowCount, editPaddedCell } from './gridBlankRows';
   import { columnLabels } from './columnLabel';
   import {
@@ -458,6 +458,16 @@
   const winHeights = $derived(
     effectiveRowHeights(rowHeights, measuredHeights, displayRows, DEFAULT_ROW_HEIGHT),
   );
+  // 表そのものの高さ（見出しを含む）。最後の行の下に空きが要るかの判断に使う。
+  let tableHeight = $state(0);
+  // 最後の行でも候補リストが下へ開けるよう、表の下に空きを付ける（短い表には付けない）。
+  const tailPad = $derived(
+    tailSpace({
+      contentHeight: tableHeight,
+      viewportHeight: viewportHeight || VIEWPORT_FALLBACK,
+      gap: PICKER_BOTTOM_GAP,
+    }),
+  );
   const win = $derived(
     perf.measure('layout', () =>
       rowWindow({
@@ -541,8 +551,11 @@
     });
   });
 
-  /** 窓の外にある行を表示領域へ入れる（間引き中は DOM に無いので焦点を当てられない）。 */
-  function revealRow(row: number): void {
+  /**
+   * 窓の外にある行を表示領域へ入れる（間引き中は DOM に無いので焦点を当てられない）。
+   * `bottomGap` を渡すと、その行の下へその高さぶんの余白ができるところまで送る。
+   */
+  function revealRow(row: number, bottomGap = 0): void {
     if (!gridEl) return;
     gridEl.scrollTop = scrollToRow({
       heights: winHeights,
@@ -550,6 +563,7 @@
       row,
       scrollTop: gridEl.scrollTop,
       viewportHeight: gridEl.clientHeight,
+      bottomGap,
     });
     scrollTop = gridEl.scrollTop;
   }
@@ -1060,6 +1074,8 @@
       // どの入口でも、そこで一度手が止まらないようにする。
       // 値を確定すると本文が変わりこの effect が走り直すので、開くのは 1 回きりにする。
       pendingPicker = false;
+      // 開く向きは WebView 任せなので、下へ開いても画面から出ないよう先に余白を作る。
+      revealRow(row, PICKER_BOTTOM_GAP);
       tryShowPicker(input);
     } else {
       trySelectAll(input);
@@ -1441,13 +1457,17 @@
     bind:clientHeight={viewportHeight}
     onscroll={onGridScroll}
     onpaste={onGridPaste}
+    style={`padding-bottom:${tailPad}px`}
     onpointerdown={() => (engaged = true)}
     oncontextmenu={onGridContextMenu}
   >
     {#if doc.columns.length === 0}
       <p class="empty">{t('grid.emptyColumns')}</p>
     {:else}
-      <table style={`width:${tableWidth}px; --head-top:${headTop}px`}>
+      <table
+        bind:clientHeight={tableHeight}
+        style={`width:${tableWidth}px; --head-top:${headTop}px`}
+      >
       <colgroup>
         <col style={`width:${ROWNUM_WIDTH}px`} />
         {#each doc.columns as _col, ci (ci)}
