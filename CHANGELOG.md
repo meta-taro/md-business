@@ -1,13 +1,13 @@
 # Changelog
 
 md-business は 3 つのアプリを配っている。**それぞれ別に版を上げる**ので、番号は揃えていない。
-デスクトップの 0.18.0 と Chrome 拡張の 0.6.0 は、同じものの新旧ではなく別々のものを指す。
+デスクトップの 0.19.0 と Chrome 拡張の 0.6.0 は、同じものの新旧ではなく別々のものを指す。
 
 変更の中身は、配布物ごとの履歴に書いてある。
 
 | 配布物 | 版 | 入手先 | 変更履歴 |
 | --- | --- | --- | --- |
-| デスクトップアプリ | 0.18.0 | [ダウンロード](https://meta-taro.github.io/md-business/download/) | [apps/desktop/CHANGELOG.md](apps/desktop/CHANGELOG.md) |
+| デスクトップアプリ | 0.19.0 | [ダウンロード](https://meta-taro.github.io/md-business/download/) | [apps/desktop/CHANGELOG.md](apps/desktop/CHANGELOG.md) |
 | Chrome 拡張 | 0.6.0 | [Chrome Web Store](https://chromewebstore.google.com/detail/lmdplkkfmgapnhombimeohjliinifgjh) | [apps/chrome-extension/CHANGELOG.md](apps/chrome-extension/CHANGELOG.md) |
 | Google Workspace アドオン | 0.1.0 | 未公開（Marketplace 申請の準備中） | [apps/google-workspace-addon/CHANGELOG.md](apps/google-workspace-addon/CHANGELOG.md) |
 

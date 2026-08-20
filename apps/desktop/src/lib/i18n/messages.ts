@@ -470,6 +470,7 @@ export interface Messages {
   'grid.modeEditing': string;
   'grid.modeSelecting': string;
   'grid.selectionSize': string;
+  'grid.selectionSummary': string;
   'grid.noteEdit': string;
   'grid.noteDelete': string;
   'grid.notePlaceholder': string;
@@ -975,6 +976,8 @@ const en: Messages = {
   'grid.modeEditing': 'Editing',
   'grid.modeSelecting': 'Selecting',
   'grid.selectionSize': '{rows}×{cols} selected',
+  'grid.selectionSummary':
+    '{count} values · sum {sum} · avg {average} · min {min} · max {max}',
   'grid.noteEdit': 'Click to edit this note',
   'grid.noteDelete': 'Delete this note',
   'grid.notePlaceholder': 'Type a note… (Enter to confirm, Esc to cancel)',
@@ -1477,6 +1480,8 @@ const ja: Messages = {
   'grid.modeEditing': '編集中',
   'grid.modeSelecting': '選択中',
   'grid.selectionSize': '{rows}×{cols} 選択',
+  'grid.selectionSummary':
+    '数値 {count} · 合計 {sum} · 平均 {average} · 最小 {min} · 最大 {max}',
   'grid.noteEdit': 'クリックで補足を編集',
   'grid.noteDelete': 'この補足を削除',
   'grid.notePlaceholder': '補足を入力…（Enter で確定・Esc で取消）',
@@ -1974,6 +1979,8 @@ const zh: Messages = {
   'grid.modeEditing': '编辑中',
   'grid.modeSelecting': '选择中',
   'grid.selectionSize': '已选 {rows}×{cols}',
+  'grid.selectionSummary':
+    '数值 {count} · 合计 {sum} · 平均 {average} · 最小 {min} · 最大 {max}',
   'grid.noteEdit': '点击编辑备注',
   'grid.noteDelete': '删除此备注',
   'grid.notePlaceholder': '输入备注…（Enter 确定・Esc 取消）',
@@ -2474,6 +2481,8 @@ const ko: Messages = {
   'grid.modeEditing': '편집 중',
   'grid.modeSelecting': '선택 중',
   'grid.selectionSize': '{rows}×{cols} 선택',
+  'grid.selectionSummary':
+    '숫자 {count} · 합계 {sum} · 평균 {average} · 최소 {min} · 최대 {max}',
   'grid.noteEdit': '클릭하여 메모 편집',
   'grid.noteDelete': '이 메모 삭제',
   'grid.notePlaceholder': '메모 입력…(Enter로 확정・Esc로 취소)',
