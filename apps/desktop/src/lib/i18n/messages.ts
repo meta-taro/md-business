@@ -96,6 +96,7 @@ export interface Messages {
   'search.count': string;
   'search.inEditor': string;
   'search.inPreview': string;
+  'search.inGrid': string;
   // ステータスバー（Git / ブランチ / ソース管理 / forge / MCP）
   'status.branchSwitchTitle': string;
   'status.branchSwitchLabel': string;
@@ -607,6 +608,7 @@ const en: Messages = {
   'search.count': '{cur}/{total}',
   'search.inEditor': 'Editor',
   'search.inPreview': 'Preview',
+  'search.inGrid': 'Sheet',
   'status.branchSwitchTitle': 'Click to switch branch',
   'status.branchSwitchLabel': 'Switch branch',
   'status.branchSwitchFailed': 'Could not switch',
@@ -1113,6 +1115,7 @@ const ja: Messages = {
   'search.count': '{cur}/{total}',
   'search.inEditor': 'エディター',
   'search.inPreview': 'プレビュー',
+  'search.inGrid': '検証シート',
   'status.branchSwitchTitle': 'クリックでブランチを切り替え',
   'status.branchSwitchLabel': 'ブランチを切り替え',
   'status.branchSwitchFailed': '切り替えできませんでした',
@@ -1615,6 +1618,7 @@ const zh: Messages = {
   'search.count': '{cur}/{total}',
   'search.inEditor': '编辑器',
   'search.inPreview': '预览',
+  'search.inGrid': '验证表',
   'status.branchSwitchTitle': '点击切换分支',
   'status.branchSwitchLabel': '切换分支',
   'status.branchSwitchFailed': '无法切换',
@@ -2114,6 +2118,7 @@ const ko: Messages = {
   'search.count': '{cur}/{total}',
   'search.inEditor': '편집기',
   'search.inPreview': '미리보기',
+  'search.inGrid': '검증 시트',
   'status.branchSwitchTitle': '클릭하여 브랜치 전환',
   'status.branchSwitchLabel': '브랜치 전환',
   'status.branchSwitchFailed': '전환할 수 없습니다',
