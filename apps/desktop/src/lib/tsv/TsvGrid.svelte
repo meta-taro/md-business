@@ -92,7 +92,7 @@
   import { rowMenuItems, rowMenuSelection, type RowMenuAction } from './gridRowMenu';
   import { blameAge, formatBlameAge, type RowBlame } from './rowBlame';
   import { canStartDrag, beginDrag } from './gridDrag';
-  import { takePickerRequest, opensOnSingleClick } from './gridPicker';
+  import { takePickerRequest, opensOnSingleClick, PICKER_BOTTOM_GAP } from './gridPicker';
   import { displayRowCount, editPaddedCell } from './gridBlankRows';
   import { columnLabels } from './columnLabel';
   import {
@@ -541,8 +541,11 @@
     });
   });
 
-  /** 窓の外にある行を表示領域へ入れる（間引き中は DOM に無いので焦点を当てられない）。 */
-  function revealRow(row: number): void {
+  /**
+   * 窓の外にある行を表示領域へ入れる（間引き中は DOM に無いので焦点を当てられない）。
+   * `bottomGap` を渡すと、その行の下へその高さぶんの余白ができるところまで送る。
+   */
+  function revealRow(row: number, bottomGap = 0): void {
     if (!gridEl) return;
     gridEl.scrollTop = scrollToRow({
       heights: winHeights,
@@ -550,6 +553,7 @@
       row,
       scrollTop: gridEl.scrollTop,
       viewportHeight: gridEl.clientHeight,
+      bottomGap,
     });
     scrollTop = gridEl.scrollTop;
   }
@@ -1060,6 +1064,8 @@
       // どの入口でも、そこで一度手が止まらないようにする。
       // 値を確定すると本文が変わりこの effect が走り直すので、開くのは 1 回きりにする。
       pendingPicker = false;
+      // 開く向きは WebView 任せなので、下へ開いても画面から出ないよう先に余白を作る。
+      revealRow(row, PICKER_BOTTOM_GAP);
       tryShowPicker(input);
     } else {
       trySelectAll(input);

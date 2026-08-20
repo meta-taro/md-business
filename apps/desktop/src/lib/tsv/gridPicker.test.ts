@@ -3,6 +3,7 @@ import {
   opensPickerOnEdit,
   opensOnSingleClick,
   takePickerRequest,
+  PICKER_BOTTOM_GAP,
   type CellClickIntent,
 } from './gridPicker';
 
@@ -93,5 +94,12 @@ describe('takePickerRequest', () => {
     expect(takePickerRequest('text', true)).toBe(false);
     expect(takePickerRequest('radio', true)).toBe(false);
     expect(takePickerRequest(undefined, true)).toBe(false);
+  });
+});
+
+describe('PICKER_BOTTOM_GAP', () => {
+  it('候補リストが下へ開ける程度の余白を持つ', () => {
+    // 0 だと下端の行で今までどおり画面外へ出る。行 1 つぶんでは足りない。
+    expect(PICKER_BOTTOM_GAP).toBeGreaterThan(100);
   });
 });

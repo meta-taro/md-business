@@ -182,4 +182,28 @@ describe('scrollToRow', () => {
       scrollToRow({ heights: [500, 30], defaultHeight: 30, viewportHeight: 300, row: 0, scrollTop: 400 }),
     ).toBe(0);
   });
+
+  it('下余白を求めると、見えていても余白のぶんだけ送る', () => {
+    // 9 行目は 270〜300px で表示領域にちょうど収まっているが、下に余白が無い。
+    // 120px の余白を求めると、下端 300px + 120px が見えるところまで送る。
+    expect(scrollToRow({ ...base, row: 9, scrollTop: 0, bottomGap: 120 })).toBe(120);
+  });
+
+  it('下余白が足りていれば動かさない', () => {
+    expect(scrollToRow({ ...base, row: 5, scrollTop: 0, bottomGap: 120 })).toBe(0);
+  });
+
+  it('行と下余白の合計が表示領域を超えるときは行の上端に合わせる', () => {
+    // 上端を切ってまで余白を作らない（セルが見えなくなっては本末転倒）。
+    expect(
+      scrollToRow({
+        heights: [30, 250],
+        defaultHeight: 30,
+        viewportHeight: 300,
+        row: 1,
+        scrollTop: 0,
+        bottomGap: 120,
+      }),
+    ).toBe(30);
+  });
 });
