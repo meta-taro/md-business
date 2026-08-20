@@ -42,6 +42,23 @@ export interface Messages {
   'image.format.png': string;
   'image.format.pngTransparent': string;
   'image.format.jpeg': string;
+  // 一括生成（表の 1 行を 1 枚に差し込む）
+  'batch.run': string;
+  'batch.stop': string;
+  'batch.progress': string;
+  'batch.done': string;
+  'batch.failed': string;
+  'batch.notDeclared': string;
+  'batch.badDeclaration': string;
+  'batch.noRows': string;
+  'batch.noColumn': string;
+  'batch.emptyName': string;
+  'batch.duplicateName': string;
+  'batch.tooMany': string;
+  'batch.badPath': string;
+  'batch.readFailed': string;
+  'batch.missingFont': string;
+  'batch.stopped': string;
   'action.site': string;
   'action.siteTitle': string;
   'action.siteDone': string;
@@ -528,6 +545,23 @@ const en: Messages = {
   'image.format.png': 'PNG',
   'image.format.pngTransparent': 'PNG (transparent)',
   'image.format.jpeg': 'JPEG',
+  // 一括生成（表の 1 行を 1 枚に差し込む）
+  'batch.run': 'Export one image per row',
+  'batch.stop': 'Stop',
+  'batch.progress': '{done} / {total}',
+  'batch.done': 'Exported {count} images',
+  'batch.failed': 'Cannot export in bulk: {detail}',
+  'batch.notDeclared': 'This document has no batch: declaration',
+  'batch.badDeclaration': 'batch: is missing {raw}',
+  'batch.noRows': '{raw} has no data rows',
+  'batch.noColumn': 'The table has no {raw} column',
+  'batch.emptyName': 'Row {raw} produces an empty name',
+  'batch.duplicateName': 'Two rows produce the same name: {raw}',
+  'batch.tooMany': 'Too many rows ({raw})',
+  'batch.badPath': 'Points outside the open folder: {raw}',
+  'batch.readFailed': 'Cannot read the table: {raw}',
+  'batch.missingFont': 'Fonts not installed here: {raw}',
+  'batch.stopped': 'Stopped after {count} images',
   'action.site': 'Site',
   'action.siteTitle': 'Export the whole folder as a website (into dist/)',
   'action.siteDone': 'Exported {count} files to {dir}/',
@@ -1004,6 +1038,23 @@ const ja: Messages = {
   'image.format.png': 'PNG',
   'image.format.pngTransparent': 'PNG（透過）',
   'image.format.jpeg': 'JPEG',
+  // 一括生成（表の 1 行を 1 枚に差し込む）
+  'batch.run': '表の行ごとに一括で書き出す',
+  'batch.stop': '中止',
+  'batch.progress': '{done} / {total} 枚',
+  'batch.done': '{count} 枚書き出しました',
+  'batch.failed': '一括で書き出せません: {detail}',
+  'batch.notDeclared': 'この文書に batch: の指定がありません',
+  'batch.badDeclaration': 'batch: の {raw} が指定されていません',
+  'batch.noRows': '{raw} に中身の行がありません',
+  'batch.noColumn': '表に {raw} の列がありません',
+  'batch.emptyName': '{raw} 行目の名前が空になります',
+  'batch.duplicateName': '同じ名前が 2 つできます: {raw}',
+  'batch.tooMany': '行が多すぎます（{raw}）',
+  'batch.badPath': '開いているフォルダの外を指しています: {raw}',
+  'batch.readFailed': '表を読めません: {raw}',
+  'batch.missingFont': '手元にない字が指定されています: {raw}',
+  'batch.stopped': '{count} 枚で中止しました',
   'action.site': 'サイト',
   'action.siteTitle': 'サイト出力（フォルダ内の文書をまとめて dist/ へ書き出す）',
   'action.siteDone': '{dir}/ へ {count} 件書き出しました',
@@ -1477,6 +1528,23 @@ const zh: Messages = {
   'image.format.png': 'PNG',
   'image.format.pngTransparent': 'PNG（透明）',
   'image.format.jpeg': 'JPEG',
+  // 一括生成（表の 1 行を 1 枚に差し込む）
+  'batch.run': '按表格每行批量导出',
+  'batch.stop': '中止',
+  'batch.progress': '{done} / {total}',
+  'batch.done': '已导出 {count} 张',
+  'batch.failed': '无法批量导出：{detail}',
+  'batch.notDeclared': '本文档没有 batch: 声明',
+  'batch.badDeclaration': 'batch: 缺少 {raw}',
+  'batch.noRows': '{raw} 中没有数据行',
+  'batch.noColumn': '表格中没有 {raw} 列',
+  'batch.emptyName': '第 {raw} 行的名称为空',
+  'batch.duplicateName': '有两行生成相同的名称：{raw}',
+  'batch.tooMany': '行数过多（{raw}）',
+  'batch.badPath': '指向已打开文件夹之外：{raw}',
+  'batch.readFailed': '无法读取表格：{raw}',
+  'batch.missingFont': '本机没有指定的字体：{raw}',
+  'batch.stopped': '导出 {count} 张后中止',
   'action.site': '网站',
   'action.siteTitle': '导出网站（将文件夹内的文档一并导出到 dist/）',
   'action.siteDone': '已导出 {count} 个文件到 {dir}/',
@@ -1947,6 +2015,23 @@ const ko: Messages = {
   'image.format.png': 'PNG',
   'image.format.pngTransparent': 'PNG(투명)',
   'image.format.jpeg': 'JPEG',
+  // 一括生成（表の 1 行を 1 枚に差し込む）
+  'batch.run': '표의 행마다 일괄 내보내기',
+  'batch.stop': '중지',
+  'batch.progress': '{done} / {total}',
+  'batch.done': '{count}장을 내보냈습니다',
+  'batch.failed': '일괄로 내보낼 수 없습니다: {detail}',
+  'batch.notDeclared': '이 문서에 batch: 선언이 없습니다',
+  'batch.badDeclaration': 'batch: 에 {raw} 가 없습니다',
+  'batch.noRows': '{raw} 에 데이터 행이 없습니다',
+  'batch.noColumn': '표에 {raw} 열이 없습니다',
+  'batch.emptyName': '{raw}번째 행의 이름이 비어 있습니다',
+  'batch.duplicateName': '같은 이름이 두 개 생깁니다: {raw}',
+  'batch.tooMany': '행이 너무 많습니다（{raw}）',
+  'batch.badPath': '열려 있는 폴더 바깥을 가리킵니다: {raw}',
+  'batch.readFailed': '표를 읽을 수 없습니다: {raw}',
+  'batch.missingFont': '이 컴퓨터에 없는 글꼴이 지정되어 있습니다: {raw}',
+  'batch.stopped': '{count}장에서 중지했습니다',
   'action.site': '사이트',
   'action.siteTitle': '사이트 내보내기 (폴더 안의 문서를 한꺼번에 dist/ 로 내보냄)',
   'action.siteDone': '{dir}/ 에 {count}개를 내보냈습니다',
