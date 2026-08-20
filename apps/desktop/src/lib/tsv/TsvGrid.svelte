@@ -91,6 +91,7 @@
   } from './gridRange';
   import { summarizeRange, formatSummaryValue } from './gridSummary';
   import { findGridMatches, matchIndexFrom, type CellMatch } from './gridSearch';
+  import { marqueeEdges } from './gridMarquee';
   import { search, type SearchBinding } from '$lib/search/search.svelte';
   import { buildSearchRegex, stepMatchIndex, type SearchOptions } from '$lib/search/searchLogic';
   import { rowMenuItems, rowMenuSelection, type RowMenuAction } from './gridRowMenu';
@@ -1244,10 +1245,23 @@
     jumpToRow(jump.column, jump.value);
   });
 
+  // 直前にコピーした範囲。表計算と同じく点線で囲んで「どこを控えたか」を残す。
+  // 控えが見えないと、貼り付ける前にコピーできたのかを確かめる手立てが無い。
+  let copied = $state<CellRange | null>(null);
+  const copiedEdges = (row: number, col: number) => marqueeEdges(copied, row, col);
+
+  // 本文が変わったら控えの枠は消す（表計算と同じ）。控えた中身と表の中身がずれた枠を
+  // 残すと、貼り付け先を確かめる手がかりにならない。
+  $effect(() => {
+    void doc;
+    copied = null;
+  });
+
   // 選択ブロックを TSV（タブ区切り × 改行）でクリップボードへ。失敗は握り潰す。
   async function copySelection(): Promise<void> {
     try {
       await navigator.clipboard.writeText(rangeToTsv(doc, selection));
+      copied = { anchor: selection.anchor, focus: selection.focus };
     } catch {
       // クリップボード API 不許可の環境では無視（検証作業を止めない）
     }
@@ -1292,6 +1306,12 @@
           selection = extendRangeTo(selection, to, dims);
           return;
         }
+      }
+      // Esc は控えの枠だけ消す（表計算と同じ。選択やモードは動かさない）。
+      if (event.key === 'Escape' && copied !== null) {
+        event.preventDefault();
+        copied = null;
+        return;
       }
       // Ctrl+A は表全体を選択（nav 中のみ。編集中はセル入力側の全選択に譲る）。
       if ((event.ctrlKey || event.metaKey) && (event.key === 'a' || event.key === 'A')) {
@@ -1485,6 +1505,7 @@
     if (!activeIsData) return;
     try {
       await navigator.clipboard.writeText(rowToTsv(doc, activeCell.row));
+      copied = rowRange(activeCell.row, doc.columns.length);
     } catch {
       // クリップボード API 不許可の環境では無視（検証作業を止めない）
     }
@@ -1810,6 +1831,14 @@
                 class:active
                 class:hit={isHit(r, c)}
                 class:selected={inSelection(r, c)}
+                class:mq={copiedEdges(r, c).top ||
+                  copiedEdges(r, c).right ||
+                  copiedEdges(r, c).bottom ||
+                  copiedEdges(r, c).left}
+                class:mq-t={copiedEdges(r, c).top}
+                class:mq-r={copiedEdges(r, c).right}
+                class:mq-b={copiedEdges(r, c).bottom}
+                class:mq-l={copiedEdges(r, c).left}
                 class:editing={active && mode === 'edit'}
                 class:computed={isLocked(c)}
                 title={issue ?? (isLocked(c) ? t('grid.computedCell') : undefined)}
@@ -2759,6 +2788,34 @@
   td.invalid {
     background: var(--danger-subtle, rgba(220, 38, 38, 0.08));
     box-shadow: inset 3px 0 0 var(--danger-fg);
+  }
+
+  /* コピーした範囲の枠。選択の実線リングと区別するため点線で描く。
+     セルごとに外周へ接する辺だけを引く（行を間引いているので範囲全体を覆う図形は置けない）。 */
+  td.mq {
+    position: relative;
+  }
+
+  td.mq::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border: 2px dashed transparent;
+    pointer-events: none;
+    z-index: 2;
+  }
+
+  td.mq-t::before {
+    border-top-color: var(--accent);
+  }
+  td.mq-r::before {
+    border-right-color: var(--accent);
+  }
+  td.mq-b::before {
+    border-bottom-color: var(--accent);
+  }
+  td.mq-l::before {
+    border-left-color: var(--accent);
   }
 
   /* 検索で当たったセル。今いる当たりは選択リングで分かるので、地の色は当たり全体で同じ。 */
