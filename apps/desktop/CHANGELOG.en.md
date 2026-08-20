@@ -4,6 +4,12 @@ Changes to this app. Versions follow [Semantic Versioning](https://semver.org/).
 
 Japanese is the source of truth for this file; see [CHANGELOG.md](./CHANGELOG.md).
 
+## 0.19.0
+
+### Added
+
+- **Selecting a range in a table now shows a summary of the numbers in it.** Count, sum, average, minimum and maximum appear at the bottom, so selecting a column of amounts reads out its total on the spot. Only cells that parse as numbers are counted, so headings and blanks mixed into the selection do not skew the average. Thousands separators are stripped. Sums are scaled to the finest decimal place before adding, so 0.1 + 0.2 does not come out as 0.30000000000000004. Nothing is shown for fewer than two numbers, to keep moving a single cell quiet.
+
 ## 0.18.0
 
 ### Fixed
