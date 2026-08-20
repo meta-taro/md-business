@@ -4,6 +4,12 @@ Changes to this app. Versions follow [Semantic Versioning](https://semver.org/).
 
 Japanese is the source of truth for this file; see [CHANGELOG.md](./CHANGELOG.md).
 
+## 0.18.0
+
+### Fixed
+
+- **Fixed choice lists being hard to use on rows near the bottom of a table.** The list is drawn by the WebView rather than by the app, and a cell close to the bottom of the visible area opens downward, hidden behind the row action bar or off the window. The direction cannot be dictated from here, so the table is now scrolled until there is room below the cell before the list opens. The last row is the end of the table and cannot be scrolled further, so space is now kept below the table — but not for a short table that already fits, which would otherwise gain a scrollbar over nothing.
+
 ## 0.17.0
 
 ### Fixed
