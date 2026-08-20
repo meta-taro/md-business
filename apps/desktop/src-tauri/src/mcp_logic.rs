@@ -26,7 +26,8 @@ pub enum SidecarEvent {
     Request {
         id: String,
         action: String,
-        path: String,
+        /// 対象のワークスペース相対パス。一覧のように対象を持たない依頼では無い。
+        path: Option<String>,
     },
     /// サイドカー側の異常。サーバー本体は動き続ける前提。
     Error { message: String },
@@ -70,7 +71,10 @@ pub fn parse_sidecar_line(line: &str) -> Option<SidecarEvent> {
         "request" => Some(SidecarEvent::Request {
             id: value.get("id")?.as_str()?.to_string(),
             action: value.get("action")?.as_str()?.to_string(),
-            path: value.get("path")?.as_str()?.to_string(),
+            path: value
+                .get("path")
+                .and_then(|v| v.as_str())
+                .map(|v| v.to_string()),
         }),
         "error" => Some(SidecarEvent::Error {
             message: value.get("message")?.as_str()?.to_string(),
@@ -92,10 +96,21 @@ pub fn set_root_line(root: &str) -> String {
 ///
 /// 依頼を出したサーバー側は応答を待っているので、成功も失敗も必ず返す。
 /// 理由が無いときは項目自体を省く（空文字は「理由あり」と読めてしまう）。
-pub fn response_line(id: &str, ok: bool, error: Option<&str>) -> String {
+pub fn response_line(
+    id: &str,
+    ok: bool,
+    error: Option<&str>,
+    data: Option<&serde_json::Value>,
+) -> String {
     let mut value = serde_json::json!({ "type": "response", "id": id, "ok": ok });
-    if let (Some(message), Some(map)) = (error, value.as_object_mut()) {
-        map.insert("error".to_string(), serde_json::json!(message));
+    if let Some(map) = value.as_object_mut() {
+        if let Some(message) = error {
+            map.insert("error".to_string(), serde_json::json!(message));
+        }
+        // 中身を持たない依頼に null を添えると、受け手が「中身あり」と読んでしまう。
+        if let Some(payload) = data {
+            map.insert("data".to_string(), payload.clone());
+        }
     }
     format!("{}\n", value)
 }
@@ -646,14 +661,14 @@ mod tests {
             Some(SidecarEvent::Request {
                 id: "req-1".to_string(),
                 action: "export-pdf".to_string(),
-                path: "invoices/INV-1.md".to_string(),
+                path: Some("invoices/INV-1.md".to_string()),
             })
         );
     }
 
     #[test]
     fn 応答行はidと可否を載せてjsonへ落ちる() {
-        let line = response_line("req-1", true, None);
+        let line = response_line("req-1", true, None, None);
         assert!(line.ends_with('\n'));
         let value: serde_json::Value = serde_json::from_str(line.trim_end()).unwrap();
         assert_eq!(value.get("type").and_then(|v| v.as_str()), Some("response"));
@@ -665,13 +680,42 @@ mod tests {
 
     #[test]
     fn 失敗の応答は理由を添える() {
-        let line = response_line("req-2", false, Some("プレビューが未表示です"));
+        let line = response_line("req-2", false, Some("プレビューが未表示です"), None);
         let value: serde_json::Value = serde_json::from_str(line.trim_end()).unwrap();
         assert_eq!(value.get("ok").and_then(|v| v.as_bool()), Some(false));
         assert_eq!(
             value.get("error").and_then(|v| v.as_str()),
             Some("プレビューが未表示です")
         );
+    }
+
+    #[test]
+    fn 対象を持たない依頼はpath無しで受け取る() {
+        // 「何が開いているか」を聞く依頼に対象は無い。path を必須にすると、
+        // その依頼だけ行ごと読み飛ばされて画面に届かない。
+        assert_eq!(
+            parse_sidecar_line(r#"{"type":"request","id":"a","action":"list-documents"}"#),
+            Some(SidecarEvent::Request {
+                id: "a".to_string(),
+                action: "list-documents".to_string(),
+                path: None,
+            })
+        );
+    }
+
+    #[test]
+    fn 応答に中身を添えられる() {
+        let data = serde_json::json!({ "documents": [{ "path": "a.md" }] });
+        let line = response_line("req-3", true, None, Some(&data));
+        let value: serde_json::Value = serde_json::from_str(line.trim_end()).unwrap();
+        assert_eq!(value.get("data"), Some(&data));
+    }
+
+    #[test]
+    fn 中身の無い応答にdataを生やさない() {
+        let line = response_line("req-4", true, None, None);
+        let value: serde_json::Value = serde_json::from_str(line.trim_end()).unwrap();
+        assert!(value.get("data").is_none());
     }
 
     #[test]

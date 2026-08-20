@@ -32,6 +32,14 @@ export interface ResponseCommand {
   ok: boolean;
   /** 失敗理由（ok:false のときのみ）。 */
   error?: string;
+  /**
+   * アプリ側が持ち帰った中身（成否だけでは答えにならない依頼のみ）。
+   *
+   * 形はアプリ側の実装に依存するので、ここでは検査せず素通しする。中身を読む側で
+   * 型を確かめる — 制御チャネルは親子でバージョンがずれる前提の路なので、
+   * ここで形を縛るとアプリが少し先行しただけで応答ごと落ちる。
+   */
+  data?: unknown;
 }
 
 export type ControlCommand = SetRootCommand | ResponseCommand;
@@ -73,6 +81,7 @@ function parseResponse(parsed: Record<string, unknown>): ControlLineResult {
   const command: ResponseCommand = { type: 'response', id: id.trim(), ok };
   const error = parsed['error'];
   if (typeof error === 'string' && error !== '') command.error = error;
+  if ('data' in parsed) command.data = parsed['data'];
   return { kind: 'command', command };
 }
 
@@ -127,15 +136,16 @@ export interface RootEvent {
  * アプリ画面でしかできない操作の依頼。
  *
  * サーバー側には画面が無い。対象文書を開くところ（`open-document`）と、そのうえで
- * 印刷ダイアログを出すところ（`export-pdf`）をアプリに任せる。
+ * 印刷ダイアログを出すところ（`export-pdf`）、開いている文書の一覧
+ * （`list-documents`）と閉じるところ（`close-document`）をアプリに任せる。
  */
 export interface RequestEvent {
   type: 'request';
   /** 応答を突き合わせるための id。 */
   id: string;
-  action: 'export-pdf' | 'open-document';
-  /** 対象のワークスペース相対パス。 */
-  path: string;
+  action: 'export-pdf' | 'open-document' | 'close-document' | 'list-documents';
+  /** 対象のワークスペース相対パス。一覧のように対象を持たない依頼では省く。 */
+  path?: string;
 }
 
 /** 制御チャネル上の異常（コマンド解釈失敗など）。サーバー本体は動き続ける。 */

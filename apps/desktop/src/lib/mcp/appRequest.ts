@@ -9,16 +9,28 @@
  */
 
 /** サーバーから届く依頼の種類。 */
-export type AppRequestAction = 'export-pdf' | 'open-document';
+export type AppRequestAction =
+  | 'export-pdf'
+  | 'open-document'
+  | 'close-document'
+  | 'list-documents';
 
-const ACTIONS: readonly string[] = ['export-pdf', 'open-document'];
+const ACTIONS: readonly string[] = [
+  'export-pdf',
+  'open-document',
+  'close-document',
+  'list-documents',
+];
+
+/** 対象を伴わない依頼。開いているものを尋ねるだけなので、指す先が無い。 */
+const ACTIONS_WITHOUT_TARGET: readonly string[] = ['list-documents'];
 
 /** サーバーから届く依頼。 */
 export interface AppRequestPayload {
   id: string;
   action: AppRequestAction;
-  /** 対象のワークスペース相対パス。 */
-  path: string;
+  /** 対象のワークスペース相対パス。一覧のように対象を持たない依頼では無い。 */
+  path?: string;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -33,10 +45,15 @@ function nonEmptyString(value: unknown): string | null {
 export function parseRequestEvent(payload: unknown): AppRequestPayload | null {
   if (!isRecord(payload)) return null;
   const id = nonEmptyString(payload['id']);
-  const path = nonEmptyString(payload['path']);
-  if (id === null || path === null) return null;
+  if (id === null) return null;
   const action = payload['action'];
   if (typeof action !== 'string' || !ACTIONS.includes(action)) return null;
+  if (ACTIONS_WITHOUT_TARGET.includes(action)) {
+    return { id, action: action as AppRequestAction };
+  }
+  // 対象を要する依頼で path が無いと、どれを指しているのか決められない。
+  const path = nonEmptyString(payload['path']);
+  if (path === null) return null;
   return { id, action: action as AppRequestAction, path };
 }
 
@@ -75,6 +92,33 @@ export function planDocumentRequest(
     };
   }
   return { ok: true, path };
+}
+
+/** 画面で開いている文書 1 つ分。依頼元へ返す形でもある。 */
+export interface OpenDocument {
+  /** 札を指すための id（パスは同じでも札は別物になりうる）。 */
+  id: string;
+  path: string;
+  active: boolean;
+  /** 保存していない編集が残っているか。 */
+  unsaved: boolean;
+}
+
+export type CloseRequestPlan = { ok: true; id: string } | { ok: false; error: string };
+
+/**
+ * 閉じる依頼を、どの札に対する操作かへ落とす。
+ *
+ * 開いていない文書への依頼を黙って成功にすると、依頼元は「閉じた」と受け取ったまま
+ * 次へ進む。開いていないことは理由として返す。
+ */
+export function planCloseRequest(
+  path: string,
+  documents: readonly OpenDocument[],
+): CloseRequestPlan {
+  const target = documents.find((doc) => doc.path === path);
+  if (target === undefined) return { ok: false, error: `${path} は開かれていません` };
+  return { ok: true, id: target.id };
 }
 
 export interface WaitUntilOptions {

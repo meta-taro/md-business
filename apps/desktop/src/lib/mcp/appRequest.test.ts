@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseRequestEvent, planDocumentRequest, waitUntil } from './appRequest';
+import { parseRequestEvent, planCloseRequest, planDocumentRequest, waitUntil } from './appRequest';
 
 describe('parseRequestEvent', () => {
   it('画面操作の依頼を読み取る', () => {
@@ -12,6 +12,24 @@ describe('parseRequestEvent', () => {
     expect(
       parseRequestEvent({ id: 'req-2', action: 'open-document', path: 'specs/design.md' }),
     ).toEqual({ id: 'req-2', action: 'open-document', path: 'specs/design.md' });
+  });
+
+  it('一覧の依頼は対象を伴わない', () => {
+    // 「何が開いているか」を聞く依頼に対象は無い。path を必須にすると読み飛ばしてしまう。
+    expect(parseRequestEvent({ id: 'req-3', action: 'list-documents' })).toEqual({
+      id: 'req-3',
+      action: 'list-documents',
+    });
+  });
+
+  it('閉じる依頼は対象を伴う', () => {
+    expect(parseRequestEvent({ id: 'req-4', action: 'close-document', path: 'a.md' })).toEqual({
+      id: 'req-4',
+      action: 'close-document',
+      path: 'a.md',
+    });
+    // 対象の無い「閉じる」は、どれを閉じてよいか決められない。
+    expect(parseRequestEvent({ id: 'req-4', action: 'close-document' })).toBeNull();
   });
 
   it('形が違う payload は読み飛ばす', () => {
@@ -51,6 +69,25 @@ describe('planDocumentRequest', () => {
     if (plan.ok) return;
     expect(plan.error).toContain('missing.md');
     expect(plan.error).toContain('経理2026');
+  });
+});
+
+describe('planCloseRequest', () => {
+  const documents = [
+    { id: 't1', path: 'invoices/INV-1.md', active: true, unsaved: false },
+    { id: 't2', path: 'specs/design.md', active: false, unsaved: false },
+  ];
+
+  it('開いている文書なら、その札を指して閉じられる', () => {
+    expect(planCloseRequest('specs/design.md', documents)).toEqual({ ok: true, id: 't2' });
+  });
+
+  it('開いていない文書は、開いていないことを理由に断る', () => {
+    // 存在しない札を黙って無視すると、依頼元は閉じたつもりのまま次へ進む。
+    const plan = planCloseRequest('other/memo.md', documents);
+    expect(plan.ok).toBe(false);
+    if (plan.ok) return;
+    expect(plan.error).toContain('other/memo.md');
   });
 });
 

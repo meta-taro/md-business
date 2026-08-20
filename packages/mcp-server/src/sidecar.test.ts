@@ -38,11 +38,12 @@ function collector(): { lines: unknown[]; write: (line: string) => void } {
 /** 親へ流れてきた依頼イベントを待つ（HTTP 往復を挟むので 1 tick では届かない）。 */
 async function waitForRequest(
   out: ReturnType<typeof collector>,
-): Promise<{ type: 'request'; id: string; action: string; path: string }> {
+): Promise<{ type: 'request'; id: string; action: string; path?: string }> {
   // 負荷が高いと HTTP 往復に時間がかかる。取りこぼしを誤検出にしないため余裕を持たせる。
   for (let i = 0; i < 300; i += 1) {
     const found = out.lines.find((l) => (l as { type: string }).type === 'request');
-    if (found !== undefined) return found as { type: 'request'; id: string; action: string; path: string };
+    if (found !== undefined)
+      return found as { type: 'request'; id: string; action: string; path?: string };
     await new Promise((r) => setTimeout(r, 10));
   }
   throw new Error('依頼イベントが届きませんでした');
@@ -235,6 +236,33 @@ describe('startSidecar', () => {
     expect(JSON.parse(result.content[0]?.text ?? '{}')).toEqual({
       ok: true,
       path: 'specs/design.md',
+    });
+  });
+
+  it('list_open_documents は対象を伴わず、応答の中身がそのまま答えになる', async () => {
+    // 画面に何が出ているかはアプリしか知らない。成否だけでは答えにならないので中身を運ぶ。
+    handle = await startSidecar({ root: workspace, token: 'tok', io: { input, write: out.write } });
+    const client = await connectMcp(handle.url, 'tok');
+
+    const call = client.callTool({ name: 'list_open_documents', arguments: {} });
+    const request = await waitForRequest(out);
+    expect(request.action).toBe('list-documents');
+    expect(request.path).toBeUndefined();
+
+    await send(
+      input,
+      JSON.stringify({
+        type: 'response',
+        id: request.id,
+        ok: true,
+        data: { documents: [{ path: 'specs/design.md', active: true, unsaved: false }] },
+      }),
+    );
+    const result = (await call) as { isError?: boolean; content: { type: string; text: string }[] };
+    expect(result.isError).toBeFalsy();
+    expect(JSON.parse(result.content[0]?.text ?? '{}')).toEqual({
+      ok: true,
+      documents: [{ path: 'specs/design.md', active: true, unsaved: false }],
     });
   });
 

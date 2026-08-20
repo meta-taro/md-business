@@ -688,11 +688,14 @@ describe('createServer / git ツール', () => {
 
 describe('createServer / export_pdf ツール', () => {
   /** 依頼を控え、決まった結果を返すアプリ側の代役。 */
-  function fakeApp(result: { ok: true } | { ok: false; error: string }) {
-    const requests: { action: string; path: string }[] = [];
+  function fakeApp(result: { ok: true; data?: unknown } | { ok: false; error: string }) {
+    const requests: { action: string; path?: string }[] = [];
     return {
       requests,
-      request: async (req: { action: 'export-pdf' | 'open-document'; path: string }) => {
+      request: async (req: {
+        action: 'export-pdf' | 'open-document' | 'close-document' | 'list-documents';
+        path?: string;
+      }) => {
         requests.push(req);
         return result;
       },
@@ -788,6 +791,81 @@ describe('createServer / export_pdf ツール', () => {
     const res = (await client.callTool({
       name: 'open_document',
       arguments: { path: 'C:\\Windows\\win.ini' },
+    })) as CallToolResult;
+    expect(parse(res).isError).toBe(true);
+    expect(app.requests).toEqual([]);
+  });
+
+  it('画面で開いている文書の一覧をアプリから受け取る', async () => {
+    // 画面に何が出ているかはアプリしか知らない。閉じる・切り替えるの前提になる。
+    const app = fakeApp({
+      ok: true,
+      data: {
+        documents: [
+          { path: 'specs/design.md', active: true, unsaved: false },
+          { path: 'invoices/INV-1.md', active: false, unsaved: true },
+        ],
+      },
+    });
+    const client = await connectWithApp(app);
+    const res = (await client.callTool({
+      name: 'list_open_documents',
+      arguments: {},
+    })) as CallToolResult;
+    const { text, isError } = parse(res);
+    expect(isError).toBe(false);
+    expect(text).toMatchObject({
+      ok: true,
+      documents: [
+        { path: 'specs/design.md', active: true, unsaved: false },
+        { path: 'invoices/INV-1.md', active: false, unsaved: true },
+      ],
+    });
+    expect(app.requests).toEqual([{ action: 'list-documents' }]);
+  });
+
+  it('中身の無い一覧の応答は失敗として返す', async () => {
+    // 成功と言われても中身が無ければ答えになっていない。空配列を作って取り繕わない。
+    const app = fakeApp({ ok: true });
+    const client = await connectWithApp(app);
+    const res = (await client.callTool({
+      name: 'list_open_documents',
+      arguments: {},
+    })) as CallToolResult;
+    expect(parse(res).isError).toBe(true);
+  });
+
+  it('アプリへ対象文書を閉じるよう依頼する', async () => {
+    const app = fakeApp({ ok: true });
+    const client = await connectWithApp(app);
+    const res = (await client.callTool({
+      name: 'close_document',
+      arguments: { path: 'specs/design.md' },
+    })) as CallToolResult;
+    const { text, isError } = parse(res);
+    expect(isError).toBe(false);
+    expect(text).toMatchObject({ ok: true, path: 'specs/design.md' });
+    expect(app.requests).toEqual([{ action: 'close-document', path: 'specs/design.md' }]);
+  });
+
+  it('閉じられなかった理由はそのまま返す', async () => {
+    const app = fakeApp({ ok: false, error: 'specs/design.md は開かれていません' });
+    const client = await connectWithApp(app);
+    const res = (await client.callTool({
+      name: 'close_document',
+      arguments: { path: 'specs/design.md' },
+    })) as CallToolResult;
+    const { text, isError } = parse(res);
+    expect(isError).toBe(true);
+    expect(text).toMatchObject({ ok: false });
+  });
+
+  it('ワークスペース外のパスは閉じる依頼でもアプリへ渡さない', async () => {
+    const app = fakeApp({ ok: true });
+    const client = await connectWithApp(app);
+    const res = (await client.callTool({
+      name: 'close_document',
+      arguments: { path: '../secret.md' },
     })) as CallToolResult;
     expect(parse(res).isError).toBe(true);
     expect(app.requests).toEqual([]);

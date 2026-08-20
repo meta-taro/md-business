@@ -290,10 +290,11 @@ fn read_events(
                 }
                 Some(SidecarEvent::Request { id, action, path }) => {
                     // 実際に処理できるのは画面側だけ。応答は mcp_respond で返ってくる。
-                    let _ = app.emit(
-                        REQUEST_EVENT,
-                        serde_json::json!({ "id": id, "action": action, "path": path }),
-                    );
+                    let mut payload = serde_json::json!({ "id": id, "action": action });
+                    if let (Some(target), Some(map)) = (path, payload.as_object_mut()) {
+                        map.insert("path".to_string(), serde_json::json!(target));
+                    }
+                    let _ = app.emit(REQUEST_EVENT, payload);
                 }
                 Some(SidecarEvent::Error { message }) => {
                     // 起動前の異常は劣化として扱う。起動後は制御チャネル上の
@@ -394,8 +395,13 @@ pub fn mcp_respond(
     id: String,
     ok: bool,
     error: Option<String>,
+    data: Option<serde_json::Value>,
 ) -> Result<(), String> {
-    write_control_line(&state, response_line(&id, ok, error.as_deref()), "応答")
+    write_control_line(
+        &state,
+        response_line(&id, ok, error.as_deref(), data.as_ref()),
+        "応答",
+    )
 }
 
 /// 既にあれば読み、無ければ `None`。読めない場合はエラー（無かったことにしない）。

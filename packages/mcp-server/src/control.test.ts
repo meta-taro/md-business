@@ -108,6 +108,23 @@ describe('parseControlLine', () => {
   it('ok が真偽値でない応答は拒否する', () => {
     expect(parseControlLine('{"type":"response","id":"r1","ok":"yes"}').kind).toBe('error');
   });
+
+  it('応答が持ち帰った中身を渡す', () => {
+    // 「何が開いているか」を聞くツールは、成否だけでは答えが返せない。
+    const result = parseControlLine(
+      '{"type":"response","id":"r1","ok":true,"data":{"documents":[{"path":"a.md"}]}}',
+    );
+    expect(result).toEqual({
+      kind: 'command',
+      command: { type: 'response', id: 'r1', ok: true, data: { documents: [{ path: 'a.md' }] } },
+    });
+  });
+
+  it('中身の無い応答に data を生やさない', () => {
+    const result = parseControlLine('{"type":"response","id":"r1","ok":true}');
+    if (result.kind !== 'command' || result.command.type !== 'response') throw new Error('応答として解釈されていない');
+    expect('data' in result.command).toBe(false);
+  });
 });
 
 describe('encodeSidecarEvent', () => {

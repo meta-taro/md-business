@@ -12,13 +12,13 @@ import type { RequestEvent, ResponseCommand } from './control.js';
 
 /** アプリへ頼む操作。 */
 export interface AppRequest {
-  action: 'export-pdf' | 'open-document';
-  /** 対象のワークスペース相対パス。 */
-  path: string;
+  action: 'export-pdf' | 'open-document' | 'close-document' | 'list-documents';
+  /** 対象のワークスペース相対パス。一覧のように対象を持たない依頼では省く。 */
+  path?: string;
 }
 
 /** 依頼の結果。失敗理由はそのまま利用者へ見せられる日本語で返す。 */
-export type AppRequestResult = { ok: true } | { ok: false; error: string };
+export type AppRequestResult = { ok: true; data?: unknown } | { ok: false; error: string };
 
 export interface AppBridge {
   /** アプリへ依頼を出し、応答（または時間切れ）まで待つ。 */
@@ -58,7 +58,14 @@ export function createAppBridge(options: CreateAppBridgeOptions): AppBridge {
           clearTimeout(timer);
           resolve(result);
         });
-        send({ type: 'request', id, action: req.action, path: req.path });
+        // path を持たない依頼に空文字を入れると、アプリ側が「空パスの文書」を
+        // 探しにいく。無いものは鍵ごと省く。
+        send({
+          type: 'request',
+          id,
+          action: req.action,
+          ...(req.path !== undefined ? { path: req.path } : {}),
+        });
       });
     },
 
@@ -68,7 +75,7 @@ export function createAppBridge(options: CreateAppBridgeOptions): AppBridge {
       if (resolve === undefined) return;
       pending.delete(response.id);
       if (response.ok) {
-        resolve({ ok: true });
+        resolve(response.data !== undefined ? { ok: true, data: response.data } : { ok: true });
         return;
       }
       resolve({ ok: false, error: response.error ?? 'アプリ側で処理できませんでした' });
