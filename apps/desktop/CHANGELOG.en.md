@@ -4,6 +4,13 @@ Changes to this app. Versions follow [Semantic Versioning](https://semver.org/).
 
 Japanese is the source of truth for this file; see [CHANGELOG.md](./CHANGELOG.md).
 
+## 0.15.0
+
+### Added
+
+- **Images can now be written out in bulk, one per row of a table.** Only one could be shot at a time, so building a set of price tags or name cards — same layout, different contents — meant rewriting the document and shooting again once per item. Declaring the table to draw from and the name to give each file at the top of the document makes `{{column}}` in the body take that row's value, and one image per row lands in the same folder as the document. What was shot stays written in the document, so producing the same set again needs no memory of which buttons were pressed. Progress is shown while shooting and it can be stopped partway; whatever was written before stopping stays.
+- **A font that is not installed is now refused before shooting.** A missing font is silently substituted, so noticing after a hundred images means producing all of them again. The names of the missing fonts are reported and nothing is written.
+
 ## 0.14.0
 
 ### Added

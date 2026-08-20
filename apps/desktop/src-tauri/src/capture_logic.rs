@@ -137,6 +137,53 @@ pub fn extension(format: &ImageFormat) -> &'static str {
     }
 }
 
+/// ファイル名に使えない字。Windows が禁じているものに揃える。作れる OS で作ると、
+/// 受け取った側で開けないファイルができる。
+const FORBIDDEN: [char; 9] = ['<', '>', ':', '"', '|', '?', '*', '/', '\\'];
+
+/// 機器に取られていて、ファイル名にできない語（拡張子を付けても駄目）。
+const DEVICE_NAMES: [&str; 22] = [
+    "con", "prn", "aux", "nul", "com1", "com2", "com3", "com4", "com5", "com6", "com7", "com8",
+    "com9", "lpt1", "lpt2", "lpt3", "lpt4", "lpt5", "lpt6", "lpt7", "lpt8", "lpt9",
+];
+
+/// 名前の長さの上限（文字数）。パス全体の上限より十分手前で切る。
+const MAX_STEM_CHARS: usize = 100;
+
+/// 差し込んだ名前を、そのままファイル名にしてよいか確かめる。
+///
+/// 一括生成では出す名前が表の中身で決まる。表は人が書くものなので、区切り文字も
+/// `..` も普通に入ってくる。**置き場を移せる形を通すと、任意の場所へ書ける口が空く**ので、
+/// 直して通すのではなく断る（直すと、頼んだ名前と出た名前が違う理由が誰にも分からない）。
+pub fn safe_file_stem(name: &str) -> Result<String, String> {
+    let trimmed = name.trim();
+    if trimmed.is_empty() {
+        return Err("名前が空です。".into());
+    }
+    if trimmed.chars().count() > MAX_STEM_CHARS {
+        return Err(format!("名前が長すぎます（{MAX_STEM_CHARS} 文字まで）: {trimmed}"));
+    }
+    if trimmed
+        .chars()
+        .any(|letter| FORBIDDEN.contains(&letter) || letter.is_control())
+    {
+        return Err(format!("名前に使えない字が入っています: {trimmed}"));
+    }
+    // Windows は末尾の点を黙って落とす。落ちた先が既にあると、別の行が同じ名前になる。
+    if trimmed.ends_with('.') {
+        return Err(format!("名前を点で終えられません: {trimmed}"));
+    }
+    let head = trimmed
+        .split('.')
+        .next()
+        .unwrap_or_default()
+        .to_ascii_lowercase();
+    if DEVICE_NAMES.contains(&head.as_str()) {
+        return Err(format!("その名前は機器に取られています: {trimmed}"));
+    }
+    Ok(trimmed.to_string())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -259,6 +306,53 @@ mod tests {
         };
         let message = validate(&spec).expect_err("断るはず");
         assert!(message.contains("1〜100"), "{message}");
+    }
+
+    #[test]
+    fn 差し込んだ名前がそのまま使える() {
+        assert_eq!(safe_file_stem("春の新商品"), Ok("春の新商品".into()));
+        assert_eq!(safe_file_stem("  item-01  "), Ok("item-01".into()));
+    }
+
+    #[test]
+    fn 名前で置き場を移す指定は断る() {
+        for name in ["../外", "サブ/中", "サブ\\中", "..", ".", "/", "C:\\誰か"] {
+            assert!(safe_file_stem(name).is_err(), "通してはいけない: {name}");
+        }
+    }
+
+    #[test]
+    fn 名前が空なら断る() {
+        assert!(safe_file_stem("").is_err());
+        assert!(safe_file_stem("   ").is_err());
+    }
+
+    #[test]
+    fn ファイル名に使えない字は断る() {
+        for name in ["a<b", "a>b", "a:b", "a\"b", "a|b", "a?b", "a*b", "a\0b", "a\nb"] {
+            assert!(safe_file_stem(name).is_err(), "通してはいけない: {name:?}");
+        }
+    }
+
+    #[test]
+    fn 機器に取られている名前は断る() {
+        // Windows では作れないので、作れる OS で作ると相手先で開けない。
+        for name in ["CON", "con", "nul", "COM1", "lpt9", "AUX.png"] {
+            assert!(safe_file_stem(name).is_err(), "通してはいけない: {name}");
+        }
+    }
+
+    #[test]
+    fn 名前が長すぎれば断る() {
+        assert!(safe_file_stem(&"あ".repeat(100)).is_ok());
+        let message = safe_file_stem(&"あ".repeat(101)).expect_err("断るはず");
+        assert!(message.contains("100"), "{message}");
+    }
+
+    #[test]
+    fn 末尾の点や空白は残さない() {
+        // Windows は末尾の点と空白を黙って落とすので、同じ名前が 2 つできる。
+        assert!(safe_file_stem("名前.").is_err());
     }
 
     #[test]

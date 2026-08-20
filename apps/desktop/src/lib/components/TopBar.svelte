@@ -6,7 +6,10 @@
   import { autosave } from '$lib/workspace/autosave.svelte';
   import { pdfExport } from '$lib/preview/pdfExport.svelte';
   import { htmlExport } from '$lib/preview/htmlExportController.svelte';
-  import { imageExport } from '$lib/preview/imageExportController.svelte';
+  import {
+    imageExport,
+    type ImageExportResult,
+  } from '$lib/preview/imageExportController.svelte';
   import {
     IMAGE_PRESETS,
     type ImageFormatChoice,
@@ -67,6 +70,15 @@
     const note = siteNote(result);
     if (result.kind === 'error' || result.skipped.length === 0) return note;
     return [note, ...result.skipped.map((skip) => `${skip.path}: ${skip.reason}`)].join('\n');
+  }
+  // 画像書き出しの知らせ。1 枚のときは置き場、一括のときは枚数。途中で止めたときは
+  // 「何枚まで出たか」を出す（出したものは消さないので、そこだけが分かればよい）。
+  function imageNote(result: ImageExportResult): string {
+    if (!result.ok) return result.message;
+    if (result.kind === 'one') return t('action.imageDone', { path: result.path });
+    return result.stopped
+      ? t('batch.stopped', { count: result.count })
+      : t('batch.done', { count: result.count });
   }
 </script>
 
@@ -349,21 +361,39 @@
             >
               {t('image.shoot')}
             </button>
+            <!-- 一括は、文書の frontmatter に `batch:` があるときだけ意味を持つ。ボタンを
+                 隠さないのは、無いときに「無い」と言うほうが、押せる場所を探させるより早いため。 -->
+            <button
+              class="btn ghost picker-go"
+              type="button"
+              onclick={() => void imageExport.runBatch()}
+              disabled={!imageExport.canExport}
+            >
+              {t('batch.run')}
+            </button>
           </div>
         {/if}
       </div>
+      <!-- 一括の最中だけ、何枚目かと中止を出す。撮り終えると消える。 -->
+      {#if imageExport.progress !== null}
+        <span class="export-note" role="status">
+          {t('batch.progress', {
+            done: imageExport.progress.done,
+            total: imageExport.progress.total,
+          })}
+        </span>
+        <button class="btn ghost" type="button" onclick={() => imageExport.stop()}>
+          {t('batch.stop')}
+        </button>
+      {/if}
       {#if imageExport.result !== null}
         <span
           class="export-note"
           class:is-error={!imageExport.result.ok}
           role="status"
-          title={imageExport.result.ok
-            ? t('action.imageDone', { path: imageExport.result.path })
-            : imageExport.result.message}
+          title={imageNote(imageExport.result)}
         >
-          {imageExport.result.ok
-            ? t('action.imageDone', { path: imageExport.result.path })
-            : imageExport.result.message}
+          {imageNote(imageExport.result)}
         </span>
       {/if}
       <!-- サイト出力。フォルダ内の .md をまとめて dist/ へ置く。開いている文書に依らないので
