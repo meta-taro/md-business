@@ -43,6 +43,24 @@ describe('tokens.css', () => {
   // var() は「宣言された要素」で解決される。行ごとにインラインで入る値を :root 側の
   // トークンから参照すると、:root では未設定なのでフォールバック（＝色なし）に確定し、
   // その結果が全行へ継承される。テーマを問わず行色が消えるので、書き方ごと禁じる。
+  // 範囲選択の地に --accent-subtle を敷くと、ライトでもダークでも地の色とほぼ同じになり
+  // 「どこを選んだか」が見えなくなる（一度そうなっていた）。選択専用の値を持つことと、
+  // それが両テーマで宣言されていることを縛る。
+  it('範囲選択の地を両テーマで持ち、--accent-subtle と同じ値にしない', () => {
+    const value = (selector: string, property: string): string | undefined => {
+      const body = rootBlocks(css)
+        .filter((b) => b.selector === selector)
+        .map((b) => b.body)
+        .join('\n');
+      return new RegExp(`${property}\s*:\s*([^;]+);`).exec(body)?.[1].trim();
+    };
+    for (const selector of [':root', ":root[data-theme='dark']"]) {
+      const selection = value(selector, '--selection-bg');
+      expect(selection, selector).toBeDefined();
+      expect(selection, selector).not.toBe(value(selector, '--accent-subtle'));
+    }
+  });
+
   it.each(PER_ROW_PROPERTIES)('%s を :root のトークンから参照しない', (property) => {
     const offenders = rootBlocks(css)
       .filter((b) => b.body.includes(`var(${property}`))

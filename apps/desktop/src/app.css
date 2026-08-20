@@ -13,6 +13,13 @@ body {
   margin: 0;
 }
 
+/* 範囲選択は「どこを写すか」を示す唯一の手掛かりなので、エディタ・プレビュー・
+   画面のどこで選んでも同じ濃さで見えるようにする（既定色はテーマと噛み合わない）。 */
+::selection {
+  background: var(--selection-bg);
+  color: var(--text-primary);
+}
+
 body {
   font-family: var(--font-ui);
   font-size: var(--text-sm-size);
