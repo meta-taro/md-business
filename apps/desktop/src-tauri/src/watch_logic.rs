@@ -387,7 +387,7 @@ mod tests {
     // ── 監視ルートの遠さ ──────────────────────────────────────────────────
 
     #[test]
-    fn locality_from_spellingはUNCを遠いと判定する() {
+    fn locality_from_spellingは共有フォルダの綴りを遠いと判定する() {
         assert_eq!(
             locality_from_spelling(Path::new(r"\\dxp2800\WORKSPACE\docs")),
             Some(RootLocality::Remote)
@@ -395,7 +395,7 @@ mod tests {
     }
 
     #[test]
-    fn locality_from_spellingは解決済みUNCも遠いと判定する() {
+    fn locality_from_spellingは解決済みの共有フォルダも遠いと判定する() {
         assert_eq!(
             locality_from_spelling(Path::new(r"\\?\UNC\dxp2800\WORKSPACE")),
             Some(RootLocality::Remote)
@@ -416,7 +416,7 @@ mod tests {
     }
 
     #[test]
-    fn locality_from_spellingはPOSIXパスを決めない() {
+    fn locality_from_spellingはスラッシュ区切りのパスを決めない() {
         assert_eq!(locality_from_spelling(Path::new("/home/user/docs")), None);
     }
 
