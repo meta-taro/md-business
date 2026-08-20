@@ -142,11 +142,13 @@ Markdown 正本を取り巻く **アダプター** にすぎません。
 
 ## 現在のテンプレート
 
-| テンプレート | スキーマ        | 配置                                                       |
-| ------------ | --------------- | ---------------------------------------------------------- |
-| 請求書       | `invoice/v1`    | [`templates/invoice/`](./templates/invoice/)（4 バリアント） |
-| 検証シート   | `test-spec/v1`  | [`templates/test-spec/`](./templates/test-spec/)            |
-| 基本設計書   | `spec/v1`       | [`templates/spec/`](./templates/spec/)                      |
+| テンプレート     | スキーマ            | 配置                                                             |
+| ---------------- | ------------------- | ---------------------------------------------------------------- |
+| 請求書・見積書・領収書 | `invoice/v1`    | [`templates/invoice/`](./templates/invoice/)（6 バリアント）      |
+| 検証シート       | `test-spec/v1`      | [`templates/test-spec/`](./templates/test-spec/)                  |
+| 基本設計書       | `spec/v1`           | [`templates/spec/`](./templates/spec/)                            |
+| API 詳細設計書   | `api-spec/v1`       | [`templates/api-spec/`](./templates/api-spec/)                    |
+| 調査報告書       | `investigation/v1`  | [`templates/investigation/`](./templates/investigation/)          |
 
 ### テンプレートの使い方
 
@@ -158,10 +160,20 @@ Markdown 正本を取り巻く **アダプター** にすぎません。
 - `standard-ja.md` — 日本語ベースライン（10% / 8% 混在・振込先口座・適格請求書発行事業者の登録番号 T+13 桁ダミー）
 - `tax-exempt-ja.md` — 免税事業者向け（登録番号なし・インボイス経過措置 2023–2029 の注記つき）
 - `inbound-eligible.md` — 多品目・標準税率と軽減税率を同時に検証できる例
+- `quote-ja.md` — 見積書（`種別: 見積書`）。支払期限のかわりに有効期限を持つ
+- `receipt-ja.md` — 領収書（`種別: 領収書`）。但し書きと、任意で出せる収入印紙欄つき
 
 Chrome 拡張ビューワーで開く、または `@md-business/renderer-pdf` でレンダリングすると、コードを書かずに印刷品質の PDF が生成できます。
 
 今後、見積書・議事録・契約書・API 仕様書・DB 設計書・運用チェックリストなど、他の業務文書のテンプレートも追加予定です。
+
+## 実例（中身の入った文書）
+
+テンプレートが「白紙の型」なのに対して、[`examples/`](./examples/) には **中身の入った実物** を置いています。
+架空の会社の「社内備品の貸し出し管理」という 1 つの案件を、基本設計書 → API 詳細設計書 → DB 設計書 → 検証シート → 請求書 → 調査報告書 と一通り書いたものです。文書どうしが互いを参照しているので、実際の案件でどう繋がるかがそのまま読めます。
+
+会社名・登録番号・口座・社員コードはすべて架空です。**形を写して、値は写さないでください。**
+詳しくは [`examples/README.ja.md`](./examples/README.ja.md) を参照してください。
 
 ## スクリーンショット
 

@@ -149,11 +149,13 @@ They are adapters around the Markdown source of truth.
 
 ## Current templates
 
-| Template           | Schema         | Location                                              |
-| ------------------ | -------------- | ----------------------------------------------------- |
+| Template           | Schema             | Location                                              |
+| ------------------ | ------------------ | ----------------------------------------------------- |
 | Invoice / quote / receipt | `invoice/v1` | [`templates/invoice/`](./templates/invoice/) — 6 variants |
-| Test specification | `test-spec/v1` | [`templates/test-spec/`](./templates/test-spec/)      |
-| Design document    | `spec/v1`      | [`templates/spec/`](./templates/spec/)                |
+| Test specification | `test-spec/v1`     | [`templates/test-spec/`](./templates/test-spec/)      |
+| Design document    | `spec/v1`          | [`templates/spec/`](./templates/spec/)                |
+| API specification  | `api-spec/v1`      | [`templates/api-spec/`](./templates/api-spec/)        |
+| Investigation report | `investigation/v1` | [`templates/investigation/`](./templates/investigation/) |
 
 ### Using a template
 
@@ -171,6 +173,14 @@ Every shipped template uses dummy data — no real company names, registration n
 Open any of these in the Chrome extension viewer or render via `@md-business/renderer-pdf` to produce a print-ready PDF without writing any code.
 
 Future templates may include meeting notes, contracts, API documents, database design documents, operational checklists, and other business documents.
+
+## Examples
+
+Templates give you a blank form. [`examples/`](./examples/) gives you a filled one.
+
+It holds a single fictional project — an internal equipment lending tool — written out end to end: design document, API specification, database design, test sheet, invoice, and an investigation report with its evidence files. The documents cross-reference each other, so you can see how they connect on a real project.
+
+Company names, registration numbers, bank accounts and employee codes are all invented. Copy the shape, not the values. See [`examples/README.md`](./examples/README.md).
 
 ## Screenshots
 
