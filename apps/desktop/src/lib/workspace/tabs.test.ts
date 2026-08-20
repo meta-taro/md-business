@@ -4,6 +4,7 @@ import {
   evictionTarget,
   findByPath,
   keepExistingTabs,
+  moveTab,
   nextActiveId,
   survivingActiveId,
   withoutTab,
@@ -117,5 +118,39 @@ describe('survivingActiveId', () => {
 
   it('もともと何も開いていなければ null のまま', () => {
     expect(survivingActiveId(tabs('a'), null)).toBeNull();
+  });
+});
+
+describe('moveTab', () => {
+  it('後ろへ動かす（落とした先の手前に入る）', () => {
+    expect(ids(moveTab(tabs('a', 'b', 'c'), 'a', 2))).toEqual(['b', 'a', 'c']);
+  });
+
+  it('前へ動かす', () => {
+    expect(ids(moveTab(tabs('a', 'b', 'c'), 'c', 0))).toEqual(['c', 'a', 'b']);
+  });
+
+  it('末尾へ動かす', () => {
+    expect(ids(moveTab(tabs('a', 'b', 'c'), 'a', 3))).toEqual(['b', 'c', 'a']);
+  });
+
+  it('同じ位置へ落としても並びは変わらない', () => {
+    expect(ids(moveTab(tabs('a', 'b', 'c'), 'b', 1))).toEqual(['a', 'b', 'c']);
+    expect(ids(moveTab(tabs('a', 'b', 'c'), 'b', 2))).toEqual(['a', 'b', 'c']);
+  });
+
+  it('範囲の外は端に丸める', () => {
+    expect(ids(moveTab(tabs('a', 'b', 'c'), 'b', -5))).toEqual(['b', 'a', 'c']);
+    expect(ids(moveTab(tabs('a', 'b', 'c'), 'b', 99))).toEqual(['a', 'c', 'b']);
+  });
+
+  it('無い id は並びを変えない', () => {
+    expect(ids(moveTab(tabs('a', 'b'), 'z', 0))).toEqual(['a', 'b']);
+  });
+
+  it('元の配列は変えない', () => {
+    const before = tabs('a', 'b', 'c');
+    moveTab(before, 'a', 3);
+    expect(ids(before)).toEqual(['a', 'b', 'c']);
   });
 });

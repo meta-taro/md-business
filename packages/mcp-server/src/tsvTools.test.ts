@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { MemoryDocumentStore } from './store.js';
 import {
+  checkTsv,
   readTsv,
   appendTsvRow,
   updateTsvRow,
@@ -833,5 +834,78 @@ describe('選択肢を別シートから引く検証シート', () => {
     const s = enumStore();
     await updateTsvRow(s, { path: 'sheets/受付.tsv', row: 0, values: { 種別: '議事録' } });
     expect(await s.read('sheets/受付.tsv')).toContain('種別:enum(-> 提出物.tsv#種別)');
+  });
+});
+
+/** 3 列目の途中に生の改行が入って 1 レコードが 2 行に割れたシート。 */
+const BROKEN =
+  [
+    '#! md-business:test-spec-tsv/v1',
+    'No.:number\t項目!\t手順:multiline\t期待結果\t結果:enum(OK|NG)',
+    '1\t新規登録\t登録ボタンを押す',
+    '一覧に出る\t一覧に出ること\t',
+  ].join('\n') + '\n';
+
+describe('checkTsv', () => {
+  it('壊れていないシートは何も挙げない', async () => {
+    const r = await checkTsv(store(), {});
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.checked).toBe(1);
+    expect(r.sheets).toEqual([]);
+    expect(r.totalIssues).toBe(0);
+  });
+
+  it('割れた行のあるシートだけを挙げる', async () => {
+    const s = new MemoryDocumentStore({ 'sheets/受注.tsv': SHEET, 'sheets/壊れ.tsv': BROKEN });
+
+    const r = await checkTsv(s, {});
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.checked).toBe(2);
+    expect(r.sheets.map((sheet) => sheet.path)).toEqual(['sheets/壊れ.tsv']);
+    expect(r.sheets[0]?.issues[0]).toMatchObject({ row: 0, code: 'short_row' });
+  });
+
+  it('path を指すとそのシートだけ見る', async () => {
+    const s = new MemoryDocumentStore({ 'sheets/受注.tsv': SHEET, 'sheets/壊れ.tsv': BROKEN });
+
+    const r = await checkTsv(s, { path: 'sheets/受注.tsv' });
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.checked).toBe(1);
+    expect(r.sheets).toEqual([]);
+  });
+
+  it('読めないシートは理由を添えて挙げる（他のシートは見続ける）', async () => {
+    const s = new MemoryDocumentStore({
+      'sheets/受注.tsv': SHEET,
+      'sheets/ヘッダなし.tsv': '#! md-business:test-spec-tsv/v1\n',
+    });
+
+    const r = await checkTsv(s, {});
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.checked).toBe(2);
+    expect(r.sheets).toHaveLength(1);
+    expect(r.sheets[0]?.error).toContain('ヘッダ');
+  });
+
+  it('無いパスは断る', async () => {
+    const r = await checkTsv(store(), { path: 'sheets/無い.tsv' });
+    expect(r.ok).toBe(false);
+  });
+
+  it('ワークスペースの外は見ない', async () => {
+    const r = await checkTsv(store(), { path: '../外.tsv' });
+    expect(r.ok).toBe(false);
+  });
+
+  it('検査だけで書き換えない', async () => {
+    const s = new MemoryDocumentStore({ 'sheets/受注.tsv': SHEET });
+
+    await checkTsv(s, {});
+
+    expect(await s.read('sheets/受注.tsv')).toBe(SHEET);
   });
 });

@@ -52,11 +52,12 @@ import {
   evictionTarget,
   findByPath,
   keepExistingTabs,
+  moveTab as reorderTabs,
   nextActiveId,
   survivingActiveId,
   withoutTab,
 } from './tabs';
-import { resolveOpenTarget } from './openTarget';
+import { ancestorFolders, chooseOpenRoot, resolveOpenTarget } from './openTarget';
 import { parseShareLink, resolveShareFolder, type ShareCandidate } from './shareLink';
 
 /** Rust `git_identity` の戻り（serde camelCase）。 */
@@ -257,8 +258,17 @@ class WorkspaceStore {
     this.tabSeq += 1;
     tab.touchSeq = this.tabSeq;
     this.activeId = id;
+    // 手前に出した文書がツリー上でも見えるようにする。帯とツリーが別々を指していると、
+    // 隣のファイルを開くのに毎回どこにあるかを探し直すことになる。
+    this.expanded = withAncestorsExpanded(this.expanded, tab.relPath);
     // 開いたときと同じ扱いにする。プレビューは loadSeq を見て即座に描き替える。
     this.loadSeq += 1;
+    this.persistView();
+  }
+
+  /** タブを別の位置へ動かす。中身も選択も変えない（並びだけ）。 */
+  moveTab(id: string, before: number): void {
+    this.tabs = reorderTabs(this.tabs, id, before);
     this.persistView();
   }
 
@@ -285,6 +295,13 @@ class WorkspaceStore {
    * 見えている中身が送り手の見ていたものと違いうることだけを伝える。
    */
   shareNotice = $state<string | null>(null);
+  /**
+   * 外から渡されたファイルが、開いたことのないフォルダの中にあったときの問い合わせ。
+   *
+   * 断らずに聞くのは、断ってもファイルは開きたいままで、利用者はフォルダを自分で辿ることに
+   * なるだけだから。ただし黙って開くと、外からの依頼ひとつで見覚えのない中身が並ぶ。
+   */
+  openPrompt = $state<{ folder: string; path: string } | null>(null);
   /** 直近の走査 / 読込エラー（左レールに表示）。 */
   error = $state<string | null>(null);
   /** 走査中フラグ。 */
@@ -481,11 +498,15 @@ class WorkspaceStore {
    * 外からの依頼ひとつで、開くつもりのなかった場所の中身が画面に並ぶことになる。
    */
   async openExternal(absolutePath: string): Promise<void> {
+    this.openPrompt = null;
     const target = resolveOpenTarget(absolutePath, this.root, this.recent);
     if (target.kind === 'unknown') {
-      this.error =
-        `開く場所が分かりませんでした: ${absolutePath}` +
-        '（このファイルのあるフォルダを一度開いてから、もう一度お試しください）';
+      const folder = await this.proposeOpenRoot(absolutePath);
+      if (folder === null) {
+        this.error = `開く場所が分かりませんでした: ${absolutePath}`;
+        return;
+      }
+      this.openPrompt = { folder, path: absolutePath };
       return;
     }
     if (target.kind === 'switch') {
@@ -499,6 +520,46 @@ class WorkspaceStore {
     // 開いたファイルがツリー上でも見えるようにする（選択だけだと畳まれたままになる）。
     this.expanded = withAncestorsExpanded(this.expanded, target.relPath);
     await this.select(target.relPath);
+  }
+
+  /**
+   * 開く起点にできそうなフォルダを探す。
+   *
+   * `.git` のある位置を優先する（そこが利用者にとってのひとつのまとまり）。有無の確認だけは
+   * ファイルシステムに聞くしかないので、上へ辿る候補を先に組んでから 1 つずつ当たる。
+   * 判定そのものは純関数側にある。
+   */
+  private async proposeOpenRoot(absolutePath: string): Promise<string | null> {
+    const found = new Set<string>();
+    for (const folder of ancestorFolders(absolutePath)) {
+      let exists = false;
+      try {
+        exists = await invoke<boolean>('directory_exists', { path: `${folder}/.git` });
+      } catch {
+        exists = false;
+      }
+      // いちばん近いものが見つかれば、その上は見ない（内側のほうが利用者の見ている範囲に近い）。
+      if (exists) {
+        found.add(folder);
+        break;
+      }
+    }
+    return chooseOpenRoot(absolutePath, (folder) => found.has(folder));
+  }
+
+  /** 問い合わせに「開く」で答えたとき。履歴へ入れてから、同じ依頼をもう一度通す。 */
+  async acceptOpenPrompt(): Promise<void> {
+    const pending = this.openPrompt;
+    if (pending === null) return;
+    this.openPrompt = null;
+    this.recent = addRecentFolder(this.recent, pending.folder);
+    this.persistRecent();
+    await this.openExternal(pending.path);
+  }
+
+  /** 問い合わせを閉じる。開かなかったことは残さない（次の依頼でまた聞けばよい）。 */
+  dismissOpenPrompt(): void {
+    this.openPrompt = null;
   }
 
   /**

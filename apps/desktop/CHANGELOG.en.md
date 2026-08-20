@@ -4,6 +4,21 @@ Changes to this app. Versions follow [Semantic Versioning](https://semver.org/).
 
 Japanese is the source of truth for this file; see [CHANGELOG.md](./CHANGELOG.md).
 
+## 0.16.0
+
+### Added
+
+- **A file handed over from outside the app now opens together with its folder.** A document passed in from another program could not be opened if it sat outside the current folder. The path is walked upward to the nearest folder under version control, and that is offered as the place to open. Nothing moves until the offer is accepted, and a drive root is never chosen — otherwise the whole machine would be listed.
+- **Notes above a table are now folded when there are many.** The more conventions were listed as notes, the further the table itself was pushed down, until nothing useful was visible on opening. Four or more are folded to a count. Whether they are folded is remembered per sheet.
+- **Tabs can now be reordered.** They only ever sat in the order they were opened, so two documents worth comparing drifted apart. Drag one where it belongs; the order is kept for next time.
+- **A verification sheet with rows broken by a raw newline inside a cell is now reported.** This format keeps one record per line so that changes stay readable, but writing to it with another tool leaves real newlines in place and splits a record across several lines. That is hard to see on screen and ships unnoticed. The count is shown on opening and the broken row can be jumped to. It is not repaired here — guessing where the break belongs would silently change the contents.
+- **A sheet can now be inspected from AI without being written to.** Every sheet in the folder is checked at once and only the broken ones are listed. No row contents are returned.
+- **A URL written inside ordinary text is now clickable.** A reference written into a step or a note was plain text unless the whole column was typed as a URL. Now only the URL part responds, and the text around it is left as it is. Trailing punctuation is not taken as part of the address.
+
+### Fixed
+
+- **Fixed the tree on the left still pointing elsewhere after switching tabs.** Switching to a document inside a collapsed folder left no way to tell from the screen what was being viewed. The ancestors are now expanded and the row is scrolled into view.
+
 ## 0.15.0
 
 ### Added

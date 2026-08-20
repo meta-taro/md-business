@@ -70,3 +70,46 @@ export function resolveOpenTarget(
 
   return { kind: 'unknown' };
 }
+
+/**
+ * ファイルの親から上へ辿ったフォルダを、近い順に返す。
+ *
+ * 綴りは比較しやすい形（`/` 区切り・末尾なし）に揃える。Windows のドライブは `C:` で止まり、
+ * POSIX は `/` で止まる。ファイル自身は含めない。
+ */
+export function ancestorFolders(absoluteFilePath: string): string[] {
+  const absolute = normalize(absoluteFilePath);
+  const folders: string[] = [];
+  let current = absolute;
+  for (;;) {
+    const cut = current.lastIndexOf('/');
+    if (cut < 0) break;
+    // 根（`/home` の上）は空文字になる。区切りそのものが根の名前。
+    const parent = cut === 0 ? '/' : current.slice(0, cut);
+    folders.push(parent);
+    if (parent === '/') break;
+    current = parent;
+  }
+  return folders;
+}
+
+/** そのフォルダが版管理の起点か（`.git` があるか）。 */
+export type HasGit = (folder: string) => boolean;
+
+/**
+ * 外から渡されたファイルに対して、開く起点にするフォルダを決める。
+ *
+ * `.git` のある位置を優先するのは、そこが利用者にとっての「ひとつの仕事のまとまり」だから。
+ * 無ければファイルの親だけにする（上へ広げると、関係のない兄弟フォルダまで画面に並ぶ）。
+ *
+ * ドライブ直下（`C:` / `/`）は起点にしない。そこを開くと機械の中身を丸ごと走査することになり、
+ * 開くつもりのなかったものが並ぶ。決められないと返して、利用者にフォルダを選んでもらう。
+ */
+export function chooseOpenRoot(absoluteFilePath: string, hasGit: HasGit): string | null {
+  const folders = ancestorFolders(absoluteFilePath);
+  const usable = folders.filter((folder) => folder !== '/' && !/^[A-Za-z]:$/.test(folder));
+  for (const folder of usable) {
+    if (hasGit(folder)) return folder;
+  }
+  return usable[0] ?? null;
+}

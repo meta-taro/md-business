@@ -494,6 +494,100 @@ export async function readTsv(
   }));
 }
 
+/** 検査だけをした 1 枚ぶんの結果。何も無いシートは載せないので、載っている＝何かある。 */
+export interface TsvCheckSheet {
+  /** 正規化済み相対パス。 */
+  path: string;
+  /** 読めなかった理由。読めたときは付かない。 */
+  error?: string;
+  /** データ行の数（読めたときだけ）。 */
+  rows?: number;
+  /** 列型・割れた行の検査結果。 */
+  issues: ValidationIssue[];
+  /** 別シートを指す列（`#@ link`）の照合結果。 */
+  linkIssues: TsvLinkIssue[];
+  /** 件数の上限で切ったか。 */
+  truncated?: boolean;
+}
+
+export interface CheckTsvOk {
+  ok: true;
+  /** 見たシートの枚数。 */
+  checked: number;
+  /** 何か見つかったシートだけ。 */
+  sheets: TsvCheckSheet[];
+  /** 見つかった件数の合計（上限で切る前の数）。 */
+  totalIssues: number;
+}
+
+export interface CheckTsvInput {
+  /** 見るシート。省略するとワークスペースの `.tsv` を全部見る。 */
+  path?: string;
+}
+
+/**
+ * 1 枚あたりに返す件数の上限。
+ *
+ * 列を 1 つ増やし忘れただけで全行が違反になることがある。全部返すと読む側の文脈が
+ * 1 枚で埋まり、残りのシートを見る前に打ち切られる。切ったことは `truncated` で言う。
+ */
+export const MAX_CHECK_ISSUES_PER_SHEET = 50;
+
+/**
+ * 書き込まずに検査だけする。
+ *
+ * read_tsv でも検査結果は返るが、あれは中身を読む口なので行を全部連れてくる。
+ * 「どこか壊れていないか」を見たいだけのときに全シートぶんの行を運ぶと、調べる前に
+ * 読む側が埋まる。**壊れた場所だけを返す口**を別に立てて、行は返さない。
+ *
+ * 検査だけなので**直しもしない**。割れた行を機械で繋ぐと、割れ目がセルの途中だったのか
+ * 元から別の行だったのかを取り違えたときに、直した跡が残らないまま中身が変わる。
+ */
+export async function checkTsv(
+  store: DocumentStore,
+  input: CheckTsvInput,
+): Promise<CheckTsvOk | ToolError> {
+  let targets: string[];
+  if (input.path === undefined) {
+    targets = await store.listSheets();
+  } else {
+    const safe = safeRelativePath(input.path);
+    if (!safe.ok) return { ok: false, error: safe.reason };
+    if (!(await store.exists(safe.relative))) {
+      return { ok: false, error: `ファイルが見つかりません: ${safe.relative}` };
+    }
+    targets = [safe.relative];
+  }
+
+  const sheets: TsvCheckSheet[] = [];
+  let totalIssues = 0;
+
+  for (const relative of targets) {
+    const loaded = await load(store, relative);
+    if ('ok' in loaded) {
+      // 1 枚読めなくても残りは見る。まとめて直せるように、全部の結果を一度に返す。
+      sheets.push({ path: relative, error: loaded.error, issues: [], linkIssues: [] });
+      continue;
+    }
+
+    const issues = validateTsv(loaded.doc, await choicesOf(store, relative, loaded.doc));
+    const linkIssues = await linkIssuesOf(store, relative, loaded.doc);
+    totalIssues += issues.length + linkIssues.length;
+    if (issues.length === 0 && linkIssues.length === 0) continue;
+
+    const kept = issues.slice(0, MAX_CHECK_ISSUES_PER_SHEET);
+    sheets.push({
+      path: relative,
+      rows: loaded.doc.rows.length,
+      issues: kept,
+      linkIssues,
+      ...(kept.length < issues.length ? { truncated: true } : {}),
+    });
+  }
+
+  return { ok: true, checked: targets.length, sheets, totalIssues };
+}
+
 /**
  * 末尾へ 1 行追加する。指定の無い列は空セル（＝未入力の正本表現）のまま残す。
  *

@@ -18,7 +18,7 @@ import {
   updateDocument,
 } from './tools.js';
 import type { UpdateDocumentInput } from './tools.js';
-import { readTsv, appendTsvRow, updateTsvRow } from './tsvTools.js';
+import { readTsv, checkTsv, appendTsvRow, updateTsvRow } from './tsvTools.js';
 import { readData, type ReadDataOptions } from './dataTools.js';
 import { dataToTable, type DataToTableOptions } from './dataToTable.js';
 import { readHar, type ReadHarInput } from './harTools.js';
@@ -73,6 +73,7 @@ export const SERVER_INSTRUCTIONS = `md-business は Markdown / TSV の業務文�
   1 行挿すだけでずれるので、読んでから書くまでの間に編集が入ると別の行を書き換えてしまう。
   \`directives\` の \`hidden\` は、利用者が表から外して控えにした行。read_tsv には出ないし
   書き換えもできない。控えの扱いはアプリ側の操作なので、宣言を書き換えて戻そうとしない。
+  1 枚ずつ読まずに壊れていないかだけを見るなら **check_tsv**（行を返さない・書き換えない）。
   \`directives\` の \`computed\` は、値がほかから決まる列（例 \`computed No. = rowNumber()\`）。
   指定すると書き込みは失敗する。「その列を実数で埋めて」と言われても、それは宣言を直す話であって
   セルを打つ話ではない。打てば集計が消えたまま提出物として出る。
@@ -312,6 +313,25 @@ export function createServer(store: DocumentStore, options: CreateServerOptions 
     async ({ path }) => {
       const r = await readTsv(store, path);
       emit('read_tsv', path, r);
+      return jsonResult(r, !r.ok);
+    },
+  );
+
+  server.registerTool(
+    'check_tsv',
+    {
+      description:
+        '検証シートを書き換えずに検査だけする。path を省くとワークスペースの .tsv を全部見る。行は返さないので、read_tsv より軽く「どこか壊れていないか」を見られる。何も無いシートは結果に載らない。short_row はセル内の生改行で 1 レコードが複数の物理行へ割れた疑い。直しはしない（割れ目の取り違えが黙って中身を変えるため）。',
+      inputSchema: {
+        path: z
+          .string()
+          .optional()
+          .describe('見るシート。省略するとワークスペース全体'),
+      },
+    },
+    async ({ path }) => {
+      const r = await checkTsv(store, path === undefined ? {} : { path });
+      emit('check_tsv', path ?? '', r);
       return jsonResult(r, !r.ok);
     },
   );
