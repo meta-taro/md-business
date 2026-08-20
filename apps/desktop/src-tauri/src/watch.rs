@@ -5,7 +5,7 @@
 //! イベントとしてフロントへ発行する「橋渡し」だけを持つ。notify の `EventKind` → [`RawEvent`]
 //! の写像（[`map_event_kind`]）はここに置くが写像自体は純粋なので単体検査する。
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
@@ -15,7 +15,8 @@ use notify_debouncer_full::{new_debouncer, DebounceEventResult, Debouncer, FileI
 use tauri::{AppHandle, Emitter, Manager, State};
 
 use crate::watch_logic::{
-    classify_event, is_recent_self_write, map_changes_dedup, prune_expired, RawEvent,
+    classify_event, is_recent_self_write, locality_from_spelling, map_changes_dedup,
+    prune_expired, should_cache_file_ids, RawEvent, RootLocality,
 };
 
 /// 連続イベントを束ねる待ち時間。保存直後の複数イベント（truncate→write→close 等）を 1 回に畳む。
@@ -129,6 +130,40 @@ fn handle_debounced(app: &AppHandle, res: DebounceEventResult) {
     }
 }
 
+/// 手元のディスクか、ネットワーク越しか。綴りで決まらなければ OS へ問い合わせる。
+fn root_locality(path: &Path) -> RootLocality {
+    locality_from_spelling(path).unwrap_or_else(|| drive_locality(path))
+}
+
+/// ドライブ文字の割り当て先を OS に聞く。
+#[cfg(windows)]
+fn drive_locality(path: &Path) -> RootLocality {
+    use windows::core::HSTRING;
+    use windows::Win32::Storage::FileSystem::GetDriveTypeW;
+    use windows::Win32::System::WindowsProgramming::DRIVE_REMOTE;
+
+    let text = path.to_string_lossy().replace('/', "\\").to_string();
+    let bare = text.strip_prefix(r"\\?\").unwrap_or(&text);
+    let mut chars = bare.chars();
+    let (Some(letter), Some(':')) = (chars.next(), chars.next()) else {
+        // ドライブ文字で始まらない綴りは、ここでは判定できない。手元として扱う。
+        return RootLocality::Local;
+    };
+    // GetDriveTypeW はドライブの根（`C:\`）を渡す約束になっている。
+    let root = HSTRING::from(format!("{}:{}", letter, '\\'));
+    if unsafe { GetDriveTypeW(&root) } == DRIVE_REMOTE {
+        RootLocality::Remote
+    } else {
+        RootLocality::Local
+    }
+}
+
+/// Windows 以外はドライブ文字の割り当てという仕組みが無い。
+#[cfg(not(windows))]
+fn drive_locality(_path: &Path) -> RootLocality {
+    RootLocality::Local
+}
+
 /// `root` の再帰監視を開始する。既存の監視は先に停止してから張り替える（フォルダ切替対応）。
 /// 分類・エコー抑制のパス比較を合わせるため、canonical な root を保存して監視する。
 ///
@@ -180,10 +215,15 @@ fn watch_workspace_blocking(
         .watcher()
         .watch(&canon_root, RecursiveMode::Recursive)
         .map_err(|e| format!("監視の開始失敗: {}", e))?;
-    // リネーム追跡のため file-id キャッシュにも監視ルートを登録する。
-    debouncer
-        .cache()
-        .add_root(&canon_root, RecursiveMode::Recursive);
+    // リネーム追跡のため file-id キャッシュにも監視ルートを登録する。ただし登録は配下を
+    // 全部辿って 1 件ずつ ID を問い合わせるので、ネットワーク越しの共有では往復が積み上がり
+    // 終わらない。遠い相手では登録しない。リネームは作成と削除として届き、どちらも再走査に
+    // 繋がるので、画面に出る結果は変わらない。
+    if should_cache_file_ids(root_locality(&canon_root)) {
+        debouncer
+            .cache()
+            .add_root(&canon_root, RecursiveMode::Recursive);
+    }
 
     let mut deb = state
         .debouncer
