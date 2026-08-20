@@ -89,6 +89,7 @@
     rangeToTsv,
     rowRange,
   } from './gridRange';
+  import { summarizeRange, formatSummaryValue } from './gridSummary';
   import { rowMenuItems, rowMenuSelection, type RowMenuAction } from './gridRowMenu';
   import { blameAge, formatBlameAge, type RowBlame } from './rowBlame';
   import { canStartDrag, beginDrag } from './gridDrag';
@@ -1369,6 +1370,20 @@
     const b = rangeBounds(selection);
     return t('grid.selectionSize', { rows: b.r1 - b.r0 + 1, cols: b.c1 - b.c0 + 1 });
   });
+  // 選んだ範囲の数を足元で数える。表計算で列を選んだときに見えるものと同じ。
+  // 数として読めるセルが 2 つ未満なら出さない（1 セル移動しただけで騒がしくならない）。
+  const selectionSummaryLabel = $derived.by(() => {
+    const summary = summarizeRange(doc, selection);
+    if (!summary) return '';
+    const show = (value: number) => formatSummaryValue(value, i18n.locale);
+    return t('grid.selectionSummary', {
+      count: summary.count,
+      sum: show(summary.sum),
+      average: show(summary.average),
+      min: show(summary.min),
+      max: show(summary.max),
+    });
+  });
 
   // 実データ末尾より下＝pad 行（まだファイルに焼けない空行）。複製/削除/クリア/コピーは
   // 実データ行にだけ意味があるので pad 行では抑止する。
@@ -1998,7 +2013,8 @@
         </button>
       {/if}
       <span class="active-row" aria-live="polite">
-        {modeLabel}: {activeRowLabel}{#if selectionLabel} · {selectionLabel}{/if}
+        {modeLabel}: {activeRowLabel}{#if selectionLabel} · {selectionLabel}{/if}{#if selectionSummaryLabel}
+          · {selectionSummaryLabel}{/if}
       </span>
       {#if blameOn}
         <!-- 行番号セルの tooltip と同じ中身。選択中の行の分だけは、当てなくても見える所に出す。 -->
