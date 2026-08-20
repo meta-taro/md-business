@@ -969,6 +969,7 @@
           {choices}
           {blame}
           {blameOn}
+          sheetKey={workspace.activePath}
           onToggleBlame={() => (blameOn = !blameOn)}
         />
         {/key}

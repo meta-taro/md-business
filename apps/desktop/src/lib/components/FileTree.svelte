@@ -79,6 +79,17 @@
     treeEl?.querySelectorAll<HTMLButtonElement>('button.row')[index]?.focus();
   }
 
+  // 手前の文書が変わったら、その行が見える位置まで送る。畳みはストア側で開くので、
+  // ここは送るだけ。スクロールを最小限（block: 'nearest'）にするのは、既に見えている
+  // ときに画面が動くと、帯を押しただけでツリーの読み位置が飛ぶため。
+  $effect(() => {
+    const path = workspace.activePath;
+    if (path === null) return;
+    void tick().then(() => {
+      treeEl?.querySelector('button.row.active')?.scrollIntoView({ block: 'nearest' });
+    });
+  });
+
   function onTreeKeydown(e: KeyboardEvent): void {
     // 改名の入力中は、左右キーがカーソル移動として要る。ツリーの移動には回さない。
     if (renaming !== null) return;
@@ -509,6 +520,23 @@
 
   {#if workspace.shareNotice !== null}
     <p class="banner warn" role="status">{workspace.shareNotice}</p>
+  {/if}
+
+  <!-- 外から渡されたファイルが未知の場所にあったとき。断らずに聞く（断っても開きたいままで、
+       フォルダを自分で辿らせることになるだけ）。押されるまで何も開かない。 -->
+  {#if workspace.openPrompt !== null}
+    <div class="banner warn ask" role="alertdialog" aria-label={t('tree.openAskYes')}>
+      <p class="ask-title">{t('tree.openAsk', { folder: workspace.openPrompt.folder })}</p>
+      <p class="ask-hint">{t('tree.openAskHint', { path: workspace.openPrompt.path })}</p>
+      <div class="ask-row">
+        <button class="ask-go" type="button" onclick={() => void workspace.acceptOpenPrompt()}>
+          {t('tree.openAskYes')}
+        </button>
+        <button class="ask-no" type="button" onclick={() => workspace.dismissOpenPrompt()}>
+          {t('tree.openAskNo')}
+        </button>
+      </div>
+    </div>
   {/if}
 
   {#if workspace.root === null}
@@ -1192,6 +1220,47 @@
   .banner.warn {
     color: var(--warning-fg, var(--text-secondary));
     flex: none;
+  }
+
+  .banner.ask {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    border-bottom: 1px solid var(--border-subtle);
+  }
+
+  .ask-title,
+  .ask-hint {
+    margin: 0;
+  }
+
+  /* 頼まれた側のパスは長い。折り返して全部見せる（押す前に何を開くかが読めないと選べない）。 */
+  .ask-hint {
+    color: var(--text-tertiary);
+    word-break: break-all;
+  }
+
+  .ask-row {
+    display: flex;
+    gap: var(--space-2);
+    margin-top: var(--space-1);
+  }
+
+  .ask-go,
+  .ask-no {
+    height: 24px;
+    padding: 0 var(--space-3);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-sm);
+    background: var(--bg-elevated);
+    color: var(--text-secondary);
+    font-size: var(--text-2xs-size);
+    cursor: pointer;
+  }
+
+  .ask-go {
+    border-color: var(--accent-border, var(--border-strong));
+    color: var(--accent-fg, var(--text-primary));
   }
 
   .tree {

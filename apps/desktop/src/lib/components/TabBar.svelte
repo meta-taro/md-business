@@ -19,12 +19,60 @@
     event.preventDefault();
     void workspace.closeTab(id);
   }
+
+  // ── 並べ替え。開いた順が作業の順とは限らないので、突き合わせる 2 枚を隣にできるようにする。
+  //    並びの計算は tabs の純ロジック、ここは掴んだ枚と落ちる位置を持つだけ。 ──
+  let dragId = $state<string | null>(null);
+  /** 落ちる位置（その番号のタブの手前）。掴んでいない間は null。 */
+  let dropAt = $state<number | null>(null);
+
+  function onDragStart(event: DragEvent, id: string): void {
+    dragId = id;
+    // 受け取る側が要求するので入れておく。中身は使わない（id は state で持っている）。
+    event.dataTransfer?.setData('text/plain', id);
+    if (event.dataTransfer !== null) event.dataTransfer.effectAllowed = 'move';
+  }
+
+  function onDragOver(event: DragEvent, index: number): void {
+    if (dragId === null) return;
+    // 既定を止めないと落とせない（ブラウザが受け取らない印を出す）。
+    event.preventDefault();
+    const box = (event.currentTarget as HTMLElement).getBoundingClientRect();
+    // 半分より左なら手前、右なら後ろ。掴んだものが指の側へ寄る。
+    dropAt = event.clientX < box.left + box.width / 2 ? index : index + 1;
+  }
+
+  function onDrop(event: DragEvent): void {
+    event.preventDefault();
+    const id = dragId;
+    const at = dropAt;
+    endDrag();
+    if (id === null || at === null) return;
+    workspace.moveTab(id, at);
+  }
+
+  function endDrag(): void {
+    dragId = null;
+    dropAt = null;
+  }
 </script>
 
 {#if tabs.length > 0}
   <div class="tabbar" role="tablist" aria-label={t('page.tabsLabel')}>
-    {#each tabs as tab (tab.id)}
-      <div class="tab" class:active={tab.active} role="presentation">
+    {#each tabs as tab, index (tab.id)}
+      <div
+        class="tab"
+        class:active={tab.active}
+        class:dragging={dragId === tab.id}
+        class:drop-before={dropAt === index}
+        class:drop-after={dropAt === index + 1 && index === tabs.length - 1}
+        role="presentation"
+        draggable="true"
+        ondragstart={(event) => onDragStart(event, tab.id)}
+        ondragover={(event) => onDragOver(event, index)}
+        ondrop={onDrop}
+        ondragend={endDrag}
+      >
         <button
           type="button"
           role="tab"
@@ -152,5 +200,27 @@
   .tab-close svg {
     width: 12px;
     height: 12px;
+  }
+
+  /* 掴んでいる 1 枚は薄くする（どれを動かしているかが指の下で隠れる）。 */
+  .tab.dragging {
+    opacity: 0.4;
+  }
+
+  /* 落ちる位置。線 1 本で示す。隙間を空けると帯全体が動いて、狙いが定まらない。 */
+  .tab.drop-before {
+    box-shadow: inset 2px 0 0 var(--accent);
+  }
+
+  .tab.drop-after {
+    box-shadow: inset -2px 0 0 var(--accent);
+  }
+
+  .tab.active.drop-before {
+    box-shadow: inset 0 2px 0 var(--accent), inset 2px 0 0 var(--accent);
+  }
+
+  .tab.active.drop-after {
+    box-shadow: inset 0 2px 0 var(--accent), inset -2px 0 0 var(--accent);
   }
 </style>

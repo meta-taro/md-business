@@ -159,6 +159,10 @@ export interface Messages {
   'tree.filterNoMatch': string;
   'tree.noFiles': string;
   'tree.truncated': string;
+  'tree.openAsk': string;
+  'tree.openAskHint': string;
+  'tree.openAskYes': string;
+  'tree.openAskNo': string;
   // 左レールの右クリックメニュー（reveal / パスコピー / リモートで開く）
   'tree.recent': string;
   'tree.recentPick': string;
@@ -457,6 +461,9 @@ export interface Messages {
   'grid.jumpNoRow': string;
   'grid.jumpMultiple': string;
   'grid.linkGaps': string;
+  'grid.splitRows': string;
+  'grid.splitGo': string;
+  'grid.splitDismiss': string;
   'grid.linkGapsTitle': string;
   'grid.pasteDroppedComputed': string;
   'grid.rowLabel': string;
@@ -466,6 +473,9 @@ export interface Messages {
   'grid.noteEdit': string;
   'grid.noteDelete': string;
   'grid.notePlaceholder': string;
+  'grid.noteFolded': string;
+  'grid.noteFoldOpen': string;
+  'grid.noteFoldClose': string;
   'grid.groupRename': string;
   'grid.groupDelete': string;
   'grid.colResizeLabel': string;
@@ -656,6 +666,10 @@ const en: Messages = {
   'tree.filterNoMatch': 'No files match\n"{query}"',
   'tree.noFiles': 'No .md / .tsv\nfiles found',
   'tree.truncated': 'Showing partial results (limit reached)',
+  'tree.openAsk': 'Open the folder {folder}?',
+  'tree.openAskHint': 'Another program asked to show {path}. It is outside every folder you have opened.',
+  'tree.openAskYes': 'Open',
+  'tree.openAskNo': 'Not now',
   'tree.recent': 'Recent folders',
   'tree.recentPick': 'Pick a recent folder',
   'tree.recentMissing': 'Not found',
@@ -951,6 +965,10 @@ const en: Messages = {
   'grid.jumpNoRow': 'No row has {column} set to “{value}”',
   'grid.jumpMultiple': '{count} rows match. Moved to the first one',
   'grid.linkGaps': 'Linked sheets: {count} to check',
+  'grid.splitRows':
+    '{count} record(s) may be split across lines by a raw newline inside a cell (write a cell newline as \n).',
+  'grid.splitGo': 'Go to it',
+  'grid.splitDismiss': 'Dismiss',
   'grid.linkGapsTitle': 'Found in the sheets this one points at. Open them to fix.',
   'grid.pasteDroppedComputed': '{count} cells in computed columns were not pasted',
   'grid.rowLabel': 'Row {row}',
@@ -960,6 +978,9 @@ const en: Messages = {
   'grid.noteEdit': 'Click to edit this note',
   'grid.noteDelete': 'Delete this note',
   'grid.notePlaceholder': 'Type a note… (Enter to confirm, Esc to cancel)',
+  'grid.noteFolded': '{count} notes',
+  'grid.noteFoldOpen': 'Show the notes',
+  'grid.noteFoldClose': 'Hide the notes',
   'grid.groupRename': 'Click to rename this group',
   'grid.groupDelete': 'Delete this group',
   'grid.colResizeLabel': 'Change the width of the {name} column',
@@ -1149,6 +1170,10 @@ const ja: Messages = {
   'tree.filterNoMatch': '「{query}」に\n一致するファイルがありません',
   'tree.noFiles': '.md / .tsv が\n見つかりませんでした',
   'tree.truncated': '一部のみ表示（上限に達したため打ち切りました）',
+  'tree.openAsk': '{folder} を開きますか',
+  'tree.openAskHint': 'ほかのプログラムから {path} を出すよう頼まれました。これまでに開いたどのフォルダの中にもありません。',
+  'tree.openAskYes': '開く',
+  'tree.openAskNo': '開かない',
   'tree.recent': '最近開いたフォルダ',
   'tree.recentPick': '最近開いたフォルダから選ぶ',
   'tree.recentMissing': '見つかりません',
@@ -1443,6 +1468,9 @@ const ja: Messages = {
   'grid.jumpNoRow': '{column} が「{value}」の行はありません',
   'grid.jumpMultiple': '{count} 行あります。最初の行へ移動しました',
   'grid.linkGaps': '参照先に {count} 件',
+  'grid.splitRows': 'セルの中で改行して {count} 件の行が割れている可能性があります（セル内改行は \n）。',
+  'grid.splitGo': 'その行へ',
+  'grid.splitDismiss': '閉じる',
   'grid.linkGapsTitle': 'このシートが指している側で見つかったものです。相手を開いて直します。',
   'grid.pasteDroppedComputed': '計算列の {count} セルは貼り付けていません',
   'grid.rowLabel': '{row} 行目',
@@ -1452,6 +1480,9 @@ const ja: Messages = {
   'grid.noteEdit': 'クリックで補足を編集',
   'grid.noteDelete': 'この補足を削除',
   'grid.notePlaceholder': '補足を入力…（Enter で確定・Esc で取消）',
+  'grid.noteFolded': '補足 {count} 件',
+  'grid.noteFoldOpen': '補足を出す',
+  'grid.noteFoldClose': '補足を畳む',
   'grid.groupRename': 'クリックで大分類を改名',
   'grid.groupDelete': 'この大分類を削除',
   'grid.colResizeLabel': '{name} 列の幅を変更',
@@ -1639,6 +1670,10 @@ const zh: Messages = {
   'tree.filterNoMatch': '没有匹配\n“{query}”的文件',
   'tree.noFiles': '未找到\n.md / .tsv 文件',
   'tree.truncated': '仅显示部分（已达上限而截断）',
+  'tree.openAsk': '要打开文件夹 {folder} 吗？',
+  'tree.openAskHint': '其他程序请求显示 {path}。它不在你打开过的任何文件夹中。',
+  'tree.openAskYes': '打开',
+  'tree.openAskNo': '暂不打开',
   'tree.recent': '最近打开的文件夹',
   'tree.recentPick': '从最近打开的文件夹中选择',
   'tree.recentMissing': '未找到',
@@ -1930,6 +1965,9 @@ const zh: Messages = {
   'grid.jumpNoRow': '没有 {column} 为「{value}」的行',
   'grid.jumpMultiple': '共有 {count} 行，已移动到第一行',
   'grid.linkGaps': '引用目标有 {count} 项',
+  'grid.splitRows': '有 {count} 条记录可能因单元格内的换行而被拆成多行（单元格换行请写 \n）。',
+  'grid.splitGo': '跳转到该行',
+  'grid.splitDismiss': '关闭',
   'grid.linkGapsTitle': '这些出现在本表所指向的表中。请打开对方表修改。',
   'grid.pasteDroppedComputed': '计算列的 {count} 个单元格未粘贴',
   'grid.rowLabel': '第 {row} 行',
@@ -1939,6 +1977,9 @@ const zh: Messages = {
   'grid.noteEdit': '点击编辑备注',
   'grid.noteDelete': '删除此备注',
   'grid.notePlaceholder': '输入备注…（Enter 确定・Esc 取消）',
+  'grid.noteFolded': '备注 {count} 条',
+  'grid.noteFoldOpen': '展开备注',
+  'grid.noteFoldClose': '收起备注',
   'grid.groupRename': '点击重命名分组',
   'grid.groupDelete': '删除此分组',
   'grid.colResizeLabel': '更改 {name} 列的宽度',
@@ -2126,6 +2167,10 @@ const ko: Messages = {
   'tree.filterNoMatch': '"{query}"과(와)\n일치하는 파일이 없습니다',
   'tree.noFiles': '.md / .tsv 파일을\n찾을 수 없습니다',
   'tree.truncated': '일부만 표시 (상한에 도달하여 중단)',
+  'tree.openAsk': '{folder} 폴더를 열까요?',
+  'tree.openAskHint': '다른 프로그램이 {path} 를 표시하도록 요청했습니다. 지금까지 연 어떤 폴더에도 없습니다.',
+  'tree.openAskYes': '열기',
+  'tree.openAskNo': '열지 않기',
   'tree.recent': '최근 연 폴더',
   'tree.recentPick': '최근 연 폴더에서 선택',
   'tree.recentMissing': '찾을 수 없음',
@@ -2420,6 +2465,9 @@ const ko: Messages = {
   'grid.jumpNoRow': '{column}이(가) 「{value}」인 행이 없습니다',
   'grid.jumpMultiple': '{count}개 행이 있습니다. 첫 행으로 이동했습니다',
   'grid.linkGaps': '참조 대상에 {count}건',
+  'grid.splitRows': '셀 안의 줄바꿈으로 {count}건의 행이 나뉘었을 수 있습니다(셀 줄바꿈은 \n).',
+  'grid.splitGo': '해당 행으로',
+  'grid.splitDismiss': '닫기',
   'grid.linkGapsTitle': '이 시트가 가리키는 쪽에서 찾은 것입니다. 상대 시트를 열어 고칩니다.',
   'grid.pasteDroppedComputed': '계산 열의 {count}개 셀은 붙여넣지 않았습니다',
   'grid.rowLabel': '{row}번째 행',
@@ -2429,6 +2477,9 @@ const ko: Messages = {
   'grid.noteEdit': '클릭하여 메모 편집',
   'grid.noteDelete': '이 메모 삭제',
   'grid.notePlaceholder': '메모 입력…(Enter로 확정・Esc로 취소)',
+  'grid.noteFolded': '메모 {count} 건',
+  'grid.noteFoldOpen': '메모 펼치기',
+  'grid.noteFoldClose': '메모 접기',
   'grid.groupRename': '클릭하여 그룹 이름 변경',
   'grid.groupDelete': '이 그룹 삭제',
   'grid.colResizeLabel': '{name} 열의 너비 변경',

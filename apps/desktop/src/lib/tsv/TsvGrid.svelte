@@ -30,6 +30,8 @@
     cellDisplayText,
   } from './gridModel';
   import { planGridKey, type GridMode } from './gridMode';
+  import { splitRows, showsSplitNotice, nextSplitRow } from './splitNotice';
+  import { splitUrlSpans, type UrlSpan } from './urlSpans';
   import { nextCell } from './gridNav';
   import { acceptsLineBreak, handsOffKey, seedFromKey } from './gridEdit';
   import { focusSpotKey, planCellFocus, type FocusWhere } from './gridFocusPlan';
@@ -50,6 +52,7 @@
     setRowHeight,
   } from './gridRowLayout';
   import { rowWindow, scrollToRow } from './gridWindow';
+  import { NOTE_FOLD_MIN, noteFoldKey, noteFoldValue, resolveNoteFold } from './noteFold';
   import { clampView, type GridView } from './gridView';
   import { effectiveRowHeights, mergeMeasuredHeights } from './gridRowMeasure';
   import type { MeasuredSample } from './gridRowMeasure';
@@ -171,6 +174,12 @@
     /** 履歴表示の切り替えを親へ通知（省略時は切り替えボタンを出さない）。 */
     onToggleBlame?: () => void;
     /**
+     * 補足行の開閉を覚えるときの名前（省略すると覚えない）。
+     *
+     * 文書の場所をそのまま使う。開閉は見え方の話で中身ではないので、TSV には書かない。
+     */
+    sheetKey?: string | null;
+    /**
      * 前にこの文書を見ていたときの選択位置とスクロール量。**組み立て時に 1 度だけ**読む。
      * あとから追うと、人が動かした先へ古い位置が割り込む。
      */
@@ -194,6 +203,7 @@
     blame = new Map(),
     blameOn = false,
     onToggleBlame,
+    sheetKey = null,
     view = null,
     onViewChange,
   }: Props = $props();
@@ -244,8 +254,43 @@
   //    gridHeaderDirectives の純ロジック、下書き state とフォーカスだけが薄いグルー。 ──
   let editingNote = $state<number | null>(null);
   let noteDraft = $state('');
-  // 新規下書き中だけ表示行が 1 本増える（既存 note＋下書き）。sticky 段の押し下げに反映。
-  const noteRowCount = $derived(notes.length + (editingNote === notes.length ? 1 : 0));
+
+  // ── 補足行の畳み。本数が多いシートは、開いた時点で画面の上半分が補足で埋まる。実施中の
+  //    人はもう読み終わっているので既定は畳む。畳む／開くは利用者の選択なのでシートごとに
+  //    覚える。判断は noteFold の純ロジック、保存先の読み書きだけが薄いグルー。 ──
+  function readFoldMemory(): string | null {
+    if (sheetKey === null) return null;
+    try {
+      return localStorage.getItem(noteFoldKey(sheetKey));
+    } catch {
+      // 覚えられない環境。覚えていない扱いにして本数で決める。
+      return null;
+    }
+  }
+  let noteFolded = $state(untrack(() => resolveNoteFold(notes.length, readFoldMemory())));
+  // 畳む相手が居ないうちは畳む口も出さない（1 本を隠しても得るものが無い）。
+  const foldable = $derived(notes.length >= NOTE_FOLD_MIN);
+  const notesShown = $derived(!foldable || !noteFolded);
+  function toggleNoteFold(): void {
+    noteFolded = !noteFolded;
+    if (sheetKey === null) return;
+    try {
+      localStorage.setItem(noteFoldKey(sheetKey), noteFoldValue(noteFolded));
+    } catch {
+      // 覚えられなくても、いま開いている間はそのまま使える。
+    }
+  }
+
+  // 畳む口の 1 行と、出している補足、新規下書き。sticky 段の押し下げに反映する。
+  const noteRowCount = $derived(
+    (foldable ? 1 : 0) +
+      (notesShown ? notes.length : 0) +
+      (editingNote === notes.length ? 1 : 0),
+  );
+  /** 上から数えて i 段目の補足行の top（px）。 */
+  function noteTop(index: number): number {
+    return COORD_ROW_H + index * NOTE_ROW_H;
+  }
 
   function persistNotes(next: string[]): void {
     if (!onChange) return;
@@ -258,6 +303,8 @@
   }
   function startNewNote(): void {
     if (!editable) return;
+    // 畳んだまま足すと、書いた直後に自分の書いたものが見えない。
+    noteFolded = false;
     editingNote = notes.length;
     noteDraft = '';
   }
@@ -734,10 +781,11 @@
   // 型検査。セル位置ごとの最初の違反メッセージを引けるようにする。
   // このシートの中にあるリンク違反（参照先に無い値）も、型の違反と同じ場所へ出す。
   // 利用者から見れば「そのセルの値が通らない」で同じことなので、見え方を分けない。
-  const issueByCell = $derived.by(() =>
+  const validation = $derived.by(() =>
     perf.measure('validate', () => {
+      const issues = validateTsv(doc, choices);
       const map = new Map<string, string>();
-      for (const issue of validateTsv(doc, choices)) {
+      for (const issue of issues) {
         const key = `${issue.row}:${issue.column}`;
         if (!map.has(key)) map.set(key, issue.message);
       }
@@ -746,9 +794,27 @@
         const key = `${issue.row}:${issue.column}`;
         if (!map.has(key)) map.set(key, issue.message);
       }
-      return map;
+      return { map, split: splitRows(issues) };
     }),
   );
+  const issueByCell = $derived(validation.map);
+
+  // セル内の生改行で割れた行。空セルが並ぶだけなので、セルの赤に任せると目が滑る。
+  // 開いた直後に上へ出して、割れ目まで送れるようにする。
+  const splitAt = $derived(validation.split);
+  let splitDismissed = $state<string | null>(null);
+  const splitNotice = $derived(showsSplitNotice(splitAt, sheetKey, splitDismissed));
+
+  function goToSplit(): void {
+    const row = nextSplitRow(splitAt, activeCell.row);
+    if (row === null) return;
+    engaged = true;
+    // 割れ目は最後のセルの続きなので、行の先頭ではなくそこへ寄せる。
+    const col = Math.min(doc.rows[row]?.length ?? 0, doc.columns.length - 1);
+    selection = { anchor: { row, col }, focus: { row, col } };
+    mode = 'nav';
+    revealRow(row);
+  }
 
   // 参照先の側にあるもの（取りこぼした行・読めなかった参照先）。相手ファイルの中なので
   // このグリッドには赤が出ない。件数を出さないと、見えていないことが「無い」に化ける。
@@ -1055,6 +1121,21 @@
   }
 
   // セルのリンクを押したとき。表の中で完結する移動はここで、外へ出るものは親へ渡す。
+  /**
+   * 自由文のセルに書かれた URL。`url` 型の列（followableLink）と違い、押せるのは URL の
+   * 部分だけで、残りはただの字のまま。1 本も無ければ null を返す（大半のセルはこちら）ので、
+   * 呼ぶ側はそのまま字として描ける。
+   *
+   * 走るのは描画のときだけ。セルを確定するたびに全行を解析すると編集が重くなるが、
+   * 見えている行だけを描く作りなので、描画時なら窓の中の行数で収まる。
+   */
+  function inlineUrls(text: string): UrlSpan[] | null {
+    // 受け取る相手がいないなら押せる形にしない（押しても何も起きないリンクを作らない）。
+    if (onFollowLink === undefined) return null;
+    const spans = splitUrlSpans(text);
+    return spans.some((span) => span.url !== null) ? spans : null;
+  }
+
   function followLink(link: CellLink): void {
     if (link.kind === 'row' && link.path === null) {
       jumpToRow(link.column, link.value);
@@ -1335,6 +1416,23 @@
 />
 
 <div class="grid-shell">
+  {#if splitNotice}
+    <!-- 直せるのは書いた本人なので、押しつけない。見たら閉じられる（別のシートでは出し直す）。 -->
+    <div class="split-notice" role="status">
+      <span class="split-mark" aria-hidden="true">!</span>
+      <span class="split-text">{t('grid.splitRows', { count: splitAt.length })}</span>
+      <button type="button" class="split-go" onclick={goToSplit}>{t('grid.splitGo')}</button>
+      <button
+        type="button"
+        class="split-close"
+        aria-label={t('grid.splitDismiss')}
+        title={t('grid.splitDismiss')}
+        onclick={() => (splitDismissed = sheetKey ?? '')}
+      >
+        ×
+      </button>
+    </div>
+  {/if}
   <div
     class="tsv-grid"
     role="region"
@@ -1372,19 +1470,46 @@
         </tr>
         <!-- 表の上の補足行（#@ note …）。座標バーの下・型付きヘッダの上に全幅で敷く。
              行ごとに sticky top を積み上げて座標バー・上の補足と重ならないようにする。 -->
-        {#each notes as note, ni (ni)}
+        {#if foldable}
+          <!-- 畳む口。畳んでいる間は補足そのものを出さないので、消す操作も手の届く場所に
+               残らない（読まない状態のときに × が並んでいる必要はない）。 -->
           <tr class="note-row">
-            <th
-              class="rownum note-corner"
-              scope="row"
-              aria-hidden="true"
-              style={`top:${COORD_ROW_H + ni * NOTE_ROW_H}px`}
+            <th class="rownum note-corner" scope="row" aria-hidden="true" style={`top:${noteTop(0)}px`}
             ></th>
             <th
               class="note-cell"
               colspan={doc.columns.length}
               scope="colgroup"
-              style={`top:${COORD_ROW_H + ni * NOTE_ROW_H}px; height:${NOTE_ROW_H}px`}
+              style={`top:${noteTop(0)}px; height:${NOTE_ROW_H}px`}
+            >
+              <div class="note-body">
+                <button
+                  type="button"
+                  class="note-fold"
+                  aria-expanded={notesShown}
+                  title={notesShown ? t('grid.noteFoldClose') : t('grid.noteFoldOpen')}
+                  onclick={toggleNoteFold}
+                >
+                  <span class="note-fold-mark" aria-hidden="true">{notesShown ? '▾' : '▸'}</span>
+                  {t('grid.noteFolded', { count: String(notes.length) })}
+                </button>
+              </div>
+            </th>
+          </tr>
+        {/if}
+        {#each notesShown ? notes : [] as note, ni (ni)}
+          <tr class="note-row">
+            <th
+              class="rownum note-corner"
+              scope="row"
+              aria-hidden="true"
+              style={`top:${noteTop((foldable ? 1 : 0) + ni)}px`}
+            ></th>
+            <th
+              class="note-cell"
+              colspan={doc.columns.length}
+              scope="colgroup"
+              style={`top:${noteTop((foldable ? 1 : 0) + ni)}px; height:${NOTE_ROW_H}px`}
             >
               <!-- 横並びは内側で組む。th 自身を flex にすると表セルでなくなり colspan が
                    無効化される（全幅のはずの補足が 1 列目の幅に潰れる）。 -->
@@ -1428,13 +1553,13 @@
               class="rownum note-corner"
               scope="row"
               aria-hidden="true"
-              style={`top:${COORD_ROW_H + notes.length * NOTE_ROW_H}px`}
+              style={`top:${noteTop(noteRowCount - 1)}px`}
             ></th>
             <th
               class="note-cell"
               colspan={doc.columns.length}
               scope="colgroup"
-              style={`top:${COORD_ROW_H + notes.length * NOTE_ROW_H}px; height:${NOTE_ROW_H}px`}
+              style={`top:${noteTop(noteRowCount - 1)}px; height:${NOTE_ROW_H}px`}
             >
               <div class="note-body">
                 <input
@@ -1715,7 +1840,23 @@
                         {cellDisplayText(widget?.kind, value)}
                       </button>
                     {:else}
-                      {cellDisplayText(widget?.kind, value)}
+                      {@const text = cellDisplayText(widget?.kind, value)}
+                      {@const spans = inlineUrls(text)}
+                      <!-- 文の中の URL も押せるようにする。前後の字は字のまま残すので、
+                           空白を入れずに続けて描く。 -->
+                      {#if spans === null}{text}{:else}<span class="cell-text"
+                          >{#each spans as span, i (i)}{@const url = span.url}{#if url === null}{span.text}{:else}<button
+                                type="button"
+                                class="cell-link cell-url"
+                                tabindex="-1"
+                                title={url}
+                                onclick={(e) => {
+                                  if (e.detail > 1) return;
+                                  followLink({ kind: 'external', href: url });
+                                }}
+                                ondblclick={(e) => e.stopPropagation()}>{span.text}</button
+                              >{/if}{/each}</span
+                        >{/if}
                     {/if}
                   </div>
                 {/if}
@@ -2219,6 +2360,59 @@
 
   /* ── 表の上の補足行（#@ note …）。座標バーと型付きヘッダの間に全幅で敷く注記帯。
      top は行ごとに inline（座標バー + 上の補足の積み上げ）。 ── */
+  .split-notice {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    border-bottom: 1px solid var(--warn-border, #e0b24a);
+    background: var(--warn-bg, #fdf5e2);
+    color: var(--warn-fg, #6b4a06);
+    font-size: 12px;
+  }
+
+  .split-mark {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    flex: 0 0 auto;
+    border-radius: 50%;
+    background: var(--warn-border, #e0b24a);
+    color: #fff;
+    font-weight: 700;
+    font-size: 11px;
+  }
+
+  .split-text {
+    flex: 1 1 auto;
+  }
+
+  .split-go,
+  .split-close {
+    flex: 0 0 auto;
+    border: 1px solid var(--warn-border, #e0b24a);
+    border-radius: 4px;
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
+    font: inherit;
+    padding: 2px 8px;
+  }
+
+  .split-close {
+    border-color: transparent;
+    padding: 2px 6px;
+    font-size: 14px;
+    line-height: 1;
+  }
+
+  .split-go:hover,
+  .split-close:hover {
+    background: rgb(0 0 0 / 6%);
+  }
+
   .note-row th {
     height: 24px;
     padding: 0 var(--space-3);
@@ -2290,6 +2484,29 @@
   .note-del:hover {
     background: var(--bg-hover);
     color: var(--danger-fg);
+  }
+
+  /* 畳む口。補足の並びの一部なので、見た目は補足行に寄せて左端から始める。 */
+  .note-fold {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1, 4px);
+    padding: 0;
+    border: none;
+    background: transparent;
+    color: var(--text-tertiary);
+    font: inherit;
+    cursor: pointer;
+  }
+
+  .note-fold:hover {
+    color: var(--text-primary);
+  }
+
+  .note-fold-mark {
+    font-size: var(--text-2xs-size, 0.6875rem);
+    line-height: 1;
   }
 
   /* 補足の編集 input はセル地に馴染ませる（罫線なし・全幅）。 */
@@ -2530,6 +2747,22 @@
 
   /* セルの中のリンク。文字の幅だけを占める（余白を押したときは今までどおりセル選択）。
      見た目はリンク、実体はボタン（webview ごと遷移させないため）。 */
+  /* 文の中に URL が混じるセルだけ、まとめて 1 つの箱にしてから並べる。
+     .cell-view は flex なので、字とボタンを直に置くと切れ目ごとに別の箱になる。 */
+  .cell-text {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: inherit;
+  }
+
+  /* 文の中の 1 本ぶん。ここで切ると前後の字と行が揃わなくなるので、切るのはセルに任せる。 */
+  .cell-url {
+    max-width: none;
+    overflow: visible;
+    text-overflow: clip;
+  }
+
   .cell-link {
     max-width: 100%;
     padding: 0;

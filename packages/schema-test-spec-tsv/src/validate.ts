@@ -14,7 +14,8 @@ export type ValidationCode =
   | 'number_format'
   | 'checkbox_value'
   | 'url_format'
-  | 'extra_columns';
+  | 'extra_columns'
+  | 'short_row';
 
 /**
  * 1 件のバリデーション違反。位置（データ行 / 列の 0 始まり index）と列名・コード・説明を持つ。
@@ -154,7 +155,56 @@ const MESSAGES: Record<ValidationCode, string> = {
   checkbox_value: 'チェックボックスは TRUE / FALSE / 空のいずれかです',
   url_format: 'http:// または https:// の URL にしてください',
   extra_columns: '列数を超えるセルがあります',
+  short_row: 'セルの中で改行して 1 行が割れている可能性があります（セル内改行は \n と書きます）',
 };
+
+/**
+ * セル内の生改行で 1 レコードが 2 行以上へ割れた疑いのある行の位置を返す。
+ *
+ * 割れた行はどれも列数に足りないが、**足りないだけでは疑わない**。末尾のセルを省いた
+ * 短い行は書き方として許してあるので、それを一律に咎めると普通の書き方が全部赤くなる。
+ *
+ * 疑うのは足し算が合うときだけにする。割れ目のセルは前後へ 1 つずつ分かれるので、
+ * 短い行を続けて繋ぐと（境目のぶんを 1 つ引いて）ちょうど列数へ戻る。戻った並びだけを
+ * 「元は 1 行だった」と見なす。
+ */
+function splitRowStarts(rows: readonly string[][], columnCount: number): Set<number> {
+  const starts = new Set<number>();
+  // 1 列の表は割れても足し算が成り立たない（繋いでも 1 のまま）。見分けられないので疑わない。
+  if (columnCount < 2) return starts;
+
+  let index = 0;
+  while (index < rows.length) {
+    const head = rows[index];
+    if (head === undefined || head.length >= columnCount) {
+      index += 1;
+      continue;
+    }
+
+    let width = head.length;
+    let end = index;
+    for (let next = index + 1; next < rows.length; next += 1) {
+      const piece = rows[next];
+      if (piece === undefined || piece.length >= columnCount) break;
+      // 境目のセルは両側に 1 つずつ分かれている。繋ぐと 1 つに戻る。
+      width += piece.length - 1;
+      if (width >= columnCount) {
+        if (width === columnCount) end = next;
+        break;
+      }
+    }
+
+    if (end > index) {
+      starts.add(index);
+      // 繋いだ分はもう見ない（続きの行を次のレコードの頭として数え直さない）。
+      index = end + 1;
+    } else {
+      index += 1;
+    }
+  }
+
+  return starts;
+}
 
 /**
  * `TsvDocument` の各データセルを列型で検査し、違反の一覧を行優先順で返す純関数。
@@ -164,6 +214,7 @@ const MESSAGES: Record<ValidationCode, string> = {
  * - `multiline_text` 以外の列に改行/タブが含まれたら `multiline_not_allowed`。
  * - enum / date / datetime(ui) / number / checkbox / url は型ごとに値を検査。
  * - 行のセル数が列数を超えたら、最初の余剰セル位置に `extra_columns`（不足は許容）。
+ * - 短い行が続いて繋ぐと列数ちょうどになる並びは、その先頭に `short_row`。
  *
  * 位置は `row`（`doc.rows` の index）と `column`（`doc.columns` の index）で表す。
  *
@@ -173,6 +224,7 @@ const MESSAGES: Record<ValidationCode, string> = {
 export function validateTsv(doc: TsvDocument, choices?: EnumChoices): ValidationIssue[] {
   const issues: ValidationIssue[] = [];
   const columnCount = doc.columns.length;
+  const splitStarts = splitRowStarts(doc.rows, columnCount);
 
   doc.rows.forEach((row, rowIndex) => {
     const cellCount = Math.min(row.length, columnCount);
@@ -204,6 +256,18 @@ export function validateTsv(doc: TsvDocument, choices?: EnumChoices): Validation
           message: MESSAGES[code],
         });
       }
+    }
+
+    if (splitStarts.has(rowIndex)) {
+      const column = doc.columns[row.length];
+      issues.push({
+        row: rowIndex,
+        // 切れたのは最後のセルの続きなので、その次の列を指す。
+        column: row.length,
+        columnName: column === undefined ? '' : column.name,
+        code: 'short_row',
+        message: MESSAGES.short_row,
+      });
     }
 
     if (row.length > columnCount) {

@@ -11,6 +11,7 @@ import type { ParsedHeader } from '../src/types.js';
  * - 単一行の列（`multiline_text` 以外）に改行/タブが含まれたら不正。
  * - enum / date / datetime / number / checkbox / url は型ごとに値を検査。
  * - 行のセル数が列数を超えたら `extra_columns`（不足は末尾省略として許容）。
+ * - 短い行が続いて繋ぐと列数ちょうどになる並びは `short_row`（セル内生改行で割れた疑い）。
  */
 
 /** 最小の TsvDocument を組み立てるヘルパ（meta / directives は空）。 */
@@ -182,6 +183,50 @@ describe('validateTsv', () => {
 
     expect(issues).toHaveLength(1);
     expect(issues[0]).toMatchObject({ row: 1, column: 0, code: 'date_format' });
+  });
+
+  it('flags a record split across physical lines by a raw newline', () => {
+    // 5 列の 1 レコードが 3 列目の途中で割れた形。繋ぐと 3 + 3 - 1 = 5 で列数に戻る。
+    const d = doc(
+      [
+        col('No.', 'text'),
+        col('区分', 'text'),
+        col('手順', 'text'),
+        col('期待結果', 'text'),
+        col('結果', 'text'),
+      ],
+      [
+        ['1', '正常系', '画面を開き'],
+        ['一覧が出る', '一覧が出ること', ''],
+      ],
+    );
+
+    const issues = validateTsv(d);
+
+    expect(issues).toHaveLength(1);
+    expect(issues[0]).toMatchObject({ row: 0, column: 3, code: 'short_row' });
+  });
+
+  it('keeps allowing a short row that is not part of a split', () => {
+    const d = doc(
+      [col('項目', 'text'), col('担当', 'text'), col('備考', 'text')],
+      [['A'], ['B', '本人', '']],
+    );
+
+    expect(validateTsv(d)).toEqual([]);
+  });
+
+  it('flags a record split into three physical lines', () => {
+    const d = doc(
+      // 2 本の生改行で 3 つに割れた 3 列のレコード（繋ぐと 2 + 1 + 2 - 2 = 3）。
+      [col('a', 'text'), col('b', 'text'), col('c', 'text')],
+      [['1', '前'], ['中'], ['後', '3']],
+    );
+
+    const issues = validateTsv(d).filter((issue) => issue.code === 'short_row');
+
+    expect(issues).toHaveLength(1);
+    expect(issues[0]).toMatchObject({ row: 0 });
   });
 
   it('collects multiple independent issues in row-major order', () => {

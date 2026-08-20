@@ -89,3 +89,24 @@ export function survivingActiveId(tabs: readonly TabRef[], activeId: string | nu
   if (tabs.some((t) => t.id === activeId)) return activeId;
   return tabs.at(-1)?.id ?? null;
 }
+
+/**
+ * `id` のタブを `before` の手前へ動かした新しい並び（入力は変えない）。
+ *
+ * `before` は**動かす前の並び**での位置。帯の上に落とした位置がそのまま渡せるように
+ * この向きにしてある（末尾へ落としたときは `tabs.length`）。
+ *
+ * 並べ替えを許すのは、開いた順が作業の順とは限らないから。突き合わせながら見る 2 枚を
+ * 隣にできないと、間の 1 枚を毎回跨ぐことになる。
+ */
+export function moveTab<T extends TabRef>(tabs: readonly T[], id: string, before: number): T[] {
+  const from = tabs.findIndex((t) => t.id === id);
+  const moving = tabs[from];
+  if (from < 0 || moving === undefined) return [...tabs];
+  const rest = [...tabs.slice(0, from), ...tabs.slice(from + 1)];
+  // 抜いた分だけ、後ろ側の位置はひとつ手前へずれる。
+  const wanted = before > from ? before - 1 : before;
+  const at = Math.max(0, Math.min(wanted, rest.length));
+  rest.splice(at, 0, moving);
+  return rest;
+}
