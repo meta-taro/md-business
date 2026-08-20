@@ -181,6 +181,39 @@ function toConditions(where: z.infer<typeof conditionShape>[]): Condition[] {
  * ツール一式を登録した McpServer を組み立てて返す。connect は呼び出し側の責務
  *（テストは InMemoryTransport、本番は StdioServerTransport）。
  */
+/** 画面で開いている文書 1 つ分。アプリが持ち帰った中身をこの形に揃えて返す。 */
+interface OpenDocumentRow {
+  path: string;
+  active: boolean;
+  /** 保存していない編集が残っているか。閉じる前に知る必要がある。 */
+  unsaved: boolean;
+}
+
+/**
+ * アプリが返した一覧を検査して読み取る。形が違えば null。
+ *
+ * 制御チャネルは親子で版がずれる前提の路なので、届いた中身をそのまま信じない。
+ * 読めないときに空配列で取り繕うと「何も開いていない」と嘘の答えになる。
+ */
+function parseOpenDocuments(data: unknown): OpenDocumentRow[] | null {
+  if (typeof data !== 'object' || data === null) return null;
+  const documents = (data as Record<string, unknown>)['documents'];
+  if (!Array.isArray(documents)) return null;
+  const rows: OpenDocumentRow[] = [];
+  for (const entry of documents) {
+    if (typeof entry !== 'object' || entry === null) return null;
+    const row = entry as Record<string, unknown>;
+    const path = row['path'];
+    const active = row['active'];
+    const unsaved = row['unsaved'];
+    if (typeof path !== 'string' || typeof active !== 'boolean' || typeof unsaved !== 'boolean') {
+      return null;
+    }
+    rows.push({ path, active, unsaved });
+  }
+  return rows;
+}
+
 export function createServer(store: DocumentStore, options: CreateServerOptions = {}): McpServer {
   const server = new McpServer(
     { name: SERVER_NAME, version: SERVER_VERSION },
@@ -858,6 +891,52 @@ export function createServer(store: DocumentStore, options: CreateServerOptions 
         const result = await app.request({ action: 'open-document', path: safe.relative });
         const r = result.ok ? { ok: true as const, path: safe.relative } : result;
         emit('open_document', safe.relative, r);
+        return jsonResult(r, !r.ok);
+      },
+    );
+
+    server.registerTool(
+      'list_open_documents',
+      {
+        description:
+          'デスクトップアプリで今開いている文書の一覧を返す。どれが手前にあるか、保存していない編集が残っているかも分かる。閉じる・切り替えるの前に確認する。',
+        inputSchema: {},
+      },
+      async () => {
+        const result = await app.request({ action: 'list-documents' });
+        if (!result.ok) {
+          emit('list_open_documents', undefined, result);
+          return jsonResult(result, true);
+        }
+        const documents = parseOpenDocuments(result.data);
+        const r =
+          documents === null
+            ? { ok: false as const, error: 'アプリから開いている文書の一覧を受け取れませんでした' }
+            : { ok: true as const, documents };
+        emit('list_open_documents', undefined, r);
+        return jsonResult(r, !r.ok);
+      },
+    );
+
+    server.registerTool(
+      'close_document',
+      {
+        description:
+          'デスクトップアプリで開いている文書を閉じる。保存していない編集があれば先に保存してから閉じる。開いていない文書は閉じられない。',
+        inputSchema: {
+          path: z.string().describe('閉じるワークスペース相対パス'),
+        },
+      },
+      async ({ path }) => {
+        const safe = safeRelativePath(path);
+        if (!safe.ok) {
+          const r = { ok: false as const, error: safe.reason };
+          emit('close_document', path, r);
+          return jsonResult(r, true);
+        }
+        const result = await app.request({ action: 'close-document', path: safe.relative });
+        const r = result.ok ? { ok: true as const, path: safe.relative } : result;
+        emit('close_document', safe.relative, r);
         return jsonResult(r, !r.ok);
       },
     );

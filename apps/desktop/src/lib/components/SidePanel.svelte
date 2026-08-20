@@ -14,11 +14,11 @@
 
   let { open, ontoggle }: SidePanelProps = $props();
 
-  const tabs = ['Git', 'Diff', 'AI', 'MCP', 'diag'] as const;
+  // 中身があるものだけ並べる。押せない見出しを予定として置くと、幅を取ったうえに
+  // 「作りかけ」だけを毎回見せることになる（機能が増えるほど横が狭くなる）。
+  const tabs = ['MCP', 'diag'] as const;
   type Tab = (typeof tabs)[number];
 
-  // 実装済みのものだけ押せる。ほかは押せない状態のまま残す（予定が見えるように）。
-  const enabled: readonly Tab[] = ['MCP', 'diag'];
   let active = $state<Tab>('MCP');
 
   // 製品名や規格名（Git / MCP）は訳さない。訳すのは説明語である診断だけ。
@@ -113,7 +113,6 @@
             type="button"
             role="tab"
             aria-selected={tab === active}
-            disabled={!enabled.includes(tab)}
             onclick={() => (active = tab)}
           >
             {label(tab)}
@@ -285,10 +284,6 @@
   .tab.active {
     color: var(--text-primary);
     box-shadow: inset 0 -2px 0 var(--accent);
-  }
-
-  .tab:disabled {
-    cursor: default;
   }
 
   .content {

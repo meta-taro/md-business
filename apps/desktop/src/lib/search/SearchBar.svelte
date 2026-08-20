@@ -25,9 +25,12 @@
     }
   });
 
-  const targetLabel = $derived(
-    search.target === 'editor' ? t('search.inEditor') : t('search.inPreview'),
-  );
+  const TARGET_LABEL_KEYS = {
+    editor: 'search.inEditor',
+    preview: 'search.inPreview',
+    grid: 'search.inGrid',
+  } as const;
+  const targetLabel = $derived(t(TARGET_LABEL_KEYS[search.target]));
 
   // 件数表示。マッチ有りは「3/12」、クエリ有り 0 件は「該当なし」、空クエリは無表示。
   const countLabel = $derived.by(() => {

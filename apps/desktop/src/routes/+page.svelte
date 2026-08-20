@@ -63,7 +63,7 @@
   import TabBar from '$lib/components/TabBar.svelte';
   import DiffView from '$lib/components/DiffView.svelte';
   import SearchBar from '$lib/search/SearchBar.svelte';
-  import { search } from '$lib/search/search.svelte';
+  import { search, type SearchTarget } from '$lib/search/search.svelte';
   import { t } from '$lib/i18n/i18n.svelte';
   import { createPreviewSearchBinding } from '$lib/preview/previewSearchBinding';
   import {
@@ -733,6 +733,12 @@
   // プレビュー iframe を検索対象にできる状態か（TSV グリッド／差分表示中は iframe が無い）。
   const previewSearchable = $derived(previewReady(paneState, () => preview?.ok === true));
 
+  // Ctrl+F の行き先。検証シートを出しているならその表、プレビューが組み上がっていれば
+  // プレビュー、どちらでもなければエディター。
+  const searchTarget = $derived<SearchTarget>(
+    paneState.grid ? 'grid' : previewSearchable ? 'preview' : 'editor',
+  );
+
   // Escape で全画面を抜ける。ただしセル編集中（入力にフォーカス）の Escape は入力側へ譲る。
   // また Ctrl/Cmd+F は、エディター（CodeMirror が自前で処理）／プレビュー iframe（自前で
   // postMessage）以外の親フォーカス時のフォールバックとして共通 SearchBar を開く。
@@ -743,7 +749,7 @@
         const el = event.target as HTMLElement | null;
         if (el?.closest?.('.cm-editor')) return;
         event.preventDefault();
-        search.openFor(previewSearchable ? 'preview' : 'editor');
+        search.openFor(searchTarget);
         return;
       }
     }
@@ -894,6 +900,7 @@
 
   <section class="pane preview" aria-label={t('page.previewPaneLabel')}>
     <SearchBar pane="preview" />
+    <SearchBar pane="grid" />
     {#if timelineView.active}
       <!-- 時系列。開いている文書とは無関係に、フォルダの中のログを混ぜて出す面。
            ほかの分岐より先に見るのは、文書を開いたまま調べられるようにするため。 -->

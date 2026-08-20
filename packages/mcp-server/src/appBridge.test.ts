@@ -34,6 +34,29 @@ describe('createAppBridge', () => {
     await expect(promise).resolves.toEqual({ ok: true });
   });
 
+  it('対象を持たない依頼は path を付けずに送る', async () => {
+    // 「何が開いているか」を聞く依頼に対象は無い。空文字を入れると、アプリ側で
+    // 「空パスの文書」を探しにいってしまう。
+    const { sent, bridge } = setup();
+    const promise = bridge.request({ action: 'list-documents' });
+    expect(sent[0]).toMatchObject({ type: 'request', action: 'list-documents' });
+    expect('path' in (sent[0] ?? {})).toBe(false);
+    bridge.settle({ type: 'response', id: sent[0]?.id ?? '', ok: true });
+    await promise;
+  });
+
+  it('応答が持ち帰った中身を呼び出し側へ渡す', async () => {
+    const { sent, bridge } = setup();
+    const promise = bridge.request({ action: 'list-documents' });
+    bridge.settle({
+      type: 'response',
+      id: sent[0]?.id ?? '',
+      ok: true,
+      data: { documents: [{ path: 'a.md' }] },
+    });
+    await expect(promise).resolves.toEqual({ ok: true, data: { documents: [{ path: 'a.md' }] } });
+  });
+
   it('失敗の応答は理由をそのまま返す', async () => {
     const { sent, bridge } = setup();
     const promise = bridge.request({ action: 'export-pdf', path: 'a.md' });

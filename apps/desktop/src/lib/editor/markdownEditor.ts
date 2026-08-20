@@ -90,7 +90,7 @@ const tokenTheme = EditorView.theme({
   },
   '&.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground, .cm-selectionBackground, .cm-content ::selection':
     {
-      backgroundColor: 'var(--accent-subtle)',
+      backgroundColor: 'var(--selection-bg)',
     },
   '.cm-gutters': {
     backgroundColor: 'var(--bg-app)',

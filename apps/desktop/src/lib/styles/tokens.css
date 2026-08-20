@@ -21,6 +21,10 @@
   --accent-active: #4444b8;
   --accent-subtle: #eeeefb;
   --accent-border: #d5d5f5;
+  /* 範囲選択の地。--accent-subtle を敷くと地の色とほぼ同じで、どこを選んだのか
+     見えない（選択が見えないと写す範囲が分からない）。選択専用に濃さを上げた値を持つ。
+     文字色は --text-primary のままなので、読める範囲までしか濃くしない。 */
+  --selection-bg: #bfbff0;
   --accent-gradient: linear-gradient(135deg, #6a6ae0, #5b5bd6);
 
   /* ── §2.2 ニュートラル（ライト＝主軸） ─────────────────────── */
@@ -142,6 +146,7 @@
   --accent-active: #a0a0f7;
   --accent-subtle: #1e1e3a;
   --accent-border: #33335c;
+  --selection-bg: #3f3f7d;
   --accent-gradient: linear-gradient(135deg, #8f8ff5, #7c7cf0);
 
   /* §2.2 ニュートラル */

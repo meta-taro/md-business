@@ -9,8 +9,8 @@
 
 import { DEFAULT_SEARCH_OPTIONS, type SearchOptions } from './searchLogic';
 
-/** 検索対象。エディター（左）とプレビュー（右 iframe）。 */
-export type SearchTarget = 'editor' | 'preview';
+/** 検索対象。エディター（左）・プレビュー（右 iframe）・検証グリッド（右の表）。 */
+export type SearchTarget = 'editor' | 'preview' | 'grid';
 
 /** バインド層が実装する検索操作。結果は search.report() でストアへ返す。 */
 export interface SearchBinding {

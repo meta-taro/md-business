@@ -25,7 +25,12 @@
   import { updater } from '$lib/update/updater.svelte';
   import { mcp } from '$lib/mcp/mcp.svelte';
   import { fileChangeFromLog, parseLogEvent } from '$lib/mcp/mcpLog';
-  import { parseRequestEvent, planDocumentRequest, waitUntil } from '$lib/mcp/appRequest';
+  import {
+    parseRequestEvent,
+    planCloseRequest,
+    planDocumentRequest,
+    waitUntil,
+  } from '$lib/mcp/appRequest';
   import { folderLabel } from '$lib/workspace/recentFolders';
   import {
     DEFAULT_FILETREE_W,
@@ -173,10 +178,50 @@
   async function handleMcpRequest(payload: unknown): Promise<void> {
     const request = parseRequestEvent(payload);
     if (request === null) return;
-    const respond = (ok: boolean, error: string | null = null): Promise<void> =>
-      invoke<void>('mcp_respond', { id: request.id, ok, error }).catch(() => undefined);
+    const respond = (
+      ok: boolean,
+      error: string | null = null,
+      data: unknown = null,
+    ): Promise<void> =>
+      invoke<void>('mcp_respond', { id: request.id, ok, error, data }).catch(() => undefined);
 
-    const plan = planDocumentRequest(request.path, {
+    // 開いている札を数えるだけの依頼。フォルダが開かれていなくても「0 枚」は答えになる。
+    if (request.action === 'list-documents') {
+      await respond(true, null, {
+        documents: workspace.openTabs.map((tab) => ({
+          path: tab.relPath,
+          active: tab.active,
+          unsaved: tab.dirty,
+        })),
+      });
+      return;
+    }
+    // ここから先は対象を伴う依頼だけ（parseRequestEvent が保証している）。
+    const target = request.path;
+    if (target === undefined) return;
+
+    if (request.action === 'close-document') {
+      const closing = planCloseRequest(
+        target,
+        workspace.openTabs.map((tab) => ({
+          id: tab.id,
+          path: tab.relPath,
+          active: tab.active,
+          unsaved: tab.dirty,
+        })),
+      );
+      if (!closing.ok) {
+        await respond(false, closing.error);
+        return;
+      }
+      await workspace.closeTab(closing.id);
+      // 未保存を書けなかったときは閉じずに残る。閉じた前提で先へ進ませない。
+      const stillOpen = workspace.openTabs.some((tab) => tab.id === closing.id);
+      await respond(!stillOpen, stillOpen ? `${target} を保存できなかったため閉じていません` : null);
+      return;
+    }
+
+    const plan = planDocumentRequest(target, {
       folderName: workspace.root === null ? null : folderLabel(workspace.root).name,
       knownPaths: workspace.allFilePaths(),
     });
