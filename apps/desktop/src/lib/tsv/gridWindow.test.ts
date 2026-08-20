@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { rowWindow, rowOffset, scrollToRow, OVERSCAN_ROWS } from './gridWindow';
+import { rowWindow, rowOffset, scrollToRow, tailSpace, OVERSCAN_ROWS } from './gridWindow';
 
 /** 既定高で揃った高さの並び。 */
 function flat(count: number, height = 30): number[] {
@@ -205,5 +205,20 @@ describe('scrollToRow', () => {
         bottomGap: 120,
       }),
     ).toBe(30);
+  });
+});
+
+describe('tailSpace', () => {
+  it('表示領域に余っているなら空きを付けない', () => {
+    // 3 行しかない表にまで空きを付けると、収まっているのにスクロール棒が出る。
+    expect(tailSpace({ contentHeight: 200, viewportHeight: 600, gap: 220 })).toBe(0);
+  });
+
+  it('足りないぶんだけ空きを付ける', () => {
+    expect(tailSpace({ contentHeight: 500, viewportHeight: 600, gap: 220 })).toBe(120);
+  });
+
+  it('表示領域を超えている表には欲しいだけ空きを付ける', () => {
+    expect(tailSpace({ contentHeight: 5000, viewportHeight: 600, gap: 220 })).toBe(220);
   });
 });

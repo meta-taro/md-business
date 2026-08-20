@@ -119,3 +119,27 @@ export function scrollToRow(input: ScrollToRowInput): number {
   }
   return scrollTop;
 }
+
+/** 表の末尾に空けておく高さを決めるための入力。 */
+export interface TailSpaceInput {
+  /** 表そのものの高さ（見出しを含む）。 */
+  contentHeight: number;
+  /** 表示領域の高さ。 */
+  viewportHeight: number;
+  /** 最後の行の下に欲しい高さ。 */
+  gap: number;
+}
+
+/**
+ * 表の下に付ける空きの高さを返す。
+ *
+ * 最後の行は表の終わりなので、そのままでは下へ送れず、候補リストが画面の外へ出る。
+ * 送れるようにするには、表の下に空きが要る。
+ * ただし短い表にまで空きを付けると、中身が収まっているのにスクロール棒が出る。
+ * 最後の行の下に既に欲しいだけの高さが残っているなら 0 を返す。
+ */
+export function tailSpace(input: TailSpaceInput): number {
+  const { contentHeight, viewportHeight, gap } = input;
+  const free = Math.max(0, viewportHeight - contentHeight);
+  return Math.max(0, gap - free);
+}

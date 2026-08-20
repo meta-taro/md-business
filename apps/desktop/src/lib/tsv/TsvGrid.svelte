@@ -51,7 +51,7 @@
     resizeRowHeight,
     setRowHeight,
   } from './gridRowLayout';
-  import { rowWindow, scrollToRow } from './gridWindow';
+  import { rowWindow, scrollToRow, tailSpace } from './gridWindow';
   import { NOTE_FOLD_MIN, noteFoldKey, noteFoldValue, resolveNoteFold } from './noteFold';
   import { clampView, type GridView } from './gridView';
   import { effectiveRowHeights, mergeMeasuredHeights } from './gridRowMeasure';
@@ -457,6 +457,16 @@
   let measuredHeights = $state<number[]>([]);
   const winHeights = $derived(
     effectiveRowHeights(rowHeights, measuredHeights, displayRows, DEFAULT_ROW_HEIGHT),
+  );
+  // 表そのものの高さ（見出しを含む）。最後の行の下に空きが要るかの判断に使う。
+  let tableHeight = $state(0);
+  // 最後の行でも候補リストが下へ開けるよう、表の下に空きを付ける（短い表には付けない）。
+  const tailPad = $derived(
+    tailSpace({
+      contentHeight: tableHeight,
+      viewportHeight: viewportHeight || VIEWPORT_FALLBACK,
+      gap: PICKER_BOTTOM_GAP,
+    }),
   );
   const win = $derived(
     perf.measure('layout', () =>
@@ -1447,13 +1457,17 @@
     bind:clientHeight={viewportHeight}
     onscroll={onGridScroll}
     onpaste={onGridPaste}
+    style={`padding-bottom:${tailPad}px`}
     onpointerdown={() => (engaged = true)}
     oncontextmenu={onGridContextMenu}
   >
     {#if doc.columns.length === 0}
       <p class="empty">{t('grid.emptyColumns')}</p>
     {:else}
-      <table style={`width:${tableWidth}px; --head-top:${headTop}px`}>
+      <table
+        bind:clientHeight={tableHeight}
+        style={`width:${tableWidth}px; --head-top:${headTop}px`}
+      >
       <colgroup>
         <col style={`width:${ROWNUM_WIDTH}px`} />
         {#each doc.columns as _col, ci (ci)}
