@@ -4,6 +4,13 @@ Changes to this app. Versions follow [Semantic Versioning](https://semver.org/).
 
 Japanese is the source of truth for this file; see [CHANGELOG.md](./CHANGELOG.md).
 
+## 0.17.0
+
+### Fixed
+
+- **Fixed opening a folder on a network share sometimes never returning.** Preparing to watch a folder walked everything underneath it and asked the other side about each entry one at a time. On a local disk that finishes at once; across a network each entry costs a round trip, so with enough of them the wait never ends. That preparation is now skipped when the folder is not local. A rename arrives as a create and a delete, both of which lead to a re-read, so what appears on screen is unchanged.
+- **The app now starts without reopening a folder whose previous load never finished.** The last folder was always reopened as it was, so remembering a share that had stopped responding meant stopping in the same place on every start, with no way out from inside the app. A mark is now written before the load and cleared when it finishes. If the mark is still there on start, that folder is left closed, the app comes up empty, and the reason is shown.
+
 ## 0.16.0
 
 ### Added

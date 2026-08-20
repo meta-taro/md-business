@@ -27,7 +27,7 @@ import {
   remapRenamedPath,
   withAncestorsExpanded,
 } from './workspaceLogic';
-import { parseStoredFolder } from './lastFolder';
+import { decideRestore, parseStoredFolder } from './lastFolder';
 import {
   forgetTreeState,
   hasRestoredView,
@@ -69,6 +69,9 @@ interface GitIdentity {
 
 /** 最後に開いたフォルダの localStorage キー（左レール幅等と同じ名前空間）。 */
 const LAST_FOLDER_KEY = 'md-business:desktop:last-folder';
+
+/** 復元の読み込み中に立てる印の localStorage キー。終わったら消す。 */
+const RESTORE_ATTEMPT_KEY = 'md-business:desktop:restore-attempt';
 
 /** 過去に開いたフォルダ一覧の localStorage キー。 */
 const RECENT_FOLDERS_KEY = 'md-business:desktop:recent-folders';
@@ -339,9 +342,26 @@ class WorkspaceStore {
    */
   async restoreLastFolder(): Promise<void> {
     if (!browser || this.root !== null) return;
-    const last = parseStoredFolder(localStorage.getItem(LAST_FOLDER_KEY));
-    if (last === null) return;
-    await this.scan(last);
+    const decision = decideRestore(
+      localStorage.getItem(LAST_FOLDER_KEY),
+      localStorage.getItem(RESTORE_ATTEMPT_KEY),
+    );
+    if (decision.kind === 'none') return;
+    if (decision.kind === 'skip') {
+      // 前回はここで戻ってこなかった。同じ場所をもう一度開くと同じところで止まるので、
+      // 記憶ごと捨てて空で立ち上げる。手動で開き直す道は残る。
+      localStorage.removeItem(RESTORE_ATTEMPT_KEY);
+      localStorage.removeItem(LAST_FOLDER_KEY);
+      this.error = `前回は ${decision.path} の読み込みが終わりませんでした。開かずに起動しています。`;
+      return;
+    }
+    // 印は読み込みの前に置く。途中で終了させられても残るので、次の起動で気づける。
+    localStorage.setItem(RESTORE_ATTEMPT_KEY, decision.path);
+    try {
+      await this.scan(decision.path);
+    } finally {
+      localStorage.removeItem(RESTORE_ATTEMPT_KEY);
+    }
     if (this.root === null) {
       localStorage.removeItem(LAST_FOLDER_KEY);
       this.error = null;

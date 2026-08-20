@@ -122,6 +122,49 @@ pub fn map_changes_dedup(mut changes: Vec<FileChange>) -> Vec<FileChange> {
     changes
 }
 
+
+/// 監視ルートが手元のディスクにあるか、ネットワーク越しにあるか。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RootLocality {
+    /// 手元のディスク。
+    Local,
+    /// ネットワーク越し（共有フォルダ・そこへ割り当てたドライブ）。
+    Remote,
+}
+
+/// パスの綴りだけで遠さが決まるなら返す。決まらなければ None（OS へ問い合わせる）。
+///
+/// 綴りで決まるのは共有フォルダを直接指した書き方（`\\server\share`）だけ。ドライブ文字は
+/// 手元のディスクにも共有にも割り当てられるので、ここでは決めない。
+pub fn locality_from_spelling(path: &Path) -> Option<RootLocality> {
+    let text: String = path
+        .to_string_lossy()
+        .chars()
+        .map(|c| if c == '/' { '\\' } else { c })
+        .collect();
+    let lower = text.to_ascii_lowercase();
+    if lower.starts_with(r"\\?\unc\") || lower.starts_with(r"\\.\unc\") {
+        return Some(RootLocality::Remote);
+    }
+    // `\\?\Y:\…` のような言い換えは、ドライブ文字の話に戻るので綴りでは決まらない。
+    if lower.starts_with(r"\\?\") || lower.starts_with(r"\\.\") {
+        return None;
+    }
+    if lower.starts_with(r"\\") {
+        return Some(RootLocality::Remote);
+    }
+    None
+}
+
+/// ファイル ID の控えを作ってよいか。
+///
+/// 控えは名前の変更を追うために作るが、1 件ごとに相手へ問い合わせる。ネットワーク越しでは
+/// その往復が積み上がり、大きい共有では終わらない。遠い相手では作らない。名前の変更は
+/// 作成と削除として届き、どちらも再走査に繋がるので、画面に出る結果は変わらない。
+pub fn should_cache_file_ids(locality: RootLocality) -> bool {
+    locality == RootLocality::Local
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -339,5 +382,47 @@ mod tests {
         prune_expired(&mut recent, base + Duration::from_millis(600), window);
         let rels: Vec<_> = recent.iter().map(|(p, _)| p.clone()).collect();
         assert_eq!(rels, vec![join("fresh.md")]);
+    }
+
+    // ── 監視ルートの遠さ ──────────────────────────────────────────────────
+
+    #[test]
+    fn locality_from_spellingはUNCを遠いと判定する() {
+        assert_eq!(
+            locality_from_spelling(Path::new(r"\\dxp2800\WORKSPACE\docs")),
+            Some(RootLocality::Remote)
+        );
+    }
+
+    #[test]
+    fn locality_from_spellingは解決済みUNCも遠いと判定する() {
+        assert_eq!(
+            locality_from_spelling(Path::new(r"\\?\UNC\dxp2800\WORKSPACE")),
+            Some(RootLocality::Remote)
+        );
+        // 大文字小文字は綴りの違いでしかない。
+        assert_eq!(
+            locality_from_spelling(Path::new(r"\\?\unc\dxp2800\workspace")),
+            Some(RootLocality::Remote)
+        );
+    }
+
+    #[test]
+    fn locality_from_spellingはドライブ文字を決めない() {
+        // 割り当てたドライブか手元のディスクかは、綴りだけでは決まらない。
+        assert_eq!(locality_from_spelling(Path::new(r"Y:\share")), None);
+        assert_eq!(locality_from_spelling(Path::new(r"\\?\Y:\share")), None);
+        assert_eq!(locality_from_spelling(Path::new(r"C:\work\docs")), None);
+    }
+
+    #[test]
+    fn locality_from_spellingはPOSIXパスを決めない() {
+        assert_eq!(locality_from_spelling(Path::new("/home/user/docs")), None);
+    }
+
+    #[test]
+    fn should_cache_file_idsは手元のときだけ控えを作る() {
+        assert!(should_cache_file_ids(RootLocality::Local));
+        assert!(!should_cache_file_ids(RootLocality::Remote));
     }
 }
