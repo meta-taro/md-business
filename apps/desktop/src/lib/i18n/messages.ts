@@ -14,6 +14,11 @@ export interface Messages {
   'app.unsavedLong': string;
   // 汎用
   'common.close': string;
+  // 上のメニュー行
+  'menu.bar': string;
+  'menu.file': string;
+  'menu.export': string;
+  'menu.view': string;
   // 主要アクション
   'action.save': string;
   'action.saving': string;
@@ -531,6 +536,10 @@ const en: Messages = {
   'app.unsaved': 'Unsaved',
   'app.unsavedLong': 'You have unsaved changes',
   'common.close': 'Close',
+  'menu.bar': 'Menu bar',
+  'menu.file': 'File',
+  'menu.export': 'Export',
+  'menu.view': 'View',
   'action.save': 'Save',
   'action.saving': 'Saving…',
   'action.saveTitle': 'Save (Ctrl+S / ⌘S)',
@@ -1038,6 +1047,10 @@ const ja: Messages = {
   'app.unsaved': '未保存',
   'app.unsavedLong': '未保存の変更があります',
   'common.close': '閉じる',
+  'menu.bar': 'メニュー',
+  'menu.file': 'ファイル',
+  'menu.export': '書き出し',
+  'menu.view': '表示',
   'action.save': '保存',
   'action.saving': '保存中…',
   'action.saveTitle': '保存（Ctrl+S / ⌘S）',
@@ -1541,6 +1554,10 @@ const zh: Messages = {
   'app.unsaved': '未保存',
   'app.unsavedLong': '有未保存的更改',
   'common.close': '关闭',
+  'menu.bar': '菜单栏',
+  'menu.file': '文件',
+  'menu.export': '导出',
+  'menu.view': '显示',
   'action.save': '保存',
   'action.saving': '正在保存…',
   'action.saveTitle': '保存（Ctrl+S / ⌘S）',
@@ -2041,6 +2058,10 @@ const ko: Messages = {
   'app.unsaved': '저장 안 됨',
   'app.unsavedLong': '저장하지 않은 변경 사항이 있습니다',
   'common.close': '닫기',
+  'menu.bar': '메뉴',
+  'menu.file': '파일',
+  'menu.export': '내보내기',
+  'menu.view': '보기',
   'action.save': '저장',
   'action.saving': '저장 중…',
   'action.saveTitle': '저장 (Ctrl+S / ⌘S)',
