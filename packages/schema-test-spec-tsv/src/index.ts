@@ -33,6 +33,7 @@ export { checkColumnLink, readColumnLinks, splitLinkedValues } from './columnLin
 export { checkReview, readReviewColumns } from './review.js';
 export { buildExportTable, findExportProfile, readExportProfiles } from './export.js';
 export { planExpansion, readExpandRules } from './expand.js';
+export { readMarks, setMarks } from './marks.js';
 export type { ColumnType, ColumnUiHint, ParsedHeader } from './types.js';
 export type { IdentifiedTsv } from './rowId.js';
 export type { HiddenRow } from './hiddenRows.js';
