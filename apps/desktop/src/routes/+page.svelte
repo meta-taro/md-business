@@ -24,7 +24,7 @@
     IdentifiedTsv,
     ReviewIssue,
   } from '@md-business/schema-test-spec-tsv';
-  import { findExportProfile } from '@md-business/schema-test-spec-tsv';
+  import { findExportProfile, readExpandRules } from '@md-business/schema-test-spec-tsv';
   import { openUrl } from '@tauri-apps/plugin-opener';
   import { isTsvSource } from '$lib/tsv/detect';
   import { loadGridDoc, saveGridDoc } from '$lib/tsv/gridDoc';
@@ -36,6 +36,8 @@
   import { changedRowPositions, checkSheetReview } from '$lib/tsv/reviewCheck';
   import { countSheetReferences } from '$lib/tsv/sheetCounts';
   import { exportProfileText, readSheetExportProfiles } from '$lib/tsv/sheetExport';
+  import { appendRows } from '$lib/tsv/gridRows';
+  import { planSheetExpansion, type SheetExpansion } from '$lib/tsv/sheetExpand';
   import { shortHash, type GitLogEntry } from '$lib/git/gitStatus';
   import { invoke } from '@tauri-apps/api/core';
   import TsvGrid from '$lib/tsv/TsvGrid.svelte';
@@ -642,8 +644,8 @@
   // 人が貼り付け用を組み直しているので、正本を直したあと作り直し忘れるとずれる。
   const exportProfiles = $derived(tsvDoc === null ? [] : readSheetExportProfiles(tsvDoc));
   let exportName = $state('');
-  let exportNotice = $state('');
-  let exportNoticeTimer: ReturnType<typeof setTimeout> | null = null;
+  let gridNotice = $state('');
+  let gridNoticeTimer: ReturnType<typeof setTimeout> | null = null;
 
   // 開く文書が変われば様式ごと入れ替わる。前の文書で選んでいた名前を残さない。
   $effect(() => {
@@ -659,17 +661,18 @@
     const doc = loadGridDoc(debouncedSource).doc;
     try {
       await navigator.clipboard.writeText(exportProfileText(doc, profile));
-      showExportNotice(t('page.exportCopied'));
+      showGridNotice(t('page.exportCopied'));
     } catch {
-      showExportNotice(t('page.exportFailed'));
+      showGridNotice(t('page.exportFailed'));
     }
   }
 
-  // コピーは画面が何も変わらないので、押せたことが分からない。少しの間だけ添える。
-  function showExportNotice(message: string) {
-    exportNotice = message;
-    if (exportNoticeTimer !== null) clearTimeout(exportNoticeTimer);
-    exportNoticeTimer = setTimeout(() => (exportNotice = ''), 2500);
+  // 押しても画面が変わらない操作があるので、結果を少しの間だけ添える。読む字数で消える
+  // までを変える（何も足さなかったのと、マスタが読めなかったのとでは読む長さが違う）。
+  function showGridNotice(message: string, hold = 2500) {
+    gridNotice = message;
+    if (gridNoticeTimer !== null) clearTimeout(gridNoticeTimer);
+    gridNoticeTimer = setTimeout(() => (gridNotice = ''), hold);
   }
 
   /** 参照先 1 ファイルを読む。読めないもの（未オープン・別形式）は null で返す。 */
@@ -694,6 +697,53 @@
     workspace.root;
     sheetCache.clear();
   });
+
+  // 共通観点マスタからの展開（`#@ expand`）。宣言のあるシートにだけ出す。
+  // 権限・文字数上限・タブ移動順のような観点は、どの機能でもほぼ同じことを確かめる。
+  // シートごとに書き写すと、写し漏れは「その行が無い」形でしか出ない。無い行は見ても
+  // 気づけないので、シートを見直しても見つからない。
+  const expandRules = $derived(
+    tsvDoc === null
+      ? []
+      : readExpandRules(
+          tsvDoc.directives,
+          tsvDoc.columns.map((column) => column.name),
+        ),
+  );
+
+  async function runExpand() {
+    const grid = tsvGrid;
+    if (grid === null || expandRules.length === 0) return;
+    // 控え（`#@ hidden`）にした行も「既にある」に数える。表から外しただけの観点をもう一度
+    // 足すと、外した本人にしか見分けられない重複ができる。
+    const whole = loadGridDoc(debouncedSource, { reveal: true }).doc;
+    const expansions = await planSheetExpansion(whole, workspace.activePath, readSheet);
+    const rows = expansions.flatMap((expansion) => expansion.rows);
+    // 足すのは表に出ている doc の側。控えを戻すのは handleGridChange がやる。
+    if (rows.length > 0) handleGridChange(appendRows(grid.doc, rows), 'expand');
+    showGridNotice(expandMessage(expansions, rows.length), 8000);
+  }
+
+  /**
+   * 展開の結果を 1 行にまとめる。
+   *
+   * 足せなかった理由（マスタが読めない・列が無い）は、足した数と必ず並べて出す。0 行と
+   * だけ出すと「もう全部ある」と読めてしまい、宣言が効いていないことに気づけない。
+   */
+  function expandMessage(expansions: readonly SheetExpansion[], added: number): string {
+    const notes = [added > 0 ? t('page.expandAdded', { count: added }) : t('page.expandNone')];
+    for (const expansion of expansions) {
+      if (!expansion.found) {
+        notes.push(t('page.expandUnread', { path: expansion.path }));
+      } else if (expansion.missingColumns.length > 0) {
+        notes.push(t('page.expandMissing', { columns: expansion.missingColumns.join(', ') }));
+      }
+      if (expansion.orphans.length > 0) {
+        notes.push(t('page.expandOrphans', { keys: expansion.orphans.join(', ') }));
+      }
+    }
+    return notes.join(' / ');
+  }
 
   /**
    * 基準版の 1 ファイルを読むときの鍵の区切り。
@@ -1182,8 +1232,13 @@
           >
             {t('page.exportCopyBtn')}
           </button>
-          <span class="compare-note" aria-live="polite">{exportNotice}</span>
         {/if}
+        {#if expandRules.length > 0}
+          <button type="button" class="head-btn" onclick={runExpand} title={t('page.expandTitle')}>
+            {t('page.expandBtn')}
+          </button>
+        {/if}
+        <span class="compare-note" aria-live="polite">{gridNotice}</span>
         <button
           type="button"
           class="head-btn fullscreen"

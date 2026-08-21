@@ -1,6 +1,14 @@
 import { describe, it, expect } from 'vitest';
 import type { IdentifiedTsv, ParsedHeader } from '@md-business/schema-test-spec-tsv';
-import { blankRow, appendRow, insertRowAfter, duplicateRow, deleteRow, clearRow } from './gridRows';
+import {
+  blankRow,
+  appendRow,
+  appendRows,
+  insertRowAfter,
+  duplicateRow,
+  deleteRow,
+  clearRow,
+} from './gridRows';
 
 /**
  * 検証シートの行操作（追加 / 挿入 / 複製 / 削除）。QA がシートを組み立てるのに必須。
@@ -56,6 +64,31 @@ describe('appendRow', () => {
 
   it('足した行に ID を振る', () => {
     expect(appendRow(doc(1, [['a']]), counter()).rowIds).toEqual([id(1), id(901)]);
+  });
+});
+
+describe('appendRows', () => {
+  it('用意した行をまとめて足し、1 行ずつ ID を振る', () => {
+    const after = appendRows(doc(2, [['a', 'b']]), [['c', 'd'], ['e', 'f']], counter());
+    expect(after.rows).toEqual([
+      ['a', 'b'],
+      ['c', 'd'],
+      ['e', 'f'],
+    ]);
+    expect(after.rowIds).toEqual([id(1), id(901), id(902)]);
+  });
+
+  it('列数に合わせる（足りなければ空セル・多ければ切る）', () => {
+    const after = appendRows(doc(2, []), [['c'], ['d', 'e', 'f']], counter());
+    expect(after.rows).toEqual([
+      ['c', ''],
+      ['d', 'e'],
+    ]);
+  });
+
+  it('足す行が無ければそのまま', () => {
+    const before = doc(2, [['a', 'b']]);
+    expect(appendRows(before, [], counter())).toBe(before);
   });
 });
 

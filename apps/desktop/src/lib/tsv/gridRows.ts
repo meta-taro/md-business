@@ -76,3 +76,23 @@ export function clearRow<T extends TsvDocument>(doc: T, index: number): T {
   if (index < 0 || index >= doc.rows.length) return doc;
   return { ...doc, rows: doc.rows.map((cells, i) => (i === index ? blankRow(doc) : cells)) };
 }
+
+/**
+ * 用意した行をまとめて末尾に足す。1 行ずつ足すのと同じだが、履歴に 1 手として残る。
+ *
+ * 列数は呼ぶ側が合わせる（足りなければ空セルで埋め、多ければ切る）。ここで黙って
+ * 詰めると、列がずれたまま並んだ行に気づけない。
+ */
+export function appendRows(
+  doc: IdentifiedTsv,
+  rows: readonly (readonly string[])[],
+  newId: () => string = generateRowId,
+): IdentifiedTsv {
+  if (rows.length === 0) return doc;
+  const width = doc.columns.length;
+  return {
+    ...doc,
+    rows: [...doc.rows, ...rows.map((cells) => Array.from({ length: width }, (_, at) => cells[at] ?? ''))],
+    rowIds: [...doc.rowIds, ...rows.map(() => newId())],
+  };
+}

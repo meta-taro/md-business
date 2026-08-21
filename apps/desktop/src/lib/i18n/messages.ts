@@ -398,6 +398,13 @@ export interface Messages {
   'page.exportCopyTitle': string;
   'page.exportCopied': string;
   'page.exportFailed': string;
+  'page.expandBtn': string;
+  'page.expandTitle': string;
+  'page.expandAdded': string;
+  'page.expandNone': string;
+  'page.expandOrphans': string;
+  'page.expandMissing': string;
+  'page.expandUnread': string;
   'page.viewportPhoneTitle': string;
   'page.viewportPcTitle': string;
   'page.viewportPhoneBtn': string;
@@ -932,6 +939,13 @@ const en: Messages = {
   'page.exportCopyTitle': 'Copy the sheet in the chosen format, ready to paste into a spreadsheet (hidden rows stay out)',
   'page.exportCopied': 'Copied',
   'page.exportFailed': 'Could not copy',
+  'page.expandBtn': 'Expand viewpoints',
+  'page.expandTitle': 'Add viewpoints from the shared master that this sheet does not have yet (existing rows are left alone)',
+  'page.expandAdded': 'Added {count} rows',
+  'page.expandNone': 'Nothing to add',
+  'page.expandOrphans': 'Not in the master: {keys}',
+  'page.expandMissing': 'Columns missing from the master: {columns}',
+  'page.expandUnread': 'Could not read the master: {path}',
   'page.viewportPhoneTitle': 'View at phone width',
   'page.viewportPcTitle': 'Back to desktop width',
   'page.viewportPhoneBtn': 'Phone width',
@@ -1462,6 +1476,13 @@ const ja: Messages = {
   'page.exportCopyTitle': '選んだ様式で、表計算へ貼れる形にしてコピーする（控え行は出さない）',
   'page.exportCopied': 'コピーしました',
   'page.exportFailed': 'コピーできませんでした',
+  'page.expandBtn': '観点を展開',
+  'page.expandTitle': '共通観点マスタから、このシートにまだ無い観点を足す（既にある行はそのまま）',
+  'page.expandAdded': '{count} 行足しました',
+  'page.expandNone': '足す観点はありません',
+  'page.expandOrphans': 'マスタに無いキー: {keys}',
+  'page.expandMissing': 'マスタに無い列: {columns}',
+  'page.expandUnread': 'マスタを読めません: {path}',
   'page.viewportPhoneTitle': 'スマートフォンの幅で見る',
   'page.viewportPcTitle': 'PC の幅に戻す',
   'page.viewportPhoneBtn': 'スマホ幅',
@@ -1986,6 +2007,13 @@ const zh: Messages = {
   'page.exportCopyTitle': '按所选格式复制为可粘贴到表格软件的形式（不含隐藏行）',
   'page.exportCopied': '已复制',
   'page.exportFailed': '无法复制',
+  'page.expandBtn': '展开检查观点',
+  'page.expandTitle': '从共通观点主表补入本表尚未收录的观点（已有行保持不变）',
+  'page.expandAdded': '已添加 {count} 行',
+  'page.expandNone': '没有可添加的观点',
+  'page.expandOrphans': '主表中已无此键: {keys}',
+  'page.expandMissing': '主表中没有的列: {columns}',
+  'page.expandUnread': '无法读取主表: {path}',
   'page.viewportPhoneTitle': '以手机宽度查看',
   'page.viewportPcTitle': '恢复电脑宽度',
   'page.viewportPhoneBtn': '手机宽度',
@@ -2513,6 +2541,13 @@ const ko: Messages = {
   'page.exportCopyTitle': '선택한 양식으로 스프레드시트에 붙여 넣을 수 있는 형태로 복사 (숨긴 행은 제외)',
   'page.exportCopied': '복사했습니다',
   'page.exportFailed': '복사하지 못했습니다',
+  'page.expandBtn': '관점 펼치기',
+  'page.expandTitle': '공통 관점 마스터에서 이 시트에 아직 없는 관점을 추가한다(기존 행은 그대로)',
+  'page.expandAdded': '{count}행 추가했습니다',
+  'page.expandNone': '추가할 관점이 없습니다',
+  'page.expandOrphans': '마스터에 없는 키: {keys}',
+  'page.expandMissing': '마스터에 없는 열: {columns}',
+  'page.expandUnread': '마스터를 읽을 수 없습니다: {path}',
   'page.viewportPhoneTitle': '스마트폰 폭으로 보기',
   'page.viewportPcTitle': 'PC 폭으로 되돌리기',
   'page.viewportPhoneBtn': '모바일 폭',
