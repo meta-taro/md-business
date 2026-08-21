@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { parseTsv, validateTsv, ROW_ID_COLUMN } from '@md-business/schema-test-spec-tsv';
+import {
+  parseTsv,
+  readReviewColumns,
+  validateTsv,
+  ROW_ID_COLUMN,
+} from '@md-business/schema-test-spec-tsv';
 import { isTsvSource } from './detect';
 import { readRowTints } from './gridStyleDirectives';
 import {
@@ -8,6 +13,7 @@ import {
   findPreset,
   presetFileName,
   validateSheetName,
+  type TsvPreset,
 } from './tsvPresets';
 
 /**
@@ -23,9 +29,10 @@ describe('TSV_PRESETS', () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 
-  it('試験ケースと観点表を持つ', () => {
+  it('試験ケース・観点表・指摘一覧を持つ', () => {
     expect(TSV_PRESETS.map((preset) => preset.id)).toContain('test-case');
     expect(TSV_PRESETS.map((preset) => preset.id)).toContain('viewpoint');
+    expect(TSV_PRESETS.map((preset) => preset.id)).toContain('review');
   });
 
   it('どのプリセットも列名が重複しない（列を名前で指すディレクティブが効かなくなる）', () => {
@@ -86,6 +93,21 @@ describe('buildPresetTsv', () => {
       const names = doc.columns.map((column) => column.name);
       expect(readRowTints(doc.directives, names).length, preset.id).toBeGreaterThan(0);
     }
+  });
+
+  it('指摘一覧は、往復の宣言が自分の列に当たる（宣言だけあって効かない状態にしない）', () => {
+    const preset = findPreset('review');
+    expect(preset).not.toBeNull();
+    const doc = parseTsv(buildPresetTsv(preset as TsvPreset, ''));
+    const columns = readReviewColumns(
+      doc.directives,
+      doc.columns.map((column) => column.name),
+    );
+
+    expect(columns).not.toBeNull();
+    // 「反映済み」を選べなければ、突き合わせが一度も起きない雛形になる。
+    const state = doc.columns[columns?.stateColumn ?? -1];
+    expect(state?.enumValues).toContain('反映済み');
   });
 
   it('タイトルを書く', () => {
