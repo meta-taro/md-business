@@ -256,6 +256,7 @@ The three apps are versioned independently. [CHANGELOG.md](./CHANGELOG.md) lists
 ### Conventions
 
 - [Data cell convention](./docs/data-cell-conventions.md) — Empty cells are the only canonical representation for unfilled data. Do not fill table cells with `—` / `–` / `―` / `N/A` / `TBD`.
+- [Snapshot tables](./docs/spec/snapshot-tsv-v1.md) — Where fetched numbers live and which columns they carry. Every row records when and where it came from; re-fetched figures are appended, never overwritten.
 
 ## Quick Start
 
