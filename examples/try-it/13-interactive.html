@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>会議室の空き（見本・スクリプトあり）</title>
+<style>
+  body {
+    margin: 0 auto; max-width: 44rem; padding: 2rem 1.25rem 4rem;
+    font-family: system-ui, "Segoe UI", "Hiragino Sans", "Noto Sans JP", sans-serif;
+    line-height: 1.7; color-scheme: light dark;
+  }
+  h1 { font-size: 1.5rem; }
+  .note { border: 1px solid #c9a227; background: rgba(201,162,39,.12); padding: .8rem 1rem; border-radius: .4rem; }
+  fieldset { border: 1px solid #bbb; border-radius: .5rem; margin: 1.5rem 0; padding: 1rem; }
+  label { display: inline-block; min-width: 5rem; }
+  input, select, button { font: inherit; padding: .3rem .5rem; }
+  button { cursor: pointer; }
+  table { border-collapse: collapse; width: 100%; margin-top: 1rem; }
+  th, td { border: 1px solid #bbb; padding: .4rem .6rem; text-align: left; }
+  th { background: rgba(127,127,127,.14); }
+  #status { font-weight: 700; }
+  .free { color: #1b7f3b; }
+  .busy { color: #b3261e; }
+</style>
+</head>
+<body>
+<h1>会議室の空き（見本）</h1>
+<p class="note">このファイルは <strong>スクリプトが動きます</strong>。押しても外へは何も送りません。
+表示している部屋・空き状況はその場で作った架空の値です。
+スクリプトが止められている場合は、下の表が「—」のまま変わりません（そこが確かめどころです）。</p>
+
+<p>スクリプトの状態: <span id="status">動いていません</span></p>
+
+<fieldset>
+  <legend>条件</legend>
+  <p><label for="people">人数</label><input id="people" type="number" min="1" max="30" value="6"></p>
+  <p><label for="hour">開始</label>
+     <select id="hour"></select> から <span id="endHour">–</span> まで</p>
+  <p><button id="search" type="button">空きを見る</button>
+     <button id="reset" type="button">戻す</button></p>
+</fieldset>
+
+<table>
+  <thead><tr><th>部屋</th><th>定員</th><th>状態</th><th>次の予約</th></tr></thead>
+  <tbody id="rows">
+    <tr><td>会議室 A</td><td>12</td><td>—</td><td>—</td></tr>
+    <tr><td>会議室 B</td><td>6</td><td>—</td><td>—</td></tr>
+    <tr><td>会議室 C</td><td>4</td><td>—</td><td>—</td></tr>
+    <tr><td>研修室</td><td>30</td><td>—</td><td>—</td></tr>
+  </tbody>
+</table>
+
+<p id="count"></p>
+
+<script>
+  var rooms = [
+    { name: '会議室 A', cap: 12 },
+    { name: '会議室 B', cap: 6 },
+    { name: '会議室 C', cap: 4 },
+    { name: '研修室', cap: 30 }
+  ];
+  var seed = 20260731;
+  function next() { seed = (seed * 1103515245 + 12345) % 2147483648; return seed / 2147483648; }
+
+  var hourSel = document.getElementById('hour');
+  for (var h = 8; h <= 19; h++) {
+    var o = document.createElement('option');
+    o.value = String(h); o.textContent = h + ':00';
+    hourSel.appendChild(o);
+  }
+  hourSel.value = '10';
+
+  function endLabel() { document.getElementById('endHour').textContent = (Number(hourSel.value) + 1) + ':00'; }
+  hourSel.addEventListener('change', endLabel);
+  endLabel();
+
+  function draw(filled) {
+    var people = Number(document.getElementById('people').value) || 1;
+    var body = document.getElementById('rows');
+    body.textContent = '';
+    var free = 0;
+    rooms.forEach(function (r) {
+      var tr = document.createElement('tr');
+      var ok = filled && r.cap >= people && next() > 0.35;
+      if (ok) free++;
+      [r.name, String(r.cap),
+       filled ? (ok ? '空き' : '使用中') : '—',
+       filled ? (ok ? (Number(hourSel.value) + 2) + ':00' : '—') : '—'
+      ].forEach(function (v, i) {
+        var td = document.createElement('td');
+        td.textContent = v;
+        if (i === 2 && filled) td.className = ok ? 'free' : 'busy';
+        tr.appendChild(td);
+      });
+      body.appendChild(tr);
+    });
+    document.getElementById('count').textContent = filled ? ('空き ' + free + ' 件 / ' + rooms.length + ' 部屋') : '';
+  }
+
+  document.getElementById('search').addEventListener('click', function () { draw(true); });
+  document.getElementById('reset').addEventListener('click', function () { seed = 20260731; draw(false); });
+  document.getElementById('status').textContent = '動いています';
+</script>
+</body>
+</html>

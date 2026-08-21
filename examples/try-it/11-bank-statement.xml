@@ -1,0 +1,346 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 外から届いた口座明細の見本（架空）。読むだけのファイルで、書き戻す口はありません。 -->
+<BankStatement xmlns="urn:example:bank-statement:1.0" version="1.0">
+  <Account>
+    <BankName>サンプル銀行</BankName>
+    <BranchName>見本支店</BranchName>
+    <AccountType>普通</AccountType>
+    <AccountNumber>1234567</AccountNumber>
+    <AccountHolder>サンプルカイギシツサービス(カ</AccountHolder>
+  </Account>
+  <Period from="2026-07-01" to="2026-07-31"/>
+  <OpeningBalance currency="JPY">4820310</OpeningBalance>
+  <Transactions count="30">
+    <Transaction id="TX-2026-07-001" type="credit">
+      <BookingDate>2026-07-01</BookingDate>
+      <ValueDate>2026-07-01</ValueDate>
+      <Amount currency="JPY">220620</Amount>
+      <Balance currency="JPY">5040930</Balance>
+      <Counterparty>
+        <Name>見本商事株式会社</Name>
+        <Bank code="1000" branch="100">サンプル銀行</Bank>
+      </Counterparty>
+      <Remarks><![CDATA[見本商事株式会社 7月分 <振込> & 手数料込み]]></Remarks>
+    </Transaction>
+    <Transaction id="TX-2026-07-002" type="debit">
+      <BookingDate>2026-07-02</BookingDate>
+      <ValueDate>2026-07-02</ValueDate>
+      <Amount currency="JPY">34800</Amount>
+      <Balance currency="JPY">5006130</Balance>
+      <Counterparty>
+        <Name>架空印刷</Name>
+        <Bank code="1011" branch="101">サンプル銀行</Bank>
+      </Counterparty>
+      <Remarks><![CDATA[架空印刷 7月分 <振込> & 手数料込み]]></Remarks>
+    </Transaction>
+    <Transaction id="TX-2026-07-003" type="debit">
+      <BookingDate>2026-07-03</BookingDate>
+      <ValueDate>2026-07-03</ValueDate>
+      <Amount currency="JPY">18420</Amount>
+      <Balance currency="JPY">4987710</Balance>
+      <Counterparty>
+        <Name>サンプル電力</Name>
+        <Bank code="1022" branch="102">サンプル銀行</Bank>
+      </Counterparty>
+      <Remarks><![CDATA[サンプル電力 7月分 <振込> & 手数料込み]]></Remarks>
+    </Transaction>
+    <Transaction id="TX-2026-07-004" type="debit">
+      <BookingDate>2026-07-04</BookingDate>
+      <ValueDate>2026-07-04</ValueDate>
+      <Amount currency="JPY">55000</Amount>
+      <Balance currency="JPY">4932710</Balance>
+      <Counterparty>
+        <Name>見本リース</Name>
+        <Bank code="1033" branch="103">サンプル銀行</Bank>
+      </Counterparty>
+      <Remarks><![CDATA[見本リース 7月分 <振込> & 手数料込み]]></Remarks>
+    </Transaction>
+    <Transaction id="TX-2026-07-005" type="credit">
+      <BookingDate>2026-07-05</BookingDate>
+      <ValueDate>2026-07-05</ValueDate>
+      <Amount currency="JPY">132000</Amount>
+      <Balance currency="JPY">5064710</Balance>
+      <Counterparty>
+        <Name>試作デザイン事務所</Name>
+        <Bank code="1044" branch="104">サンプル銀行</Bank>
+      </Counterparty>
+      <Remarks><![CDATA[試作デザイン事務所 7月分 <振込> & 手数料込み]]></Remarks>
+    </Transaction>
+    <Transaction id="TX-2026-07-006" type="debit">
+      <BookingDate>2026-07-06</BookingDate>
+      <ValueDate>2026-07-06</ValueDate>
+      <Amount currency="JPY">9680</Amount>
+      <Balance currency="JPY">5055030</Balance>
+      <Counterparty>
+        <Name>サンプル通信</Name>
+        <Bank code="1055" branch="100">サンプル銀行</Bank>
+      </Counterparty>
+      <Remarks><![CDATA[サンプル通信 7月分 <振込> & 手数料込み]]></Remarks>
+    </Transaction>
+    <Transaction id="TX-2026-07-007" type="debit">
+      <BookingDate>2026-07-07</BookingDate>
+      <ValueDate>2026-07-07</ValueDate>
+      <Amount currency="JPY">12100</Amount>
+      <Balance currency="JPY">5042930</Balance>
+      <Counterparty>
+        <Name>架空クリーニング</Name>
+        <Bank code="1066" branch="101">サンプル銀行</Bank>
+      </Counterparty>
+      <Remarks><![CDATA[架空クリーニング 7月分 <振込> & 手数料込み]]></Remarks>
+    </Transaction>
+    <Transaction id="TX-2026-07-008" type="credit">
+      <BookingDate>2026-07-08</BookingDate>
+      <ValueDate>2026-07-08</ValueDate>
+      <Amount currency="JPY">396000</Amount>
+      <Balance currency="JPY">5438930</Balance>
+      <Counterparty>
+        <Name>例示物産株式会社</Name>
+        <Bank code="1000" branch="102">サンプル銀行</Bank>
+      </Counterparty>
+      <Remarks><![CDATA[例示物産株式会社 7月分 <振込> & 手数料込み]]></Remarks>
+    </Transaction>
+    <Transaction id="TX-2026-07-009" type="debit">
+      <BookingDate>2026-07-09</BookingDate>
+      <ValueDate>2026-07-09</ValueDate>
+      <Amount currency="JPY">7350</Amount>
+      <Balance currency="JPY">5431580</Balance>
+      <Counterparty>
+        <Name>見本市場</Name>
+        <Bank code="1011" branch="103">サンプル銀行</Bank>
+      </Counterparty>
+      <Remarks><![CDATA[見本市場 7月分 <振込> & 手数料込み]]></Remarks>
+    </Transaction>
+    <Transaction id="TX-2026-07-010" type="debit">
+      <BookingDate>2026-07-10</BookingDate>
+      <ValueDate>2026-07-10</ValueDate>
+      <Amount currency="JPY">26400</Amount>
+      <Balance currency="JPY">5405180</Balance>
+      <Counterparty>
+        <Name>サンプル保険</Name>
+        <Bank code="1022" branch="104">サンプル銀行</Bank>
+      </Counterparty>
+      <Remarks><![CDATA[サンプル保険 7月分 <振込> & 手数料込み]]></Remarks>
+    </Transaction>
+    <Transaction id="TX-2026-07-011" type="credit">
+      <BookingDate>2026-07-11</BookingDate>
+      <ValueDate>2026-07-11</ValueDate>
+      <Amount currency="JPY">220620</Amount>
+      <Balance currency="JPY">5625800</Balance>
+      <Counterparty>
+        <Name>見本商事株式会社</Name>
+        <Bank code="1033" branch="100">サンプル銀行</Bank>
+      </Counterparty>
+      <Remarks><![CDATA[見本商事株式会社 7月分 <振込> & 手数料込み]]></Remarks>
+    </Transaction>
+    <Transaction id="TX-2026-07-012" type="debit">
+      <BookingDate>2026-07-12</BookingDate>
+      <ValueDate>2026-07-12</ValueDate>
+      <Amount currency="JPY">34800</Amount>
+      <Balance currency="JPY">5591000</Balance>
+      <Counterparty>
+        <Name>架空印刷</Name>
+        <Bank code="1044" branch="101">サンプル銀行</Bank>
+      </Counterparty>
+      <Remarks><![CDATA[架空印刷 7月分 <振込> & 手数料込み]]></Remarks>
+    </Transaction>
+    <Transaction id="TX-2026-07-013" type="debit">
+      <BookingDate>2026-07-13</BookingDate>
+      <ValueDate>2026-07-13</ValueDate>
+      <Amount currency="JPY">18420</Amount>
+      <Balance currency="JPY">5572580</Balance>
+      <Counterparty>
+        <Name>サンプル電力</Name>
+        <Bank code="1055" branch="102">サンプル銀行</Bank>
+      </Counterparty>
+      <Remarks><![CDATA[サンプル電力 7月分 <振込> & 手数料込み]]></Remarks>
+    </Transaction>
+    <Transaction id="TX-2026-07-014" type="debit">
+      <BookingDate>2026-07-14</BookingDate>
+      <ValueDate>2026-07-14</ValueDate>
+      <Amount currency="JPY">55000</Amount>
+      <Balance currency="JPY">5517580</Balance>
+      <Counterparty>
+        <Name>見本リース</Name>
+        <Bank code="1066" branch="103">サンプル銀行</Bank>
+      </Counterparty>
+      <Remarks><![CDATA[見本リース 7月分 <振込> & 手数料込み]]></Remarks>
+    </Transaction>
+    <Transaction id="TX-2026-07-015" type="credit">
+      <BookingDate>2026-07-15</BookingDate>
+      <ValueDate>2026-07-15</ValueDate>
+      <Amount currency="JPY">132000</Amount>
+      <Balance currency="JPY">5649580</Balance>
+      <Counterparty>
+        <Name>試作デザイン事務所</Name>
+        <Bank code="1000" branch="104">サンプル銀行</Bank>
+      </Counterparty>
+      <Remarks><![CDATA[試作デザイン事務所 7月分 <振込> & 手数料込み]]></Remarks>
+    </Transaction>
+    <Transaction id="TX-2026-07-016" type="debit">
+      <BookingDate>2026-07-16</BookingDate>
+      <ValueDate>2026-07-16</ValueDate>
+      <Amount currency="JPY">9680</Amount>
+      <Balance currency="JPY">5639900</Balance>
+      <Counterparty>
+        <Name>サンプル通信</Name>
+        <Bank code="1011" branch="100">サンプル銀行</Bank>
+      </Counterparty>
+      <Remarks><![CDATA[サンプル通信 7月分 <振込> & 手数料込み]]></Remarks>
+    </Transaction>
+    <Transaction id="TX-2026-07-017" type="debit">
+      <BookingDate>2026-07-17</BookingDate>
+      <ValueDate>2026-07-17</ValueDate>
+      <Amount currency="JPY">12100</Amount>
+      <Balance currency="JPY">5627800</Balance>
+      <Counterparty>
+        <Name>架空クリーニング</Name>
+        <Bank code="1022" branch="101">サンプル銀行</Bank>
+      </Counterparty>
+      <Remarks><![CDATA[架空クリーニング 7月分 <振込> & 手数料込み]]></Remarks>
+    </Transaction>
+    <Transaction id="TX-2026-07-018" type="credit">
+      <BookingDate>2026-07-18</BookingDate>
+      <ValueDate>2026-07-18</ValueDate>
+      <Amount currency="JPY">396000</Amount>
+      <Balance currency="JPY">6023800</Balance>
+      <Counterparty>
+        <Name>例示物産株式会社</Name>
+        <Bank code="1033" branch="102">サンプル銀行</Bank>
+      </Counterparty>
+      <Remarks><![CDATA[例示物産株式会社 7月分 <振込> & 手数料込み]]></Remarks>
+    </Transaction>
+    <Transaction id="TX-2026-07-019" type="debit">
+      <BookingDate>2026-07-19</BookingDate>
+      <ValueDate>2026-07-19</ValueDate>
+      <Amount currency="JPY">7350</Amount>
+      <Balance currency="JPY">6016450</Balance>
+      <Counterparty>
+        <Name>見本市場</Name>
+        <Bank code="1044" branch="103">サンプル銀行</Bank>
+      </Counterparty>
+      <Remarks><![CDATA[見本市場 7月分 <振込> & 手数料込み]]></Remarks>
+    </Transaction>
+    <Transaction id="TX-2026-07-020" type="debit">
+      <BookingDate>2026-07-20</BookingDate>
+      <ValueDate>2026-07-20</ValueDate>
+      <Amount currency="JPY">26400</Amount>
+      <Balance currency="JPY">5990050</Balance>
+      <Counterparty>
+        <Name>サンプル保険</Name>
+        <Bank code="1055" branch="104">サンプル銀行</Bank>
+      </Counterparty>
+      <Remarks><![CDATA[サンプル保険 7月分 <振込> & 手数料込み]]></Remarks>
+    </Transaction>
+    <Transaction id="TX-2026-07-021" type="credit">
+      <BookingDate>2026-07-21</BookingDate>
+      <ValueDate>2026-07-21</ValueDate>
+      <Amount currency="JPY">220620</Amount>
+      <Balance currency="JPY">6210670</Balance>
+      <Counterparty>
+        <Name>見本商事株式会社</Name>
+        <Bank code="1066" branch="100">サンプル銀行</Bank>
+      </Counterparty>
+      <Remarks><![CDATA[見本商事株式会社 7月分 <振込> & 手数料込み]]></Remarks>
+    </Transaction>
+    <Transaction id="TX-2026-07-022" type="debit">
+      <BookingDate>2026-07-22</BookingDate>
+      <ValueDate>2026-07-22</ValueDate>
+      <Amount currency="JPY">34800</Amount>
+      <Balance currency="JPY">6175870</Balance>
+      <Counterparty>
+        <Name>架空印刷</Name>
+        <Bank code="1000" branch="101">サンプル銀行</Bank>
+      </Counterparty>
+      <Remarks><![CDATA[架空印刷 7月分 <振込> & 手数料込み]]></Remarks>
+    </Transaction>
+    <Transaction id="TX-2026-07-023" type="debit">
+      <BookingDate>2026-07-23</BookingDate>
+      <ValueDate>2026-07-23</ValueDate>
+      <Amount currency="JPY">18420</Amount>
+      <Balance currency="JPY">6157450</Balance>
+      <Counterparty>
+        <Name>サンプル電力</Name>
+        <Bank code="1011" branch="102">サンプル銀行</Bank>
+      </Counterparty>
+      <Remarks><![CDATA[サンプル電力 7月分 <振込> & 手数料込み]]></Remarks>
+    </Transaction>
+    <Transaction id="TX-2026-07-024" type="debit">
+      <BookingDate>2026-07-24</BookingDate>
+      <ValueDate>2026-07-24</ValueDate>
+      <Amount currency="JPY">55000</Amount>
+      <Balance currency="JPY">6102450</Balance>
+      <Counterparty>
+        <Name>見本リース</Name>
+        <Bank code="1022" branch="103">サンプル銀行</Bank>
+      </Counterparty>
+      <Remarks><![CDATA[見本リース 7月分 <振込> & 手数料込み]]></Remarks>
+    </Transaction>
+    <Transaction id="TX-2026-07-025" type="credit">
+      <BookingDate>2026-07-25</BookingDate>
+      <ValueDate>2026-07-25</ValueDate>
+      <Amount currency="JPY">132000</Amount>
+      <Balance currency="JPY">6234450</Balance>
+      <Counterparty>
+        <Name>試作デザイン事務所</Name>
+        <Bank code="1033" branch="104">サンプル銀行</Bank>
+      </Counterparty>
+      <Remarks><![CDATA[試作デザイン事務所 7月分 <振込> & 手数料込み]]></Remarks>
+    </Transaction>
+    <Transaction id="TX-2026-07-026" type="debit">
+      <BookingDate>2026-07-26</BookingDate>
+      <ValueDate>2026-07-26</ValueDate>
+      <Amount currency="JPY">9680</Amount>
+      <Balance currency="JPY">6224770</Balance>
+      <Counterparty>
+        <Name>サンプル通信</Name>
+        <Bank code="1044" branch="100">サンプル銀行</Bank>
+      </Counterparty>
+      <Remarks><![CDATA[サンプル通信 7月分 <振込> & 手数料込み]]></Remarks>
+    </Transaction>
+    <Transaction id="TX-2026-07-027" type="debit">
+      <BookingDate>2026-07-27</BookingDate>
+      <ValueDate>2026-07-27</ValueDate>
+      <Amount currency="JPY">12100</Amount>
+      <Balance currency="JPY">6212670</Balance>
+      <Counterparty>
+        <Name>架空クリーニング</Name>
+        <Bank code="1055" branch="101">サンプル銀行</Bank>
+      </Counterparty>
+      <Remarks><![CDATA[架空クリーニング 7月分 <振込> & 手数料込み]]></Remarks>
+    </Transaction>
+    <Transaction id="TX-2026-07-028" type="credit">
+      <BookingDate>2026-07-28</BookingDate>
+      <ValueDate>2026-07-28</ValueDate>
+      <Amount currency="JPY">396000</Amount>
+      <Balance currency="JPY">6608670</Balance>
+      <Counterparty>
+        <Name>例示物産株式会社</Name>
+        <Bank code="1066" branch="102">サンプル銀行</Bank>
+      </Counterparty>
+      <Remarks><![CDATA[例示物産株式会社 7月分 <振込> & 手数料込み]]></Remarks>
+    </Transaction>
+    <Transaction id="TX-2026-07-029" type="debit">
+      <BookingDate>2026-07-29</BookingDate>
+      <ValueDate>2026-07-29</ValueDate>
+      <Amount currency="JPY">7350</Amount>
+      <Balance currency="JPY">6601320</Balance>
+      <Counterparty>
+        <Name>見本市場</Name>
+        <Bank code="1000" branch="103">サンプル銀行</Bank>
+      </Counterparty>
+      <Remarks><![CDATA[見本市場 7月分 <振込> & 手数料込み]]></Remarks>
+    </Transaction>
+    <Transaction id="TX-2026-07-030" type="debit">
+      <BookingDate>2026-07-30</BookingDate>
+      <ValueDate>2026-07-30</ValueDate>
+      <Amount currency="JPY">26400</Amount>
+      <Balance currency="JPY">6574920</Balance>
+      <Counterparty>
+        <Name>サンプル保険</Name>
+        <Bank code="1011" branch="104">サンプル銀行</Bank>
+      </Counterparty>
+      <Remarks><![CDATA[サンプル保険 7月分 <振込> & 手数料込み]]></Remarks>
+    </Transaction>
+  </Transactions>
+  <ClosingBalance currency="JPY">6574920</ClosingBalance>
+</BankStatement>

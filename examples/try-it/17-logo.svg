@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 200" width="480" height="200" role="img" aria-label="サンプル会議室サービス（架空のロゴ）">
+  <title>サンプル会議室サービス（架空のロゴ）</title>
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#2e6ca8"/>
+      <stop offset="1" stop-color="#1b7f3b"/>
+    </linearGradient>
+    <clipPath id="clip">
+      <rect x="24" y="34" width="132" height="132" rx="26"/>
+    </clipPath>
+  </defs>
+
+  <rect x="24" y="34" width="132" height="132" rx="26" fill="url(#g)"/>
+  <g clip-path="url(#clip)" fill="#ffffff" opacity=".92">
+    <rect x="46" y="60" width="88" height="12" rx="6"/>
+    <rect x="46" y="86" width="60" height="12" rx="6"/>
+    <rect x="46" y="112" width="76" height="12" rx="6"/>
+    <circle cx="122" cy="146" r="18" fill="#ffd666"/>
+  </g>
+  <path d="M24 166 L156 34" stroke="#ffffff" stroke-width="3" opacity=".35" fill="none"/>
+
+  <text x="182" y="98" font-family="system-ui, 'Segoe UI', 'Hiragino Sans', sans-serif" font-size="34" font-weight="700" fill="#1f2933">サンプル会議室</text>
+  <text x="182" y="136" font-family="system-ui, 'Segoe UI', 'Hiragino Sans', sans-serif" font-size="20" fill="#52606d">架空のロゴです（実在しません）</text>
+</svg>
