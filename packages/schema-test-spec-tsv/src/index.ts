@@ -32,6 +32,7 @@ export { findRowsByCell, parseCellLink } from './link.js';
 export { checkColumnLink, readColumnLinks, splitLinkedValues } from './columnLink.js';
 export { checkReview, readReviewColumns } from './review.js';
 export { buildExportTable, findExportProfile, readExportProfiles } from './export.js';
+export { planExpansion, readExpandRules } from './expand.js';
 export type { ColumnType, ColumnUiHint, ParsedHeader } from './types.js';
 export type { IdentifiedTsv } from './rowId.js';
 export type { HiddenRow } from './hiddenRows.js';
@@ -47,6 +48,7 @@ export type {
   ReviewTargetLookup,
 } from './review.js';
 export type { ExportNewline, ExportProfile, ExportTable } from './export.js';
+export type { ExpandPlan, ExpandRule } from './expand.js';
 export type { EnumChoices, EnumSource } from './enumSource.js';
 export type { LineKind } from './classify.js';
 export type { TsvDocument } from './parse.js';
