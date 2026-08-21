@@ -807,6 +807,61 @@ pub async fn git_blame(root: String, rel_path: String) -> Result<String, String>
     spawn_git(move || git_blame_impl(Path::new(&root), &rel_path)).await
 }
 
+/// コミット指定として受け付けてよいか。
+///
+/// 受けるのは **16 進のハッシュだけ**（7〜40 桁）。ブランチ名・タグ・`HEAD~2` のような
+/// 相対指定は受けない。指定は履歴一覧（`git_log`）から選ばせる作りなので、ハッシュ以外を
+/// 通す必要が無い。狭くしておけば `--upload-pack=...` のような引数への化けも、
+/// `:` を含む別解釈も構文の時点で起こらない。
+pub fn is_valid_commit_ref(commit: &str) -> bool {
+    (7..=40).contains(&commit.len()) && commit.chars().all(|c| c.is_ascii_hexdigit())
+}
+
+/// `git show` へ渡す `<コミット>:<パス>` を組む。
+///
+/// パスの頭に `./` を付けるのは、この形が **cwd 基準**として解釈されるため。付けないと
+/// リポジトリ root 基準になり、サブフォルダを開いているときだけ「その版には無い」と
+/// 言われる。区切りは `/` へ寄せる（Windows の区切りのままでは git が別名として扱う）。
+pub fn commit_path_spec(commit: &str, rel_path: &str) -> String {
+    let slashed = rel_path.replace('\\', "/");
+    format!("{commit}:./{slashed}")
+}
+
+/// 指定したコミット時点のファイル内容を返す（Tauri 非依存の実体）。
+///
+/// `Ok(None)` は「その版にこのファイルが無い」。空文字列（中身が空）と区別する。
+/// 版間の差分では、比べる相手が無いのか空なのかで見せ方が変わる。
+///
+/// `rel_path` は **開いているフォルダ基準**（`git_blame` と同じ）。
+pub fn git_show_impl(root: &Path, rel_path: &str, commit: &str) -> Result<Option<String>, String> {
+    if !is_valid_commit_path(rel_path) {
+        return Err(format!("履歴を見られないパスです: {rel_path}"));
+    }
+    if !is_valid_commit_ref(commit) {
+        return Err(format!("コミットの指定が不正です: {commit}"));
+    }
+    let toplevel = run_git_result(root, &["rev-parse", "--show-toplevel"])
+        .map(|s| s.trim().to_string())
+        .map_err(|e| format!("git リポジトリを解決できません（root={}）: {e}", root.display()))?;
+    if toplevel.is_empty() {
+        return Err(format!("git リポジトリではありません（root={}）", root.display()));
+    }
+
+    let spec = commit_path_spec(commit, rel_path);
+    Ok(run_git(root, &["show", &spec]))
+}
+
+/// フロントから `invoke("git_show", { root, relPath, commit })` で呼ぶラッパ。
+/// 成功で内容、その版にファイルが無ければ null、不正なパス・コミットは Err(メッセージ)。
+#[tauri::command]
+pub async fn git_show(
+    root: String,
+    rel_path: String,
+    commit: String,
+) -> Result<Option<String>, String> {
+    spawn_git(move || git_show_impl(Path::new(&root), &rel_path, &commit)).await
+}
+
 /// コミット 1 件分の見出し。中身の差分は `git_diff` 側で見る。
 #[derive(Serialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
@@ -1669,5 +1724,36 @@ mod tests {
         let dir = std::env::temp_dir().join("mdbiz_gitinit_absent");
         let _ = std::fs::remove_dir_all(&dir);
         assert!(git_init_impl(&dir).is_err());
+    }
+
+    #[test]
+    fn コミット指定はハッシュだけ受ける() {
+        assert!(is_valid_commit_ref("a1b2c3d"), "短縮ハッシュ（7 桁）を受ける");
+        assert!(
+            is_valid_commit_ref("0123456789abcdef0123456789abcdef01234567"),
+            "完全なハッシュを受ける"
+        );
+        assert!(!is_valid_commit_ref("a1b2c3"), "6 桁は短すぎる");
+        assert!(!is_valid_commit_ref("main"), "ブランチ名は受けない");
+        assert!(!is_valid_commit_ref("HEAD~2"), "相対指定は受けない");
+        assert!(!is_valid_commit_ref("--upload-pack=x"), "オプションへ化ける形を拒否");
+        assert!(!is_valid_commit_ref(""), "空を拒否");
+    }
+
+    #[test]
+    fn コミット指定は_cwd_基準のパスを組む() {
+        assert_eq!(
+            commit_path_spec("a1b2c3d", "docs/test-specs/001-login.tsv"),
+            "a1b2c3d:./docs/test-specs/001-login.tsv"
+        );
+    }
+
+    #[test]
+    fn 区切りは_スラッシュ_へ寄せる() {
+        assert_eq!(
+            commit_path_spec("a1b2c3d", "docs\\a.tsv"),
+            "a1b2c3d:./docs/a.tsv",
+            "Windows の区切りのままでは git が別名として扱う"
+        );
     }
 }

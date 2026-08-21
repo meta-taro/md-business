@@ -13,6 +13,7 @@
    */
   import { flushSync, untrack } from 'svelte';
   import { perf } from '$lib/diagnostics/perf.svelte';
+  import { cellKey, type SheetComparison } from './sheetCompare';
   import { i18n, t } from '$lib/i18n/i18n.svelte';
   import type { ComputedCounts, EnumChoices, IdentifiedTsv } from '@md-business/schema-test-spec-tsv';
   import {
@@ -179,6 +180,13 @@
     /** 履歴表示の切り替えを親へ通知（省略時は切り替えボタンを出さない）。 */
     onToggleBlame?: () => void;
     /**
+     * 前の版との差（`compareWithVersion` の結果）。比べていない間は null。
+     *
+     * ここは受け取った印を引くだけで、どの版と比べるかは持たない（親の都合で変わる）。
+     * **一部だけ引かない**：比べられなかったときは印が 1 つも無い形で渡ってくる。
+     */
+    compare?: SheetComparison | null;
+    /**
      * 補足行の開閉を覚えるときの名前（省略すると覚えない）。
      *
      * 文書の場所をそのまま使う。開閉は見え方の話で中身ではないので、TSV には書かない。
@@ -208,6 +216,7 @@
     blame = new Map(),
     blameOn = false,
     onToggleBlame,
+    compare = null,
     sheetKey = null,
     view = null,
     onViewChange,
@@ -230,6 +239,40 @@
     if (entry.uncommitted) return t('grid.blameUncommitted');
     const age = formatBlameAge(blameAge(entry.timeMs, Date.now()), i18n.locale);
     return `${age} · ${entry.author} · ${entry.summary}`;
+  }
+
+  /**
+   * 前の版から値が変わったセルか。比べていないときは常に false。
+   *
+   * 鍵は行 ID と列名。行番号・列番号で引くと、並べ替えや列の移動で印が別のセルへずれる。
+   */
+  function isChangedCell(row: number, col: number): boolean {
+    if (compare === null) return false;
+    const id = doc.rowIds[row];
+    const name = doc.columns[col]?.name;
+    if (id === undefined || name === undefined) return false;
+    return compare.changed.has(cellKey(id, name));
+  }
+
+  /** 前の版に無かった行か。 */
+  function isAddedRow(row: number): boolean {
+    const id = doc.rowIds[row];
+    return compare !== null && id !== undefined && compare.added.has(id);
+  }
+
+  /** 前の版に無かった列か。 */
+  function isAddedColumn(col: number): boolean {
+    const name = doc.columns[col]?.name;
+    return compare !== null && name !== undefined && compare.addedColumns.has(name);
+  }
+
+  /** そのセルが印されている理由。印が無ければ undefined。 */
+  function diffTitle(row: number, col: number): string | undefined {
+    if (compare === null) return undefined;
+    if (isAddedRow(row)) return t('grid.diffAddedRow');
+    if (isAddedColumn(col)) return t('grid.diffAddedColumn');
+    if (isChangedCell(row, col)) return t('grid.diffChanged');
+    return undefined;
   }
 
   // 列型 → 入力ウィジェット仕様。列定義の変化に追従。
@@ -1741,6 +1784,8 @@
             <th
               scope="col"
               class:required={column.required}
+              class:diff-added={isAddedColumn(col)}
+              title={isAddedColumn(col) ? t('grid.diffAddedColumn') : undefined}
               style={alignStyle(colAligns[col] ?? 'left')}
               oncontextmenu={(e) => openColMenu(col, e)}
             >
@@ -1786,6 +1831,7 @@
           <tr
             data-row={r}
             class:hidden-row={reveal && r < doc.rows.length && isHiddenRow(doc, r)}
+            class:diff-added={isAddedRow(r)}
             style={`height:${rowHeights[r] ?? DEFAULT_ROW_HEIGHT}px${tint ? `; --row-tint:${tint}` : ''}`}
           >
             <!-- 行番号クリックで行全体を選択（スプレ同様）。下端のグリップは行高リサイズ。 -->
@@ -1841,7 +1887,8 @@
                 class:mq-l={copiedEdges(r, c).left}
                 class:editing={active && mode === 'edit'}
                 class:computed={isLocked(c)}
-                title={issue ?? (isLocked(c) ? t('grid.computedCell') : undefined)}
+                class:diff-changed={isChangedCell(r, c)}
+                title={issue ?? (isLocked(c) ? t('grid.computedCell') : diffTitle(r, c))}
                 data-cell={`${r}-${c}`}
                 onkeydown={(e) => onGridKeydown(r, c, e)}
                 onpointerdown={(e) => onCellPointerDown(r, c, e)}
@@ -2788,6 +2835,28 @@
   td.invalid {
     background: var(--danger-subtle, rgba(220, 38, 38, 0.08));
     box-shadow: inset 3px 0 0 var(--danger-fg);
+  }
+
+  /* 前の版から変わったセル。提出様式で直した箇所を赤字にする慣習に合わせて文字を赤くする。
+     地は条件付き書式（--row-tint）と検証エラーが使っているので触らない。 */
+  td.diff-changed .cell-view {
+    color: var(--danger-fg);
+    font-weight: 600;
+  }
+
+  /* 前の版に無かった行・列。セルを 1 つずつ赤くすると表が一面赤くなり、どこを直したかが
+     かえって読めなくなる。行番号と見出しの端だけに印を付ける。 */
+  tbody tr.diff-added .rownum {
+    color: var(--danger-fg);
+    box-shadow: inset 3px 0 0 var(--danger-fg);
+  }
+
+  thead th.diff-added {
+    box-shadow: inset 0 3px 0 var(--danger-fg);
+  }
+
+  thead th.diff-added .colname {
+    color: var(--danger-fg);
   }
 
   /* コピーした範囲の枠。選択の実線リングと区別するため点線で描く。
