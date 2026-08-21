@@ -116,7 +116,7 @@
   import { hideRow, hiddenRowCount, isHiddenRow, unhideRow } from './gridHidden';
   import { followableLink } from './gridLink';
   import type { SheetLinkIssue } from './linkCheck';
-  import type { CellLink } from '@md-business/schema-test-spec-tsv';
+  import type { CellLink, ReviewIssue } from '@md-business/schema-test-spec-tsv';
 
   interface Props {
     /** 表示・編集対象の TSV ドキュメント（`parseTsv` を `withRowIds` に通した結果）。 */
@@ -152,6 +152,12 @@
      * 照合できなかったこと自体も 1 件として入ってくる。
      */
     linkIssues?: SheetLinkIssue[];
+    /**
+     * 指摘の往復（`#@ review`）の裏取り結果。指し先と基準版を読む必要があるので親が渡す。
+     *
+     * 空でも「食い違いなし」とは限らない（まだ裏取りしていない / 比べる版が無い）。
+     */
+    reviewIssues?: ReviewIssue[];
     /**
      * 集計列（`#@ computed … = countIn(…)`）の行ごとの件数。相手のファイルを読む必要が
      * あるので親が渡す。
@@ -211,6 +217,7 @@
     onFollowLink,
     jump = null,
     linkIssues = [],
+    reviewIssues = [],
     counts = new Map(),
     choices = new Map(),
     blame = new Map(),
@@ -853,6 +860,12 @@
       }
       for (const issue of linkIssues) {
         if (issue.side !== 'source') continue;
+        const key = `${issue.row}:${issue.column}`;
+        if (!map.has(key)) map.set(key, issue.message);
+      }
+      // 指摘の往復の食い違いも同じ場所へ出す。状態を書いた本人にしか見えない表なので、
+      // 別の場所に置くと気づかれない。
+      for (const issue of reviewIssues) {
         const key = `${issue.row}:${issue.column}`;
         if (!map.has(key)) map.set(key, issue.message);
       }
