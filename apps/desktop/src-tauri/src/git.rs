@@ -25,6 +25,11 @@ use std::os::windows::process::CommandExt;
 fn git_command(root: &Path) -> Command {
     let mut command = Command::new("git");
     command.arg("-C").arg(root).arg("--no-optional-locks");
+    // 端末を持たない子プロセスなので、git が利用者名やパスワードを尋ね始めると
+    // 誰も答えられないまま待ち続ける（窓も出ないので、画面上は固まったようにしか見えない）。
+    // 尋ねさせず即座に失敗させ、理由を読める形で返す。資格情報は OS 側の
+    // credential helper が答える経路だけを使う（アプリは一切預からない）。
+    command.env("GIT_TERMINAL_PROMPT", "0");
     #[cfg(windows)]
     command.creation_flags(0x0800_0000);
     command
@@ -1005,6 +1010,167 @@ pub async fn git_init(root: String) -> Result<GitStatus, String> {
     spawn_git(move || git_init_impl(Path::new(&root))).await
 }
 
+/// 受け付ける複製元の説明。断るときは必ずこれを添える（何を書けばよいかが分からないと直せない）。
+const CLONE_URL_HELP: &str =
+    "複製元は https:// / ssh:// / git@ホスト:パス / 手元のフォルダのみ受け付けます";
+
+/// 手元のフォルダを指しているか（ドライブ・共有フォルダ・絶対パス）。
+/// 空白を含みうるので、URL としての検査より先に通す。
+fn is_local_repo_path(s: &str) -> bool {
+    let bytes = s.as_bytes();
+    // \server\share, //server/share
+    if s.starts_with("\\\\") || s.starts_with("//") {
+        return true;
+    }
+    // C:\... / C:/...
+    if bytes.len() >= 3
+        && bytes[0].is_ascii_alphabetic()
+        && bytes[1] == b':'
+        && (bytes[2] == b'\\' || bytes[2] == b'/')
+    {
+        return true;
+    }
+    s.starts_with('/') || s.starts_with('\\')
+}
+
+/// `https://…` の `https` を取り出す。`://` を持たない指定（scp 形式・`ext::…`）は None。
+fn scheme_of(s: &str) -> Option<&str> {
+    let at = s.find("://")?;
+    let scheme = &s[..at];
+    if scheme.is_empty()
+        || !scheme
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '+' || c == '-' || c == '.')
+    {
+        return None;
+    }
+    Some(scheme)
+}
+
+/// scp 形式（`[利用者@]ホスト:パス`）か。
+/// `ext::…`（任意コマンドを走らせる指定）はコロンが 2 つ続くのでここで落ちる。
+fn is_scp_like(s: &str) -> bool {
+    let Some(at) = s.find(':') else { return false };
+    let (host, rest) = (&s[..at], &s[at + 1..]);
+    !host.is_empty() && !host.contains('/') && !rest.is_empty() && !rest.starts_with(':')
+}
+
+/// URL に資格情報が埋まっていないか。
+///
+/// 埋まったまま clone すると `remote.origin.url` へ平文で残り、以後の push / pull の
+/// 失敗メッセージにも出る。ファイルにも画面にも出るので、後から消し切れない。
+///
+/// `https` は利用者名だけでもトークンの置き場として使われるので丸ごと断る。
+/// `ssh` の `git@ホスト` と scp 形式の利用者名は転送先の利用者名であって秘密ではないので通し、
+/// パスワードを伴う形（`利用者:秘密@ホスト`）だけを断る。
+fn check_no_credentials(url: &str, authority: &str, deny_user_only: bool) -> Result<(), String> {
+    let Some(at) = authority.rfind('@') else {
+        return Ok(());
+    };
+    let userinfo = &authority[..at];
+    if deny_user_only || userinfo.contains(':') {
+        return Err(format!(
+            "複製元に資格情報を含めないでください（{}）。認証は OS に預けた資格情報が答えます",
+            mask_userinfo(url)
+        ));
+    }
+    Ok(())
+}
+
+/// 失敗メッセージへ載せる前に、資格情報の部分を伏せる。
+/// 断った理由を示すのに中身は要らない（画面にもログにも残るため）。
+fn mask_userinfo(url: &str) -> String {
+    match url.find('@') {
+        Some(at) => format!("***{}", &url[at..]),
+        None => url.to_string(),
+    }
+}
+
+/// 複製元として受け付けてよいか。git を呼ぶ前に断る（通信も認証も始めさせない）。
+pub fn check_clone_url(url: &str) -> Result<(), String> {
+    let url = url.trim();
+    if url.is_empty() {
+        return Err("複製元を入れてください".to_string());
+    }
+    if url.chars().any(char::is_control) {
+        return Err("複製元に使えない文字が入っています".to_string());
+    }
+    // 先頭 '-' は git にオプションとして解釈されうる（`--upload-pack=…` は任意コマンドの実行）。
+    if url.starts_with('-') {
+        return Err(CLONE_URL_HELP.to_string());
+    }
+    if is_local_repo_path(url) {
+        return Ok(());
+    }
+    if url.chars().any(char::is_whitespace) {
+        return Err("複製元に空白が入っています".to_string());
+    }
+
+    match scheme_of(url) {
+        Some("https") => check_no_credentials(url, authority_of(url), true),
+        Some("ssh") | Some("file") => check_no_credentials(url, authority_of(url), false),
+        // 平文で流れる経路は受け付けない。資格情報がそのまま経路上へ出る。
+        Some("http") => {
+            Err("暗号化されない http:// は受け付けません。https:// を使ってください".to_string())
+        }
+        Some(_) => Err(CLONE_URL_HELP.to_string()),
+        None if is_scp_like(url) => {
+            // scp 形式は最初の '/' までが `[利用者@]ホスト:` の側。
+            // 最初の ':' で切ると `利用者:秘密@ホスト` の秘密がパス側へ逃げる。
+            check_no_credentials(url, url.split('/').next().unwrap_or(""), false)
+        }
+        None => Err(CLONE_URL_HELP.to_string()),
+    }
+}
+
+/// `scheme://ここ/…` を取り出す。scheme が無い形では使わない。
+fn authority_of(url: &str) -> &str {
+    let rest = match url.find("://") {
+        Some(at) => &url[at + 3..],
+        None => url,
+    };
+    match rest.find('/') {
+        Some(at) => &rest[..at],
+        None => rest,
+    }
+}
+
+/// `git clone` に渡す引数。`--` を挟んで URL をオプションとして解釈させない。
+/// 複製先は開いているフォルダそのもの（`.`）。
+fn clone_args(url: &str) -> Vec<&str> {
+    vec!["clone", "--", url, "."]
+}
+
+/// 開いているフォルダへリポジトリを複製する（Tauri 非依存の実体）。成功時は最新の GitStatus。
+///
+/// 資格情報はアプリでは預からない。OS の credential helper / SSH 鍵が答える経路だけを使い、
+/// 答えられないときは（端末プロンプトを止めてあるので）待たずに失敗する。
+pub fn git_clone_impl(dest: &Path, url: &str) -> Result<GitStatus, String> {
+    let url = url.trim();
+    check_clone_url(url)?;
+    if !dest.is_dir() {
+        return Err(format!("フォルダがありません: {}", dest.display()));
+    }
+    // 空でないフォルダへ複製すると、既にある物と混ざるのか失敗するのかが利用者から読めない。
+    let mut entries =
+        std::fs::read_dir(dest).map_err(|e| format!("フォルダを読めません: {e}"))?;
+    if entries.next().is_some() {
+        return Err(
+            "このフォルダは空ではありません。空のフォルダを開いてから複製してください".to_string(),
+        );
+    }
+
+    run_git_result(dest, &clone_args(url))?;
+    Ok(git_status_impl(dest))
+}
+
+/// フロントから `invoke("git_clone", { root, url })` で呼ぶラッパ。
+/// 成功で最新ステータス、失敗（受け付けない複製元・空でないフォルダ・認証・git 未導入）は Err。
+#[tauri::command]
+pub async fn git_clone(root: String, url: String) -> Result<GitStatus, String> {
+    spawn_git(move || git_clone_impl(Path::new(&root), &url)).await
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1716,6 +1882,101 @@ mod tests {
     fn 既にリポジトリなら断る() {
         let dir = temp_repo("gitinitagain");
         assert!(git_init_impl(&dir).is_err());
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    // ---- clone --------------------------------------------------------------
+
+    // URL に資格情報が埋まっていると、そのまま remote.origin.url へ平文で残り、
+    // 以後の push / pull の失敗メッセージにも出る。git へ渡す前に断る。
+    #[test]
+    fn 資格情報の埋まった_url_は断る() {
+        assert!(check_clone_url("https://user:token@example.com/a/b.git").is_err());
+        assert!(check_clone_url("https://token@example.com/a/b.git").is_err());
+        assert!(check_clone_url("ssh://user:pw@example.com/a/b.git").is_err());
+        assert!(check_clone_url("user:pw@example.com:a/b.git").is_err());
+    }
+
+    #[test]
+    fn 受け付ける複製元() {
+        assert!(check_clone_url("https://example.com/a/b.git").is_ok());
+        assert!(check_clone_url("ssh://example.com/a/b.git").is_ok());
+        assert!(
+            check_clone_url("ssh://git@example.com/a/b.git").is_ok(),
+            "ssh の利用者名は秘密ではない"
+        );
+        assert!(
+            check_clone_url("git@example.com:a/b.git").is_ok(),
+            "scp 形式の利用者名は資格情報ではない"
+        );
+        assert!(check_clone_url("file:///srv/repos/b.git").is_ok());
+        assert!(check_clone_url("/srv/repos/b.git").is_ok(), "手元のフォルダ");
+        assert!(check_clone_url(r"C:\Users\me\My Docs\b").is_ok(), "空白を含む手元のパス");
+        assert!(check_clone_url(r"\server\share\b.git").is_ok(), "共有フォルダ");
+    }
+
+    // ext:: は任意のコマンドを走らせる指定。http:// は資格情報が平文で流れる。
+    #[test]
+    fn 受け付けない複製元() {
+        assert!(check_clone_url("").is_err());
+        assert!(check_clone_url("   ").is_err());
+        assert!(check_clone_url("--upload-pack=calc").is_err(), "オプションに見える指定");
+        assert!(check_clone_url("ext::sh -c 'calc'").is_err());
+        assert!(check_clone_url("http://example.com/a/b.git").is_err());
+        assert!(check_clone_url("git://example.com/a/b.git").is_err());
+        assert!(check_clone_url("https://exa mple.com/a/b.git").is_err(), "空白入りの url");
+        assert!(check_clone_url("https://example.com/a/\u{7f}b.git").is_err(), "制御文字");
+    }
+
+    #[test]
+    fn clone_の引数は_url_をオプションとして解釈させない() {
+        assert_eq!(
+            clone_args("https://example.com/a/b.git"),
+            vec!["clone", "--", "https://example.com/a/b.git", "."],
+        );
+    }
+
+    #[test]
+    fn 空のフォルダへ複製できる() {
+        let source = temp_repo("clonesrc");
+        std::fs::write(source.join("a.md"), "本文\n").expect("書き込み");
+        let git = |args: &[&str]| {
+            git_command(&source).args(args).output().expect("git を実行できません")
+        };
+        git(&["add", "-A"]);
+        git(&["commit", "-m", "first"]);
+
+        let dest = temp_plain_dir("clonedst");
+        let status = git_clone_impl(&dest, &source.to_string_lossy()).expect("clone 成功");
+        assert!(status.is_repo, "複製後はリポジトリとして見える");
+        assert!(dest.join("a.md").is_file(), "中身も来ている");
+
+        let _ = std::fs::remove_dir_all(&source);
+        let _ = std::fs::remove_dir_all(&dest);
+    }
+
+    // 空でないフォルダへ複製すると、既にある物と混ざるのか失敗するのかが利用者から読めない。
+    #[test]
+    fn 空でないフォルダへは複製しない() {
+        let dir = temp_plain_dir("clonebusy");
+        std::fs::write(dir.join("a.md"), "本文\n").expect("書き込み");
+        assert!(git_clone_impl(&dir, "https://example.com/a/b.git").is_err());
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn 複製先が無いフォルダなら_git実行前にエラー() {
+        let dir = std::env::temp_dir().join("mdbiz_clone_nosuch_dir");
+        let _ = std::fs::remove_dir_all(&dir);
+        assert!(git_clone_impl(&dir, "https://example.com/a/b.git").is_err());
+    }
+
+    // 通信の前に断る = 資格情報を伴う失敗を待たずに済む。
+    #[test]
+    fn 不正な複製元は_git実行前にエラー() {
+        let dir = temp_plain_dir("cloneurl");
+        let err = git_clone_impl(&dir, "http://example.com/a/b.git").expect_err("断る");
+        assert!(err.contains("https"), "何を使えばよいかを言う: {err}");
         let _ = std::fs::remove_dir_all(&dir);
     }
 

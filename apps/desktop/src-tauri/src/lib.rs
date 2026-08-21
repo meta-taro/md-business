@@ -102,6 +102,7 @@ pub fn run() {
             git::git_show,
             git::git_log,
             git::git_init,
+            git::git_clone,
             git::forge_file_url,
             git::git_identity,
             git::git_file_state,
