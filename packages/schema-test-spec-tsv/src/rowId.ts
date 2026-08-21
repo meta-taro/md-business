@@ -87,22 +87,26 @@ function declaredIdColumn(directives: readonly string[]): string | null {
 }
 
 /**
- * ID 列の位置と名前を決める。
+ * ID 列の名前を決める。ID 列を持たない並びなら null。
  *
  * 宣言があればそれに従う。宣言が無くても末尾列が既定名なら ID 列とみなす
  * （手編集で `#@ rowid` 行だけ落ちたときに、ID がただの文字列列へ化けるのを防ぐ）。
  */
-function locateIdColumn(doc: TsvDocument): { index: number; name: string } {
-  const declared = declaredIdColumn(doc.directives);
-  if (declared !== null) {
-    return { index: doc.columns.findIndex((column) => column.name === declared), name: declared };
-  }
+export function rowIdColumnName(
+  directives: readonly string[],
+  columnNames: readonly string[],
+): string | null {
+  const declared = declaredIdColumn(directives);
+  if (declared !== null) return declared;
+  return columnNames[columnNames.length - 1] === ROW_ID_COLUMN ? ROW_ID_COLUMN : null;
+}
 
-  const last = doc.columns.length - 1;
-  if (doc.columns[last]?.name === ROW_ID_COLUMN) {
-    return { index: last, name: ROW_ID_COLUMN };
-  }
-  return { index: -1, name: ROW_ID_COLUMN };
+/** ID 列の位置と名前を決める。名前が決まらないときは既定名を返す（位置は -1）。 */
+function locateIdColumn(doc: TsvDocument): { index: number; name: string } {
+  const names = doc.columns.map((column) => column.name);
+  const name = rowIdColumnName(doc.directives, names);
+  if (name === null) return { index: -1, name: ROW_ID_COLUMN };
+  return { index: names.indexOf(name), name };
 }
 
 /**
