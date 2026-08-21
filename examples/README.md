@@ -16,9 +16,17 @@ Everything here describes one fictional system — an internal **equipment lendi
 ## If you want to exercise the app instead
 
 [`try-it/`](./try-it/) holds a separate set meant to be **opened, clicked and scrolled through**:
-all six schemas, plain Markdown, a large and a small grid, inbound JSON and XML, HTML with and without
+all seven schemas, plain Markdown, a large and a small grid, inbound JSON and XML, HTML with and without
 script, images, an SVG and a 4,200-line log — written around a different fictional project (meeting-room booking).
 It is there to exercise rendering and interaction, not to be read.
+
+## If you want to chart numbers
+
+[`snapshot/`](./snapshot/) holds **numbers as they were fetched**, plus a document that charts them.
+One `.tsv` per month, one row per day, with `取得日時` (when it was fetched) and `取得元` (where from)
+carried on every row. Re-fetched figures are appended rather than overwritten, so the fact that a
+number changed stays visible. The convention is written up in
+[`docs/spec/snapshot-tsv-v1.md`](../docs/spec/snapshot-tsv-v1.md).
 
 ## Nothing here is real
 
