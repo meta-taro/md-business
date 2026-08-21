@@ -1,0 +1,111 @@
+{
+  "$comment": "外から届いた請求データの見本（架空）。読むだけのファイルで、書き戻す口はありません。",
+  "documentType": "Invoice",
+  "profile": "urn:example:invoice-exchange:1.0",
+  "issuedAt": "2026-07-31T09:12:44+09:00",
+  "invoice": {
+    "number": "EXAMPLE-INV-0001",
+    "issueDate": "2026-07-31",
+    "dueDate": "2026-08-31",
+    "currency": "JPY",
+    "seller": {
+      "name": "サンプル会議室サービス株式会社",
+      "registrationNumber": "T1234567890123",
+      "address": {
+        "postalCode": "100-0000",
+        "region": "サンプル県",
+        "city": "サンプル市",
+        "street": "見本町 1-2-3 サンプルビル 5F"
+      },
+      "contact": {
+        "email": "billing@example.com",
+        "phone": "03-0000-0000"
+      },
+      "bankAccount": {
+        "bankName": "サンプル銀行",
+        "branchName": "見本支店",
+        "accountType": "普通",
+        "accountNumber": "1234567",
+        "accountHolder": "サンプルカイギシツサービス(カ"
+      }
+    },
+    "buyer": {
+      "name": "見本商事株式会社",
+      "department": "総務部",
+      "address": {
+        "postalCode": "150-0000",
+        "region": "サンプル県",
+        "city": "見本市",
+        "street": "架空町 4-5-6"
+      }
+    },
+    "lines": [
+      {
+        "no": 1,
+        "description": "会議室 A 月額利用料",
+        "period": { "from": "2026-07-01", "to": "2026-07-31" },
+        "quantity": 1,
+        "unit": "式",
+        "unitPrice": 120000,
+        "amount": 120000,
+        "taxCategory": "standard",
+        "taxRate": 0.1
+      },
+      {
+        "no": 2,
+        "description": "会議室 B 時間貸し",
+        "quantity": 18,
+        "unit": "時間",
+        "unitPrice": 2500,
+        "amount": 45000,
+        "taxCategory": "standard",
+        "taxRate": 0.1
+      },
+      {
+        "no": 3,
+        "description": "プロジェクター貸出",
+        "quantity": 4,
+        "unit": "回",
+        "unitPrice": 3000,
+        "amount": 12000,
+        "taxCategory": "standard",
+        "taxRate": 0.1
+      },
+      {
+        "no": 4,
+        "description": "会議用ケータリング（軽食）",
+        "quantity": 30,
+        "unit": "食",
+        "unitPrice": 800,
+        "amount": 24000,
+        "taxCategory": "reduced",
+        "taxRate": 0.08,
+        "note": "軽減税率の対象"
+      }
+    ],
+    "taxSummary": [
+      { "taxRate": 0.1, "taxableAmount": 177000, "taxAmount": 17700 },
+      { "taxRate": 0.08, "taxableAmount": 24000, "taxAmount": 1920 }
+    ],
+    "totals": {
+      "subtotal": 201000,
+      "taxTotal": 19620,
+      "total": 220620,
+      "rounding": "floor"
+    },
+    "payment": {
+      "method": "bankTransfer",
+      "terms": "翌月末日払い",
+      "feeBearer": "buyer"
+    },
+    "attachments": [
+      { "name": "利用明細", "href": "./08-sheet-large.tsv", "mediaType": "text/tab-separated-values" },
+      { "name": "請求書", "href": "./01-invoice.md", "mediaType": "text/markdown" }
+    ],
+    "history": [
+      { "at": "2026-07-31T09:12:44+09:00", "event": "issued", "by": "system" },
+      { "at": "2026-08-01T10:03:11+09:00", "event": "delivered", "by": "mail" },
+      { "at": "2026-08-04T14:22:07+09:00", "event": "opened", "by": "buyer" }
+    ]
+  }
+}

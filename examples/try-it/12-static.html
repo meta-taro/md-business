@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>会議室予約 利用のご案内（見本・スクリプトなし）</title>
+<style>
+  :root { color-scheme: light dark; }
+  body {
+    margin: 0 auto; max-width: 46rem; padding: 2rem 1.25rem 4rem;
+    font-family: system-ui, "Segoe UI", "Hiragino Sans", "Noto Sans JP", sans-serif;
+    line-height: 1.8;
+  }
+  h1 { font-size: 1.6rem; border-bottom: 2px solid currentColor; padding-bottom: .4rem; }
+  h2 { font-size: 1.2rem; margin-top: 2.5rem; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+  th, td { border: 1px solid #bbb; padding: .45rem .6rem; text-align: left; vertical-align: top; }
+  th { background: rgba(127,127,127,.14); }
+  code { background: rgba(127,127,127,.16); padding: .1rem .3rem; border-radius: .2rem; }
+  blockquote { margin: 1rem 0; padding: .2rem 1rem; border-left: 4px solid #999; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr)); gap: 1rem; }
+  .card { border: 1px solid #bbb; border-radius: .5rem; padding: .9rem 1rem; }
+  figure { margin: 1.5rem 0; }
+  figcaption { font-size: .85rem; opacity: .75; }
+</style>
+</head>
+<body>
+<h1>会議室予約 利用のご案内</h1>
+<p>これは見本です。書いてある会社・部屋・連絡先はすべて架空のもので、実在しません。
+このファイルには <strong>スクリプトが 1 行も入っていません</strong>。見た目だけが対象です。</p>
+
+<h2>1. 予約できる時間</h2>
+<table>
+  <thead><tr><th>部屋</th><th>定員</th><th>貸出時間</th><th>備考</th></tr></thead>
+  <tbody>
+    <tr><td>会議室 A</td><td>12 名</td><td>08:00–20:00</td><td>プロジェクター常設</td></tr>
+    <tr><td>会議室 B</td><td>6 名</td><td>08:00–20:00</td><td></td></tr>
+    <tr><td>会議室 C</td><td>4 名</td><td>09:00–18:00</td><td>電話会議向け</td></tr>
+    <tr><td>研修室</td><td>30 名</td><td>09:00–17:00</td><td>前日までに申請</td></tr>
+  </tbody>
+</table>
+
+<h2>2. 手順</h2>
+<ol>
+  <li>空き検索で日時と人数を入れる</li>
+  <li>空いている枠を選ぶ</li>
+  <li>会議の名前を入れて確定する</li>
+</ol>
+<blockquote>取り消しは開始時刻の前まで。開始したものは取り消せません。</blockquote>
+
+<h2>3. 連絡先</h2>
+<div class="grid">
+  <div class="card"><strong>総務</strong><br><code>somu@example.com</code></div>
+  <div class="card"><strong>設備の不具合</strong><br><code>setsubi@example.com</code></div>
+  <div class="card"><strong>研修室の申請</strong><br><code>kenshu@example.com</code></div>
+</div>
+
+<figure>
+  <img src="./15-landscape.png" alt="見本の画像（横長）" width="640">
+  <figcaption>同じフォルダの画像を相対パスで参照しています。</figcaption>
+</figure>
+
+<h2>4. 関連する文書</h2>
+<ul>
+  <li><a href="./02-spec.md">基本設計書</a></li>
+  <li><a href="./06-api-spec.md">API 仕様書</a></li>
+  <li><a href="https://example.com/rooms">利用規約（外のページ）</a></li>
+</ul>
+</body>
+</html>

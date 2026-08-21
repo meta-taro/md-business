@@ -13,6 +13,13 @@ Everything here describes one fictional system — an internal **equipment lendi
 | [`invoice/invoice.md`](./invoice/invoice.md) | `invoice/v1` | Qualified invoice for the tablets being lent out |
 | [`investigation/`](./investigation/) | `investigation/v1` | Investigation report with its saved evidence files |
 
+## If you want to exercise the app instead
+
+[`try-it/`](./try-it/) holds a separate set meant to be **opened, clicked and scrolled through**:
+all six schemas, plain Markdown, a large and a small grid, inbound JSON and XML, HTML with and without
+script, images, an SVG and a 4,200-line log — written around a different fictional project (meeting-room booking).
+It is there to exercise rendering and interaction, not to be read.
+
 ## Nothing here is real
 
 Company names, registration numbers, bank accounts, addresses and employee codes are all invented. `T1234567890123` is not a valid registration number, and `example.com` is reserved for documentation. Copy the shape, not the values.
