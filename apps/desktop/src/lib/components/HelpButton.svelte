@@ -85,6 +85,7 @@
     { keys: 'Ctrl / ⌘ + C', label: t('help.scGridCopy') },
     { keys: 'Ctrl / ⌘ + V', label: t('help.scGridPaste') },
     { keys: 'Ctrl / ⌘ + Z / Y', label: t('help.scGridUndo') },
+    { keys: 'Ctrl / ⌘ + M', label: t('help.scGridMark') },
     { keys: 'Esc', label: t('help.scGridExitFullscreen') },
   ]);
 </script>
