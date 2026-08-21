@@ -148,6 +148,12 @@ export interface Messages {
   'scm.cloneTitle': string;
   'scm.cloneUrlPlaceholder': string;
   'scm.cloned': string;
+  'scm.switchTitle': string;
+  'scm.switched': string;
+  'scm.newBranch': string;
+  'scm.newBranchTitle': string;
+  'scm.newBranchPlaceholder': string;
+  'scm.branchCreated': string;
   'diff.label': string;
   'diff.backToPreviewTitle': string;
   'diff.backToPreview': string;
@@ -696,6 +702,12 @@ const en: Messages = {
     'Copy an existing repository into this empty folder. Sign-in is handled by the credentials your OS already keeps.',
   'scm.cloneUrlPlaceholder': 'Source (https:// or git@host:path)',
   'scm.cloned': 'Copied the repository into this folder',
+  'scm.switchTitle': 'Switch branch',
+  'scm.switched': 'Switched to {branch}',
+  'scm.newBranch': 'Create',
+  'scm.newBranchTitle': 'Create a branch from where you are now and switch to it',
+  'scm.newBranchPlaceholder': 'Branch name',
+  'scm.branchCreated': 'Created {branch} and switched to it',
   'diff.label': 'Diff view',
   'diff.backToPreviewTitle': 'Close the diff and go back to the preview',
   'diff.backToPreview': 'Back to preview',
@@ -1241,6 +1253,12 @@ const ja: Messages = {
     '空のフォルダへ、既にあるリポジトリを複製します。認証は OS に預けてある資格情報が答えます',
   'scm.cloneUrlPlaceholder': '複製元（https:// / git@ホスト:パス）',
   'scm.cloned': 'このフォルダへリポジトリを複製しました',
+  'scm.switchTitle': 'ブランチを切り替える',
+  'scm.switched': '{branch} へ切り替えました',
+  'scm.newBranch': '作る',
+  'scm.newBranchTitle': 'いまいる場所から新しいブランチを作って切り替えます',
+  'scm.newBranchPlaceholder': 'ブランチ名',
+  'scm.branchCreated': '{branch} を作って切り替えました',
   'diff.label': '差分ビュー',
   'diff.backToPreviewTitle': '差分を閉じてプレビューに戻る',
   'diff.backToPreview': 'プレビューに戻る',
@@ -1781,6 +1799,12 @@ const zh: Messages = {
   'scm.cloneTitle': '将已有仓库克隆到这个空文件夹。认证由操作系统保存的凭据完成',
   'scm.cloneUrlPlaceholder': '来源（https:// 或 git@主机:路径）',
   'scm.cloned': '已将仓库克隆到此文件夹',
+  'scm.switchTitle': '切换分支',
+  'scm.switched': '已切换到 {branch}',
+  'scm.newBranch': '创建',
+  'scm.newBranchTitle': '从当前位置创建新分支并切换过去',
+  'scm.newBranchPlaceholder': '分支名',
+  'scm.branchCreated': '已创建 {branch} 并切换过去',
   'diff.label': '差异视图',
   'diff.backToPreviewTitle': '关闭差异并返回预览',
   'diff.backToPreview': '返回预览',
@@ -2318,6 +2342,12 @@ const ko: Messages = {
   'scm.cloneTitle': '비어 있는 이 폴더로 기존 저장소를 복제합니다. 인증은 OS에 맡긴 자격 증명이 처리합니다',
   'scm.cloneUrlPlaceholder': '복제할 곳 (https:// 또는 git@호스트:경로)',
   'scm.cloned': '이 폴더로 저장소를 복제했습니다',
+  'scm.switchTitle': '브랜치 전환',
+  'scm.switched': '{branch}(으)로 전환했습니다',
+  'scm.newBranch': '만들기',
+  'scm.newBranchTitle': '현재 위치에서 새 브랜치를 만들어 전환합니다',
+  'scm.newBranchPlaceholder': '브랜치 이름',
+  'scm.branchCreated': '{branch}을(를) 만들고 전환했습니다',
   'diff.label': '차이 보기',
   'diff.backToPreviewTitle': '차이를 닫고 미리보기로 돌아가기',
   'diff.backToPreview': '미리보기로 돌아가기',
