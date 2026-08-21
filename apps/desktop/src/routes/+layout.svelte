@@ -18,6 +18,7 @@
   } from '$lib/layout/shortcuts';
   import { search } from '$lib/search/search.svelte';
   import TopBar from '$lib/components/TopBar.svelte';
+  import MenuBar from '$lib/components/MenuBar.svelte';
   import StatusBar from '$lib/components/StatusBar.svelte';
   import SourceControlPanel from '$lib/components/SourceControlPanel.svelte';
   import FileTree from '$lib/components/FileTree.svelte';
@@ -356,6 +357,7 @@
 
 <div class="shell">
   <TopBar />
+  <MenuBar />
 
   <div
     class="body"
@@ -413,8 +415,8 @@
   .shell {
     height: 100vh;
     display: grid;
-    /* topbar | 本文 | ソース管理ドロワー(auto・畳み時 0) | statusbar */
-    grid-template-rows: var(--topbar-h) 1fr auto var(--statusbar-h);
+    /* 題名行 | メニュー行 | 本文 | ソース管理ドロワー(auto・畳み時 0) | statusbar */
+    grid-template-rows: var(--topbar-h) var(--menubar-h) 1fr auto var(--statusbar-h);
     background: var(--bg-app);
     color: var(--text-primary);
     overflow: hidden;

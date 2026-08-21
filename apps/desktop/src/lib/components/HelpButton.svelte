@@ -16,6 +16,10 @@
   const MANUAL_JA_URL = 'https://meta-taro.github.io/md-business/manual/ja/';
   const MANUAL_EN_URL = 'https://meta-taro.github.io/md-business/manual/';
 
+  // 置き場所によって開く向きを変える。右端に居るときは右寄せ、
+  // メニュー行の左寄りに居るときは左寄せでないと画面外へはみ出す。
+  let { align = 'right' }: { align?: 'left' | 'right' } = $props();
+
   let open = $state(false);
   let version = $state<string | null>(null);
 
@@ -115,7 +119,7 @@
   {#if open}
     <!-- 外側クリックで閉じる不可視バックドロップ。 -->
     <button class="backdrop" type="button" aria-label={t('common.close')} onclick={close}></button>
-    <div class="panel" role="dialog" aria-label={t('help.title')}>
+    <div class="panel" class:align-left={align === 'left'} role="dialog" aria-label={t('help.title')}>
       <div class="ident">
         <span class="brand-dot" aria-hidden="true"></span>
         <div class="ident-text">
@@ -322,6 +326,11 @@
     border-radius: var(--radius-lg);
     box-shadow: var(--shadow-lg, 0 12px 32px rgba(0, 0, 0, 0.4));
     cursor: default;
+  }
+
+  .panel.align-left {
+    right: auto;
+    left: 0;
   }
 
   .ident {
