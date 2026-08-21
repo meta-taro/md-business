@@ -33,6 +33,12 @@ export interface GitStatus {
   prefix: string;
 }
 
+/** push の結果。状態に加えて、置き先が出力へ載せてきた案内 URL（無ければ null）。 */
+export interface PushOutcome {
+  status: GitStatus;
+  url: string | null;
+}
+
 /** 非リポジトリ（未オープン / git 取得失敗）時の既定ステータス。 */
 export function emptyGitStatus(): GitStatus {
   return {

@@ -19,6 +19,7 @@ import {
   type GitStatus,
   type GitFileState,
   type GitLogEntry,
+  type PushOutcome,
 } from './gitStatus';
 
 class GitStore {
@@ -161,9 +162,14 @@ class GitStore {
    * upstream へ push する（Rust 側で `git push`・`--force` なし）。成功で ahead が解消。
    * 認証は OS の git 資格情報に委ねる（アプリは資格情報を扱わない）。upstream 未設定・
    * 認証失敗・非 ff 拒否は Err が例外として飛ぶので、呼び出し側で捕捉して提示する。
+   *
+   * 置き先が「続きはここで」と URL を返してきたらそれを返す（無ければ null）。
+   * URL はこちらで組み立てず、git の出力に出たものだけを渡す。
    */
-  async push(root: string): Promise<void> {
-    this.status = await invoke<GitStatus>('git_push', { root });
+  async push(root: string): Promise<string | null> {
+    const outcome = await invoke<PushOutcome>('git_push', { root });
+    this.status = outcome.status;
+    return outcome.url;
   }
 
   /**

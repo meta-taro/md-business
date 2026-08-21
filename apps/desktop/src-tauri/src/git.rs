@@ -45,6 +45,15 @@ pub struct GitFileStatus {
     pub state: String,
 }
 
+/// push の結果。状態に加えて、置き先が出力へ載せてきた案内 URL（あれば）を持つ。
+#[derive(Serialize, Debug, Clone, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct PushOutcome {
+    pub status: GitStatus,
+    /// 置き先が「続きはここで」と返してきた URL。案内が無ければ None。
+    pub url: Option<String>,
+}
+
 /// ワークスペースの git 状態スナップショット。非リポジトリ時は `is_repo=false`・他は既定。
 #[derive(Serialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
@@ -509,6 +518,12 @@ pub async fn git_file_state(root: String, rel_path: String) -> String {
 /// `run_git` の Result 版。失敗時は stderr（無ければ終了コード）を Err で返す。
 /// switch のようにユーザーへ失敗理由を見せたい操作で使う。
 fn run_git_result(root: &Path, args: &[&str]) -> Result<String, String> {
+    run_git_captured(root, args).map(|(stdout, _)| stdout)
+}
+
+/// 成功時の stdout と stderr を両方返す版。git は進捗も案内（「PR を作るなら…」）も
+/// stderr へ書くため、成功時の stderr を捨てる run_git_result では拾えない。
+fn run_git_captured(root: &Path, args: &[&str]) -> Result<(String, String), String> {
     let output = git_command(root)
         .args(args)
         .output()
@@ -521,7 +536,10 @@ fn run_git_result(root: &Path, args: &[&str]) -> Result<String, String> {
             stderr
         });
     }
-    Ok(String::from_utf8_lossy(&output.stdout).into_owned())
+    Ok((
+        String::from_utf8_lossy(&output.stdout).into_owned(),
+        String::from_utf8_lossy(&output.stderr).into_owned(),
+    ))
 }
 
 /// `git branch --format=%(refname:short)` の出力をローカルブランチ名一覧へ。
@@ -684,13 +702,47 @@ pub async fn git_commit(
 /// `--force` は使わない = 非 fast-forward は失敗させ、リモート履歴を上書きしない（安全側）。
 /// 認証は OS の git 資格情報ヘルパ／SSH に委ねる（アプリは資格情報を一切扱わない・§15）。
 /// upstream 未設定・認証失敗・非 ff 拒否は git の stderr をそのまま Err で返し、UI が提示する。
-pub fn git_push_impl(root: &Path) -> Result<GitStatus, String> {
+pub fn git_push_impl(root: &Path) -> Result<PushOutcome, String> {
     let has_upstream = run_git(root, &["rev-parse", "--abbrev-ref", "@{u}"]).is_some();
     let branch = git_status_impl(root).branch;
     let plan = push_plan(has_upstream, branch.as_deref(), &git_remotes_impl(root))?;
     let args: Vec<&str> = plan.iter().map(String::as_str).collect();
-    run_git_result(root, &args)?;
-    Ok(git_status_impl(root))
+    let (stdout, stderr) = run_git_captured(root, &args)?;
+    Ok(PushOutcome {
+        status: git_status_impl(root),
+        url: extract_forge_url(&format!("{stdout}
+{stderr}")),
+    })
+}
+
+/// git 自身の出力から、置き先が案内してきた URL を 1 つ取り出す（Tauri 非依存の純関数）。
+///
+/// 新しいブランチを送ると、多くの置き先が「続きはここで」という URL を出力へ載せてくる。
+/// それを拾って開く導線にするだけで、URL をこちらで組み立てない（置き先ごとにパスの形が
+/// 違い、当て推量で作ると開いた先が無い）。出力は git のものだが、ブラウザへ渡す前に
+/// 次を満たすものだけ通す: `https://` で始まる / ホストがある / 資格情報を含まない / 長すぎない。
+/// `http://` を通さないのは、盗み見られる経路をアプリの導線として出さないため。
+pub fn extract_forge_url(output: &str) -> Option<String> {
+    /// 案内 URL としては十分な長さ。これを超えるものは案内ではないとみなす。
+    const MAX_LEN: usize = 500;
+    for token in output.split_whitespace() {
+        let url = token
+            .trim_start_matches(['(', '[', '{', '<', '"', '（'])
+            .trim_end_matches([')', ']', '}', '>', '"', '.', ',', ';', ':', '）', '。', '、']);
+        if !url.starts_with("https://") || url.len() > MAX_LEN {
+            continue;
+        }
+        if url.chars().any(char::is_control) {
+            continue;
+        }
+        let authority = url["https://".len()..].split('/').next().unwrap_or("");
+        // 資格情報つき（user:token@host）は開かない。URL は履歴にも残る。
+        if authority.is_empty() || authority.contains('@') {
+            continue;
+        }
+        return Some(url.to_string());
+    }
+    None
 }
 
 /// push に渡す引数を決める（Tauri 非依存の純関数）。
@@ -736,7 +788,7 @@ pub fn push_plan(
 
 /// フロントから `invoke("git_push", { root })` で呼ぶラッパ。
 #[tauri::command]
-pub async fn git_push(root: String) -> Result<GitStatus, String> {
+pub async fn git_push(root: String) -> Result<PushOutcome, String> {
     spawn_git(move || git_push_impl(Path::new(&root))).await
 }
 
@@ -2176,5 +2228,81 @@ mod tests {
         let err = git_push_impl(&dir).expect_err("送り先が無い");
         assert!(err.contains("送り先"), "読める理由を返す: {err}");
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn pushの案内から_urlを取り出す() {
+        let out = "To github.example/o/r.git
+remote: Create a pull request for 'feat/x' on GitHub by visiting:
+remote:      https://github.example/o/r/pull/new/feat/x
+remote:
+ * [new branch]      HEAD -> feat/x
+";
+        assert_eq!(
+            extract_forge_url(out).as_deref(),
+            Some("https://github.example/o/r/pull/new/feat/x")
+        );
+    }
+
+    #[test]
+    fn 案内が無ければ_urlを出さない() {
+        assert_eq!(extract_forge_url("Everything up-to-date
+"), None);
+        assert_eq!(extract_forge_url(""), None);
+        assert_eq!(
+            extract_forge_url("remote: visit http://github.example/o/r/pull/new/x
+"),
+            None,
+            "https 以外は開かない"
+        );
+    }
+
+    #[test]
+    fn 資格情報つきの_urlは出さない() {
+        assert_eq!(
+            extract_forge_url("remote: https://user:token@github.example/o/r/pull/new/x
+"),
+            None
+        );
+    }
+
+    #[test]
+    fn 末尾の記号は_urlに含めない() {
+        assert_eq!(
+            extract_forge_url("remote: 詳しくは https://github.example/o/r/pull/new/x を開いてください。
+")
+                .as_deref(),
+            Some("https://github.example/o/r/pull/new/x"),
+        );
+        assert_eq!(
+            extract_forge_url("(https://github.example/o/r/pull/new/x)").as_deref(),
+            Some("https://github.example/o/r/pull/new/x"),
+        );
+        assert_eq!(extract_forge_url("https://").as_deref(), None, "ホストが無い");
+    }
+
+    #[test]
+    fn ローカルへのpushでは_urlは付かない() {
+        let dir = temp_repo("gitpushlocal");
+        let bare = temp_plain_dir("gitpushbare");
+        let out = git_command(&bare)
+            .args(["init", "--bare"])
+            .output()
+            .expect("bare 作成");
+        assert!(out.status.success(), "bare init");
+        let url = bare.to_string_lossy().replace(std::path::MAIN_SEPARATOR, "/");
+        git_command(&dir)
+            .args(["remote", "add", "origin", &url])
+            .output()
+            .expect("remote 追加");
+        std::fs::write(dir.join("a.md"), "a
+").expect("書き込み");
+        git_commit_impl(&dir, "初回", &[]).expect("コミット");
+
+        let outcome = git_push_impl(&dir).expect("push 成功");
+        assert_eq!(outcome.status.ahead, 0, "送ったので進みは無い");
+        assert_eq!(outcome.url, None, "ローカルの置き先は案内を出さない");
+        let _ = std::fs::remove_dir_all(&dir);
+        let _ = std::fs::remove_dir_all(&bare);
     }
 }
