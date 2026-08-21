@@ -381,6 +381,16 @@ export interface Messages {
   'page.gridRestoreTitle': string;
   'page.gridFullscreenBtn': string;
   'page.gridRestoreBtn': string;
+  'page.compareBtn': string;
+  'page.compareTitle': string;
+  'page.compareTarget': string;
+  'page.compareNoHistory': string;
+  'page.compareMissing': string;
+  'page.compareUnreadable': string;
+  'page.compareNoRowId': string;
+  'page.compareResult': string;
+  'page.compareSame': string;
+  'page.compareRemovedTitle': string;
   'page.viewportPhoneTitle': string;
   'page.viewportPcTitle': string;
   'page.viewportPhoneBtn': string;
@@ -520,6 +530,9 @@ export interface Messages {
   'grid.blame': string;
   'grid.blameTitle': string;
   'grid.blameUncommitted': string;
+  'grid.diffChanged': string;
+  'grid.diffAddedRow': string;
+  'grid.diffAddedColumn': string;
   'grid.colModeClip': string;
   'grid.colModeWrap': string;
   'grid.colModeOverflow': string;
@@ -895,6 +908,16 @@ const en: Messages = {
   'page.gridRestoreTitle': 'Back to split view (Esc)',
   'page.gridFullscreenBtn': '⤢ Fullscreen',
   'page.gridRestoreBtn': '↙ Back to split',
+  'page.compareBtn': 'Compare with a past version',
+  'page.compareTitle': 'Mark what changed against the version in the selected commit',
+  'page.compareTarget': 'Compare against',
+  'page.compareNoHistory': 'This file has no history yet',
+  'page.compareMissing': 'That version does not contain this file',
+  'page.compareUnreadable': 'That version is not a test sheet',
+  'page.compareNoRowId': 'That version has no row IDs, so it cannot be compared',
+  'page.compareResult': '{cells} changed · {rows} added · {removed} deleted',
+  'page.compareSame': 'No change since that version',
+  'page.compareRemovedTitle': 'Deleted rows',
   'page.viewportPhoneTitle': 'View at phone width',
   'page.viewportPcTitle': 'Back to desktop width',
   'page.viewportPhoneBtn': 'Phone width',
@@ -1034,6 +1057,9 @@ const en: Messages = {
   'grid.blame': 'History',
   'grid.blameTitle': 'Show who last changed each row (from git)',
   'grid.blameUncommitted': 'Not committed yet',
+  'grid.diffChanged': 'Changed since that version',
+  'grid.diffAddedRow': 'Row added since that version',
+  'grid.diffAddedColumn': 'Column added since that version',
   'grid.colModeClip': 'Cut off (ellipsis)',
   'grid.colModeWrap': 'Wrap',
   'grid.colModeOverflow': 'Spill over',
@@ -1405,6 +1431,16 @@ const ja: Messages = {
   'page.gridRestoreTitle': '分割表示に戻す（Esc）',
   'page.gridFullscreenBtn': '⤢ 全画面',
   'page.gridRestoreBtn': '↙ 分割に戻す',
+  'page.compareBtn': '前の版と比べる',
+  'page.compareTitle': '選んだコミットの版と突き合わせて、変わったところに印を付ける',
+  'page.compareTarget': '比べる版',
+  'page.compareNoHistory': 'このファイルの履歴がまだありません',
+  'page.compareMissing': 'その版にこのファイルはありません',
+  'page.compareUnreadable': 'その版の中身は検証シートではありません',
+  'page.compareNoRowId': 'その版には行 ID がないので比べられません',
+  'page.compareResult': '変わったセル {cells} · 増えた行 {rows} · 消えた行 {removed}',
+  'page.compareSame': '前の版から変わっていません',
+  'page.compareRemovedTitle': '消えた行',
   'page.viewportPhoneTitle': 'スマートフォンの幅で見る',
   'page.viewportPcTitle': 'PC の幅に戻す',
   'page.viewportPhoneBtn': 'スマホ幅',
@@ -1541,6 +1577,9 @@ const ja: Messages = {
   'grid.blame': '履歴',
   'grid.blameTitle': '各行を最後に変えた人とコミットを出す（git より）',
   'grid.blameUncommitted': '未コミット',
+  'grid.diffChanged': '前の版から変わりました',
+  'grid.diffAddedRow': '前の版にはなかった行',
+  'grid.diffAddedColumn': '前の版にはなかった列',
   'grid.colModeClip': '見切れる（省略）',
   'grid.colModeWrap': '折り返す',
   'grid.colModeOverflow': '突き抜ける',
@@ -1909,6 +1948,16 @@ const zh: Messages = {
   'page.gridRestoreTitle': '返回分屏视图（Esc）',
   'page.gridFullscreenBtn': '⤢ 全屏',
   'page.gridRestoreBtn': '↙ 返回分屏',
+  'page.compareBtn': '与旧版本比较',
+  'page.compareTitle': '与所选提交中的版本比对，标出变动之处',
+  'page.compareTarget': '比较对象',
+  'page.compareNoHistory': '该文件尚无历史记录',
+  'page.compareMissing': '该版本中没有此文件',
+  'page.compareUnreadable': '该版本的内容不是验证表',
+  'page.compareNoRowId': '该版本没有行 ID，无法比较',
+  'page.compareResult': '变动单元格 {cells} · 新增行 {rows} · 删除行 {removed}',
+  'page.compareSame': '与该版本相比没有变化',
+  'page.compareRemovedTitle': '删除的行',
   'page.viewportPhoneTitle': '以手机宽度查看',
   'page.viewportPcTitle': '恢复电脑宽度',
   'page.viewportPhoneBtn': '手机宽度',
@@ -2045,6 +2094,9 @@ const zh: Messages = {
   'grid.blame': '历史',
   'grid.blameTitle': '显示各行最后由谁修改（来自 git）',
   'grid.blameUncommitted': '尚未提交',
+  'grid.diffChanged': '与该版本相比已变动',
+  'grid.diffAddedRow': '该版本中没有的行',
+  'grid.diffAddedColumn': '该版本中没有的列',
   'grid.colModeClip': '截断（省略号）',
   'grid.colModeWrap': '换行',
   'grid.colModeOverflow': '溢出显示',
@@ -2416,6 +2468,16 @@ const ko: Messages = {
   'page.gridRestoreTitle': '분할 보기로 복귀 (Esc)',
   'page.gridFullscreenBtn': '⤢ 전체 화면',
   'page.gridRestoreBtn': '↙ 분할로 복귀',
+  'page.compareBtn': '이전 버전과 비교',
+  'page.compareTitle': '선택한 커밋의 버전과 대조해 변경된 곳을 표시',
+  'page.compareTarget': '비교 대상',
+  'page.compareNoHistory': '이 파일에는 아직 이력이 없습니다',
+  'page.compareMissing': '그 버전에는 이 파일이 없습니다',
+  'page.compareUnreadable': '그 버전의 내용은 검증 시트가 아닙니다',
+  'page.compareNoRowId': '그 버전에는 행 ID가 없어 비교할 수 없습니다',
+  'page.compareResult': '변경된 셀 {cells} · 추가된 행 {rows} · 삭제된 행 {removed}',
+  'page.compareSame': '그 버전에서 바뀐 것이 없습니다',
+  'page.compareRemovedTitle': '삭제된 행',
   'page.viewportPhoneTitle': '스마트폰 폭으로 보기',
   'page.viewportPcTitle': 'PC 폭으로 되돌리기',
   'page.viewportPhoneBtn': '모바일 폭',
@@ -2553,6 +2615,9 @@ const ko: Messages = {
   'grid.blame': '이력',
   'grid.blameTitle': '각 행을 마지막으로 변경한 사람을 표시(git 기준)',
   'grid.blameUncommitted': '아직 커밋 안 됨',
+  'grid.diffChanged': '그 버전에서 변경되었습니다',
+  'grid.diffAddedRow': '그 버전에 없던 행',
+  'grid.diffAddedColumn': '그 버전에 없던 열',
   'grid.colModeClip': '잘림(생략)',
   'grid.colModeWrap': '줄바꿈',
   'grid.colModeOverflow': '넘쳐 표시',

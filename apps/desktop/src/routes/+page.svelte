@@ -30,7 +30,9 @@
   import { createSheetCache } from '$lib/tsv/sheetCache';
   import { readSheetEnums } from '$lib/tsv/sheetEnums';
   import { parseRowBlame, type RowBlame } from '$lib/tsv/rowBlame';
+  import { compareWithVersion, type SheetComparison } from '$lib/tsv/sheetCompare';
   import { countSheetReferences } from '$lib/tsv/sheetCounts';
+  import { shortHash, type GitLogEntry } from '$lib/git/gitStatus';
   import { invoke } from '@tauri-apps/api/core';
   import TsvGrid from '$lib/tsv/TsvGrid.svelte';
   import DataTreeView from '$lib/data/DataTreeView.svelte';
@@ -538,6 +540,99 @@
       });
   });
 
+  // 前の版との突き合わせ。提出様式では直した箇所を赤字にする慣習があり、いまは人が手で塗って
+  // いる。塗り忘れた行は「変えていない行」として相手へ渡るので、履歴から導き出して出す。
+  // git を叩くので、比べると決めたときだけ読む。
+  let compareOn = $state(false);
+  let compareCommit = $state('');
+  let fileLog = $state<GitLogEntry[]>([]);
+  let previousText = $state<string | null>(null);
+  let previousLoaded = $state(false);
+  let fileLogSeq = 0;
+  let previousSeq = 0;
+
+  // 比べる版の候補は、そのファイルを触ったコミットだけに絞る。フォルダ全体の履歴を並べると
+  // このファイルが 1 文字も変わっていない版が大半を占め、選ぶ意味が消える。
+  $effect(() => {
+    const on = compareOn;
+    const path = workspace.activePath;
+    const root = workspace.root;
+    const seq = (fileLogSeq += 1);
+
+    if (!on || path === null || root === null) {
+      fileLog = [];
+      return;
+    }
+    void invoke<GitLogEntry[]>('git_log', { root, relPath: path, limit: 50 })
+      .then((entries) => {
+        if (seq !== fileLogSeq) return;
+        fileLog = entries;
+        // 選んでいた版が候補に無ければ（ファイルを開き直した）直近の版へ戻す。
+        if (!entries.some((entry) => entry.hash === compareCommit)) {
+          compareCommit = entries[0]?.hash ?? '';
+        }
+      })
+      .catch(() => {
+        if (seq === fileLogSeq) fileLog = [];
+      });
+  });
+
+  // 前の版の中身は版を選び直したときだけ読む。1 文字打つたびに git を叩くと打鍵が待たされる。
+  $effect(() => {
+    const on = compareOn;
+    const commit = compareCommit;
+    const path = workspace.activePath;
+    const root = workspace.root;
+    const seq = (previousSeq += 1);
+
+    previousLoaded = false;
+    if (!on || path === null || root === null || commit === '') {
+      previousText = null;
+      return;
+    }
+    void invoke<string | null>('git_show', { root, relPath: path, commit })
+      .then((text) => {
+        if (seq !== previousSeq) return;
+        previousText = text;
+        previousLoaded = true;
+      })
+      .catch(() => {
+        // 取り出せなかったときは「その版に無い」と同じ扱いにする。出す中身が無いのは同じ。
+        if (seq !== previousSeq) return;
+        previousText = null;
+        previousLoaded = true;
+      });
+  });
+
+  // 読み終わるまでは印を出さない（出しかけの赤字は嘘になる）。
+  const comparison = $derived.by<SheetComparison | null>(() => {
+    if (!compareOn || !previousLoaded || tsvGrid === null) return null;
+    return compareWithVersion(previousText, tsvGrid.doc, tsvGrid.hidden);
+  });
+
+  const compareMessage = $derived.by(() => {
+    const result = comparison;
+    if (result === null) return '';
+    if (result.issue === 'missing') return t('page.compareMissing');
+    if (result.issue === 'unreadable') return t('page.compareUnreadable');
+    if (result.issue === 'no-row-id') return t('page.compareNoRowId');
+    const cells = result.changed.size;
+    const rows = result.added.size;
+    const removed = result.removed.length;
+    if (cells === 0 && rows === 0 && removed === 0 && result.addedColumns.size === 0) {
+      return t('page.compareSame');
+    }
+    return t('page.compareResult', { cells, rows, removed });
+  });
+
+  // 消えた行はいまの表に置き場が無い。件数だけでは何が消えたか確かめられないので中身を添える。
+  const removedTitle = $derived.by(() => {
+    const rows = comparison?.removed ?? [];
+    if (rows.length === 0) return undefined;
+    const lines = rows.map((row) => Object.values(row.cells).filter((v) => v !== '').join(' / '));
+    return [t('page.compareRemovedTitle'), ...lines].join('\n');
+  });
+
   /** 参照先 1 ファイルを読む。読めないもの（未オープン・別形式）は null で返す。 */
   async function readSheetFile(relPath: string): Promise<string | null> {
     const root = workspace.root;
@@ -949,6 +1044,30 @@
         <button
           type="button"
           class="head-btn"
+          onclick={() => (compareOn = !compareOn)}
+          aria-pressed={compareOn}
+          title={t('page.compareTitle')}
+        >
+          {t('page.compareBtn')}
+        </button>
+        {#if compareOn}
+          {#if fileLog.length === 0}
+            <span class="compare-note">{t('page.compareNoHistory')}</span>
+          {:else}
+            <label class="compare-pick">
+              {t('page.compareTarget')}
+              <select bind:value={compareCommit}>
+                {#each fileLog as entry (entry.hash)}
+                  <option value={entry.hash}>{shortHash(entry.hash)} {entry.subject}</option>
+                {/each}
+              </select>
+            </label>
+            <span class="compare-note" title={removedTitle}>{compareMessage}</span>
+          {/if}
+        {/if}
+        <button
+          type="button"
+          class="head-btn fullscreen"
           onclick={toggleGridFullscreen}
           aria-pressed={gridFullscreen}
           title={gridFullscreen ? t('page.gridRestoreTitle') : t('page.gridFullscreenTitle')}
@@ -976,6 +1095,7 @@
           {choices}
           {blame}
           {blameOn}
+          compare={comparison}
           sheetKey={workspace.activePath}
           onToggleBlame={() => (blameOn = !blameOn)}
         />
@@ -1218,6 +1338,39 @@
   .preview-head {
     justify-content: space-between;
     gap: var(--space-3);
+  }
+
+  /* 比べる版の選択はグリッドの見出しに並べる。全画面トグルだけを右端へ寄せ、
+     間に入る比較の表示は左詰めのまま伸ばす。 */
+  .grid-head .head-btn.fullscreen {
+    margin-left: auto;
+  }
+
+  .compare-pick {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    flex: none;
+  }
+
+  .compare-pick select {
+    max-width: 220px;
+    height: 24px;
+    font-size: var(--text-2xs-size);
+    color: var(--text-secondary);
+    background: var(--bg-subtle);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+  }
+
+  /* 突き合わせの結果。1 行に収まらない長さになりうるので、はみ出しは省略で切る。 */
+  .compare-note {
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    text-transform: none;
+    letter-spacing: normal;
   }
 
   .head-btn {
