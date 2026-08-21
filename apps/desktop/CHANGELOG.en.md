@@ -4,6 +4,13 @@ Changes to this app. Versions follow [Semantic Versioning](https://semver.org/).
 
 Japanese is the source of truth for this file; see [CHANGELOG.md](./CHANGELOG.md).
 
+## 0.21.0
+
+### Changed
+
+- **The top row is now purely for moving the window.** That row is the title bar the app draws itself, and the only place to grab is whatever space the buttons leave behind. Nine controls sat there — save, exports, view toggles — and every new export ate more of the grip. All of them have moved down a row, so **anywhere on the top row now drags the window**.
+- **The controls are stowed in a menu row.** The second row holds three words — File, Export, View — plus Help, with the former buttons inside them. The five export actions (PDF, HTML, image, site, open in browser) collapse into the single word "Export", so **the top row will not grow no matter how many features arrive**. Only the words themselves are clickable, so the empty space on the second row drags the window too. While a menu is open, the arrow keys move to the neighbouring menu and Esc closes it. The image size picker opens under Export, and export results appear on the right of the second row.
+
 ## 0.20.0
 
 ### Added
