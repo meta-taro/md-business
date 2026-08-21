@@ -24,6 +24,7 @@
     IdentifiedTsv,
     ReviewIssue,
   } from '@md-business/schema-test-spec-tsv';
+  import { findExportProfile } from '@md-business/schema-test-spec-tsv';
   import { openUrl } from '@tauri-apps/plugin-opener';
   import { isTsvSource } from '$lib/tsv/detect';
   import { loadGridDoc, saveGridDoc } from '$lib/tsv/gridDoc';
@@ -34,6 +35,7 @@
   import { compareWithVersion, type SheetComparison } from '$lib/tsv/sheetCompare';
   import { changedRowPositions, checkSheetReview } from '$lib/tsv/reviewCheck';
   import { countSheetReferences } from '$lib/tsv/sheetCounts';
+  import { exportProfileText, readSheetExportProfiles } from '$lib/tsv/sheetExport';
   import { shortHash, type GitLogEntry } from '$lib/git/gitStatus';
   import { invoke } from '@tauri-apps/api/core';
   import TsvGrid from '$lib/tsv/TsvGrid.svelte';
@@ -635,6 +637,41 @@
     return [t('page.compareRemovedTitle'), ...lines].join('\n');
   });
 
+  // 提出様式（`#@ export`）での持ち出し。宣言のあるシートにだけ出す。
+  // 提出物は先方の様式に合わせて列を並べ替え、空欄を記号で埋める。いまは提出のたびに
+  // 人が貼り付け用を組み直しているので、正本を直したあと作り直し忘れるとずれる。
+  const exportProfiles = $derived(tsvDoc === null ? [] : readSheetExportProfiles(tsvDoc));
+  let exportName = $state('');
+  let exportNotice = $state('');
+  let exportNoticeTimer: ReturnType<typeof setTimeout> | null = null;
+
+  // 開く文書が変われば様式ごと入れ替わる。前の文書で選んでいた名前を残さない。
+  $effect(() => {
+    const names = exportProfiles.map((profile) => profile.name);
+    if (!names.includes(exportName)) exportName = names[0] ?? '';
+  });
+
+  async function copyExport() {
+    const profile = findExportProfile(exportProfiles, exportName);
+    if (profile === null) return;
+    // 控え（`#@ hidden`）を表に出して確かめている最中でも、提出物には出さない。
+    // 表示の都合を持ち出しの都合に持ち込むと、控えたはずの行が相手に渡る。
+    const doc = loadGridDoc(debouncedSource).doc;
+    try {
+      await navigator.clipboard.writeText(exportProfileText(doc, profile));
+      showExportNotice(t('page.exportCopied'));
+    } catch {
+      showExportNotice(t('page.exportFailed'));
+    }
+  }
+
+  // コピーは画面が何も変わらないので、押せたことが分からない。少しの間だけ添える。
+  function showExportNotice(message: string) {
+    exportNotice = message;
+    if (exportNoticeTimer !== null) clearTimeout(exportNoticeTimer);
+    exportNoticeTimer = setTimeout(() => (exportNotice = ''), 2500);
+  }
+
   /** 参照先 1 ファイルを読む。読めないもの（未オープン・別形式）は null で返す。 */
   async function readSheetFile(relPath: string): Promise<string | null> {
     const root = workspace.root;
@@ -1127,6 +1164,25 @@
             </label>
             <span class="compare-note" title={removedTitle}>{compareMessage}</span>
           {/if}
+        {/if}
+        {#if exportProfiles.length > 0}
+          <label class="compare-pick">
+            {t('page.exportPick')}
+            <select bind:value={exportName}>
+              {#each exportProfiles as profile (profile.name)}
+                <option value={profile.name}>{profile.name}</option>
+              {/each}
+            </select>
+          </label>
+          <button
+            type="button"
+            class="head-btn"
+            onclick={copyExport}
+            title={t('page.exportCopyTitle')}
+          >
+            {t('page.exportCopyBtn')}
+          </button>
+          <span class="compare-note" aria-live="polite">{exportNotice}</span>
         {/if}
         <button
           type="button"

@@ -393,6 +393,11 @@ export interface Messages {
   'page.compareResult': string;
   'page.compareSame': string;
   'page.compareRemovedTitle': string;
+  'page.exportPick': string;
+  'page.exportCopyBtn': string;
+  'page.exportCopyTitle': string;
+  'page.exportCopied': string;
+  'page.exportFailed': string;
   'page.viewportPhoneTitle': string;
   'page.viewportPcTitle': string;
   'page.viewportPhoneBtn': string;
@@ -922,6 +927,11 @@ const en: Messages = {
   'page.compareResult': '{cells} changed · {rows} added · {removed} deleted',
   'page.compareSame': 'No change since that version',
   'page.compareRemovedTitle': 'Deleted rows',
+  'page.exportPick': 'Export as',
+  'page.exportCopyBtn': 'Copy',
+  'page.exportCopyTitle': 'Copy the sheet in the chosen format, ready to paste into a spreadsheet (hidden rows stay out)',
+  'page.exportCopied': 'Copied',
+  'page.exportFailed': 'Could not copy',
   'page.viewportPhoneTitle': 'View at phone width',
   'page.viewportPcTitle': 'Back to desktop width',
   'page.viewportPhoneBtn': 'Phone width',
@@ -1447,6 +1457,11 @@ const ja: Messages = {
   'page.compareResult': '変わったセル {cells} · 増えた行 {rows} · 消えた行 {removed}',
   'page.compareSame': '前の版から変わっていません',
   'page.compareRemovedTitle': '消えた行',
+  'page.exportPick': '提出様式',
+  'page.exportCopyBtn': 'コピー',
+  'page.exportCopyTitle': '選んだ様式で、表計算へ貼れる形にしてコピーする（控え行は出さない）',
+  'page.exportCopied': 'コピーしました',
+  'page.exportFailed': 'コピーできませんでした',
   'page.viewportPhoneTitle': 'スマートフォンの幅で見る',
   'page.viewportPcTitle': 'PC の幅に戻す',
   'page.viewportPhoneBtn': 'スマホ幅',
@@ -1966,6 +1981,11 @@ const zh: Messages = {
   'page.compareResult': '变动单元格 {cells} · 新增行 {rows} · 删除行 {removed}',
   'page.compareSame': '与该版本相比没有变化',
   'page.compareRemovedTitle': '删除的行',
+  'page.exportPick': '提交格式',
+  'page.exportCopyBtn': '复制',
+  'page.exportCopyTitle': '按所选格式复制为可粘贴到表格软件的形式（不含隐藏行）',
+  'page.exportCopied': '已复制',
+  'page.exportFailed': '无法复制',
   'page.viewportPhoneTitle': '以手机宽度查看',
   'page.viewportPcTitle': '恢复电脑宽度',
   'page.viewportPhoneBtn': '手机宽度',
@@ -2488,6 +2508,11 @@ const ko: Messages = {
   'page.compareResult': '변경된 셀 {cells} · 추가된 행 {rows} · 삭제된 행 {removed}',
   'page.compareSame': '그 버전에서 바뀐 것이 없습니다',
   'page.compareRemovedTitle': '삭제된 행',
+  'page.exportPick': '제출 양식',
+  'page.exportCopyBtn': '복사',
+  'page.exportCopyTitle': '선택한 양식으로 스프레드시트에 붙여 넣을 수 있는 형태로 복사 (숨긴 행은 제외)',
+  'page.exportCopied': '복사했습니다',
+  'page.exportFailed': '복사하지 못했습니다',
   'page.viewportPhoneTitle': '스마트폰 폭으로 보기',
   'page.viewportPcTitle': 'PC 폭으로 되돌리기',
   'page.viewportPhoneBtn': '모바일 폭',
