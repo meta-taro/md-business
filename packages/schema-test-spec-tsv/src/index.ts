@@ -29,6 +29,7 @@ export { diffSheets } from './diff.js';
 export { collectEnumChoices, parseEnumSource } from './enumSource.js';
 export { findRowsByCell, parseCellLink } from './link.js';
 export { checkColumnLink, readColumnLinks, splitLinkedValues } from './columnLink.js';
+export { checkReview, readReviewColumns } from './review.js';
 export type { ColumnType, ColumnUiHint, ParsedHeader } from './types.js';
 export type { IdentifiedTsv } from './rowId.js';
 export type { HiddenRow } from './hiddenRows.js';
@@ -36,6 +37,13 @@ export type { ComputedColumn, ComputedCounts, ComputedFormula } from './computed
 export type { RemovedRow, SheetDiff, SheetDiffReason } from './diff.js';
 export type { CellLink, RowLookup } from './link.js';
 export type { ColumnLink, LinkIssue, LinkIssueCode } from './columnLink.js';
+export type {
+  ReviewColumns,
+  ReviewIssue,
+  ReviewIssueCode,
+  ReviewTarget,
+  ReviewTargetLookup,
+} from './review.js';
 export type { EnumChoices, EnumSource } from './enumSource.js';
 export type { LineKind } from './classify.js';
 export type { TsvDocument } from './parse.js';

@@ -22,6 +22,7 @@
     ComputedCounts,
     EnumChoices,
     IdentifiedTsv,
+    ReviewIssue,
   } from '@md-business/schema-test-spec-tsv';
   import { openUrl } from '@tauri-apps/plugin-opener';
   import { isTsvSource } from '$lib/tsv/detect';
@@ -31,6 +32,7 @@
   import { readSheetEnums } from '$lib/tsv/sheetEnums';
   import { parseRowBlame, type RowBlame } from '$lib/tsv/rowBlame';
   import { compareWithVersion, type SheetComparison } from '$lib/tsv/sheetCompare';
+  import { changedRowPositions, checkSheetReview } from '$lib/tsv/reviewCheck';
   import { countSheetReferences } from '$lib/tsv/sheetCounts';
   import { shortHash, type GitLogEntry } from '$lib/git/gitStatus';
   import { invoke } from '@tauri-apps/api/core';
@@ -656,6 +658,67 @@
     sheetCache.clear();
   });
 
+  /**
+   * 基準版の 1 ファイルを読むときの鍵の区切り。
+   *
+   * 版が決まれば中身は変わらないので控えられるが、版は選び直せるので鍵に版を含める。
+   * 表に出ない制御文字なので、コミットにもパスにも入り得ない。
+   */
+  const BASELINE_KEY = '\u001f';
+
+  const baselineCache = createSheetCache(async (key) => {
+    const root = workspace.root;
+    const at = key.indexOf(BASELINE_KEY);
+    if (root === null || at < 0) return null;
+    try {
+      return await invoke<string | null>('git_show', {
+        root,
+        relPath: key.slice(at + 1),
+        commit: key.slice(0, at),
+      });
+    } catch {
+      // その版に無い（後から足したファイル）のと同じ扱いにする。比べる相手が無いのは同じ。
+      return null;
+    }
+  });
+
+  // 指摘の往復（`#@ review`）の裏取り。指し先のいまの中身と基準版を読むので同期では出せない。
+  // 比べる版を選んでいない間は裏取りをしない＝反映済みかどうかを言わない。
+  // 確かめずに通したのか確かめたうえで通ったのかが見分けられなくなるが、それでも
+  // 確かめていないものを赤くするよりましで、赤が普通になると本物の指摘が埋もれる。
+  let reviewIssues = $state<ReviewIssue[]>([]);
+  let reviewSeq = 0;
+
+  $effect(() => {
+    const grid = tsvGrid;
+    const path = workspace.activePath;
+    const commit = compareOn && previousLoaded ? compareCommit : '';
+    const compared = comparison;
+    const seq = (reviewSeq += 1);
+
+    if (grid === null) {
+      reviewIssues = [];
+      return;
+    }
+
+    void checkSheetReview({
+      // 同じシートの中を指した行は、開いている側で既に突き合わせてある結果を使う。
+      self: { doc: grid.doc, changedRows: changedRowPositions(compared, grid.doc.rowIds) },
+      activePath: path,
+      read: readSheet,
+      readBaseline:
+        commit === '' ? null : (relPath) => baselineCache.read(commit + BASELINE_KEY + relPath),
+    }).then((issues) => {
+      if (seq === reviewSeq) reviewIssues = issues;
+    });
+  });
+
+  // 開くフォルダが変われば履歴ごと入れ替わる。控えを持ち越さない。
+  $effect(() => {
+    workspace.root;
+    baselineCache.clear();
+  });
+
   // 参考データ（.json / .xml）は正本ではなく、隣に置いてある資料として読むだけ。
   // 判定は開いているファイルの拡張子だけで行う（中身を覗いて形式を当てにいかない）。
   // 編集させない＝本文が変わらない＝自動保存も動かない、という順で「表示のみ」を担保する。
@@ -1091,6 +1154,7 @@
           onFollowLink={handleFollowLink}
           jump={gridJump}
           {linkIssues}
+          {reviewIssues}
           {counts}
           {choices}
           {blame}

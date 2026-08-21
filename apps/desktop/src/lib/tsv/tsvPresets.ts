@@ -34,6 +34,15 @@ const RESULT_CHOICES = ['OK', 'NG', '保留', '未実施'] as const;
 /** 実施状況で行に敷く色。残件が色の帯で見えるようにする。 */
 const RESULT_STYLE = `style 結果 OK=#e7f6ec NG=#fcebec 保留=#fdf3e2`;
 
+/** 指摘の往復で使う状態語。`反映済み` だけが現物の変更を要求する（`review.ts` 参照）。 */
+const REVIEW_CHOICES = ['未着手', '提案済み', '反映済み', 'クローズ'] as const;
+
+/**
+ * 指摘の状態で行に敷く色。`未着手` に色を当てない（起こしただけの行が大半を占めるので、
+ * 塗ると表全体が色で埋まって、動いている行が沈む）。
+ */
+const REVIEW_STYLE = `style 状態 反映済み=#e7f6ec 提案済み=#fdf3e2 クローズ=#eef0f2`;
+
 /** 選べる雛形 1 件。 */
 export interface TsvPreset {
   /** 保存・受け渡しに使う識別子。表示名を変えても壊れないよう英字で持つ。 */
@@ -99,6 +108,26 @@ export const TSV_PRESETS: readonly TsvPreset[] = [
       multilineColumn('観点'),
       multilineColumn('確認方法'),
       ...trailingColumns(),
+    ],
+  },
+  {
+    id: 'review',
+    labelKey: 'newSheet.presetReview',
+    descriptionKey: 'newSheet.presetReviewDesc',
+    // 状態と対象を宣言しておく。宣言が無いと、状態列はただの文字列になり、
+    // 「反映済み」と書いただけで直ったことになってしまう。
+    directives: [`rowid ${ROW_ID_COLUMN}`, 'review state=状態 target=対象', REVIEW_STYLE],
+    columns: [
+      { name: 'No.', type: 'number', required: false },
+      multilineColumn('指摘'),
+      // 指し先（例 `001-login.tsv#No.=12`）。ここが行まで指していないと裏取りができない。
+      textColumn('対象'),
+      multilineColumn('対応方針'),
+      { name: '状態', type: 'enum', required: false, enumValues: [...REVIEW_CHOICES] },
+      multilineColumn('備考'),
+      // 起票者・起票日の列は置かない。誰がいつ書いたかは履歴に残っているので、
+      // 手で書かせると履歴と食い違う欄が 2 つ増えるだけになる。
+      textColumn(ROW_ID_COLUMN),
     ],
   },
 ];

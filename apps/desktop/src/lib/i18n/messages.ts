@@ -233,6 +233,8 @@ export interface Messages {
   'newSheet.presetTestCaseDesc': string;
   'newSheet.presetViewpoint': string;
   'newSheet.presetViewpointDesc': string;
+  'newSheet.presetReview': string;
+  'newSheet.presetReviewDesc': string;
   'newSheet.fileName': string;
   'newSheet.fileNamePlaceholder': string;
   'newSheet.fileNameHint': string;
@@ -756,6 +758,8 @@ const en: Messages = {
   'newSheet.presetTestCaseDesc': 'Steps and expected results, one case per row.',
   'newSheet.presetViewpoint': 'Viewpoints',
   'newSheet.presetViewpointDesc': 'Points to check, grouped by category, to find what is missing.',
+  'newSheet.presetReview': 'Review comments',
+  'newSheet.presetReviewDesc': 'Comments, what each one points at, and how far it got.',
   'newSheet.fileName': 'File name',
   'newSheet.fileNamePlaceholder': '001-login',
   'newSheet.fileNameHint': 'Adds .tsv if you leave it out',
@@ -1280,6 +1284,8 @@ const ja: Messages = {
   'newSheet.presetTestCaseDesc': '手順と期待結果を 1 件ずつ並べて、上から実施していく形。',
   'newSheet.presetViewpoint': '観点表',
   'newSheet.presetViewpointDesc': '確かめたい観点を分類ごとに挙げて、抜けを見つける形。',
+  'newSheet.presetReview': '指摘一覧',
+  'newSheet.presetReviewDesc': '受けた指摘と、その指し先、どこまで進んだかを並べる形。',
   'newSheet.fileName': 'ファイル名',
   'newSheet.fileNamePlaceholder': '001-login',
   'newSheet.fileNameHint': '省略すると .tsv を付けます',
@@ -1800,6 +1806,8 @@ const zh: Messages = {
   'newSheet.presetTestCaseDesc': '每行一条，列出步骤与预期结果，自上而下执行。',
   'newSheet.presetViewpoint': '检查观点表',
   'newSheet.presetViewpointDesc': '按分类列出要确认的观点，用于发现遗漏。',
+  'newSheet.presetReview': '意见一览',
+  'newSheet.presetReviewDesc': '列出收到的意见、各自指向的位置，以及进展到哪一步。',
   'newSheet.fileName': '文件名',
   'newSheet.fileNamePlaceholder': '001-login',
   'newSheet.fileNameHint': '省略时会自动加上 .tsv',
@@ -2317,6 +2325,8 @@ const ko: Messages = {
   'newSheet.presetTestCaseDesc': '절차와 기대 결과를 한 건씩 나열해 위에서부터 진행하는 형식.',
   'newSheet.presetViewpoint': '관점표',
   'newSheet.presetViewpointDesc': '확인할 관점을 분류별로 적어 빠진 부분을 찾는 형식.',
+  'newSheet.presetReview': '지적 목록',
+  'newSheet.presetReviewDesc': '받은 지적과 그 대상, 어디까지 진행됐는지를 늘어놓는 형식.',
   'newSheet.fileName': '파일 이름',
   'newSheet.fileNamePlaceholder': '001-login',
   'newSheet.fileNameHint': '생략하면 .tsv를 붙입니다',

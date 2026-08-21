@@ -59,6 +59,12 @@ export function cellKey(rowId: string, column: string): string {
   return rowId + SEPARATOR + column;
 }
 
+/** 鍵から行 ID を取り出す。列名側に区切りは入らないので、最初の区切りで切れば足りる。 */
+export function rowIdOfCellKey(key: string): string {
+  const at = key.indexOf(SEPARATOR);
+  return at < 0 ? key : key.slice(0, at);
+}
+
 function nothing(issue: CompareIssue): SheetComparison {
   return {
     issue,
