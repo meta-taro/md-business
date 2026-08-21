@@ -23,6 +23,7 @@
  * ここは表を組むところまでで、貼り付け・ファイル書き出し・印刷は扱わない。出力先ごとに
  * 事情（引用符・文字コード・改ページ）が違い、混ぜると様式の定義がそれに引きずられる。
  */
+import { splitDirectiveOptions } from './directiveOptions.js';
 import { escapeCell } from './escape.js';
 import type { TsvDocument } from './parse.js';
 import { rowIdColumnName } from './rowId.js';
@@ -32,15 +33,6 @@ const EXPORT_DIRECTIVE = 'export';
 
 /** 受け付けるオプション。ここに無いキーが来たら宣言ごと捨てる。 */
 const KNOWN_OPTIONS = new Set(['columns', 'blank', 'newline']);
-
-/**
- * オプションの頭。
- *
- * 空白区切りで切らないのは、`columns=` の値に列名が並ぶため。列名には空白を含められる
- * （`対応 状態`）ので、**次のオプションの頭が来るまでを値とする**（`#@ review` で
- * `state=` / `target=` の位置で切ったのと同じ理由）。
- */
-const OPTION_HEAD = /(^|\s)([a-z]+)=/g;
 
 /** 列名の区切り。 */
 const COLUMN_SEPARATOR = ',';
@@ -119,12 +111,10 @@ function parseProfile(
   columnNames: readonly string[],
   idColumn: string | null,
 ): ExportProfile | null {
-  const head = body.search(/\s/);
-  const name = (head < 0 ? body : body.slice(0, head)).trim();
-  if (name === '') return null;
+  const { head: name, options } = splitDirectiveOptions(body);
+  // 名前は 1 語。後ろに素の字が続いていれば、書いたつもりの指定が効いていない。
+  if (name === '' || name.search(/\s/) >= 0) return null;
 
-  const options = takeOptions(head < 0 ? '' : body.slice(head));
-  if (options === null) return null;
   for (const key of options.keys()) {
     if (!KNOWN_OPTIONS.has(key)) return null;
   }
@@ -136,37 +126,6 @@ function parseProfile(
   if (columns === null) return null;
 
   return { name, columns, blank: options.get('blank') ?? '', newline: newline as ExportNewline };
-}
-
-/**
- * `key=値` の並びを読む。
- *
- * 値は次のオプションの頭までなので空白を含められる。オプションの形をしていない字が
- * 混ざっていたら null（＝宣言ごと捨てる。読み飛ばすと、書いたつもりの指定が効いていない
- * 様式ができる）。
- */
-function takeOptions(tail: string): Map<string, string> | null {
-  const body = tail.trim();
-  if (body === '') return new Map();
-
-  const heads: { key: string; at: number; valueAt: number }[] = [];
-  OPTION_HEAD.lastIndex = 0;
-  let match: RegExpExecArray | null;
-  while ((match = OPTION_HEAD.exec(body)) !== null) {
-    const key = match[2] as string;
-    const at = match.index + (match[1] as string).length;
-    heads.push({ key, at, valueAt: at + key.length + 1 });
-  }
-
-  // 先頭がオプションで始まっていなければ、名前の後ろに素の字が混ざっている。
-  if (heads.length === 0 || heads[0]?.at !== 0) return null;
-
-  const options = new Map<string, string>();
-  heads.forEach((option, index) => {
-    const end = heads[index + 1]?.at ?? body.length;
-    options.set(option.key, body.slice(option.valueAt, end).trim());
-  });
-  return options;
 }
 
 /** `columns=` を列の位置へ解く。指定が無ければ既定（行 ID 列以外の全列）。 */
