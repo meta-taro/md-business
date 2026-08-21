@@ -109,6 +109,31 @@
     }
   }
 
+  // 既にあるリポジトリを、開いている空のフォルダへ複製する。
+  // 資格情報は入力させない（アプリは預からない）。OS に預けてある分で通らなければ失敗にする。
+  let cloneUrl = $state('');
+  const canClone = $derived(!busy && !git.isRepo && cloneUrl.trim().length > 0 && root !== null);
+
+  async function doClone(): Promise<void> {
+    if (!canClone || root === null) return;
+    busy = true;
+    error = null;
+    notice = null;
+    try {
+      await git.clone(root, cloneUrl);
+      cloneUrl = '';
+      await git.loadBranches(root);
+      await git.loadLog(root);
+      // 複製で現れたファイルはツリーにまだ無い。開き直さずに走査だけやり直す。
+      await workspace.rescanPreservingActive();
+      notice = t('scm.cloned');
+    } catch (e) {
+      error = toErr(e);
+    } finally {
+      busy = false;
+    }
+  }
+
   async function doPush(): Promise<void> {
     if (!canPush || root === null) return;
     busy = true;
@@ -175,6 +200,17 @@
           <span class="muted">{t('status.noRepo')}</span>
           <button class="chip" type="button" onclick={doInit} disabled={!canInit} title={t('scm.initTitle')}>
             {t('scm.init')}
+          </button>
+          <input
+            class="clone-url"
+            type="text"
+            bind:value={cloneUrl}
+            placeholder={t('scm.cloneUrlPlaceholder')}
+            aria-label={t('scm.cloneUrlPlaceholder')}
+            disabled={busy}
+          />
+          <button class="chip" type="button" onclick={doClone} disabled={!canClone} title={t('scm.cloneTitle')}>
+            {t('scm.clone')}
           </button>
         {/if}
       </div>
@@ -378,6 +414,22 @@
   .chip:disabled {
     opacity: 0.5;
     cursor: default;
+  }
+
+  /* 複製元の入力。Git 管理下でないフォルダのときだけ出る。 */
+  .clone-url {
+    width: 240px;
+    height: 24px;
+    padding: 0 var(--space-2);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-sm);
+    background: var(--bg-input, var(--bg-elevated));
+    color: var(--text-primary);
+    font-size: var(--text-xs-size);
+  }
+
+  .clone-url:disabled {
+    opacity: 0.5;
   }
 
   .count {

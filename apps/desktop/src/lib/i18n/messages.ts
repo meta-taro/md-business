@@ -144,6 +144,10 @@ export interface Messages {
   'scm.init': string;
   'scm.initTitle': string;
   'scm.initialized': string;
+  'scm.clone': string;
+  'scm.cloneTitle': string;
+  'scm.cloneUrlPlaceholder': string;
+  'scm.cloned': string;
   'diff.label': string;
   'diff.backToPreviewTitle': string;
   'diff.backToPreview': string;
@@ -687,6 +691,11 @@ const en: Messages = {
   'scm.init': 'Start tracking with Git',
   'scm.initTitle': 'Create a local repository in this folder. No remote is set up.',
   'scm.initialized': 'This folder is now tracked with Git',
+  'scm.clone': 'Clone',
+  'scm.cloneTitle':
+    'Copy an existing repository into this empty folder. Sign-in is handled by the credentials your OS already keeps.',
+  'scm.cloneUrlPlaceholder': 'Source (https:// or git@host:path)',
+  'scm.cloned': 'Copied the repository into this folder',
   'diff.label': 'Diff view',
   'diff.backToPreviewTitle': 'Close the diff and go back to the preview',
   'diff.backToPreview': 'Back to preview',
@@ -1227,6 +1236,11 @@ const ja: Messages = {
   'scm.init': 'Git で管理する',
   'scm.initTitle': 'このフォルダに履歴を作ります。送り先の設定はしません',
   'scm.initialized': 'このフォルダを Git で管理するようにしました',
+  'scm.clone': '複製する',
+  'scm.cloneTitle':
+    '空のフォルダへ、既にあるリポジトリを複製します。認証は OS に預けてある資格情報が答えます',
+  'scm.cloneUrlPlaceholder': '複製元（https:// / git@ホスト:パス）',
+  'scm.cloned': 'このフォルダへリポジトリを複製しました',
   'diff.label': '差分ビュー',
   'diff.backToPreviewTitle': '差分を閉じてプレビューに戻る',
   'diff.backToPreview': 'プレビューに戻る',
@@ -1763,6 +1777,10 @@ const zh: Messages = {
   'scm.init': '用 Git 管理',
   'scm.initTitle': '在此文件夹中创建本地仓库。不会设置远程地址',
   'scm.initialized': '已将此文件夹纳入 Git 管理',
+  'scm.clone': '克隆',
+  'scm.cloneTitle': '将已有仓库克隆到这个空文件夹。认证由操作系统保存的凭据完成',
+  'scm.cloneUrlPlaceholder': '来源（https:// 或 git@主机:路径）',
+  'scm.cloned': '已将仓库克隆到此文件夹',
   'diff.label': '差异视图',
   'diff.backToPreviewTitle': '关闭差异并返回预览',
   'diff.backToPreview': '返回预览',
@@ -2296,6 +2314,10 @@ const ko: Messages = {
   'scm.init': 'Git으로 관리',
   'scm.initTitle': '이 폴더에 로컬 저장소를 만듭니다. 원격은 설정하지 않습니다',
   'scm.initialized': '이 폴더를 Git으로 관리하게 되었습니다',
+  'scm.clone': '복제',
+  'scm.cloneTitle': '비어 있는 이 폴더로 기존 저장소를 복제합니다. 인증은 OS에 맡긴 자격 증명이 처리합니다',
+  'scm.cloneUrlPlaceholder': '복제할 곳 (https:// 또는 git@호스트:경로)',
+  'scm.cloned': '이 폴더로 저장소를 복제했습니다',
   'diff.label': '차이 보기',
   'diff.backToPreviewTitle': '차이를 닫고 미리보기로 돌아가기',
   'diff.backToPreview': '미리보기로 돌아가기',

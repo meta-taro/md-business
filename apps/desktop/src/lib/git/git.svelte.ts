@@ -120,6 +120,17 @@ class GitStore {
   }
 
   /**
+   * 空のフォルダへ、既にあるリポジトリを複製する（`git clone`）。成功で最新ステータスを反映。
+   *
+   * 資格情報はここでも Rust 側でも預からない。OS に預けてある資格情報が答えられなければ
+   * 待たずに失敗する（尋ねる窓は出ない）。受け付けない複製元・空でないフォルダ・認証失敗は
+   * Rust の Err が例外として飛ぶので、呼び出し側で捕捉して提示する。
+   */
+  async clone(root: string, url: string): Promise<void> {
+    this.status = await invoke<GitStatus>('git_clone', { root, url });
+  }
+
+  /**
    * ブランチを切り替え、返却された最新ステータスを反映する。
    * 失敗（未コミット変更との衝突・不明ブランチ）は Rust の Err が例外として飛ぶので、
    * 呼び出し側（workspace / StatusBar）で捕捉してユーザーへ表示する。
