@@ -21,8 +21,10 @@
     findRowsByCell,
     lockedColumns,
     readComputedColumns,
+    readMarks,
     validateTsv,
   } from '@md-business/schema-test-spec-tsv';
+  import { isMarked, toggleMarks } from './gridMarks';
   import {
     gridWidgets,
     setCell,
@@ -261,6 +263,21 @@
     return compare.changed.has(cellKey(id, name));
   }
 
+  // 手で付けた印（#@ mark）。前の版との突き合わせに落ちない例外だけを指す逃げ道で、
+  // 比べていない間も出す（比べようがないから手で付けている、という場面がある）。
+  const marks = $derived(readMarks(doc.directives));
+
+  /** 手で印を付けたセルか。 */
+  function isMarkedCell(row: number, col: number): boolean {
+    return isMarked(marks, doc.rowIds[row], doc.columns[col]?.name);
+  }
+
+  /** 選択範囲の印を付け外しする（範囲すべてに付いていれば外す）。 */
+  function toggleSelectionMarks(): void {
+    if (!editable) return;
+    emit(toggleMarks(doc, rangeBounds(selection)), 'mark');
+  }
+
   /** 前の版に無かった行か。 */
   function isAddedRow(row: number): boolean {
     const id = doc.rowIds[row];
@@ -275,6 +292,7 @@
 
   /** そのセルが印されている理由。印が無ければ undefined。 */
   function diffTitle(row: number, col: number): string | undefined {
+    if (isMarkedCell(row, col)) return t('grid.diffMarked');
     if (compare === null) return undefined;
     if (isAddedRow(row)) return t('grid.diffAddedRow');
     if (isAddedColumn(col)) return t('grid.diffAddedColumn');
@@ -1387,6 +1405,13 @@
         fillSelectionDown();
         return;
       }
+      // Ctrl+M は選択範囲の印（#@ mark）の付け外し。付けるより外せることのほうが大事なので、
+      // 同じキーで往復できる形にする（別々のキーにすると外し方だけ忘れられる）。
+      if ((event.ctrlKey || event.metaKey) && (event.key === 'm' || event.key === 'M')) {
+        event.preventDefault();
+        toggleSelectionMarks();
+        return;
+      }
     }
     const action = planGridKey(
       {
@@ -1900,7 +1925,7 @@
                 class:mq-l={copiedEdges(r, c).left}
                 class:editing={active && mode === 'edit'}
                 class:computed={isLocked(c)}
-                class:diff-changed={isChangedCell(r, c)}
+                class:diff-changed={isChangedCell(r, c) || isMarkedCell(r, c)}
                 title={issue ?? (isLocked(c) ? t('grid.computedCell') : diffTitle(r, c))}
                 data-cell={`${r}-${c}`}
                 onkeydown={(e) => onGridKeydown(r, c, e)}

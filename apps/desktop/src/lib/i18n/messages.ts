@@ -361,6 +361,7 @@ export interface Messages {
   'help.scGridPaste': string;
   'help.scGridUndo': string;
   'help.scGridExitFullscreen': string;
+  'help.scGridMark': string;
   'help.license': string;
   'help.repository': string;
   'help.openInBrowser': string;
@@ -545,6 +546,7 @@ export interface Messages {
   'grid.blameTitle': string;
   'grid.blameUncommitted': string;
   'grid.diffChanged': string;
+  'grid.diffMarked': string;
   'grid.diffAddedRow': string;
   'grid.diffAddedColumn': string;
   'grid.colModeClip': string;
@@ -904,6 +906,7 @@ const en: Messages = {
   'help.scGridPaste': 'Paste',
   'help.scGridUndo': 'Undo / redo',
   'help.scGridExitFullscreen': 'Leave full screen',
+  'help.scGridMark': 'Mark / unmark the selection',
   'help.license': 'License',
   'help.repository': 'Repository',
   'help.openInBrowser': 'Open in browser',
@@ -1086,6 +1089,7 @@ const en: Messages = {
   'grid.blameTitle': 'Show who last changed each row (from git)',
   'grid.blameUncommitted': 'Not committed yet',
   'grid.diffChanged': 'Changed since that version',
+  'grid.diffMarked': 'Marked by hand',
   'grid.diffAddedRow': 'Row added since that version',
   'grid.diffAddedColumn': 'Column added since that version',
   'grid.colModeClip': 'Cut off (ellipsis)',
@@ -1441,6 +1445,7 @@ const ja: Messages = {
   'help.scGridPaste': '貼り付け',
   'help.scGridUndo': '元に戻す / やり直す',
   'help.scGridExitFullscreen': '全画面を抜ける',
+  'help.scGridMark': '選択範囲の印を付け外し',
   'help.license': 'ライセンス',
   'help.repository': 'リポジトリ',
   'help.openInBrowser': 'ブラウザで開く',
@@ -1620,6 +1625,7 @@ const ja: Messages = {
   'grid.blameTitle': '各行を最後に変えた人とコミットを出す（git より）',
   'grid.blameUncommitted': '未コミット',
   'grid.diffChanged': '前の版から変わりました',
+  'grid.diffMarked': '手で印を付けました',
   'grid.diffAddedRow': '前の版にはなかった行',
   'grid.diffAddedColumn': '前の版にはなかった列',
   'grid.colModeClip': '見切れる（省略）',
@@ -1972,6 +1978,7 @@ const zh: Messages = {
   'help.scGridPaste': '粘贴',
   'help.scGridUndo': '撤销 / 重做',
   'help.scGridExitFullscreen': '退出全屏',
+  'help.scGridMark': '为所选区域添加/取消标记',
   'help.license': '许可证',
   'help.repository': '仓库',
   'help.openInBrowser': '在浏览器中打开',
@@ -2151,6 +2158,7 @@ const zh: Messages = {
   'grid.blameTitle': '显示各行最后由谁修改（来自 git）',
   'grid.blameUncommitted': '尚未提交',
   'grid.diffChanged': '与该版本相比已变动',
+  'grid.diffMarked': '手动标记',
   'grid.diffAddedRow': '该版本中没有的行',
   'grid.diffAddedColumn': '该版本中没有的列',
   'grid.colModeClip': '截断（省略号）',
@@ -2506,6 +2514,7 @@ const ko: Messages = {
   'help.scGridPaste': '붙여넣기',
   'help.scGridUndo': '실행 취소 / 다시 실행',
   'help.scGridExitFullscreen': '전체 화면 나가기',
+  'help.scGridMark': '선택 범위 표시 켜기/끄기',
   'help.license': '라이선스',
   'help.repository': '저장소',
   'help.openInBrowser': '브라우저에서 열기',
@@ -2686,6 +2695,7 @@ const ko: Messages = {
   'grid.blameTitle': '각 행을 마지막으로 변경한 사람을 표시(git 기준)',
   'grid.blameUncommitted': '아직 커밋 안 됨',
   'grid.diffChanged': '그 버전에서 변경되었습니다',
+  'grid.diffMarked': '직접 표시했습니다',
   'grid.diffAddedRow': '그 버전에 없던 행',
   'grid.diffAddedColumn': '그 버전에 없던 열',
   'grid.colModeClip': '잘림(생략)',
