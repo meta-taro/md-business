@@ -561,6 +561,31 @@ pub async fn git_branches(root: String) -> Vec<String> {
         .unwrap_or_default()
 }
 
+/// 設定済みリモート名の一覧（`git remote`）。失敗・非リポジトリは空。
+/// 出力は 1 行 1 名なので、ブランチ一覧と同じ整形で足りる。
+pub fn git_remotes_impl(root: &Path) -> Vec<String> {
+    match run_git(root, &["remote"]) {
+        Some(s) => parse_branches(&s),
+        None => Vec::new(),
+    }
+}
+
+/// ブランチを作って切り替える（`switch -c`）。既にある名前なら git が失敗し、その理由を返す。
+/// 名前は git を呼ぶ前に検証する（先頭 '-' はオプション注入になる）。
+pub fn git_switch_create_impl(root: &Path, branch: &str) -> Result<GitStatus, String> {
+    if !is_safe_branch_name(branch) {
+        return Err(format!("不正なブランチ名です: {branch:?}"));
+    }
+    run_git_result(root, &["switch", "-c", branch])?;
+    Ok(git_status_impl(root))
+}
+
+/// フロントから `invoke("git_switch_create", { root, branch })` で呼ぶラッパ。
+#[tauri::command]
+pub async fn git_switch_create(root: String, branch: String) -> Result<GitStatus, String> {
+    spawn_git(move || git_switch_create_impl(Path::new(&root), &branch)).await
+}
+
 /// ブランチを切り替え、成功時は最新の GitStatus を返す。失敗時は git の stderr を Err で返す。
 /// `-f` は使わない = 未コミット変更で衝突するなら失敗させ、作業ツリーを破壊しない（§6 の安全側）。
 pub fn git_switch_impl(root: &Path, branch: &str) -> Result<GitStatus, String> {
@@ -660,8 +685,53 @@ pub async fn git_commit(
 /// 認証は OS の git 資格情報ヘルパ／SSH に委ねる（アプリは資格情報を一切扱わない・§15）。
 /// upstream 未設定・認証失敗・非 ff 拒否は git の stderr をそのまま Err で返し、UI が提示する。
 pub fn git_push_impl(root: &Path) -> Result<GitStatus, String> {
-    run_git_result(root, &["push"])?;
+    let has_upstream = run_git(root, &["rev-parse", "--abbrev-ref", "@{u}"]).is_some();
+    let branch = git_status_impl(root).branch;
+    let plan = push_plan(has_upstream, branch.as_deref(), &git_remotes_impl(root))?;
+    let args: Vec<&str> = plan.iter().map(String::as_str).collect();
+    run_git_result(root, &args)?;
     Ok(git_status_impl(root))
+}
+
+/// push に渡す引数を決める（Tauri 非依存の純関数）。
+///
+/// upstream があるならそれに従う（`git push`）。無いときだけ送り先を決める必要があり、
+/// ここでアプリが勝手に決めてよいのは「迷いようがない場合」だけ:
+/// `origin` があれば `origin`、無くてもリモートが 1 つならそれ。
+/// 複数あって `origin` が無ければ断る（取り違えると、意図しない置き先へ中身が出る）。
+/// detached HEAD は、どのブランチとして出すかが定まらないので断る。
+/// ブランチ名は引数へ入れず `HEAD` で渡す（名前の中身を git の引数に混ぜない）。
+pub fn push_plan(
+    has_upstream: bool,
+    branch: Option<&str>,
+    remotes: &[String],
+) -> Result<Vec<String>, String> {
+    if has_upstream {
+        return Ok(vec!["push".to_string()]);
+    }
+    if branch.is_none() {
+        return Err(
+            "いまブランチの上にいません。ブランチへ切り替えてから送ってください".to_string(),
+        );
+    }
+    let remote = if remotes.iter().any(|r| r == "origin") {
+        "origin"
+    } else if remotes.len() == 1 {
+        remotes[0].as_str()
+    } else if remotes.is_empty() {
+        return Err("送り先（リモート）が設定されていません".to_string());
+    } else {
+        return Err(format!(
+            "送り先が複数あります（{}）。どれへ出すかを git remote で決めてください",
+            remotes.join(" / ")
+        ));
+    };
+    Ok(vec![
+        "push".to_string(),
+        "-u".to_string(),
+        remote.to_string(),
+        "HEAD".to_string(),
+    ])
 }
 
 /// フロントから `invoke("git_push", { root })` で呼ぶラッパ。
@@ -2016,5 +2086,95 @@ mod tests {
             "a1b2c3d:./docs/a.tsv",
             "Windows の区切りのままでは git が別名として扱う"
         );
+    }
+
+    #[test]
+    fn upstream_があるなら_送り先を決めない() {
+        let plan = push_plan(true, Some("main"), &[]).expect("upstream 任せ");
+        assert_eq!(plan.join(" "), "push");
+    }
+
+    #[test]
+    fn upstream_が無いときの送り先() {
+        let origin = vec!["origin".to_string()];
+        let one = vec!["backup".to_string()];
+        let many = vec!["backup".to_string(), "origin".to_string()];
+        assert_eq!(
+            push_plan(false, Some("feat"), &origin).expect("origin").join(" "),
+            "push -u origin HEAD"
+        );
+        assert_eq!(
+            push_plan(false, Some("feat"), &one).expect("1 つ").join(" "),
+            "push -u backup HEAD",
+            "1 つしか無いならそれを使う"
+        );
+        assert_eq!(
+            push_plan(false, Some("feat"), &many).expect("origin 優先").join(" "),
+            "push -u origin HEAD",
+            "複数でも origin があれば origin"
+        );
+    }
+
+    #[test]
+    fn 送り先を決められないときは断る() {
+        assert!(push_plan(false, Some("feat"), &[]).is_err(), "リモートが無い");
+        let many = vec!["backup".to_string(), "mirror".to_string()];
+        assert!(
+            push_plan(false, Some("feat"), &many).is_err(),
+            "複数あって origin が無ければ、どれへ出すかをアプリが決めない"
+        );
+        assert!(
+            push_plan(false, None, &["origin".to_string()]).is_err(),
+            "detached では、どのブランチへ出すかが定まらない"
+        );
+    }
+
+    #[test]
+    fn ブランチを作って切り替えられる() {
+        let dir = temp_repo("gitbr");
+        std::fs::write(dir.join("a.md"), "a
+").expect("書き込み");
+        git_commit_impl(&dir, "初回", &[]).expect("コミット");
+
+        let status = git_switch_create_impl(&dir, "feature/x").expect("作成");
+        assert_eq!(status.branch.as_deref(), Some("feature/x"));
+        assert!(
+            git_branches_impl(&dir).iter().any(|b| b == "feature/x"),
+            "一覧にも出る"
+        );
+        assert!(
+            git_switch_create_impl(&dir, "feature/x").is_err(),
+            "既にある名前では作れない"
+        );
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn 不正なブランチ名は_git実行前にエラー() {
+        let dir = temp_repo("gitbrbad");
+        assert!(git_switch_create_impl(&dir, "-f").is_err(), "先頭 '-'");
+        assert!(git_switch_create_impl(&dir, "a b").is_err(), "空白");
+        assert!(git_switch_create_impl(&dir, "").is_err(), "空");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn リモートの一覧を読む() {
+        let dir = temp_repo("gitrem");
+        assert!(git_remotes_impl(&dir).is_empty(), "足す前は空");
+        run_git_result(&dir, &["remote", "add", "origin", "."]).expect("remote add");
+        assert_eq!(git_remotes_impl(&dir), vec!["origin".to_string()]);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn 送り先が無いリポジトリでは_pushしない() {
+        let dir = temp_repo("gitpushnone");
+        std::fs::write(dir.join("a.md"), "a
+").expect("書き込み");
+        git_commit_impl(&dir, "初回", &[]).expect("コミット");
+        let err = git_push_impl(&dir).expect_err("送り先が無い");
+        assert!(err.contains("送り先"), "読める理由を返す: {err}");
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }

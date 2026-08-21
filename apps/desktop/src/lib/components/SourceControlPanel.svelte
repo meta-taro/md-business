@@ -134,6 +134,66 @@
     }
   }
 
+  // ブランチ。一覧は git 由来だが、いまの位置が一覧に無いこともある
+  // （コミットがまだ 1 つも無いリポジトリでは、いる場所が一覧に出ない）。
+  const branchOptions = $derived(
+    git.branch !== null && !git.branches.includes(git.branch)
+      ? [git.branch, ...git.branches]
+      : git.branches,
+  );
+  let newBranch = $state('');
+  let newBranchOpen = $state(false);
+  const canCreateBranch = $derived(
+    !busy && git.isRepo && newBranch.trim().length > 0 && root !== null,
+  );
+
+  // 一覧はパネルを開いたときに読む。作成・切り替えの後は各ハンドラで読み直す。
+  $effect(() => {
+    if (!open || root === null || !git.isRepo) return;
+    void git.loadBranches(root);
+  });
+
+  async function doSwitch(event: Event): Promise<void> {
+    const select = event.currentTarget as HTMLSelectElement;
+    const branch = select.value;
+    if (root === null || branch === git.branch) return;
+    busy = true;
+    error = null;
+    notice = null;
+    try {
+      await git.switchBranch(root, branch);
+      await git.loadLog(root);
+      // 中身がブランチごと入れ替わる。開き直さずに走査だけやり直す。
+      await workspace.rescanPreservingActive();
+      notice = t('scm.switched', { branch });
+    } catch (e) {
+      error = toErr(e);
+    } finally {
+      busy = false;
+      // 失敗しても選択欄だけが動いたままになるので、実際にいる場所へ戻す。
+      select.value = git.branch ?? '';
+    }
+  }
+
+  async function doCreateBranch(): Promise<void> {
+    if (!canCreateBranch || root === null) return;
+    const branch = newBranch.trim();
+    busy = true;
+    error = null;
+    notice = null;
+    try {
+      await git.createBranch(root, branch);
+      await git.loadBranches(root);
+      newBranch = '';
+      newBranchOpen = false;
+      notice = t('scm.branchCreated', { branch });
+    } catch (e) {
+      error = toErr(e);
+    } finally {
+      busy = false;
+    }
+  }
+
   async function doPush(): Promise<void> {
     if (!canPush || root === null) return;
     busy = true;
@@ -192,7 +252,55 @@
       <div class="head-left">
         <span class="title">{t('status.sourceControl')}</span>
         {#if git.isRepo}
-          <span class="branch"><span class="dot ok" aria-hidden="true"></span>{git.branch ?? 'detached'}</span>
+          <span class="branch">
+            <span class="dot ok" aria-hidden="true"></span>
+            {#if git.branch === null}
+              detached
+            {:else}
+              <select
+                class="branch-pick"
+                value={git.branch}
+                onchange={doSwitch}
+                disabled={busy}
+                title={t('scm.switchTitle')}
+                aria-label={t('scm.switchTitle')}
+              >
+                {#each branchOptions as b (b)}
+                  <option value={b}>{b}</option>
+                {/each}
+              </select>
+            {/if}
+          </span>
+          {#if newBranchOpen}
+            <input
+              class="new-branch"
+              type="text"
+              bind:value={newBranch}
+              placeholder={t('scm.newBranchPlaceholder')}
+              aria-label={t('scm.newBranchPlaceholder')}
+              disabled={busy}
+            />
+            <button
+              class="chip"
+              type="button"
+              onclick={doCreateBranch}
+              disabled={!canCreateBranch}
+              title={t('scm.newBranchTitle')}
+            >
+              {t('scm.newBranch')}
+            </button>
+          {:else}
+            <button
+              class="chip"
+              type="button"
+              onclick={() => (newBranchOpen = true)}
+              disabled={busy}
+              title={t('scm.newBranchTitle')}
+              aria-label={t('scm.newBranchTitle')}
+            >
+              ＋
+            </button>
+          {/if}
           {#if git.ahead > 0 || git.behind > 0}
             <span class="muted" title={t('status.aheadBehindTitle')}>↑{git.ahead} ↓{git.behind}</span>
           {/if}
@@ -430,6 +538,39 @@
 
   .clone-url:disabled {
     opacity: 0.5;
+  }
+
+  /* 入力欄は clone と同じ見た目。名前は URL より短いので幅だけ詰める。 */
+  .new-branch {
+    width: 150px;
+    height: 24px;
+    padding: 0 var(--space-2);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-sm);
+    background: var(--bg-input, var(--bg-elevated));
+    color: var(--text-primary);
+    font-size: var(--text-xs-size);
+  }
+
+  .new-branch:disabled {
+    opacity: 0.5;
+  }
+
+  /* 見出しの一部として置くので、枠は出さず、文字色も周りに合わせる。 */
+  .branch-pick {
+    max-width: 200px;
+    border: none;
+    background: transparent;
+    color: inherit;
+    font-size: inherit;
+    font-family: inherit;
+    padding: 0;
+    cursor: pointer;
+  }
+
+  .branch-pick:disabled {
+    opacity: 0.5;
+    cursor: default;
   }
 
   .count {

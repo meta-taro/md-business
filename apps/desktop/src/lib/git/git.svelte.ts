@@ -140,6 +140,14 @@ class GitStore {
   }
 
   /**
+   * いまのブランチから新しいブランチを作って切り替える（`git switch -c`）。
+   * 既にある名前・不正な名前は Rust の Err が例外として飛ぶ。
+   */
+  async createBranch(root: string, branch: string): Promise<void> {
+    this.status = await invoke<GitStatus>('git_switch_create', { root, branch });
+  }
+
+  /**
    * ステージしてコミットする（Rust 側で `git add` → `git commit -m`）。
    * `paths` 省略で全変更（`git add -A`）、指定するとその分だけ。
    * 成功で最新ステータスを反映。空メッセージ・ステージ後に変更なし等は Rust の Err が

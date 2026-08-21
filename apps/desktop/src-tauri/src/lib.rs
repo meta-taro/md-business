@@ -94,6 +94,7 @@ pub fn run() {
             git::git_status,
             git::git_branches,
             git::git_switch,
+            git::git_switch_create,
             git::git_commit,
             git::git_push,
             git::git_pull,
