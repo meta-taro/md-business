@@ -4,6 +4,12 @@ Changes to this app. Versions follow [Semantic Versioning](https://semver.org/).
 
 Japanese is the source of truth for this file; see [CHANGELOG.md](./CHANGELOG.md).
 
+## 0.27.0
+
+### Added
+
+- **Cells can now carry notes.** The only place to record "why is this value what it is" was the `備考` column. Putting it there **loses which cell it is about** — once three reasons sit in one row, the reader cannot tell which column each belongs to. Writing it into the cell itself makes the table unreadable instead. Notes are the place for it: **body text attached to a cell, held outside the table**. On screen a small mark appears at the top-right of the cell, and hovering or focusing it shows the body (Ctrl / ⌘ + Alt + M to add; right-click to edit or delete). **They are a separate declaration from marks (`#@ mark`)**: a mark means "this changed" and goes away in the next revision, while a note means "this is why" and stays until the value changes. Merged into one, clearing marks would clear notes too. Any number can sit on one cell, kept in the order they were written rather than merged, because they have to be removable one at a time. **Rows are addressed by row ID** — by row number, inserting a single row makes the note belong to a different cell. On paper and in PDF the cell carries **only the number** and the bodies are collected at the end of the document; expanding them into the cells on paper would return to the `備考` column problem. Numbers are **assigned top-down at print time** and never stored in the file: inserting one note would renumber everything after it and the diff would stop being readable. Notes can go into a submission format too, but **only when the format says so** — the recipient decides the columns, so a column appearing unannounced breaks their import. **Neither a mistyped column name nor a note pointing at a row kept aside is silently dropped**; discarding them on load would hide the fact that a note exists at all. Agents can **read them but not write them**: a note is where a person records their own reasoning in their own words, and if the same field can be filled in by an agent, a later reader cannot tell whose reasoning it is.
+
 ## 0.26.0
 
 ### Added
