@@ -16,6 +16,7 @@
     formatCommitDate,
     type GitFileStatus,
   } from '$lib/git/gitStatus';
+  import { openUrl } from '@tauri-apps/plugin-opener';
   import { SvelteSet } from 'svelte/reactivity';
   import { i18n, t } from '$lib/i18n/i18n.svelte';
 
@@ -29,6 +30,8 @@
   let busy = $state(false);
   let error = $state<string | null>(null);
   let notice = $state<string | null>(null);
+  // push のあとに置き先が返してきた案内 URL。次の操作まで 1 回だけ出す。
+  let prUrl = $state<string | null>(null);
   // チェックを外したファイル。「含めるもの」ではなく「外したもの」を持つので、
   // 編集中に現れた新しい変更は既定で対象に入る（気付かず取りこぼさない）。
   const excluded = new SvelteSet<string>();
@@ -72,6 +75,7 @@
     busy = true;
     error = null;
     notice = null;
+    prUrl = null;
     try {
       const { paths, count } = targets;
       await git.commit(root, message, paths);
@@ -97,6 +101,7 @@
     busy = true;
     error = null;
     notice = null;
+    prUrl = null;
     try {
       await git.init(root);
       await git.loadBranches(root);
@@ -119,6 +124,7 @@
     busy = true;
     error = null;
     notice = null;
+    prUrl = null;
     try {
       await git.clone(root, cloneUrl);
       cloneUrl = '';
@@ -160,6 +166,7 @@
     busy = true;
     error = null;
     notice = null;
+    prUrl = null;
     try {
       await git.switchBranch(root, branch);
       await git.loadLog(root);
@@ -181,6 +188,7 @@
     busy = true;
     error = null;
     notice = null;
+    prUrl = null;
     try {
       await git.createBranch(root, branch);
       await git.loadBranches(root);
@@ -199,8 +207,9 @@
     busy = true;
     error = null;
     notice = null;
+    prUrl = null;
     try {
-      await git.push(root);
+      prUrl = await git.push(root);
       notice = t('scm.pushed');
     } catch (e) {
       error = toErr(e);
@@ -209,11 +218,21 @@
     }
   }
 
+  // 置き先が返してきた URL を既定ブラウザで開く。URL は git の出力に出たものだけ
+  // （こちらで組み立てない）。開いたら案内は消す。
+  async function doOpenPr(): Promise<void> {
+    if (prUrl === null) return;
+    const url = prUrl;
+    prUrl = null;
+    await openUrl(url).catch(() => undefined);
+  }
+
   async function doPull(): Promise<void> {
     if (!canPull || root === null) return;
     busy = true;
     error = null;
     notice = null;
+    prUrl = null;
     try {
       await git.pull(root);
       await git.loadLog(root); // 取り込んだコミットを履歴へ反映
@@ -339,7 +358,14 @@
         <pre>{error}</pre>
       </div>
     {:else if notice}
-      <div class="banner ok" role="status">{notice}</div>
+      <div class="banner ok" role="status">
+        {notice}
+        {#if prUrl !== null}
+          <button class="chip" type="button" onclick={doOpenPr} title={t('scm.openForgeTitle')}>
+            {t('scm.openForge')}
+          </button>
+        {/if}
+      </div>
     {/if}
 
     <div class="scm-body">

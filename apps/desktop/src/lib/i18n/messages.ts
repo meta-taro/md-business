@@ -148,6 +148,8 @@ export interface Messages {
   'scm.cloneTitle': string;
   'scm.cloneUrlPlaceholder': string;
   'scm.cloned': string;
+  'scm.openForge': string;
+  'scm.openForgeTitle': string;
   'scm.switchTitle': string;
   'scm.switched': string;
   'scm.newBranch': string;
@@ -702,6 +704,8 @@ const en: Messages = {
     'Copy an existing repository into this empty folder. Sign-in is handled by the credentials your OS already keeps.',
   'scm.cloneUrlPlaceholder': 'Source (https:// or git@host:path)',
   'scm.cloned': 'Copied the repository into this folder',
+  'scm.openForge': 'Open in browser',
+  'scm.openForgeTitle': 'Open the URL your remote returned (such as the page for opening a pull request) in your browser',
   'scm.switchTitle': 'Switch branch',
   'scm.switched': 'Switched to {branch}',
   'scm.newBranch': 'Create',
@@ -1253,6 +1257,8 @@ const ja: Messages = {
     '空のフォルダへ、既にあるリポジトリを複製します。認証は OS に預けてある資格情報が答えます',
   'scm.cloneUrlPlaceholder': '複製元（https:// / git@ホスト:パス）',
   'scm.cloned': 'このフォルダへリポジトリを複製しました',
+  'scm.openForge': 'ブラウザで開く',
+  'scm.openForgeTitle': '送り先が返した URL（PR を作る画面など）をブラウザで開きます',
   'scm.switchTitle': 'ブランチを切り替える',
   'scm.switched': '{branch} へ切り替えました',
   'scm.newBranch': '作る',
@@ -1799,6 +1805,8 @@ const zh: Messages = {
   'scm.cloneTitle': '将已有仓库克隆到这个空文件夹。认证由操作系统保存的凭据完成',
   'scm.cloneUrlPlaceholder': '来源（https:// 或 git@主机:路径）',
   'scm.cloned': '已将仓库克隆到此文件夹',
+  'scm.openForge': '在浏览器中打开',
+  'scm.openForgeTitle': '在浏览器中打开远程返回的网址（例如新建合并请求的页面）',
   'scm.switchTitle': '切换分支',
   'scm.switched': '已切换到 {branch}',
   'scm.newBranch': '创建',
@@ -2342,6 +2350,8 @@ const ko: Messages = {
   'scm.cloneTitle': '비어 있는 이 폴더로 기존 저장소를 복제합니다. 인증은 OS에 맡긴 자격 증명이 처리합니다',
   'scm.cloneUrlPlaceholder': '복제할 곳 (https:// 또는 git@호스트:경로)',
   'scm.cloned': '이 폴더로 저장소를 복제했습니다',
+  'scm.openForge': '브라우저에서 열기',
+  'scm.openForgeTitle': '원격이 반환한 URL(풀 리퀘스트 생성 페이지 등)을 브라우저에서 엽니다',
   'scm.switchTitle': '브랜치 전환',
   'scm.switched': '{branch}(으)로 전환했습니다',
   'scm.newBranch': '만들기',
