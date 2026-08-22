@@ -415,6 +415,22 @@ export interface Messages {
   'page.exportCopyTitle': string;
   'page.exportCopied': string;
   'page.exportFailed': string;
+  'page.importReadBtn': string;
+  'page.importReadTitle': string;
+  'page.importApplyBtn': string;
+  'page.importApplyTitle': string;
+  'page.importChanges': string;
+  'page.importNone': string;
+  'page.importApplied': string;
+  'page.importUnknown': string;
+  'page.importDuplicate': string;
+  'page.importMissing': string;
+  'page.importLocked': string;
+  'page.importSkipped': string;
+  'page.importNoKey': string;
+  'page.importFolded': string;
+  'page.importNoKeyColumn': string;
+  'page.importFailed': string;
   'page.expandBtn': string;
   'page.expandTitle': string;
   'page.expandAdded': string;
@@ -975,6 +991,22 @@ const en: Messages = {
   'page.exportCopyTitle': 'Copy the sheet in the chosen format, ready to paste into a spreadsheet (hidden rows stay out)',
   'page.exportCopied': 'Copied',
   'page.exportFailed': 'Could not copy',
+  'page.importReadBtn': 'Import back',
+  'page.importReadTitle': 'Read the returned sheet from the clipboard and count what can go back into this sheet (nothing is written yet)',
+  'page.importApplyBtn': 'Write back ({count})',
+  'page.importApplyTitle': 'Write the counted cells back into this sheet (undo restores them)',
+  'page.importChanges': '{count} cells can go back',
+  'page.importNone': 'Nothing to write back',
+  'page.importApplied': 'Wrote back {count} cells',
+  'page.importUnknown': 'Not in this sheet: {keys}',
+  'page.importDuplicate': 'Appears twice: {keys}',
+  'page.importMissing': 'Columns not in what was pasted: {columns}',
+  'page.importLocked': 'Columns left alone: {columns}',
+  'page.importSkipped': 'Rows with an empty key: {count}',
+  'page.importNoKey': 'This format has no key= column, so it cannot come back',
+  'page.importFolded': 'This format folds line breaks into spaces, so it cannot come back',
+  'page.importNoKeyColumn': 'What was pasted has no key column',
+  'page.importFailed': 'Could not read what was pasted',
   'page.expandBtn': 'Expand viewpoints',
   'page.expandTitle': 'Add viewpoints from the shared master that this sheet does not have yet (existing rows are left alone)',
   'page.expandAdded': 'Added {count} rows',
@@ -1531,6 +1563,22 @@ const ja: Messages = {
   'page.exportCopyTitle': '選んだ様式で、表計算へ貼れる形にしてコピーする（控え行は出さない）',
   'page.exportCopied': 'コピーしました',
   'page.exportFailed': 'コピーできませんでした',
+  'page.importReadBtn': '取り込む',
+  'page.importReadTitle': '返ってきた提出物を貼り付けから読み、正本へ戻せるセルを数える（まだ書き換えない）',
+  'page.importApplyBtn': '書き戻す（{count}）',
+  'page.importApplyTitle': '数えたセルを正本へ書き戻す（取り消しで戻せる）',
+  'page.importChanges': '戻せるセル {count}',
+  'page.importNone': '戻すセルはありません',
+  'page.importApplied': '{count} セルを書き戻しました',
+  'page.importUnknown': '正本に無いキー: {keys}',
+  'page.importDuplicate': '2 回出たキー: {keys}',
+  'page.importMissing': '貼り付けに無い列: {columns}',
+  'page.importLocked': '書き戻さない列: {columns}',
+  'page.importSkipped': 'キーが空の行 {count}',
+  'page.importNoKey': 'この様式には key= が無いので戻せません',
+  'page.importFolded': 'この様式は改行を空白に畳むので戻せません',
+  'page.importNoKeyColumn': '貼り付けにキー列がありません',
+  'page.importFailed': '貼り付けを読めませんでした',
   'page.expandBtn': '観点を展開',
   'page.expandTitle': '共通観点マスタから、このシートにまだ無い観点を足す（既にある行はそのまま）',
   'page.expandAdded': '{count} 行足しました',
@@ -2080,6 +2128,22 @@ const zh: Messages = {
   'page.exportCopyTitle': '按所选格式复制为可粘贴到表格软件的形式（不含隐藏行）',
   'page.exportCopied': '已复制',
   'page.exportFailed': '无法复制',
+  'page.importReadBtn': '回收填写',
+  'page.importReadTitle': '从剪贴板读取返回的提交物，统计可以写回本表的单元格（此时尚未改动）',
+  'page.importApplyBtn': '写回（{count}）',
+  'page.importApplyTitle': '把统计出的单元格写回本表（可撤销）',
+  'page.importChanges': '可写回的单元格 {count}',
+  'page.importNone': '没有可写回的单元格',
+  'page.importApplied': '已写回 {count} 个单元格',
+  'page.importUnknown': '本表中没有的键: {keys}',
+  'page.importDuplicate': '出现两次的键: {keys}',
+  'page.importMissing': '粘贴内容中没有的列: {columns}',
+  'page.importLocked': '不写回的列: {columns}',
+  'page.importSkipped': '键为空的行 {count}',
+  'page.importNoKey': '该格式没有 key=，无法写回',
+  'page.importFolded': '该格式把换行折成空格，无法写回',
+  'page.importNoKeyColumn': '粘贴内容中没有键列',
+  'page.importFailed': '无法读取粘贴内容',
   'page.expandBtn': '展开检查观点',
   'page.expandTitle': '从共通观点主表补入本表尚未收录的观点（已有行保持不变）',
   'page.expandAdded': '已添加 {count} 行',
@@ -2632,6 +2696,22 @@ const ko: Messages = {
   'page.exportCopyTitle': '선택한 양식으로 스프레드시트에 붙여 넣을 수 있는 형태로 복사 (숨긴 행은 제외)',
   'page.exportCopied': '복사했습니다',
   'page.exportFailed': '복사하지 못했습니다',
+  'page.importReadBtn': '되돌려 넣기',
+  'page.importReadTitle': '돌아온 제출물을 클립보드에서 읽어, 이 시트로 되돌릴 수 있는 셀을 센다(아직 바꾸지 않음)',
+  'page.importApplyBtn': '되돌리기({count})',
+  'page.importApplyTitle': '센 셀을 이 시트에 되돌려 쓴다(실행 취소로 복구 가능)',
+  'page.importChanges': '되돌릴 수 있는 셀 {count}',
+  'page.importNone': '되돌릴 셀이 없습니다',
+  'page.importApplied': '{count}개 셀을 되돌렸습니다',
+  'page.importUnknown': '이 시트에 없는 키: {keys}',
+  'page.importDuplicate': '두 번 나온 키: {keys}',
+  'page.importMissing': '붙여 넣은 내용에 없는 열: {columns}',
+  'page.importLocked': '되돌리지 않는 열: {columns}',
+  'page.importSkipped': '키가 빈 행 {count}',
+  'page.importNoKey': '이 양식에는 key= 가 없어 되돌릴 수 없습니다',
+  'page.importFolded': '이 양식은 줄바꿈을 공백으로 접으므로 되돌릴 수 없습니다',
+  'page.importNoKeyColumn': '붙여 넣은 내용에 키 열이 없습니다',
+  'page.importFailed': '붙여 넣은 내용을 읽지 못했습니다',
   'page.expandBtn': '관점 펼치기',
   'page.expandTitle': '공통 관점 마스터에서 이 시트에 아직 없는 관점을 추가한다(기존 행은 그대로)',
   'page.expandAdded': '{count}행 추가했습니다',

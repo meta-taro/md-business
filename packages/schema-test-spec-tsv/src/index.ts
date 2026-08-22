@@ -32,6 +32,7 @@ export { findRowsByCell, parseCellLink } from './link.js';
 export { checkColumnLink, readColumnLinks, splitLinkedValues } from './columnLink.js';
 export { checkReview, readReviewColumns } from './review.js';
 export { buildExportTable, findExportProfile, readExportProfiles } from './export.js';
+export { planImportBack } from './importBack.js';
 export { planExpansion, readExpandRules } from './expand.js';
 export { readMarks, setMarks } from './marks.js';
 export type { ColumnType, ColumnUiHint, ParsedHeader } from './types.js';
@@ -49,6 +50,7 @@ export type {
   ReviewTargetLookup,
 } from './review.js';
 export type { ExportNewline, ExportProfile, ExportTable } from './export.js';
+export type { ImportBackChange, ImportBackPlan, ImportBackRejection } from './importBack.js';
 export type { ExpandPlan, ExpandRule } from './expand.js';
 export type { EnumChoices, EnumSource } from './enumSource.js';
 export type { LineKind } from './classify.js';
