@@ -26,6 +26,7 @@ import {
   lockedColumns,
   mergeHiddenRows,
   parseTsv,
+  readAnnotations,
   readColumnLinks,
   readComputedColumns,
   serializeTsv,
@@ -81,6 +82,30 @@ export interface TsvLinkIssue extends LinkIssue {
   targetPath: string;
 }
 
+/**
+ * セルに付いた注釈（`#@ annot`）を、表の位置へ引き直した姿。
+ *
+ * **読めるが、書く口は無い。** 注釈は「なぜこの値にしたのか」を人が自分の言葉で
+ * 書き残すところで、同じ欄へエージェントも書けると、後から読んだ人には
+ * どちらの言い分なのか区別が付かなくなる。
+ */
+export interface TsvAnnotation {
+  /**
+   * 行（`rows` の並び・0 始まり）。引けなければ null。
+   *
+   * 控えにした行（`#@ hidden`）を指す注釈と、既に消えた行を指す注釈がここに入る。
+   * 落とさず null で返すのは、消すと**注釈があること自体**が見えなくなるため。
+   */
+  row: number | null;
+  /** 列（`columns` の並び・0 始まり）。知らない列名なら null。 */
+  col: number | null;
+  /** 宣言に書いてある列名。打ち間違いもそのまま返す。 */
+  column: string;
+  /** 本文。セル内改行は `
+`。 */
+  body: string;
+}
+
 export interface ReadTsvOk {
   ok: true;
   /** 正規化済み相対パス。 */
@@ -113,6 +138,13 @@ export interface ReadTsvOk {
    * 受け取った側が判断を誤る。
    */
   linkIssues: TsvLinkIssue[];
+  /**
+   * セルの注釈（`#@ annot`）を宣言順に。無ければ空配列。
+   *
+   * 並べ替えない。表の上から番号を振るのは刷るときの都合で、ここでの順は
+   * 書かれた順（＝同じセルに 2 件あるときの前後関係）がそのまま意味を持つ。
+   */
+  annotations: TsvAnnotation[];
 }
 
 export interface TsvRowOk {
@@ -475,6 +507,32 @@ function resolveRow(loaded: LoadedTsv, row: number | string): number | ToolError
   return row;
 }
 
+/**
+ * `#@ annot` を表の位置へ引き直す。
+ *
+ * 行 ID を持たないシートでは行を引かない。そこでの ID はその場限りの採番で、
+ * ファイルに焼かれていない（次に読めば別の値になる）ため、指し先として扱えない。
+ */
+function annotationsOf(doc: IdentifiedTsv, tracksIds: boolean): TsvAnnotation[] {
+  const names = doc.columns.map((column) => column.name);
+  const rowOf = new Map<string, number>();
+  if (tracksIds) {
+    doc.rowIds.forEach((id, at) => {
+      if (id !== '' && !rowOf.has(id)) rowOf.set(id, at);
+    });
+  }
+
+  return readAnnotations(doc.directives).map((annotation) => {
+    const col = names.indexOf(annotation.column);
+    return {
+      row: rowOf.get(annotation.id) ?? null,
+      col: col < 0 ? null : col,
+      column: annotation.column,
+      body: annotation.body,
+    };
+  });
+}
+
 /** 検証シート TSV を読み、ヘッダ・メタ・行と列型の検証結果を返す。 */
 export async function readTsv(
   store: DocumentStore,
@@ -491,6 +549,7 @@ export async function readTsv(
     rowIds: tracksIds ? [...doc.rowIds] : [],
     issues: validateTsv(doc, await choicesOf(store, relative, doc)),
     linkIssues: await linkIssuesOf(store, relative, doc),
+    annotations: annotationsOf(doc, tracksIds),
   }));
 }
 
