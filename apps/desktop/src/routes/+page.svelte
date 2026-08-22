@@ -125,6 +125,7 @@
     debouncedSource = next;
     gridHistory = initHistory(next);
     revealHidden = false;
+    filteredIds = new Set();
     sheetPreview = false;
   });
 
@@ -455,6 +456,10 @@
   // 控えを表に出しているか。戻す操作のための一時的な見せ方なので、ファイルには残さず
   // 開き直しで既定（外す）へ戻す。
   let revealHidden = $state(false);
+  // 絞り込みで表から外している行 ID。**外す側**を持つ（残す側で持つと、絞り込み中に
+  // 足した行と、直して当たらなくなった行が黙って消える）。ファイルには何も書かないので、
+  // 控えと違い開き直しで戻る。
+  let filteredIds = $state<ReadonlySet<string>>(new Set());
   // 検証シートを紙の版面で見ているか。見ているだけでファイルには何も書かないので、
   // 開き直しで既定（表の編集）へ戻す。
   let sheetPreview = $state(false);
@@ -462,7 +467,7 @@
   // 1 セル確定するたびに本文を組み直し、それをまたここで読み直している。読み直しは
   // 画面へ反映する途中で走るので、測らないと「画面への反映」に紛れて見えない。
   const tsvGrid = $derived(
-    isTsv ? perf.measure('parse', () => loadGridDoc(debouncedSource, { reveal: revealHidden })) : null,
+    isTsv ? perf.measure('parse', () => loadGridDoc(debouncedSource, { reveal: revealHidden, without: filteredIds })) : null,
   );
   const tsvDoc = $derived(tsvGrid?.doc ?? null);
   // 検証シート以外へ移ったら下見を畳む。畳まないと、次にシートを開いたとき
@@ -627,7 +632,7 @@
   // 読み終わるまでは印を出さない（出しかけの赤字は嘘になる）。
   const comparison = $derived.by<SheetComparison | null>(() => {
     if (!compareOn || !previousLoaded || tsvGrid === null) return null;
-    return compareWithVersion(previousText, tsvGrid.doc, tsvGrid.hidden);
+    return compareWithVersion(previousText, tsvGrid.doc, tsvGrid);
   });
 
   const compareMessage = $derived.by(() => {
@@ -957,7 +962,7 @@
     const text = perf.measure('serialize', () =>
       saveGridDoc(
         next,
-        untrack(() => tsvGrid?.hidden ?? []),
+        untrack(() => tsvGrid ?? { hidden: [] }),
         untrack(() => workspace.source),
       ),
     );
@@ -1377,6 +1382,9 @@
           onRedo={handleGridRedo}
           reveal={revealHidden}
           onToggleReveal={() => (revealHidden = !revealHidden)}
+          filteredCount={tsvGrid?.filtered.length ?? 0}
+          onFilter={(excluded) => (filteredIds = new Set([...filteredIds, ...excluded]))}
+          onClearFilter={() => (filteredIds = new Set())}
           onFollowLink={handleFollowLink}
           jump={gridJump}
           {linkIssues}

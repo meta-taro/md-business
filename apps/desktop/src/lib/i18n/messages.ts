@@ -570,6 +570,12 @@ export interface Messages {
   'grid.revealShowTitle': string;
   'grid.revealHide': string;
   'grid.revealHideTitle': string;
+  'grid.filterByCell': string;
+  'grid.filterByCellTitle': string;
+  'grid.filterBySearch': string;
+  'grid.filterBySearchTitle': string;
+  'grid.filterClear': string;
+  'grid.filterClearTitle': string;
   'grid.menuClose': string;
   'grid.colMenuText': string;
   'grid.colMenuAlign': string;
@@ -1146,6 +1152,12 @@ const en: Messages = {
   'grid.revealShowTitle': 'Show the rows kept aside so you can check what is in them',
   'grid.revealHide': 'Hide {count} rows kept aside',
   'grid.revealHideTitle': 'Take the rows kept aside back out of the sheet',
+  'grid.filterByCell': 'Only this value',
+  'grid.filterByCellTitle': 'Keep only the rows whose selected column holds the current cell value (nothing is written to the file)',
+  'grid.filterBySearch': 'Only matches',
+  'grid.filterBySearchTitle': 'Keep only the rows the search matched (nothing is written to the file)',
+  'grid.filterClear': 'Clear filter ({count} rows)',
+  'grid.filterClearTitle': 'Put every row taken out of view back into the sheet',
   'grid.menuClose': 'Close the menu',
   'grid.colMenuText': 'Text display for the {name} column',
   'grid.colMenuAlign': 'Alignment',
@@ -1715,6 +1727,12 @@ const ja: Messages = {
   'grid.revealShowTitle': '控え行を表に出して中身を確かめる',
   'grid.revealHide': '控え {count} 行を隠す',
   'grid.revealHideTitle': '控え行を表から外す',
+  'grid.filterByCell': 'この値だけ',
+  'grid.filterByCellTitle': 'いま選んでいるセルと同じ値の行だけを表に残す（ファイルには何も書かない）',
+  'grid.filterBySearch': '当たった行だけ',
+  'grid.filterBySearchTitle': '検索で当たった行だけを表に残す（ファイルには何も書かない）',
+  'grid.filterClear': '絞り込み解除（{count} 行）',
+  'grid.filterClearTitle': '外している行をすべて表に戻す',
   'grid.menuClose': 'メニューを閉じる',
   'grid.colMenuText': '{name} 列のテキスト表示',
   'grid.colMenuAlign': '寄せ',
@@ -2280,6 +2298,12 @@ const zh: Messages = {
   'grid.revealShowTitle': '把留存行显示出来确认内容',
   'grid.revealHide': '隐藏留存的 {count} 行',
   'grid.revealHideTitle': '把留存行从表格移出',
+  'grid.filterByCell': '仅此值',
+  'grid.filterByCellTitle': '只把与当前单元格同值的行留在表格里（不会写入文件）',
+  'grid.filterBySearch': '仅命中行',
+  'grid.filterBySearchTitle': '只把搜索命中的行留在表格里（不会写入文件）',
+  'grid.filterClear': '取消筛选（{count} 行）',
+  'grid.filterClearTitle': '把移出视图的行全部放回表格',
   'grid.menuClose': '关闭菜单',
   'grid.colMenuText': '{name} 列的文本显示',
   'grid.colMenuAlign': '对齐',
@@ -2849,6 +2873,12 @@ const ko: Messages = {
   'grid.revealShowTitle': '보관 행을 표에 표시해 내용을 확인',
   'grid.revealHide': '보관 {count}행 숨기기',
   'grid.revealHideTitle': '보관 행을 표에서 제외',
+  'grid.filterByCell': '이 값만',
+  'grid.filterByCellTitle': '선택한 셀과 같은 값의 행만 표에 남긴다(파일에는 아무것도 쓰지 않음)',
+  'grid.filterBySearch': '검색된 행만',
+  'grid.filterBySearchTitle': '검색에 걸린 행만 표에 남긴다(파일에는 아무것도 쓰지 않음)',
+  'grid.filterClear': '필터 해제({count}행)',
+  'grid.filterClearTitle': '표에서 빼놓은 행을 모두 되돌린다',
   'grid.menuClose': '메뉴 닫기',
   'grid.colMenuText': '{name} 열의 텍스트 표시',
   'grid.colMenuAlign': '정렬',

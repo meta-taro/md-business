@@ -4,6 +4,7 @@ import {
   readHiddenIds,
   setHiddenIds,
   splitHiddenRows,
+  splitRowsById,
 } from '../src/hiddenRows.js';
 import { withRowIds, withoutRowIds, ROW_ID_COLUMN } from '../src/rowId.js';
 import { parseTsv } from '../src/parse.js';
@@ -219,5 +220,55 @@ describe('round-trip', () => {
 
     expect(doc.rows).toEqual([['ログイン（改訂）']]);
     expect(serializeTsv(withoutRowIds(mergeHiddenRows(doc, hidden)))).toBe(text);
+  });
+});
+
+/**
+ * 行 ID を渡して抜く（{@link splitHiddenRows} の中身）。
+ *
+ * 控えはファイルの宣言から抜く行を決めるが、絞り込みは**画面の都合**で決める。
+ * 決め方は違っても、抜いて戻す作法は 1 つでなければならない。2 つ持つと、
+ * 戻し方が食い違ったときに行が黙って消える。
+ */
+describe('splitRowsById — 渡された ID の行を抜く', () => {
+  it('宣言ではなく渡された ID で抜く', () => {
+    const doc = makeDoc({
+      directives: [`hidden ${A}`],
+      columns: [項目],
+      rows: [['ログイン'], ['ログアウト'], ['退会']],
+      rowIds: [A, B, C],
+    });
+
+    const { doc: visible, taken } = splitRowsById(doc, new Set([B]));
+
+    expect(visible.rowIds).toEqual([A, C]);
+    expect(taken).toEqual([{ id: B, cells: ['ログアウト'], afterId: A }]);
+  });
+
+  it('空の指定なら doc をそのまま返す', () => {
+    const doc = makeDoc({ columns: [項目], rows: [['ログイン']], rowIds: [A] });
+
+    const { doc: visible, taken } = splitRowsById(doc, new Set());
+
+    expect(visible).toBe(doc);
+    expect(taken).toEqual([]);
+  });
+
+  it('文書に無い ID は無視する', () => {
+    const doc = makeDoc({ columns: [項目], rows: [['ログイン']], rowIds: [A] });
+
+    expect(splitRowsById(doc, new Set([D])).doc.rows).toEqual([['ログイン']]);
+  });
+
+  it('抜いた分をそのまま戻すと元の並びに一致する', () => {
+    const doc = makeDoc({
+      columns: [項目],
+      rows: [['ログイン'], ['ログアウト'], ['退会'], ['再入会']],
+      rowIds: [A, B, C, D],
+    });
+
+    const { doc: visible, taken } = splitRowsById(doc, new Set([A, C]));
+
+    expect(mergeHiddenRows(visible, taken).rowIds).toEqual([A, B, C, D]);
   });
 });

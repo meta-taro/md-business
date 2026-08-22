@@ -4,6 +4,12 @@ Changes to this app. Versions follow [Semantic Versioning](https://semver.org/).
 
 Japanese is the source of truth for this file; see [CHANGELOG.md](./CHANGELOG.md).
 
+## 0.26.0
+
+### Added
+
+- **The table can now be narrowed to just the rows you want to look at.** Past a couple of hundred rows, reaching the row you want to fix means scrolling for it. Search (Ctrl+F) only **jumps to a hit**; everything it did not hit stays on screen, so "work through every row whose `結果` is NG" was not possible. Two ways in were added: keep only the rows holding the same value as the selected cell, and keep only the rows the search matched. Each press narrows further. **Nothing is written to the file** — this is the decisive difference from rows kept aside: save while narrowed and the rows taken out of view are still there in their original places, and reopening the file clears the filter. **Exports are unaffected too.** A row silently dropping out of a submission because it was not on screen is the worst way this could break. The rows to take out are **decided at the moment you press and then held fixed**: recomputing the match continuously would make a row vanish the instant you change its `結果` from NG to OK, and a row disappearing while you are editing it looks like a fault however it is explained. For the same reason, rows added while narrowed stay visible. **Numbering is not recalculated while narrowed** — running `rowNumber()` over only the visible rows would burn a sequence with the hidden rows skipped straight into the file. It is recalculated once the filter is cleared and every row is present again. The number of rows currently out of view is always on screen; without it, rows simply look deleted.
+
 ## 0.25.0
 
 ### Added

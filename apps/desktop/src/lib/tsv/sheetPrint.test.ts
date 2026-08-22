@@ -96,7 +96,7 @@ describe('buildSheetPrintDoc', () => {
     // 控えにする操作を通してから開き直す（宣言は採番された行 ID を指すため）。
     const source = identified();
     const loaded = loadGridDoc(source);
-    const hidden = saveGridDoc(hideRow(loaded.doc, 1), loaded.hidden, source);
+    const hidden = saveGridDoc(hideRow(loaded.doc, 1), loaded, source);
     const doc = buildSheetPrintDoc(loadGridDoc(hidden).doc, { fallbackTitle: 'x' });
 
     expect(doc.rows).toHaveLength(1);
