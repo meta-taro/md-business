@@ -396,6 +396,10 @@ export interface Messages {
   'page.gridRestoreTitle': string;
   'page.gridFullscreenBtn': string;
   'page.gridRestoreBtn': string;
+  'page.sheetPreviewBtn': string;
+  'page.sheetPreviewTitle': string;
+  'page.sheetGridBtn': string;
+  'page.sheetGridTitle': string;
   'page.compareBtn': string;
   'page.compareTitle': string;
   'page.compareTarget': string;
@@ -952,6 +956,10 @@ const en: Messages = {
   'page.gridRestoreTitle': 'Back to split view (Esc)',
   'page.gridFullscreenBtn': '⤢ Fullscreen',
   'page.gridRestoreBtn': '↙ Back to split',
+  'page.sheetPreviewBtn': '🖨 Print view',
+  'page.sheetPreviewTitle': 'See how the sheet prints, and export it to PDF / HTML / image',
+  'page.sheetGridBtn': '↩ Back to grid',
+  'page.sheetGridTitle': 'Back to editing the table',
   'page.compareBtn': 'Compare with a past version',
   'page.compareTitle': 'Mark what changed against the version in the selected commit',
   'page.compareTarget': 'Compare against',
@@ -1504,6 +1512,10 @@ const ja: Messages = {
   'page.gridRestoreTitle': '分割表示に戻す（Esc）',
   'page.gridFullscreenBtn': '⤢ 全画面',
   'page.gridRestoreBtn': '↙ 分割に戻す',
+  'page.sheetPreviewBtn': '🖨 下見',
+  'page.sheetPreviewTitle': '紙に刷ったときの見た目を確かめる（PDF・HTML・画像はここから）',
+  'page.sheetGridBtn': '↩ グリッドへ戻る',
+  'page.sheetGridTitle': '表の編集に戻る',
   'page.compareBtn': '前の版と比べる',
   'page.compareTitle': '選んだコミットの版と突き合わせて、変わったところに印を付ける',
   'page.compareTarget': '比べる版',
@@ -2049,6 +2061,10 @@ const zh: Messages = {
   'page.gridRestoreTitle': '返回分屏视图（Esc）',
   'page.gridFullscreenBtn': '⤢ 全屏',
   'page.gridRestoreBtn': '↙ 返回分屏',
+  'page.sheetPreviewBtn': '🖨 打印预览',
+  'page.sheetPreviewTitle': '查看打印后的效果，并导出 PDF / HTML / 图片',
+  'page.sheetGridBtn': '↩ 返回网格',
+  'page.sheetGridTitle': '返回表格编辑',
   'page.compareBtn': '与旧版本比较',
   'page.compareTitle': '与所选提交中的版本比对，标出变动之处',
   'page.compareTarget': '比较对象',
@@ -2597,6 +2613,10 @@ const ko: Messages = {
   'page.gridRestoreTitle': '분할 보기로 복귀 (Esc)',
   'page.gridFullscreenBtn': '⤢ 전체 화면',
   'page.gridRestoreBtn': '↙ 분할로 복귀',
+  'page.sheetPreviewBtn': '🖨 인쇄 미리보기',
+  'page.sheetPreviewTitle': '인쇄된 모습을 확인하고 PDF / HTML / 이미지로 내보내기',
+  'page.sheetGridBtn': '↩ 그리드로 돌아가기',
+  'page.sheetGridTitle': '표 편집으로 돌아가기',
   'page.compareBtn': '이전 버전과 비교',
   'page.compareTitle': '선택한 커밋의 버전과 대조해 변경된 곳을 표시',
   'page.compareTarget': '비교 대상',

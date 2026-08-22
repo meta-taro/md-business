@@ -19,6 +19,7 @@
     "./styles/invoice.css": "./src/styles/invoice.css",
     "./styles/spec.css": "./src/styles/spec.css",
     "./styles/test-spec.css": "./src/styles/test-spec.css",
+    "./styles/test-spec-tsv.css": "./src/styles/test-spec-tsv.css",
     "./styles/db-spec.css": "./src/styles/db-spec.css",
     "./styles/nosql-db-spec.css": "./src/styles/nosql-db-spec.css",
     "./styles/api-spec.css": "./src/styles/api-spec.css",

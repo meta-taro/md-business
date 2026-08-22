@@ -1,0 +1,134 @@
+/*
+ * 検証シート（カスタム TSV）の印刷スタイル — A4 横。
+ *
+ * 縦ではなく横を既定にする。検証シートは「手順」「期待結果」「備考」が横に並ぶ形で
+ * 書かれるため、縦だと 1 セルあたり十数文字しか入らず、どの行も折り返しで縦に伸びる。
+ *
+ * 画面のグリッドとは別物として組む。グリッドは画面へ収めるための表示で、
+ * ここは読み手が紙の上で 1 行ずつ追うための版面。
+ */
+
+@page {
+  size: A4 landscape;
+  margin: 14mm 12mm 16mm 12mm;
+}
+
+:root {
+  --mdb-color-fg: #111;
+  --mdb-color-muted: #666;
+  --mdb-color-border: #d4d4d8;
+  --mdb-color-head-bg: #f4f4f5;
+  --mdb-font-base: 'Noto Sans JP', 'Hiragino Kaku Gothic ProN', 'Yu Gothic', sans-serif;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  font-family: var(--mdb-font-base);
+  color: var(--mdb-color-fg);
+  font-size: 9pt;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+.mdb-tsv-sheet__head {
+  margin-bottom: 6mm;
+}
+
+.mdb-tsv-sheet__title {
+  margin: 0 0 2mm;
+  font-size: 15pt;
+  font-weight: 700;
+}
+
+/* メタは「文書番号 / 版 / ステータス」が横に流れる。dt : dd を 1 組として折り返す。 */
+.mdb-tsv-sheet__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1mm 5mm;
+  margin: 0 0 2mm;
+  font-size: 8.5pt;
+  color: var(--mdb-color-muted);
+}
+
+.mdb-tsv-sheet__meta dt {
+  font-weight: 700;
+}
+
+.mdb-tsv-sheet__meta dt::after {
+  content: ':';
+}
+
+.mdb-tsv-sheet__meta dd {
+  margin: 0 3mm 0 0;
+}
+
+.mdb-tsv-sheet__notes {
+  margin: 0;
+  padding-left: 4mm;
+  font-size: 8pt;
+  color: var(--mdb-color-muted);
+}
+
+.mdb-tsv-sheet__table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+/* 見出しは各ページの先頭で繰り返す。2 ページ目以降で「この列は何か」が
+   分からなくなると、紙の上では前のページへ戻るしかない。 */
+.mdb-tsv-sheet__table thead {
+  display: table-header-group;
+}
+
+.mdb-tsv-sheet__table th,
+.mdb-tsv-sheet__table td {
+  border: 0.3mm solid var(--mdb-color-border);
+  padding: 1.4mm 2mm;
+  text-align: left;
+  vertical-align: top;
+  /* 長い URL や英数字の連なりで版面からはみ出させない。 */
+  overflow-wrap: anywhere;
+}
+
+.mdb-tsv-sheet__table th {
+  background: var(--mdb-color-head-bg);
+  font-weight: 700;
+}
+
+.mdb-tsv-sheet__cell--center {
+  text-align: center;
+}
+
+.mdb-tsv-sheet__cell--right {
+  text-align: right;
+}
+
+/* 行はページをまたいで割らない。手順の途中で改ページされると、
+   どこまでやったかが読めなくなる。 */
+.mdb-tsv-sheet__table tr {
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+/* 地色は画面の色分けをそのまま持ち込む。値の文字は残してあるので、
+   白黒で刷っても意味は落ちない。 */
+.mdb-tsv-sheet__row--tinted td {
+  background: var(--mdb-row-tint);
+}
+
+.mdb-tsv-sheet__empty {
+  margin: 0;
+  color: var(--mdb-color-muted);
+}
+
+@media print {
+  /* 地色を刷る。既定では背景が落ちるので、色分けが紙で消える。 */
+  .mdb-tsv-sheet__table th,
+  .mdb-tsv-sheet__row--tinted td {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}

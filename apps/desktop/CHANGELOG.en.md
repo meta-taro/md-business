@@ -4,6 +4,12 @@ Changes to this app. Versions follow [Semantic Versioning](https://semver.org/).
 
 Japanese is the source of truth for this file; see [CHANGELOG.md](./CHANGELOG.md).
 
+## 0.24.0
+
+### Added
+
+- **A test sheet can now be previewed as it will print, and exported straight to PDF, HTML or an image.** Test sheets are TSV by default, and the right pane opens them as an editing grid. A grid has no printable surface, so **no export was available at all while one was open**. When paper was required, the same content ended up being kept a second time as Markdown — and **with two copies, one of them is always out of date**. Sending the stale one is not something the sender can see. The grid itself is never printed: it squeezes column widths to fit the screen, virtualises rows and boxes the cell being edited, none of which survives on paper. Instead you switch to a "print view" laid out for the page. Header rows repeat on every page after the first, and newlines inside a cell stay newlines. Row tints are printed as a background, but **colour never carries meaning on its own** — the verdict text stays. **Rows kept aside and the row-ID column do not appear on paper either**: something absent from the table but present on the printout shows the recipient exactly what was supposed to be gone. Landscape A4 is the default, since these sheets run wide. The print view, PDF, HTML and image all go through one and the same build, so **what you checked on screen is what goes out**. Switching does not rewrite the file — entering the print view does not mark it as edited.
+
 ## 0.23.0
 
 ### Added

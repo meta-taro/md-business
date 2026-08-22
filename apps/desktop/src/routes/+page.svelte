@@ -120,6 +120,7 @@
     debouncedSource = next;
     gridHistory = initHistory(next);
     revealHidden = false;
+    sheetPreview = false;
   });
 
   // 編集（source 変化）と設定変更を受けて、デバウンス保存を予約する。実際の発火可否は
@@ -449,6 +450,9 @@
   // 控えを表に出しているか。戻す操作のための一時的な見せ方なので、ファイルには残さず
   // 開き直しで既定（外す）へ戻す。
   let revealHidden = $state(false);
+  // 検証シートを紙の版面で見ているか。見ているだけでファイルには何も書かないので、
+  // 開き直しで既定（表の編集）へ戻す。
+  let sheetPreview = $state(false);
   const isTsv = $derived(isTsvSource(debouncedSource));
   // 1 セル確定するたびに本文を組み直し、それをまたここで読み直している。読み直しは
   // 画面へ反映する途中で走るので、測らないと「画面への反映」に紛れて見えない。
@@ -456,6 +460,11 @@
     isTsv ? perf.measure('parse', () => loadGridDoc(debouncedSource, { reveal: revealHidden })) : null,
   );
   const tsvDoc = $derived(tsvGrid?.doc ?? null);
+  // 検証シート以外へ移ったら下見を畳む。畳まないと、次にシートを開いたとき
+  // 表ではなく紙の版面から始まる。
+  $effect(() => {
+    if (!isTsv) sheetPreview = false;
+  });
 
   // 別シートを指す列（`#@ link`）の照合結果。参照先を読むので同期では出せない。
   // 出るまでの間は空＝「問題なし」ではなく「まだ照合していない」なので、
@@ -832,12 +841,12 @@
     timeline: timelineView.active,
     diff: diffView.active,
     data: dataDoc !== null,
-    grid: isTsv && tsvDoc !== null,
+    grid: isTsv && tsvDoc !== null && !sheetPreview,
     image: openImage !== null,
   });
 
-  // schema / Markdown ビューワー描画中だけ [PDF] を活性化する。TSV 編集グリッドは
-  // 印刷対象の iframe を持たないため対象外。
+  // ビューワーを出しているときだけ [PDF] を活性化する。検証シートの編集グリッドは
+  // 印刷対象の iframe を持たないため対象外で、下見に切り替えると対象になる。
   //
   // 組み上がり（preview.ok）を確かめるのは、プレビューを出しているときだけにする。
   // preview は本文全体を HTML へ組み直す導出値なので、出していないときに読むと
@@ -1099,7 +1108,7 @@
 <div
   class="split"
   class:dragging
-  class:grid-full={isTsv && !!tsvDoc && gridFullscreen && !diffView.active && !timelineView.active}
+  class:grid-full={paneState.grid && gridFullscreen && !diffView.active && !timelineView.active}
   class:image-full={openImage !== null && !diffView.active && !timelineView.active}
   bind:this={splitEl}
   style="--split-cols: {dividerColumns(splitRatio)}"
@@ -1241,6 +1250,14 @@
         <span class="compare-note" aria-live="polite">{gridNotice}</span>
         <button
           type="button"
+          class="head-btn"
+          onclick={() => (sheetPreview = true)}
+          title={t('page.sheetPreviewTitle')}
+        >
+          {t('page.sheetPreviewBtn')}
+        </button>
+        <button
+          type="button"
           class="head-btn fullscreen"
           onclick={toggleGridFullscreen}
           aria-pressed={gridFullscreen}
@@ -1279,6 +1296,16 @@
     {:else}
     <div class="pane-head preview-head">
       <span>{t('page.previewHead')}{#if preview?.ok} — {preview.label}{/if}</span>
+      {#if sheetPreview}
+        <button
+          type="button"
+          class="head-btn"
+          onclick={() => (sheetPreview = false)}
+          title={t('page.sheetGridTitle')}
+        >
+          {t('page.sheetGridBtn')}
+        </button>
+      {/if}
       {#if preview?.ok}
         <button
           type="button"

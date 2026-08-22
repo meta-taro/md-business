@@ -15,6 +15,9 @@ import { validateTsv } from '../src/validate.js';
  */
 const here = path.dirname(fileURLToPath(import.meta.url));
 const sheetsDir = path.resolve(here, '../../../docs/test-specs');
+// 走査先はパッケージの外なので、turbo の既定の入力に入らない。<repo>/turbo.json を継承した
+// packages/schema-test-spec-tsv/turbo.json で docs/test-specs を入力に足してある。
+// 足さないと、シートだけ足した変更でキャッシュに当たり、手元だけ緑になる。
 const SHEETS = readdirSync(sheetsDir).filter((f) => f.endsWith('.tsv'));
 
 describe('docs/test-specs/*.tsv はすべて検証を通る', () => {
