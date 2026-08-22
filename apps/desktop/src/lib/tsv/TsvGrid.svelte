@@ -94,6 +94,7 @@
   } from './gridRange';
   import { summarizeRange, formatSummaryValue } from './gridSummary';
   import { findGridMatches, matchIndexFrom, type CellMatch } from './gridSearch';
+  import { unlikeRowIds, unmatchedRowIds } from './gridFilter';
   import { marqueeEdges } from './gridMarquee';
   import { search, type SearchBinding } from '$lib/search/search.svelte';
   import { buildSearchRegex, stepMatchIndex, type SearchOptions } from '$lib/search/searchLogic';
@@ -207,6 +208,22 @@
     view?: GridView | null;
     /** 選択位置とスクロール量が変わったことを親へ返す（文書ごとに控えてもらう）。 */
     onViewChange?: (view: GridView) => void;
+    /**
+     * 絞り込みで表から外している行数。0 なら絞り込んでいない。
+     *
+     * 外した行を預かるのは親（{@link loadGridDoc} の `without`）。ここは件数を出して
+     * 戻す口を用意するだけで、どの行を外すかは持たない。**外していること自体が
+     * 画面に出ていないと、行が消えたと受け取られる。**
+     */
+    filteredCount?: number;
+    /**
+     * 絞り込みを足す（表から外す行 ID を渡す）。省略すると絞り込みの口を出さない。
+     *
+     * 渡すのは**外す側**の集合。残す側で持つと、絞り込み中に足した行が次の絞り込みで消える。
+     */
+    onFilter?: (excluded: ReadonlySet<string>) => void;
+    /** 絞り込みをすべてやめて、外した行を表へ戻す。 */
+    onClearFilter?: () => void;
   }
 
   let {
@@ -229,6 +246,9 @@
     sheetKey = null,
     view = null,
     onViewChange,
+    filteredCount = 0,
+    onFilter,
+    onClearFilter,
   }: Props = $props();
 
   // 前に見ていた位置。組み立て時に 1 度だけ読み、今の表の大きさへ収める。
@@ -937,15 +957,21 @@
     noticeTimer = setTimeout(() => (notice = ''), 6000);
   }
 
+  // 絞り込み中は計算列を触らない。表に出ている行だけで採番すると、外している行を飛ばした
+  // 番号がそのままファイルへ焼かれる（外した行は保存時に元の位置へ戻るので、番号だけが
+  // 詰まった状態で残る）。絞り込みを解いた時点で下の $effect が採番し直す。
+  const filtering = $derived(filteredCount > 0);
+
   // 親へ通知する唯一の出口。計算列をここで算出値へ揃える。書き込み経路ごとにガードを
   // 置くと、経路が増えたときに漏れる（行の複製・一括埋め・貼り付けは列を選ばない）。
   function emit(next: IdentifiedTsv, edit?: string): void {
-    onChange?.(applyComputed(next, computed, counts), edit);
+    onChange?.(filtering ? next : applyComputed(next, computed, counts), edit);
   }
 
   // 開いたファイルの計算列がずれていれば直す。算出値と一致していれば applyComputed が
   // 同じ参照を返すので、整ったファイルを開いただけでは変更扱いにならない。
   $effect(() => {
+    if (filtering) return;
     const healed = applyComputed(doc, computed, counts);
     if (healed !== doc) onChange?.(healed);
   });
@@ -1581,6 +1607,19 @@
     );
   }
 
+  // ── 絞り込み。控えと違い**ファイルには何も残らない**（開き直せば戻る）。外した行は
+  //    親が預かり、保存時に元の位置へ戻る。`#@ export` にも効かせない。 ──
+  // 押した時点の「外す行」を親へ渡す。すでに外れている行はこの doc に居ないので、
+  // 押すたびに絞り込みが深くなる（戻すのは解除だけ）。
+  function filterByActiveCell(): void {
+    if (!activeIsData) return;
+    onFilter?.(unlikeRowIds(doc, activeCell.col, cellValue(activeCell.row, activeCell.col)));
+  }
+  function filterBySearch(): void {
+    if (searchRegex === null) return;
+    onFilter?.(unmatchedRowIds(doc, searchRegex));
+  }
+
   // 選択行を TSV（タブ区切り）でクリップボードへ。失敗（権限・非対応）は握り潰す。
   async function copyActiveRow(): Promise<void> {
     if (!activeIsData) return;
@@ -2166,6 +2205,39 @@
           {reveal
             ? t('grid.revealHide', { count: hiddenCount })
             : t('grid.revealShow', { count: hiddenCount })}
+        </button>
+      {/if}
+      <!-- 見たい行だけにする。控えと違いファイルには何も残らないので、外していること自体は
+           件数で出しておく（出さないと「行が消えた」と受け取られる）。 -->
+      {#if onFilter}
+        <button
+          type="button"
+          class="row-btn"
+          onclick={filterByActiveCell}
+          disabled={!activeIsData}
+          title={t('grid.filterByCellTitle')}
+        >
+          {t('grid.filterByCell')}
+        </button>
+        {#if searchRegex !== null}
+          <button
+            type="button"
+            class="row-btn"
+            onclick={filterBySearch}
+            title={t('grid.filterBySearchTitle')}
+          >
+            {t('grid.filterBySearch')}
+          </button>
+        {/if}
+      {/if}
+      {#if filtering && onClearFilter}
+        <button
+          type="button"
+          class="row-btn on"
+          onclick={onClearFilter}
+          title={t('grid.filterClearTitle')}
+        >
+          {t('grid.filterClear', { count: filteredCount })}
         </button>
       {/if}
       <!-- 行の履歴。git を毎回叩くので、出すと決めたときだけ読む。 -->

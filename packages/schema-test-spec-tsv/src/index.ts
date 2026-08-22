@@ -18,6 +18,7 @@ export {
   readHiddenIds,
   setHiddenIds,
   splitHiddenRows,
+  splitRowsById,
 } from './hiddenRows.js';
 export {
   applyComputed,

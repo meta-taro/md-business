@@ -7,19 +7,19 @@
  * 突き合わせ自体は schema 側の `diffSheets` が持つ。ここが引き受けるのは 3 つだけ。
  *
  * - git から返ったテキストを検証シートとして読めるか判定する（読めないものは比べない）
- * - 控え行を戻してから比べる（外したまま比べると、控えにした行が全部「消えた行」になる）
+ * - 外して預かっている行を戻してから比べる（外したまま比べると、控えや絞り込みで外した行が
+ *   全部「消えた行」になる）
  * - 行 ID と列名の組を、グリッドが行・列の位置から引ける鍵へ畳む
  */
 import {
   diffSheets,
-  mergeHiddenRows,
   parseTsv,
   withoutRowIds,
-  type HiddenRow,
   type IdentifiedTsv,
   type RemovedRow,
 } from '@md-business/schema-test-spec-tsv';
 import { isTsvSource } from './detect';
+import { restoreRows, type DetachedRows } from './gridDoc';
 
 /**
  * 比べられなかった理由。
@@ -80,18 +80,18 @@ function nothing(issue: CompareIssue): SheetComparison {
  *
  * @param previous 前の版の中身。その版にファイルが無いときは `null`。
  * @param current いまグリッドが持っている表。
- * @param hidden 表から外した控え行（`loadGridDoc` の返り値）。戻してから比べる。
+ * @param detached 表から外して預かっている行（`loadGridDoc` の返り値）。戻してから比べる。
  */
 export function compareWithVersion(
   previous: string | null,
   current: IdentifiedTsv,
-  hidden: readonly HiddenRow[] = [],
+  detached: DetachedRows = { hidden: [] },
 ): SheetComparison {
   if (previous === null) return nothing('missing');
   if (!isTsvSource(previous)) return nothing('unreadable');
 
   const before = parseTsv(previous);
-  const after = withoutRowIds(mergeHiddenRows(current, hidden));
+  const after = withoutRowIds(restoreRows(current, detached));
   const diff = diffSheets(before, after);
   // いまの側は withoutRowIds が ID 列を必ず戻すので、比べられない理由は前の版にしかない。
   if (!diff.comparable) return nothing('no-row-id');

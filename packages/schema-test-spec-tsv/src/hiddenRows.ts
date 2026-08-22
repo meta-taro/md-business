@@ -12,6 +12,9 @@
  *
  * 戻す位置は「直前の可視行の ID」で覚える。控えは書き直した行の隣にあることに意味があり、
  * 末尾へまとめると、どの行の控えなのかが読み手に分からなくなる。
+ *
+ * 抜き差しそのものは {@link splitRowsById} / {@link mergeHiddenRows} で、抜く行を
+ * 何で決めるかとは切り離してある（画面の都合で外す絞り込みが同じ作法に乗る）。
  */
 import { isRowId } from './rowId.js';
 import type { IdentifiedTsv } from './rowId.js';
@@ -20,7 +23,9 @@ import type { IdentifiedTsv } from './rowId.js';
 const HIDDEN_DIRECTIVE = 'hidden';
 
 /**
- * doc から抜いた控え行。保存時に {@link mergeHiddenRows} で元の位置へ戻す。
+ * doc から抜いて預かる行。保存時に {@link mergeHiddenRows} で元の位置へ戻す。
+ *
+ * 控え（`#@ hidden`）だけでなく、画面の都合で外した行（絞り込み）も同じ形で預かる。
  */
 export interface HiddenRow {
   /** 控え行の行 ID。 */
@@ -74,26 +79,31 @@ export function setHiddenIds(directives: readonly string[], ids: readonly string
 }
 
 /**
- * 読み込み時に控え行を doc から抜く。
+ * 渡された行 ID の行を doc から抜く。戻すのは {@link mergeHiddenRows}。
  *
- * `#@ hidden` の宣言はディレクティブに残す。抜いた事実の正本はファイル側の宣言であり、
- * 落とすと保存で書き戻せなくなる。文書に無い ID の指定は何も起こさない。
+ * 抜く行を何で決めるかは呼ぶ側に任せる。控えはファイルの宣言で決まるが、絞り込みは
+ * 画面の都合で決まる。**決め方が違っても抜き差しの作法は 1 つ**にしておかないと、
+ * 戻し方が食い違ったときに行が黙って消える。
+ *
+ * 文書に無い ID の指定は何も起こさない。
  */
-export function splitHiddenRows(doc: IdentifiedTsv): { doc: IdentifiedTsv; hidden: HiddenRow[] } {
-  const hiddenIds = new Set(readHiddenIds(doc.directives));
-  if (hiddenIds.size === 0) {
-    return { doc, hidden: [] };
+export function splitRowsById(
+  doc: IdentifiedTsv,
+  ids: ReadonlySet<string>,
+): { doc: IdentifiedTsv; taken: HiddenRow[] } {
+  if (ids.size === 0) {
+    return { doc, taken: [] };
   }
 
   const rows: string[][] = [];
   const rowIds: string[] = [];
-  const hidden: HiddenRow[] = [];
+  const taken: HiddenRow[] = [];
   let afterId: string | null = null;
 
   doc.rows.forEach((cells, i) => {
     const id = doc.rowIds[i] ?? '';
-    if (hiddenIds.has(id)) {
-      hidden.push({ id, cells, afterId });
+    if (ids.has(id)) {
+      taken.push({ id, cells, afterId });
       return;
     }
     rows.push(cells);
@@ -101,7 +111,18 @@ export function splitHiddenRows(doc: IdentifiedTsv): { doc: IdentifiedTsv; hidde
     afterId = id;
   });
 
-  return { doc: { ...doc, rows, rowIds }, hidden };
+  return { doc: { ...doc, rows, rowIds }, taken };
+}
+
+/**
+ * 読み込み時に控え行を doc から抜く。
+ *
+ * `#@ hidden` の宣言はディレクティブに残す。抜いた事実の正本はファイル側の宣言であり、
+ * 落とすと保存で書き戻せなくなる。
+ */
+export function splitHiddenRows(doc: IdentifiedTsv): { doc: IdentifiedTsv; hidden: HiddenRow[] } {
+  const { doc: visible, taken } = splitRowsById(doc, new Set(readHiddenIds(doc.directives)));
+  return { doc: visible, hidden: taken };
 }
 
 /**

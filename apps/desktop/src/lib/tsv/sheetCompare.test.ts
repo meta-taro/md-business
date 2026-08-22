@@ -97,7 +97,29 @@ describe('compareWithVersion', () => {
       ].join('\n'),
     );
 
-    const result = compareWithVersion(previous, current.doc, current.hidden);
+    const result = compareWithVersion(previous, current.doc, current);
+
+    expect(result.issue).toBeNull();
+    expect(result.removed).toEqual([]);
+    expect([...result.changed]).toEqual([]);
+  });
+
+  it('絞り込みで外した行も突き合わせから外さない', () => {
+    // 控えと同じ理由。絞り込みはファイルに何も残さないぶん、外したまま比べると
+    // 「消えた行」として赤字が全面に出る。
+    const previous = sheet([
+      ['1', 'ログインできる', 'OK', ID1],
+      ['2', 'ログアウトできる', 'OK', ID2],
+    ]);
+    const current = loadGridDoc(
+      sheet([
+        ['1', 'ログインできる', 'OK', ID1],
+        ['2', 'ログアウトできる', 'OK', ID2],
+      ]),
+      { without: new Set([ID2]) },
+    );
+
+    const result = compareWithVersion(previous, current.doc, current);
 
     expect(result.issue).toBeNull();
     expect(result.removed).toEqual([]);
