@@ -9,6 +9,7 @@
  * 「どのスキーマか」が決まるまで、どのスキーマの中身も読まない。
  */
 import { describeFrontmatterError, parseMarkdown } from '@md-business/core';
+import { isTsvSource } from '../tsv/detect';
 import { resolveProvider } from './registry';
 import { LAZY_PROVIDERS } from './providers/lazy';
 import { renderMarkdownFallback } from './providers/markdownFallback';
@@ -22,6 +23,13 @@ export async function renderPreview(
   source: string,
   options: RenderPreviewOptions = {},
 ): Promise<PreviewResult> {
+  // 検証シート（カスタム TSV）は frontmatter を持たない。先頭のマジック行で分かるので、
+  // Markdown として読む前にここで振り分ける（読ませると本文まるごとの素の Markdown になる）。
+  if (isTsvSource(source)) {
+    const { renderSheetPreview } = await import('./providers/testSpecTsv');
+    return renderSheetPreview(source, options);
+  }
+
   let frontmatter: Record<string, unknown>;
   let body: string;
   try {

@@ -111,6 +111,22 @@ describe('renderPreview（オーケストレーター）', () => {
     expect(r.srcdoc).toContain('ただの README');
   });
 
+  it('カスタム TSV は検証シートの版面で描く（Markdown フォールバックへ回さない）', async () => {
+    const source = [
+      '#! md-business:test-spec-tsv/v1',
+      '# タイトル: ログインの検証',
+      'No.:number!\t項目:multiline!\t結果:enum(OK|NG|保留|未実施)!',
+      '1\t開く\tOK',
+    ].join('\n');
+    const r = await renderPreview(source);
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.label).toBe('検証シート');
+    expect(r.documentTitle).toBe('ログインの検証');
+    expect(r.style.id).toBe('test-spec-tsv');
+    expect(r.srcdoc).toContain('開く');
+  });
+
   it('frontmatter 解析不能は not-applicable（理由付き・フォールバックにも回さない）', async () => {
     const r = await renderPreview('---\n: : : invalid yaml : :\n  - broken\n---\n');
     // gray-matter が throw する解析不能ケースは、描画対象にできないため ok:false のまま。
