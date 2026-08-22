@@ -4,6 +4,16 @@ Changes to this app. Versions follow [Semantic Versioning](https://semver.org/).
 
 Japanese is the source of truth for this file; see [CHANGELOG.md](./CHANGELOG.md).
 
+## 0.25.0
+
+### Added
+
+- **A sheet sent out in a submission format can now be brought back into the source of truth once it returns.** The previous version added a way out but none back. The other side writes their results into the copy they were given, so moving those results back was a person copying cells by eye — and **a missed cell only ever shows up on their copy**, never on ours, however long we stare at it. Declare which column identifies a row and the returned table can be read straight from a paste. **Rows are never matched by position**: while the copy is with them it gets sorted, rows get inserted and unwanted rows get deleted, so "the fourth row" of what comes back has nothing to do with the fourth row that went out. **No rows are added or removed.** A key that is not in the sheet is reported and nothing else — taking in a row they added would break the numbering, the row IDs and the computed columns all at once. **Only cells whose value actually differs** are brought back, because the sheet has been edited on this side too while the copy was away, and writing every cell back would silently revert those edits. Computed columns, the row-ID column and any column the format emits twice are never written — for the last of these, when only one of the two comes back changed there is no way here to tell which side is the real one. A format that folds newlines into spaces **refuses the import outright**: a folded newline is indistinguishable from a space that was typed, so importing would strip newlines out of cells nobody touched. Pressing the button first reports **how many cells can go back, which keys did not match and which columns were left alone**; you write back after reading that. Doing it in one step hides the case where not a single key matched — "0 cells changed" also reads as "everything is already in". Undo restores whatever was written.
+
+### Fixed
+
+- **The browser-preview key is no longer compared in a way that takes longer the more of it is right.** The comparison stopped at the first byte that differed, so timing the response reveals the key one character at a time — far fewer attempts than guessing it whole. The server only listens locally, but anything else running on the same machine can reach it, which is precisely what the key is there to stop. The comparison now always reads to the end.
+
 ## 0.24.0
 
 ### Added

@@ -218,3 +218,40 @@ describe('newline=', () => {
     expect(readExportProfiles(doc.directives, doc.columns.map((c) => c.name))).toEqual([]);
   });
 });
+
+describe('key=', () => {
+  /** 戻す口（逆取り込み）で行を当てる列。出す側は使わないが、様式は 1 本でなければならない。 */
+  function profile(directive: string) {
+    const doc = sheet(COLUMNS, ROWS, [directive]);
+    return readExportProfiles(
+      doc.directives,
+      doc.columns.map((c) => c.name),
+    );
+  }
+
+  it('書かなければ null（出せるが戻せない様式）', () => {
+    expect(profile('export 提出用 columns=No.,結果')[0]?.key).toBeNull();
+  });
+
+  it('列名を書けばそれを持つ', () => {
+    expect(profile('export 提出用 columns=No.,結果 key=No.')[0]?.key).toBe('No.');
+  });
+
+  it('列定義に無い列を指していれば宣言ごと捨てる', () => {
+    expect(profile('export 提出用 columns=No.,結果 key=通番')).toEqual([]);
+  });
+
+  // 提出物にキー列が出ていなければ、返ってきた表のどの行がどれだか分からない。
+  it('出さない列を指していれば宣言ごと捨てる', () => {
+    expect(profile('export 提出用 columns=結果 key=No.')).toEqual([]);
+  });
+
+  it('columns= を書いていなければ、既定で出る列から選べる', () => {
+    expect(profile('export 提出用 key=No.')[0]?.key).toBe('No.');
+  });
+
+  // 行 ID 列は既定で出ない。名前で書いていない限り提出物に無い。
+  it('columns= を書かずに行 ID 列を指していれば宣言ごと捨てる', () => {
+    expect(profile('export 提出用 key=_id')).toEqual([]);
+  });
+});

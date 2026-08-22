@@ -55,7 +55,13 @@ pub fn route(token: &str, target: &str) -> Route {
     let Some(rest) = path.strip_prefix('/') else {
         return Route::NotFound;
     };
-    let Some(rest) = rest.strip_prefix(token) else {
+    if rest.len() < token.len() || !token_matches(&rest.as_bytes()[..token.len()], token.as_bytes())
+    {
+        return Route::NotFound;
+    }
+    // 合鍵は照合済み＝そこまでは合鍵と同じバイト列なので、切り口は文字の途中に来ない。
+    // それでも `get` で取るのは、合鍵に多バイト文字が混じった場合に落とさないため。
+    let Some(rest) = rest.get(token.len()..) else {
         return Route::NotFound;
     };
     let rest = match rest {
@@ -75,6 +81,25 @@ pub fn route(token: &str, target: &str) -> Route {
         return Route::Version;
     }
     Route::Page(key)
+}
+
+/// 合鍵を、合っている文字数だけ長く見る形にならないように照合する。
+///
+/// `==` や `strip_prefix` は違ったバイトを見つけた時点で戻る。返るまでの時間が
+/// 合っている文字数で変わるので、1 文字ずつ当てていけば総当たりより桁違いに少ない試行で
+/// 合鍵が割れる。待ち受けているのは localhost だけだが、同じ機械で動いている別のものからは
+/// 叩ける（そこを塞ぐために合鍵を置いている）。
+///
+/// 長さが違えばそこで戻る。合鍵の長さは秘密ではない（出した URL に見えている）。
+fn token_matches(head: &[u8], token: &[u8]) -> bool {
+    if head.len() != token.len() {
+        return false;
+    }
+    let mut diff = 0u8;
+    for (a, b) in head.iter().zip(token.iter()) {
+        diff |= a ^ b;
+    }
+    diff == 0
 }
 
 /// 拡張子から中身の種類を決める。表に無いものは決めつけない。
@@ -234,6 +259,24 @@ mod tests {
         assert_eq!(route(TOKEN, "/index.html"), Route::NotFound);
         assert_eq!(route(TOKEN, "/ちがう合鍵/index.html"), Route::NotFound);
         assert_eq!(route(TOKEN, "/"), Route::NotFound);
+    }
+
+    // 合鍵の照合は、合っている文字数で返るまでの時間を変えない。違った位置で戻る書き方だと、
+    // 1 文字ずつ当てるだけで総当たりより桁違いに少ない試行で合鍵が割れる。
+    #[test]
+    fn 合鍵の照合は違う位置で打ち切らない() {
+        assert!(token_matches(TOKEN.as_bytes(), TOKEN.as_bytes()));
+        // 末尾だけ違う / 先頭だけ違う / 長さが違う。どれも合わない。
+        assert!(!token_matches(b"0123456789abcdee", TOKEN.as_bytes()));
+        assert!(!token_matches(b"1123456789abcdef", TOKEN.as_bytes()));
+        assert!(!token_matches(b"0123456789abcde", TOKEN.as_bytes()));
+    }
+
+    // 合鍵の直後が多バイト文字のことがある。バイトで切るなら、切り口が文字の途中に
+    // 来ても落ちてはいけない。
+    #[test]
+    fn 合鍵の直後が多バイト文字でも落ちない() {
+        assert_eq!(route(TOKEN, &format!("/{}日本語", TOKEN)), Route::NotFound);
     }
 
     // リンクは percent encode された形で届く（日本語のファイル名がそう変わる）。

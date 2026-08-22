@@ -24,7 +24,11 @@
     IdentifiedTsv,
     ReviewIssue,
   } from '@md-business/schema-test-spec-tsv';
-  import { findExportProfile, readExpandRules } from '@md-business/schema-test-spec-tsv';
+  import {
+    findExportProfile,
+    readExpandRules,
+    type ImportBackPlan,
+  } from '@md-business/schema-test-spec-tsv';
   import { openUrl } from '@tauri-apps/plugin-opener';
   import { isTsvSource } from '$lib/tsv/detect';
   import { loadGridDoc, saveGridDoc } from '$lib/tsv/gridDoc';
@@ -36,6 +40,7 @@
   import { changedRowPositions, checkSheetReview } from '$lib/tsv/reviewCheck';
   import { countSheetReferences } from '$lib/tsv/sheetCounts';
   import { exportProfileText, readSheetExportProfiles } from '$lib/tsv/sheetExport';
+  import { applyImportBack, planSheetImportBack } from '$lib/tsv/sheetImportBack';
   import { appendRows } from '$lib/tsv/gridRows';
   import { planSheetExpansion, type SheetExpansion } from '$lib/tsv/sheetExpand';
   import { shortHash, type GitLogEntry } from '$lib/git/gitStatus';
@@ -676,6 +681,81 @@
     }
   }
 
+  // 提出物を正本へ戻す（`#@ export … key=<列名>` の逆向き）。出す口だけがあると、
+  // 先方が提出物の側に書いた結果を人が目で写すことになる。写し漏れは提出物の側にしか
+  // 出ないので、手元をいくら見ても見つからない。
+  //
+  // 読むのと当てるのを 2 段に分ける。当たらなかったキー・書けない列を見てから当てる、
+  // という順序を崩さないため。1 段で書き込むと、1 件も当たっていないことに気づけない。
+  let importPlan = $state<ImportBackPlan | null>(null);
+
+  // 様式を選び直したら前の計画は別の様式のもの。開く文書が変われば行ごと入れ替わる。
+  $effect(() => {
+    exportName;
+    workspace.activePath;
+    importPlan = null;
+  });
+
+  async function readImport() {
+    const profile = findExportProfile(exportProfiles, exportName);
+    const grid = tsvGrid;
+    if (profile === null || grid === null) return;
+    let text: string;
+    try {
+      text = await navigator.clipboard.readText();
+    } catch {
+      showGridNotice(t('page.importFailed'));
+      return;
+    }
+    // 当てる先は画面に出ている表。計画の行番号をそのまま使えるようにする。
+    const plan = planSheetImportBack(grid.doc, profile, text);
+    importPlan = plan.changes.length > 0 ? plan : null;
+    showGridNotice(importMessage(plan), 8000);
+  }
+
+  function runImport() {
+    const grid = tsvGrid;
+    const plan = importPlan;
+    if (grid === null || plan === null) return;
+    const next = applyImportBack(grid.doc, plan.changes);
+    if (next !== grid.doc) handleGridChange(next, 'importBack');
+    importPlan = null;
+    showGridNotice(t('page.importApplied', { count: plan.changes.length }));
+  }
+
+  /**
+   * 取り込みの計画を 1 行にまとめる。
+   *
+   * 当たらなかった側（正本に無いキー・貼り付けに無い列・書けない列）は、戻せる件数と必ず
+   * 並べて出す。0 件とだけ出すと「もう全部入っている」と読めてしまい、キーが 1 つも当たって
+   * いないことに気づけない。
+   */
+  function importMessage(plan: ImportBackPlan): string {
+    if (plan.rejected === 'no-key') return t('page.importNoKey');
+    if (plan.rejected === 'folded-newline') return t('page.importFolded');
+    if (plan.rejected === 'no-key-column') return t('page.importNoKeyColumn');
+
+    const notes = [
+      plan.changes.length > 0
+        ? t('page.importChanges', { count: plan.changes.length })
+        : t('page.importNone'),
+    ];
+    if (plan.unknownKeys.length > 0) {
+      notes.push(t('page.importUnknown', { keys: plan.unknownKeys.join(', ') }));
+    }
+    if (plan.duplicateKeys.length > 0) {
+      notes.push(t('page.importDuplicate', { keys: plan.duplicateKeys.join(', ') }));
+    }
+    if (plan.missingColumns.length > 0) {
+      notes.push(t('page.importMissing', { columns: plan.missingColumns.join(', ') }));
+    }
+    if (plan.lockedColumns.length > 0) {
+      notes.push(t('page.importLocked', { columns: plan.lockedColumns.join(', ') }));
+    }
+    if (plan.skipped > 0) notes.push(t('page.importSkipped', { count: plan.skipped }));
+    return notes.join(' / ');
+  }
+
   // 押しても画面が変わらない操作があるので、結果を少しの間だけ添える。読む字数で消える
   // までを変える（何も足さなかったのと、マスタが読めなかったのとでは読む長さが違う）。
   function showGridNotice(message: string, hold = 2500) {
@@ -1241,6 +1321,24 @@
           >
             {t('page.exportCopyBtn')}
           </button>
+          <button
+            type="button"
+            class="head-btn"
+            onclick={readImport}
+            title={t('page.importReadTitle')}
+          >
+            {t('page.importReadBtn')}
+          </button>
+          {#if importPlan !== null}
+            <button
+              type="button"
+              class="head-btn"
+              onclick={runImport}
+              title={t('page.importApplyTitle')}
+            >
+              {t('page.importApplyBtn', { count: importPlan.changes.length })}
+            </button>
+          {/if}
         {/if}
         {#if expandRules.length > 0}
           <button type="button" class="head-btn" onclick={runExpand} title={t('page.expandTitle')}>

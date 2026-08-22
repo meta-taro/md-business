@@ -32,7 +32,7 @@ import { rowIdColumnName } from './rowId.js';
 const EXPORT_DIRECTIVE = 'export';
 
 /** 受け付けるオプション。ここに無いキーが来たら宣言ごと捨てる。 */
-const KNOWN_OPTIONS = new Set(['columns', 'blank', 'newline']);
+const KNOWN_OPTIONS = new Set(['columns', 'blank', 'newline', 'key']);
 
 /** 列名の区切り。 */
 const COLUMN_SEPARATOR = ',';
@@ -58,6 +58,13 @@ export interface ExportProfile {
   blank: string;
   /** セル内改行の扱い。 */
   newline: ExportNewline;
+  /**
+   * 戻す口（逆取り込み）で行を当てる列の名前。書かなければ null＝**出せるが戻せない**。
+   *
+   * 当てる手段が無いものを位置で当てにいかない。提出物は先方の手元で並べ替えられるので、
+   * 何行目かは戻ってきた時点で意味を持たない。
+   */
+  key: string | null;
 }
 
 /** 書き出した表。見出しとデータ行。 */
@@ -125,7 +132,34 @@ function parseProfile(
   const columns = resolveColumns(options.get('columns'), columnNames, idColumn);
   if (columns === null) return null;
 
-  return { name, columns, blank: options.get('blank') ?? '', newline: newline as ExportNewline };
+  const key = resolveKey(options.get('key'), columnNames, columns);
+  if (key === undefined) return null;
+
+  return {
+    name,
+    columns,
+    blank: options.get('blank') ?? '',
+    newline: newline as ExportNewline,
+    key,
+  };
+}
+
+/**
+ * `key=` を列名へ解く。書いていなければ null。**この様式が出さない列は受け付けない**
+ * （提出物にキー列が出ないので、返ってきた表のどの行がどれだか分からない）。
+ * 受け付けられない指定は `undefined` を返し、呼ぶ側が宣言ごと捨てる。
+ */
+function resolveKey(
+  raw: string | undefined,
+  columnNames: readonly string[],
+  columns: readonly number[],
+): string | null | undefined {
+  if (raw === undefined) return null;
+
+  const name = raw.trim();
+  const at = columnNames.findIndex((column) => column.trim() === name);
+  if (name === '' || at < 0) return undefined;
+  return columns.includes(at) ? name : undefined;
 }
 
 /** `columns=` を列の位置へ解く。指定が無ければ既定（行 ID 列以外の全列）。 */
