@@ -5,7 +5,6 @@
 
 複数 DB 対応のデスクトップ DB クライアント。**AI エージェントからは MCP サーバー経由で読む。**
 DB のスキーマ確認・SELECT はこの MCP を使い、`psql` / `mysql` を直接叩かない。
-横断ノウハウ側の参照元: `.claude/browser-verification.md` §1。
 
 - リポジトリ: <https://github.com/meta-taro/dbboard>（MIT）
 - ダウンロード: <https://meta-taro.github.io/dbboard/>
