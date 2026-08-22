@@ -1,8 +1,7 @@
-# ECC (Everything Claude Code) — 道具カード（正本）
+# ECC (Everything Claude Code) — 道具カード
 
-> **これは司令塔が持つ正本です。**配布リポの `.claude/tools/ecc.md` は、このファイルのコピー。
-> 内容を変えるときはここを直してから配る。Issue 本文へ書き写して配らない
-> （Issue へ書くと更新経路が無くなり、古い前提がそのまま残る）。
+> **このファイルは自動同期されます。**直接編集しても次の同期で上書きされます。
+> 誤りや古い記述があれば Issue で知らせてください。
 
 AI コーディングエージェントに **plan → test → implement → review → verify → remember → improve**
 の型を土台として持たせる MIT ライセンスのフレームワーク。エージェント・スキル・コマンド・
