@@ -255,3 +255,113 @@ describe('key=', () => {
     expect(profile('export 提出用 key=_id')).toEqual([]);
   });
 });
+
+describe('annot=', () => {
+  const ID_A = 'r000000000001';
+  const ID_B = 'r000000000002';
+
+  /** `#@ annot` 1 本（区切りはタブ）。 */
+  function annot(id: string, column: string, body: string): string {
+    return ['annot', id, column, body].join(TAB);
+  }
+
+  /** 注釈を足したシートを、様式で書き出す。 */
+  function withAnnots(directive: string, ...annots: string[]) {
+    const doc = sheet(COLUMNS, ROWS, [directive, ...annots]);
+    const profiles = readExportProfiles(
+      doc.directives,
+      doc.columns.map((column) => column.name),
+    );
+    expect(profiles).toHaveLength(1);
+    return buildExportTable(doc, profiles[0]!);
+  }
+
+  it('書かなければ注釈は出ない（様式の列は先方が決めている）', () => {
+    const table = withAnnots('export 提出用', annot(ID_A, '結果', '言い直した'));
+
+    expect(table.columns).toEqual(['No.', '項目', '手順', '結果']);
+    expect(table.rows[0]).toHaveLength(4);
+  });
+
+  it('列名を書けば末尾に 1 列足して、どのセルの注釈かを添える', () => {
+    const table = withAnnots('export 提出用 annot=注釈', annot(ID_A, '結果', '言い直した'));
+
+    expect(table.columns).toEqual(['No.', '項目', '手順', '結果', '注釈']);
+    expect(table.rows[0]?.[4]).toBe('結果: 言い直した');
+  });
+
+  it('注釈の無い行は空', () => {
+    const table = withAnnots('export 提出用 annot=注釈', annot(ID_A, '結果', '言い直した'));
+
+    expect(table.rows[1]?.[4]).toBe('');
+  });
+
+  it('同じ行に 2 件あれば改行で並べる', () => {
+    const table = withAnnots(
+      'export 提出用 annot=注釈',
+      annot(ID_A, '結果', '一つめ'),
+      annot(ID_A, '結果', '二つめ'),
+    );
+
+    expect(table.rows[0]?.[4]).toBe('結果: 一つめ\n結果: 二つめ');
+  });
+
+  it('行の中では左の列から並べる（紙の番号と同じ順）', () => {
+    const table = withAnnots(
+      'export 提出用 annot=注釈',
+      annot(ID_A, '結果', 'みぎ'),
+      annot(ID_A, '項目', 'ひだり'),
+    );
+
+    expect(table.rows[0]?.[4]).toBe('項目: ひだり\n結果: みぎ');
+  });
+
+  it('様式が出さない列の注釈も出す（黙って落とすと気づけない）', () => {
+    const table = withAnnots('export 提出用 columns=No. annot=注釈', annot(ID_A, '結果', '言い直した'));
+
+    expect(table.columns).toEqual(['No.', '注釈']);
+    expect(table.rows[0]?.[1]).toBe('結果: 言い直した');
+  });
+
+  it('列名を打ち間違えた注釈も出す（書いたとおりを添える）', () => {
+    const table = withAnnots('export 提出用 annot=注釈', annot(ID_A, '存在しない列', '本文'));
+
+    expect(table.rows[0]?.[4]).toBe('存在しない列: 本文');
+  });
+
+  it('正本に無い行 ID の注釈は出さない（提出物に行を足さない）', () => {
+    const table = withAnnots('export 提出用 annot=注釈', annot('r0000000000ff', '結果', '宛先が無い'));
+
+    expect(table.rows.map((cells) => cells[4])).toEqual(['', '']);
+  });
+
+  it('blank= は注釈の列にも効く', () => {
+    const table = withAnnots(
+      'export 提出用 blank=- annot=注釈',
+      annot(ID_B, '結果', 'まだ試していない'),
+    );
+
+    expect(table.rows.map((cells) => cells[4])).toEqual(['-', '結果: まだ試していない']);
+  });
+
+  it('newline= は注釈の並びにも効く', () => {
+    const table = withAnnots(
+      'export 提出用 newline=space annot=注釈',
+      annot(ID_A, '結果', '一つめ'),
+      annot(ID_A, '結果', '二つめ'),
+    );
+
+    expect(table.rows[0]?.[4]).toBe('結果: 一つめ 結果: 二つめ');
+  });
+
+  it('列名が空なら宣言ごと捨てる', () => {
+    const doc = sheet(COLUMNS, ROWS, ['export 提出用 annot=']);
+
+    expect(
+      readExportProfiles(
+        doc.directives,
+        doc.columns.map((column) => column.name),
+      ),
+    ).toEqual([]);
+  });
+});
