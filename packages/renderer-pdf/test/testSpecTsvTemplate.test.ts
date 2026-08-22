@@ -107,3 +107,67 @@ describe('renderTestSpecTsvBody', () => {
     expect(html).toContain('mdb-tsv-sheet__empty');
   });
 });
+
+describe('renderTestSpecTsvBody – cell annotations', () => {
+  /** 表の 2 か所に注釈が付いた版面。番号は呼び出し側が振り終えている。 */
+  function annotated() {
+    return standardTsvSheet({
+      annotations: [
+        { number: 1, row: 0, col: 1, body: '下書き保存が入ったので言い直した' },
+        { number: 2, row: 1, col: 3, body: '一行目\n二行目' },
+      ],
+    });
+  }
+
+  it('numbers the annotated cell so the reader can find the note', () => {
+    const html = renderTestSpecTsvBody(annotated());
+    expect(html).toContain('下見に切り替わる<sup class="mdb-tsv-sheet__ref">1</sup>');
+    expect(html).toContain('OK<sup class="mdb-tsv-sheet__ref">2</sup>');
+  });
+
+  it('prints the bodies after the table (paper has no hover)', () => {
+    const html = renderTestSpecTsvBody(annotated());
+    expect(html.indexOf('mdb-tsv-sheet__annots')).toBeGreaterThan(html.indexOf('</table>'));
+    expect(html).toContain('下書き保存が入ったので言い直した');
+  });
+
+  it('says which cell each note belongs to', () => {
+    expect(renderTestSpecTsvBody(annotated())).toContain('1 行目・項目');
+  });
+
+  it('turns newlines in the body into <br>', () => {
+    expect(renderTestSpecTsvBody(annotated())).toContain('一行目<br>二行目');
+  });
+
+  it('escapes the body', () => {
+    const html = renderTestSpecTsvBody(
+      standardTsvSheet({ annotations: [{ number: 1, row: 0, col: 0, body: '<script>a' }] }),
+    );
+    expect(html).not.toContain('<script>a');
+  });
+
+  it('omits the section when there is no annotation', () => {
+    expect(renderTestSpecTsvBody(standardTsvSheet())).not.toContain('mdb-tsv-sheet__annots');
+  });
+
+  it('still lists a note whose cell is no longer in the table', () => {
+    // 位置を引けない注釈も本文は出す。紙から黙って消えると、消えたことに気づけない。
+    const html = renderTestSpecTsvBody(
+      standardTsvSheet({ annotations: [{ number: 1, row: 9, col: 9, body: '行き場のない注釈' }] }),
+    );
+    expect(html).toContain('行き場のない注釈');
+    expect(html).not.toContain('mdb-tsv-sheet__ref');
+  });
+
+  it('keeps two notes on the same cell in written order', () => {
+    const html = renderTestSpecTsvBody(
+      standardTsvSheet({
+        annotations: [
+          { number: 1, row: 0, col: 1, body: 'さき' },
+          { number: 2, row: 0, col: 1, body: 'あと' },
+        ],
+      }),
+    );
+    expect(html).toContain('>1</sup><sup class="mdb-tsv-sheet__ref">2</sup>');
+  });
+});

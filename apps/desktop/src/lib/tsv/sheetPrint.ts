@@ -13,6 +13,8 @@
  * - **地色**: `#@ style` の判定をグリッドと同じ関数で解く。凡例の色と刷り色がずれない。
  * - **計算列**: ここでも算出値へ揃える。グリッドを開いた履歴に依存させると、
  *   開かずに刷ったときだけ番号の列が空で出る。
+ * - **注釈**: 画面と同じ番号を振って渡す。紙には吹き出しを出せないので、本文は
+ *   刷る側が末尾へまとめる（番号だけが表の中に残る）。
  *
  * 控え行（`#@ hidden`）と行 ID 列は、読み込み（gridDoc）の時点で既に外れている。
  */
@@ -22,6 +24,7 @@ import {
   type IdentifiedTsv,
 } from '@md-business/schema-test-spec-tsv';
 import type { TestSpecTsvPrintDoc, TestSpecTsvPrintRow } from '@md-business/renderer-pdf';
+import { placeAnnotations } from './gridAnnot';
 import { defaultColAligns } from './gridColumnAlign';
 import { defaultColModes } from './gridColumnMode';
 import { defaultColWidths } from './gridLayout';
@@ -88,5 +91,11 @@ export function buildSheetPrintDoc(
       width: layout.colWidths[index],
     })),
     rows,
+    annotations: placeAnnotations(doc).map((annotation) => ({
+      number: annotation.number,
+      row: annotation.row,
+      col: annotation.col,
+      body: annotation.body,
+    })),
   };
 }

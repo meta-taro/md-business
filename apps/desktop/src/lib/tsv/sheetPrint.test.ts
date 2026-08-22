@@ -39,6 +39,23 @@ function build(lines: string[], fallbackTitle = 'sheet.tsv') {
   return buildSheetPrintDoc(loadGridDoc(sheet(lines)).doc, { fallbackTitle });
 }
 
+/**
+ * 行 ID 列を持つ素材へ `#@ annot` を足して組み直す。
+ * 宣言は採番された行 ID を指すので、一度開いてからでないと書けない。
+ */
+function annotate(specs: string[], rowIndex: number) {
+  const loaded = loadGridDoc(identified());
+  const id = loaded.doc.rowIds[rowIndex]!;
+
+  return buildSheetPrintDoc(
+    {
+      ...loaded.doc,
+      directives: [...loaded.doc.directives, ...specs.map((spec) => `annot\t${id}${spec}`)],
+    },
+    { fallbackTitle: 'x' },
+  );
+}
+
 describe('buildSheetPrintDoc', () => {
   it('メタの題名を表題にし、メタ一覧からは外す', () => {
     const doc = build(['# タイトル: v0.24.0 検証シート', '# 版: 0.24.0', HEADER]);
@@ -121,5 +138,37 @@ describe('buildSheetPrintDoc', () => {
     const doc = build([HEADER, `1\t1. 開く${NL}2. 押す\t未実施\t`]);
 
     expect(doc.rows[0]?.cells[1]).toBe('1. 開く\n2. 押す');
+  });
+
+  it('注釈は上から番号を振って渡す（紙に振り直させない）', () => {
+    const doc = annotate(['\t結果\t再現しないので保留', '\t項目\t言い直した'], 0);
+
+    expect(doc.annotations).toEqual([
+      { number: 1, row: 0, col: 1, body: '言い直した' },
+      { number: 2, row: 0, col: 2, body: '再現しないので保留' },
+    ]);
+  });
+
+  it('注釈が無ければ空', () => {
+    const doc = buildSheetPrintDoc(loadGridDoc(identified()).doc, { fallbackTitle: 'x' });
+
+    expect(doc.annotations).toEqual([]);
+  });
+
+  it('控えにした行の注釈は刷らない（行ごと紙に出ないため）', () => {
+    const source = identified();
+    const loaded = loadGridDoc(source);
+    const id = loaded.doc.rowIds[1]!;
+    const hidden = saveGridDoc(hideRow(loaded.doc, 1), loaded, source);
+    const reopened = loadGridDoc(hidden);
+    const doc = buildSheetPrintDoc(
+      {
+        ...reopened.doc,
+        directives: [...reopened.doc.directives, `annot\t${id}\t項目\t控えの注釈`],
+      },
+      { fallbackTitle: 'x' },
+    );
+
+    expect(doc.annotations).toEqual([]);
   });
 });
