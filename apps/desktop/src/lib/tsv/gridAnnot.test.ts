@@ -3,6 +3,8 @@ import { parseTsv, withRowIds, readAnnotations } from '@md-business/schema-test-
 import type { IdentifiedTsv } from '@md-business/schema-test-spec-tsv';
 import {
   addAnnotation,
+  annotationFlagText,
+  annotationLabel,
   annotationsAt,
   placeAnnotations,
   removeAnnotation,
@@ -161,5 +163,45 @@ describe('removeAnnotation', () => {
     const doc = removeAnnotation(sheet('rowid _id', annot(A, '項目', '本文')), 0);
 
     expect(doc.directives).toEqual(['rowid _id']);
+  });
+});
+
+describe('annotationLabel', () => {
+  it('短い本文はそのまま', () => {
+    expect(annotationLabel('下書き保存が入った', 20)).toBe('下書き保存が入った');
+  });
+
+  it('長い本文は末尾を落として印を付ける', () => {
+    expect(annotationLabel('あいうえおかきくけこ', 5)).toBe('あいうえお…');
+  });
+
+  it('改行は空白に畳む（メニューの 1 行に収める）', () => {
+    expect(annotationLabel('一行目\n二行目', 20)).toBe('一行目 二行目');
+  });
+
+  it('畳んだあとの長さで切る', () => {
+    expect(annotationLabel('一行目\n二行目', 4)).toBe('一行目 …');
+  });
+
+  it('前後の空白は落とす', () => {
+    expect(annotationLabel('  本文  ', 20)).toBe('本文');
+  });
+});
+
+describe('annotationFlagText', () => {
+  it('注釈が無ければ空', () => {
+    expect(annotationFlagText([])).toBe('');
+  });
+
+  it('1 件ならその番号', () => {
+    expect(annotationFlagText([3])).toBe('3');
+  });
+
+  it('2 件なら並べる', () => {
+    expect(annotationFlagText([3, 4])).toBe('3,4');
+  });
+
+  it('3 件以上は範囲にする（セルの角に収める）', () => {
+    expect(annotationFlagText([3, 4, 5])).toBe('3–5');
   });
 });

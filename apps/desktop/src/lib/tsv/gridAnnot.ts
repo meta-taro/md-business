@@ -99,3 +99,24 @@ export function setAnnotationBody(doc: IdentifiedTsv, index: number, body: strin
 export function removeAnnotation(doc: IdentifiedTsv, index: number): IdentifiedTsv {
   return setAnnotationBody(doc, index, '');
 }
+
+/**
+ * メニューの 1 行に収める見出し。改行を空白に畳んでから切る。
+ *
+ * 畳まずに切ると、メニューの項目が本文の高さぶん伸びて、ほかの項目が画面外へ出る。
+ */
+export function annotationLabel(body: string, max: number): string {
+  const flat = body.replace(/\s+/g, ' ').trim();
+  return flat.length <= max ? flat : `${flat.slice(0, max)}…`;
+}
+
+/**
+ * セルの角に出す番号。同じセルの注釈は番号が連番になるので、3 件以上は範囲で畳む。
+ *
+ * 全部並べるとセルの角に収まらず、表の値そのものを隠してしまう。
+ */
+export function annotationFlagText(numbers: readonly number[]): string {
+  if (numbers.length === 0) return '';
+  if (numbers.length <= 2) return numbers.join(',');
+  return `${numbers[0]}–${numbers[numbers.length - 1]}`;
+}

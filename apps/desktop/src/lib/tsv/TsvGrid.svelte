@@ -26,6 +26,16 @@
   } from '@md-business/schema-test-spec-tsv';
   import { isMarked, toggleMarks } from './gridMarks';
   import {
+    addAnnotation,
+    annotationFlagText,
+    annotationLabel,
+    annotationsAt,
+    placeAnnotations,
+    removeAnnotation,
+    setAnnotationBody,
+    type PlacedAnnotation,
+  } from './gridAnnot';
+  import {
     gridWidgets,
     setCell,
     checkboxToCell,
@@ -296,6 +306,73 @@
   function toggleSelectionMarks(): void {
     if (!editable) return;
     emit(toggleMarks(doc, rangeBounds(selection)), 'mark');
+  }
+
+  // ── セルの注釈（#@ annot）。「なぜこの値なのか」をセルの外に持つ。印（#@ mark）と
+  //    指し方は同じでも寿命が違う（印は次の版で消える／注釈は残る）ので別立てにしてある。
+  //    番号はファイルに持たず、ここで上から振り直す（1 件挿すたびに全行が書き換わるのを
+  //    避けるため）。紙では末尾の一覧がこの番号で並ぶ。 ──
+  const annotations = $derived(placeAnnotations(doc));
+
+  /** そのセルに付いている注釈（書いた順）。 */
+  function cellAnnots(row: number, col: number): PlacedAnnotation[] {
+    return annotationsAt(annotations, row, col);
+  }
+
+  // 注釈の書き札。index が null なら新規、数値なら記載順での書き換え先。画面の位置ではなく
+  // 記載順で指すのは、列名を打ち間違えて表に引けない注釈があっても宛先がずれないため。
+  let annotEdit = $state<{
+    row: number;
+    col: number;
+    index: number | null;
+    body: string;
+    x: number;
+    y: number;
+  } | null>(null);
+
+  /** 注釈の書き札を、対象セルの左下に開く。 */
+  function openAnnotEdit(row: number, col: number, target: PlacedAnnotation | null): void {
+    if (!editable) return;
+    const rect = gridEl
+      ?.querySelector<HTMLElement>(`[data-cell="${row}-${col}"]`)
+      ?.getBoundingClientRect();
+    annotEdit = {
+      row,
+      col,
+      index: target?.index ?? null,
+      body: target?.body ?? '',
+      x: rect?.left ?? 0,
+      y: rect?.bottom ?? 0,
+    };
+  }
+
+  /** 選択中のセルに注釈を足す（ショートカット）。 */
+  function addAnnotToActive(): void {
+    openAnnotEdit(activeCell.row, activeCell.col, null);
+  }
+
+  function closeAnnotEdit(): void {
+    annotEdit = null;
+  }
+
+  /** 書き札の中身を保存する。空にして保存すれば消える（消し方を別に覚えなくてよい）。 */
+  function saveAnnotEdit(): void {
+    const edit = annotEdit;
+    annotEdit = null;
+    if (edit === null) return;
+    const next =
+      edit.index === null
+        ? addAnnotation(doc, edit.row, edit.col, edit.body)
+        : setAnnotationBody(doc, edit.index, edit.body);
+    if (next !== doc) emit(next);
+  }
+
+  /** 注釈を消す。 */
+  function deleteAnnotEdit(): void {
+    const edit = annotEdit;
+    annotEdit = null;
+    if (edit === null || edit.index === null) return;
+    emit(removeAnnotation(doc, edit.index));
   }
 
   /** 前の版に無かった行か。 */
@@ -800,16 +877,17 @@
   //    だけ Svelte 側の薄いグルー。状態は上のレイアウトセクションで colModes / colAligns と
   //    して宣言済み（directives から復元・変更で永続化）。 ──
   // 右クリックで開く列メニュー。対象列と画面座標を持つ（null＝非表示）。
-  let colMenu = $state<{ col: number; x: number; y: number } | null>(null);
+  // 行はセルから開いたときだけ入る（見出しから開いた場合は null＝注釈の段を出さない）。
+  let colMenu = $state<{ col: number; row: number | null; x: number; y: number } | null>(null);
   const colMenuItems = $derived(
     colMenu ? colModeMenuItems(colModes[colMenu.col] ?? 'clip') : [],
   );
   const colAlignItems = $derived(
     colMenu ? colAlignMenuItems(colAligns[colMenu.col] ?? 'left') : [],
   );
-  function openColMenu(col: number, event: MouseEvent): void {
+  function openColMenu(col: number, event: MouseEvent, row: number | null = null): void {
     event.preventDefault(); // WebView2 ネイティブメニューを抑止しカスタムメニューを出す
-    colMenu = { col, x: event.clientX, y: event.clientY };
+    colMenu = { col, row, x: event.clientX, y: event.clientY };
   }
   function chooseColMode(mode: ColOverflowMode): void {
     if (colMenu) {
@@ -827,6 +905,20 @@
   }
   function closeColMenu(): void {
     colMenu = null;
+  }
+
+  /** 列メニューの注釈の段から書き札を開く。 */
+  function chooseAnnot(target: PlacedAnnotation | null): void {
+    const menu = colMenu;
+    colMenu = null;
+    if (menu === null || menu.row === null) return;
+    openAnnotEdit(menu.row, menu.col, target);
+  }
+
+  /** 開いた瞬間に書ける状態にする（開いてから枠を押させない）。 */
+  function focusOnOpen(node: HTMLTextAreaElement): void {
+    node.focus();
+    node.select();
   }
 
   // ── 行の右クリックメニュー。行操作バーは窓を狭めると後ろから「…」へ畳まれるので、
@@ -1431,6 +1523,19 @@
         fillSelectionDown();
         return;
       }
+      // Ctrl+Alt+M はアクティブセルへ注釈を足す。印（Ctrl+M）と隣り合わせのキーにするのは、
+      // 「この値が気になる」から入って「なぜこの値か」を書く、という順で使われるため。
+      // 修飾の多いほうを先に見ないと、下の Ctrl+M に飲み込まれる。
+      if (
+        editable &&
+        event.altKey &&
+        (event.ctrlKey || event.metaKey) &&
+        (event.key === 'm' || event.key === 'M' || event.code === 'KeyM')
+      ) {
+        event.preventDefault();
+        addAnnotToActive();
+        return;
+      }
       // Ctrl+M は選択範囲の印（#@ mark）の付け外し。付けるより外せることのほうが大事なので、
       // 同じキーで往復できる形にする（別々のキーにすると外し方だけ忘れられる）。
       if ((event.ctrlKey || event.metaKey) && (event.key === 'm' || event.key === 'M')) {
@@ -1635,6 +1740,7 @@
 <svelte:window
   onkeydown={(e) => {
     if (e.key === 'Escape' && colMenu) closeColMenu();
+    if (e.key === 'Escape' && annotEdit) closeAnnotEdit();
     if (e.key === 'Escape' && rowMenu) closeRowMenu();
   }}
   onpointerup={endDrag}
@@ -1949,6 +2055,7 @@
                 colModes[c] === 'clip' &&
                 widget?.kind !== 'number' &&
                 spillsRight(doc.rows[r] ?? [], c, doc.columns.length)}
+              {@const annots = cellAnnots(r, c)}
               <td
                 class:invalid={issue !== undefined}
                 class:active
@@ -1965,13 +2072,14 @@
                 class:editing={active && mode === 'edit'}
                 class:computed={isLocked(c)}
                 class:diff-changed={isChangedCell(r, c) || isMarkedCell(r, c)}
+                class:annotated={annots.length > 0}
                 title={issue ?? (isLocked(c) ? t('grid.computedCell') : diffTitle(r, c))}
                 data-cell={`${r}-${c}`}
                 onkeydown={(e) => onGridKeydown(r, c, e)}
                 onpointerdown={(e) => onCellPointerDown(r, c, e)}
                 onpointerenter={() => onCellPointerEnter(r, c)}
                 onpointerup={(e) => onCellPointerUp(r, c, e)}
-                oncontextmenu={(e) => openColMenu(c, e)}
+                oncontextmenu={(e) => openColMenu(c, e, r)}
                 ondblclick={enterEdit}
               >
                 {#if active && editable && mode === 'edit'}
@@ -2101,6 +2209,23 @@
                               >{/if}{/each}</span
                         >{/if}
                     {/if}
+                  </div>
+                {/if}
+                {#if annots.length > 0}
+                  <!-- 注釈の印と本文。印だけ出して本文はホバー / フォーカスで開く。常に出すと
+                       表が読めなくなり、押さないと出ない形にすると付いていること自体に
+                       気づかれない。本文は DOM に残したまま透明にしてある（読み上げに乗せる）。 -->
+                  <span
+                    class="annot-flag"
+                    title={t('grid.annotFlag', { no: annotationFlagText(annots.map((a) => a.number)) })}
+                    >{annotationFlagText(annots.map((a) => a.number))}</span
+                  >
+                  <div class="annot-pop" role="note">
+                    {#each annots as annotation (annotation.index)}
+                      <p class="annot-line">
+                        <span class="annot-no">{annotation.number}</span>{annotation.body}
+                      </p>
+                    {/each}
                   </div>
                 {/if}
               </td>
@@ -2290,6 +2415,35 @@
       oncontextmenu={(e) => { e.preventDefault(); closeColMenu(); }}
     ></button>
     <ul class="col-menu" role="menu" style={`left:${colMenu.x}px; top:${colMenu.y}px`}>
+      {#if editable && colMenu.row !== null}
+        <!-- 注釈はセルに付くので、見出しから開いたメニューには出さない。 -->
+        <li class="col-menu-head" role="presentation">{t('grid.annotHead')}</li>
+        {#each cellAnnots(colMenu.row, colMenu.col) as annotation (annotation.index)}
+          <li role="none">
+            <button
+              type="button"
+              role="menuitem"
+              class="col-menu-item"
+              onclick={() => chooseAnnot(annotation)}
+            >
+              <span class="check annot-no" aria-hidden="true">{annotation.number}</span>
+              {annotationLabel(annotation.body, 24)}
+            </button>
+          </li>
+        {/each}
+        <li role="none">
+          <button
+            type="button"
+            role="menuitem"
+            class="col-menu-item"
+            title={t('grid.annotAddTitle')}
+            onclick={() => chooseAnnot(null)}
+          >
+            <span class="check" aria-hidden="true">＋</span>
+            {t('grid.annotAdd')}
+          </button>
+        </li>
+      {/if}
       <li class="col-menu-head" role="presentation">
         {t('grid.colMenuText', { name: doc.columns[colMenu.col]?.name ?? '' })}
       </li>
@@ -2326,6 +2480,47 @@
         </li>
       {/each}
     </ul>
+  {/if}
+
+  {#if annotEdit}
+    <!-- 注釈の書き札。対象セルの左下に開く。空にして保存すれば消える（消し方を別に
+         覚えなくてよい）。背後クリック / Esc で閉じ、Ctrl+Enter で保存。 -->
+    <button
+      type="button"
+      class="menu-backdrop"
+      aria-label={t('grid.menuClose')}
+      onclick={closeAnnotEdit}
+      oncontextmenu={(e) => { e.preventDefault(); closeAnnotEdit(); }}
+    ></button>
+    <div class="annot-edit" style={`left:${annotEdit.x}px; top:${annotEdit.y}px`}>
+      <p class="col-menu-head">
+        {annotEdit.index === null ? t('grid.annotAdd') : t('grid.annotRewrite')}
+      </p>
+      <textarea
+        class="annot-input"
+        rows="3"
+        placeholder={t('grid.annotPlaceholder')}
+        bind:value={annotEdit.body}
+        use:focusOnOpen
+        onkeydown={(e) => {
+          if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+            e.preventDefault();
+            saveAnnotEdit();
+          }
+        }}
+      ></textarea>
+      <div class="annot-actions">
+        <button type="button" class="row-btn" onclick={saveAnnotEdit}>{t('grid.annotSave')}</button>
+        {#if annotEdit.index !== null}
+          <button type="button" class="row-btn" onclick={deleteAnnotEdit}>
+            {t('grid.annotDelete')}
+          </button>
+        {/if}
+        <button type="button" class="row-btn" onclick={closeAnnotEdit}>
+          {t('grid.annotCancel')}
+        </button>
+      </div>
+    </div>
   {/if}
 
   {#if rowMenu}
@@ -3236,6 +3431,103 @@
     border: none;
     padding: 0;
     cursor: default;
+  }
+
+  /* 注釈があるセル。角に番号だけ出し、本文はホバー / フォーカスで開く。常に本文を出すと
+     表が読めなくなり、押さないと出ない形にすると付いていること自体に気づかれない。 */
+  td.annotated {
+    position: relative;
+  }
+
+  .annot-flag {
+    position: absolute;
+    top: 0;
+    right: 0;
+    z-index: 1;
+    padding: 0 3px;
+    border-bottom-left-radius: var(--radius-sm, 4px);
+    background: var(--accent);
+    color: var(--bg-app);
+    font-size: var(--text-2xs-size, var(--text-sm-size));
+    font-weight: 600;
+    line-height: 1.5;
+    font-variant-numeric: tabular-nums;
+    pointer-events: none;
+  }
+
+  /* 表示 / 非表示に display を使わない。消すと読み上げからも消え、注釈が付いていることが
+     画面を見ない利用者に伝わらなくなる。 */
+  .annot-pop {
+    position: absolute;
+    top: calc(100% - 1px);
+    right: 0;
+    z-index: 40;
+    width: max-content;
+    max-width: 320px;
+    padding: var(--space-2);
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-lg, 0 8px 24px rgba(0, 0, 0, 0.28));
+    color: var(--text-primary);
+    font-size: var(--text-2xs-size, var(--text-sm-size));
+    font-weight: 400;
+    white-space: pre-wrap;
+    text-align: left;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity var(--dur-fast, 80ms) var(--ease, ease-out);
+  }
+
+  td.annotated:hover .annot-pop,
+  td.annotated:focus-within .annot-pop {
+    opacity: 1;
+  }
+
+  .annot-line {
+    display: flex;
+    gap: var(--space-2);
+    margin: 0;
+  }
+
+  .annot-line + .annot-line {
+    margin-top: var(--space-1);
+  }
+
+  .annot-no {
+    flex: none;
+    color: var(--text-tertiary);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .annot-edit {
+    position: fixed;
+    z-index: 51;
+    width: 280px;
+    padding: var(--space-2);
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-lg, 0 8px 24px rgba(0, 0, 0, 0.28));
+  }
+
+  .annot-input {
+    box-sizing: border-box;
+    width: 100%;
+    padding: var(--space-1) var(--space-2);
+    resize: vertical;
+    background: var(--bg-app);
+    color: var(--text-primary);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-sm, 4px);
+    font: inherit;
+    font-size: var(--text-sm-size);
+  }
+
+  .annot-actions {
+    display: flex;
+    gap: var(--space-1);
+    margin-top: var(--space-2);
   }
 
   .col-menu {
