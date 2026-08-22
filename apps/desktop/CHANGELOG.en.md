@@ -4,6 +4,14 @@ Changes to this app. Versions follow [Semantic Versioning](https://semver.org/).
 
 Japanese is the source of truth for this file; see [CHANGELOG.md](./CHANGELOG.md).
 
+## 0.23.0
+
+### Added
+
+- **An existing repository can now be cloned into the empty folder you have open.** Until now the app could only turn a local folder into a new repository; there was **no way to bring down something that already exists on the host**. The app holds no credentials and asks for none — authentication is left to the OS git credential store and SSH. On top of that, URLs with credentials embedded, unencrypted `http://`, and schemes that can run an arbitrary command are refused at the door. When authentication does not go through, git is not allowed to ask for a username or password; it fails on the spot with a reason you can read (a child process has nobody to answer it, so once it starts asking it simply hangs where no one is looking). The clone goes into the folder you have open, and is refused unless that folder is empty.
+- **Branches can be created and switched to, and a branch you just created can be pushed.** The branch list was already being read but never shown, so there was no way to switch. A branch without an upstream could not be pushed, so one could be created and never sent. The destination follows the upstream when there is one, and is only decided when there is not: `origin` if it exists, the single remote if there is exactly one, and **refused** when several exist and none is `origin` — picking the wrong one sends your contents somewhere you did not intend. There is no operating-mode setting (plain / branch / PR). What keeps anyone off main is the host's protection settings, not a screen in this app; holding it as a setting would make something unprotected **look protected**.
+- **After a push, the pointer the host sends back can be opened in a browser.** Push a new branch and the host puts a "continue here" URL — the page for opening a pull request — in its output. That string is picked up and shown next to the push confirmation. The URL is never assembled here: every host shapes that page differently, and a guess leads somewhere that does not exist. No API and no token are involved. Nor is git's output handed to a browser as-is — only something that starts with `https://`, has a host, carries no credentials and is not overly long gets through. When it does not, the affordance simply does not appear and the push still succeeded. The pointer clears when it is used and when anything else is done, so an old URL cannot end up attached to the result of a different operation.
+
 ## 0.22.0
 
 ### Added
