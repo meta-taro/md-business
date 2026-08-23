@@ -4,6 +4,16 @@ Changes to this app. Versions follow [Semantic Versioning](https://semver.org/).
 
 Japanese is the source of truth for this file; see [CHANGELOG.md](./CHANGELOG.md).
 
+## 0.28.0
+
+### Added
+
+- **Markdown footnotes (`[^1]`) now read as notes.** A footnote leaves only a superscript number in place and folds its body down to the end of the document. On paper you can turn back a page; on screen, **moving your eyes to the end is enough to lose your place**. In the middle of a table or a figure, coming back means hunting for the same row again. Hovering the superscript now shows the body right there. The list at the end stays as it was — **the list is the real one and what appears inline is a copy of the same text**; printing and screen readers see only the list. It is not read twice: the superscript already points at the body at the end, so reading the copy as well would speak the same sentence twice in a row. **The back-reference arrow (`↩`) is not printed.** On screen it is the way back from the list to the body; on paper it is an unpressable glyph sitting next to the number, and readers lose time working out what it is for. The block is set smaller than body text with a rule above it, and does not inherit section-heading decoration, because notes are not a section.
+
+### Fixed
+
+- **The heading above the notes was printed as the English `Footnotes` even in Japanese documents.** The default heading is English, and it carries a class meant to hide it visually while leaving it for screen readers. No stylesheet here defines that class, so **the English heading was simply shown**. It is now shown deliberately, in the document's language (注釈 / Notes / 注释 / 주석), rather than hidden. The screen-reader label on the back-reference arrow follows the same language. Only the glyph is visible, so it is easy to miss, but read aloud it was one stretch of English in the middle of the document.
+
 ## 0.27.0
 
 ### Added

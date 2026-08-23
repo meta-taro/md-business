@@ -27,6 +27,7 @@ const MARKDOWN_CSS = `
   --md-border: #d1d9e0;
   --md-code-bg: #f6f8fa;
   --md-accent: #0969da;
+  --md-pop-bg: #ffffff;
 }
 :root[data-theme='dark'] {
   --md-fg: #e6edf3;
@@ -34,6 +35,7 @@ const MARKDOWN_CSS = `
   --md-border: #3d444d;
   --md-code-bg: #151b23;
   --md-accent: #4493f8;
+  --md-pop-bg: #1c2128;
 }
 * { box-sizing: border-box; }
 body {
@@ -115,6 +117,59 @@ hr { height: 1px; margin: 1.5em 0; border: 0; background: var(--md-border); }
   /* コードフェンス・見出し・表・画像はページ境界で不自然に割れないようにする。 */
   pre, blockquote, table, img { break-inside: avoid; }
   h1, h2, h3, h4, h5, h6 { break-after: avoid; }
+}
+/* 注釈（Markdown の脚注）。本文には肩番号だけが残り、本文は末尾へ畳まれる。 */
+.footnotes {
+  margin-top: 2.5em;
+  padding-top: 1em;
+  border-top: 1px solid var(--md-border);
+  font-size: 0.875em;
+  color: var(--md-muted);
+}
+/* 見出しの罫と余白を引き継がせない。注釈は章ではない。 */
+.mdb-footnotes__head {
+  margin: 0 0 0.6em;
+  padding: 0;
+  border: none;
+  font-size: 1em;
+  color: var(--md-fg);
+}
+.footnotes ol { margin: 0; padding-left: 1.6em; }
+.footnotes li p { margin: 0; }
+[data-footnote-ref] { font-weight: 600; text-decoration: none; }
+.data-footnote-backref { margin-left: 0.4em; text-decoration: none; }
+@media print {
+  /* 紙の上では戻れない。押せない記号が並ぶだけになる。 */
+  .data-footnote-backref { display: none; }
+}
+
+/* 印のそばに畳んである注釈の本文。既定は隠し、印に触れたときだけ重ねて出す。 */
+sup:has([data-footnote-ref]) { position: relative; }
+.mdb-footnote__pop {
+  position: absolute;
+  top: 1.8em;
+  left: 0;
+  z-index: 5;
+  display: none;
+  width: max-content;
+  max-width: 320px;
+  padding: 8px 10px;
+  border: 1px solid var(--md-border);
+  border-radius: 6px;
+  background: var(--md-pop-bg);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
+  color: var(--md-fg);
+  font-size: 0.875em;
+  font-weight: 400;
+  line-height: 1.6;
+  text-align: left;
+  white-space: normal;
+}
+sup:hover .mdb-footnote__pop,
+[data-footnote-ref]:focus-visible + .mdb-footnote__pop { display: block; }
+@media print {
+  /* 紙には重ねられない。本文は末尾の一覧に出ている。 */
+  .mdb-footnote__pop { display: none; }
 }
 `;
 

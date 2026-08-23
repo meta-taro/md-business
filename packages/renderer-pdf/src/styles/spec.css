@@ -403,3 +403,98 @@ body {
     width: calc(100% + 32mm);
   }
 }
+
+/* 注釈（Markdown の脚注）。`[^1]` は本文に肩番号だけを残し、本文は末尾へ畳まれる。
+   既定の体裁を持たないまま出ていた（見出しを隠すつもりの class も当たっていない）ので、
+   ここで当てる。紙では戻り記号を消す＝押せない記号を刷っても迷わせるだけ。 */
+.mdb-spec__body .footnotes {
+  margin-top: 8mm;
+  padding-top: 3mm;
+  border-top: 0.6pt solid var(--mdb-color-border);
+  font-size: 8.5pt;
+  line-height: 1.6;
+  color: var(--mdb-color-muted);
+  page-break-inside: avoid;
+  break-inside: avoid;
+}
+
+/* 章見出しの装飾（罫・余白）を引き継がせない。注釈は章ではない。 */
+.mdb-spec__body .mdb-footnotes__head {
+  margin: 0 0 2mm 0;
+  padding: 0;
+  border: none;
+  font-size: 9pt;
+  font-weight: 600;
+  color: var(--mdb-color-fg);
+}
+
+.mdb-spec__body .footnotes ol {
+  margin: 0;
+  padding-left: 6mm;
+}
+
+.mdb-spec__body .footnotes li {
+  margin: 0 0 1.5mm 0;
+}
+
+.mdb-spec__body .footnotes li p {
+  margin: 0;
+}
+
+/* 本文中の肩番号。行送りを押し広げないよう `sup` の既定に任せず詰める。 */
+.mdb-spec__body [data-footnote-ref] {
+  color: var(--mdb-color-accent);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.mdb-spec__body .data-footnote-backref {
+  margin-left: 1mm;
+  text-decoration: none;
+}
+
+@media print {
+  /* 紙の上では戻れない。押せない記号が番号の隣に並ぶだけになる。 */
+  .mdb-spec__body .data-footnote-backref {
+    display: none;
+  }
+}
+
+/* 印のそばに畳んである注釈の本文。既定は隠しておき、印に触れたときだけ重ねて出す。
+   末尾の一覧まで目を移すと、表や図の途中で読んでいた場所を見失うため。 */
+.mdb-spec__body sup:has([data-footnote-ref]) {
+  position: relative;
+}
+
+.mdb-spec__body .mdb-footnote__pop {
+  position: absolute;
+  top: 1.8em;
+  left: 0;
+  z-index: 5;
+  display: none;
+  width: max-content;
+  max-width: 60mm;
+  padding: 2mm 2.5mm;
+  border: 0.6pt solid var(--mdb-color-border);
+  border-radius: 1mm;
+  background: #ffffff;
+  box-shadow: 0 1mm 3mm rgba(0, 0, 0, 0.14);
+  color: var(--mdb-color-fg);
+  font-size: 8.5pt;
+  font-weight: 400;
+  line-height: 1.6;
+  text-align: left;
+  white-space: normal;
+}
+
+.mdb-spec__body sup:hover .mdb-footnote__pop,
+.mdb-spec__body [data-footnote-ref]:focus-visible + .mdb-footnote__pop {
+  display: block;
+}
+
+@media print {
+  /* 紙には重ねられない。本文は末尾の一覧に出ている。 */
+  .mdb-spec__body .mdb-footnote__pop {
+    display: none;
+  }
+}
