@@ -77,6 +77,10 @@ export const SERVER_INSTRUCTIONS = `md-business は Markdown / TSV の業務文�
   \`directives\` の \`computed\` は、値がほかから決まる列（例 \`computed No. = rowNumber()\`）。
   指定すると書き込みは失敗する。「その列を実数で埋めて」と言われても、それは宣言を直す話であって
   セルを打つ話ではない。打てば集計が消えたまま提出物として出る。
+  \`annotations\` はセルに付いた注釈（\`#@ annot\`）で、**読めるが書く口は無い**。
+  「なぜこの値にしたのか」を人が自分の言葉で書き残すところなので、同じ欄を埋めると
+  後から読んだ人にはどちらの言い分か分からなくなる。\`row\` / \`col\` が null の注釈は、
+  控えにした行や知らない列名を指している（打ち間違いを黙って消さないために残してある）。
 - 外部から届いた JSON / XML（請求書の交換形式・口座明細・会計サービスの書き出しなど）は
   **read_data** で木構造として読む。これらは正本ではないので **書き戻す口は無い**。
   中身を業務文書にするなら、読んだ内容をもとに create_document / append_tsv_row で作る。
@@ -340,7 +344,7 @@ export function createServer(store: DocumentStore, options: CreateServerOptions 
     'read_tsv',
     {
       description:
-        '検証シート（カスタム TSV）を読み、メタ情報・列定義（型 / 必須 / 選択肢）・データ行・行 ID・列型の検証結果を返す。行を書き込む前に列名を確認するために使う。rowIds が空でなければ、update_tsv_row の宛先は行 index ではなくその ID。linkIssues は別シートを指す列（directives の link）の照合結果で、targetPath が指す相手ファイル側の取りこぼしも含む。',
+        '検証シート（カスタム TSV）を読み、メタ情報・列定義（型 / 必須 / 選択肢）・データ行・行 ID・列型の検証結果を返す。行を書き込む前に列名を確認するために使う。rowIds が空でなければ、update_tsv_row の宛先は行 index ではなくその ID。linkIssues は別シートを指す列（directives の link）の照合結果で、targetPath が指す相手ファイル側の取りこぼしも含む。annotations はセルに付いた注釈で、読むだけ（書く口は無い）。',
       inputSchema: { path: z.string().describe('ワークスペース相対パス（例 sheets/受注.tsv）') },
     },
     async ({ path }) => {

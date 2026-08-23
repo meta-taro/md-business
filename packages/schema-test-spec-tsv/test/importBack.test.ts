@@ -249,6 +249,15 @@ describe('提出様式の都合を正本へ持ち込まない', () => {
     ]);
   });
 
+  it('注釈の列は書き戻さない（様式の外の列＝正本の列ではない）', () => {
+    const result = plan('export 提出用 columns=No.,結果 key=No. annot=注釈', [
+      ['No.', '結果', '注釈'],
+      ['1', 'OK', '結果: 先方が書き足した'],
+    ]);
+
+    expect(result.changes).toEqual([{ row: 0, column: 3, before: '', after: 'OK' }]);
+  });
+
   it('渡された doc は書き換えない', () => {
     const doc = sheet(COLUMNS, ROWS, [FORM]);
     const before = JSON.stringify(doc);

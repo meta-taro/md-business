@@ -909,3 +909,105 @@ describe('checkTsv', () => {
     expect(await s.read('sheets/受注.tsv')).toBe(SHEET);
   });
 });
+
+/**
+ * セルの注釈（`#@ annot <行ID>\t<列名>\t<本文>`）。
+ *
+ * 「なぜこの値なのか」を人がセルの外へ書き足したもの。**読めるが書けない**。
+ * 判断の理由は人の言葉で残っているところに意味があり、同じ欄へエージェントも書けると、
+ * 後から読んだ人には誰の言い分なのか区別が付かなくなる。
+ *
+ * 引けない注釈（知らない列名・表に無い行）は落とさず、位置を null にして返す。
+ * 黙って消すと、打ち間違えた注釈が「無かったこと」になる。
+ */
+const ANNOT_SHEET =
+  [
+    '#! md-business:test-spec-tsv/v1',
+    '#@ rowid _id',
+    '#@ hidden rcccccccccccc',
+    '#@ annot\traaaaaaaaaaaa\t結果\t下書き保存が入ったので言い直した',
+    '#@ annot\trbbbbbbbbbbbb\t備考\t一行目\\n二行目',
+    '#@ annot\traaaaaaaaaaaa\t対応状態\t知らない列名',
+    '#@ annot\trcccccccccccc\t結果\t控えにした行',
+    'No.:number\t項目!\t結果:enum(OK|NG)\t備考:multiline\t_id',
+    '1\t新規登録\tOK\t\traaaaaaaaaaaa',
+    '2\t金額計算\tNG\t端数\trbbbbbbbbbbbb',
+    '3\t新規登録（初版）\tNG\t\trcccccccccccc',
+  ].join('\n') + '\n';
+
+function annotStore(): MemoryDocumentStore {
+  return new MemoryDocumentStore({ 'sheets/annot.tsv': ANNOT_SHEET });
+}
+
+describe('セルの注釈を持つ検証シート', () => {
+  it('宣言が無ければ空', async () => {
+    const r = await readTsv(store(), 'sheets/受注.tsv');
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.annotations).toEqual([]);
+  });
+
+  it('行と列の位置へ引き直して返す', async () => {
+    const r = await readTsv(annotStore(), 'sheets/annot.tsv');
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.annotations[0]).toEqual({
+      row: 0,
+      col: 2,
+      column: '結果',
+      body: '下書き保存が入ったので言い直した',
+    });
+  });
+
+  it('本文のエスケープは戻す', async () => {
+    const r = await readTsv(annotStore(), 'sheets/annot.tsv');
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.annotations[1]).toEqual({ row: 1, col: 3, column: '備考', body: '一行目\n二行目' });
+  });
+
+  it('知らない列名は col を null にして残す', async () => {
+    const r = await readTsv(annotStore(), 'sheets/annot.tsv');
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.annotations[2]).toEqual({ row: 0, col: null, column: '対応状態', body: '知らない列名' });
+  });
+
+  it('控えにした行の注釈は row を null にする（その行は rows に無い）', async () => {
+    const r = await readTsv(annotStore(), 'sheets/annot.tsv');
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.annotations[3]).toEqual({ row: null, col: 2, column: '結果', body: '控えにした行' });
+  });
+
+  it('宣言の順に返す（並べ替えない）', async () => {
+    const r = await readTsv(annotStore(), 'sheets/annot.tsv');
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.annotations).toHaveLength(4);
+  });
+
+  it('行 ID を持たないシートでは位置を引かない（採番は一時値なので指し先にならない）', async () => {
+    const s = new MemoryDocumentStore({
+      'x.tsv': ['#@ annot\traaaaaaaaaaaa\t結果\t本文', '結果:enum(OK|NG)', 'OK'].join('\n') + '\n',
+    });
+    const r = await readTsv(s, 'x.tsv');
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.annotations).toEqual([{ row: null, col: 0, column: '結果', body: '本文' }]);
+  });
+
+  it('行を書き換えても注釈の宣言は動かない', async () => {
+    const s = annotStore();
+
+    await updateTsvRow(s, {
+      path: 'sheets/annot.tsv',
+      row: 'raaaaaaaaaaaa',
+      values: { 結果: 'NG' },
+    });
+
+    const text = await s.read('sheets/annot.tsv');
+    expect(text).toContain('#@ annot\traaaaaaaaaaaa\t結果\t下書き保存が入ったので言い直した');
+    expect(text).toContain('#@ annot\trcccccccccccc\t結果\t控えにした行');
+  });
+});

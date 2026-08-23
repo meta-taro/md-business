@@ -593,6 +593,15 @@ export interface Messages {
   'grid.colAlignLeft': string;
   'grid.colAlignCenter': string;
   'grid.colAlignRight': string;
+  'grid.annotHead': string;
+  'grid.annotAdd': string;
+  'grid.annotAddTitle': string;
+  'grid.annotFlag': string;
+  'grid.annotRewrite': string;
+  'grid.annotPlaceholder': string;
+  'grid.annotSave': string;
+  'grid.annotDelete': string;
+  'grid.annotCancel': string;
 }
 
 /** 翻訳キー型（t() の引数に使う）。 */
@@ -1175,6 +1184,15 @@ const en: Messages = {
   'grid.colAlignLeft': 'Left',
   'grid.colAlignCenter': 'Center',
   'grid.colAlignRight': 'Right',
+  'grid.annotHead': 'Notes',
+  'grid.annotAdd': 'Add a note',
+  'grid.annotAddTitle': 'Record why this cell holds this value (Ctrl+Alt+M)',
+  'grid.annotFlag': 'Note {no}',
+  'grid.annotRewrite': 'Rewrite the note',
+  'grid.annotPlaceholder': 'Why this value',
+  'grid.annotSave': 'Save',
+  'grid.annotDelete': 'Delete',
+  'grid.annotCancel': 'Cancel',
 };
 
 const ja: Messages = {
@@ -1750,6 +1768,15 @@ const ja: Messages = {
   'grid.colAlignLeft': '左寄せ',
   'grid.colAlignCenter': '中央寄せ',
   'grid.colAlignRight': '右寄せ',
+  'grid.annotHead': '注釈',
+  'grid.annotAdd': '注釈を追加',
+  'grid.annotAddTitle': 'この値になっている理由をセルの外に残します（Ctrl+Alt+M）',
+  'grid.annotFlag': '注釈 {no}',
+  'grid.annotRewrite': '注釈を書き直す',
+  'grid.annotPlaceholder': 'この値になっている理由',
+  'grid.annotSave': '保存',
+  'grid.annotDelete': '削除',
+  'grid.annotCancel': 'やめる',
 };
 
 const zh: Messages = {
@@ -2321,6 +2348,15 @@ const zh: Messages = {
   'grid.colAlignLeft': '左对齐',
   'grid.colAlignCenter': '居中',
   'grid.colAlignRight': '右对齐',
+  'grid.annotHead': '批注',
+  'grid.annotAdd': '添加批注',
+  'grid.annotAddTitle': '记录该单元格为何是这个值（Ctrl+Alt+M）',
+  'grid.annotFlag': '批注 {no}',
+  'grid.annotRewrite': '重写批注',
+  'grid.annotPlaceholder': '该值的理由',
+  'grid.annotSave': '保存',
+  'grid.annotDelete': '删除',
+  'grid.annotCancel': '取消',
 };
 
 const ko: Messages = {
@@ -2896,6 +2932,15 @@ const ko: Messages = {
   'grid.colAlignLeft': '왼쪽 정렬',
   'grid.colAlignCenter': '가운데 정렬',
   'grid.colAlignRight': '오른쪽 정렬',
+  'grid.annotHead': '주석',
+  'grid.annotAdd': '주석 추가',
+  'grid.annotAddTitle': '이 셀이 왜 이 값인지 남깁니다 (Ctrl+Alt+M)',
+  'grid.annotFlag': '주석 {no}',
+  'grid.annotRewrite': '주석 고쳐 쓰기',
+  'grid.annotPlaceholder': '이 값인 이유',
+  'grid.annotSave': '저장',
+  'grid.annotDelete': '삭제',
+  'grid.annotCancel': '취소',
 };
 
 /** ロケール→文言辞書。i18n.svelte.ts が現ロケールと fallback(ja) を引く。 */

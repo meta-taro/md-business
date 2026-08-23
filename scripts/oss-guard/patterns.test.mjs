@@ -51,6 +51,18 @@ test('サンプルデータ中の裸の .tmp/ は検出しない', () => {
   assert.equal(scanText('let out = nul("# branch.head main\\n? .tmp/\\n");').length, 0);
 });
 
+test('利用者の PC の ~/.claude/ は検出しない', () => {
+  // 道具カードが案内するのは Claude 自身の導入先フォルダであって、
+  // このリポジトリの追跡外フォルダではない。
+  assert.equal(scanText('mkdir -p ~/.claude/rules/ecc').length, 0);
+  assert.equal(scanText('`~/.claude/skills/` の直下に並ぶ').length, 0);
+});
+
+test('追跡している .claude/tools/ への参照は検出しない', () => {
+  // clone した人にも開ける＝死んだリンクにならない。
+  assert.equal(scanText('[道具](.claude/tools/ecc.md) を見る').length, 0);
+});
+
 test('公開組織ハンドル meta-taro は検出しない', () => {
   assert.equal(scanText('https://github.com/meta-taro/md-business').length, 0);
 });

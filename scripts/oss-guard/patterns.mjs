@@ -54,10 +54,12 @@ export const PATTERNS = [
     // Pointers into paths this repository gitignores. They resolve on the
     // author's machine but are dead links for anyone who clones the repo, so
     // published docs must explain the reason inline instead of linking out.
-    // `.tmp/` needs a following path character, so a bare `.tmp/` appearing as
-    // test sample data is not flagged.
+    // Two lookalikes are not that: `~/.claude/` is where Claude itself installs
+    // on the reader's own machine, and `.claude/tools/` is tracked here, so both
+    // resolve for anyone who clones. `.tmp/` needs a following path character,
+    // so a bare `.tmp/` appearing as test sample data is not flagged.
     id: 'private-path-ref',
-    re: /\.claude\/|\bCLAUDE\.md\b|\.tmp\/[\w.-]/g,
+    re: /(?<!~[/\\])\.claude\/(?!tools\/)|\bCLAUDE\.md\b|\.tmp\/[\w.-]/g,
     hint: 'gitignore 済みパスへの参照',
   },
   {

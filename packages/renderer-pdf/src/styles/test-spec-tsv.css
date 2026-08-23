@@ -119,6 +119,54 @@ body {
   background: var(--mdb-row-tint);
 }
 
+/* セルの肩の番号。本文は末尾へ回し、ここは行き先だけを示す。
+   本文をセルへ入れると、行の高さが注釈の量で決まって表として読めなくなる。 */
+.mdb-tsv-sheet__ref {
+  margin-left: 0.5mm;
+  font-size: 6.5pt;
+  font-weight: 700;
+  line-height: 0;
+}
+
+.mdb-tsv-sheet__annots {
+  margin-top: 5mm;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.mdb-tsv-sheet__annots-head {
+  margin: 0 0 1.5mm;
+  font-size: 9pt;
+  font-weight: 700;
+}
+
+.mdb-tsv-sheet__annot-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 8.5pt;
+}
+
+.mdb-tsv-sheet__annot {
+  margin-bottom: 1mm;
+  /* 番号のぶんだけ字下げして、折り返した本文が番号の下へ潜らないようにする。 */
+  padding-left: 7mm;
+  text-indent: -7mm;
+}
+
+.mdb-tsv-sheet__annot-no {
+  display: inline-block;
+  min-width: 5mm;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+/* どのセルの注釈かを示す。番号だけだと紙の上で探し回ることになる。 */
+.mdb-tsv-sheet__annot-at {
+  margin-right: 2mm;
+  color: var(--mdb-color-muted);
+}
+
 .mdb-tsv-sheet__empty {
   margin: 0;
   color: var(--mdb-color-muted);

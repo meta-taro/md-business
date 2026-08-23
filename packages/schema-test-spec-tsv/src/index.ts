@@ -36,6 +36,7 @@ export { buildExportTable, findExportProfile, readExportProfiles } from './expor
 export { planImportBack } from './importBack.js';
 export { planExpansion, readExpandRules } from './expand.js';
 export { readMarks, setMarks } from './marks.js';
+export { readAnnotations, setAnnotations } from './annot.js';
 export type { ColumnType, ColumnUiHint, ParsedHeader } from './types.js';
 export type { IdentifiedTsv } from './rowId.js';
 export type { HiddenRow } from './hiddenRows.js';
@@ -54,6 +55,7 @@ export type { ExportNewline, ExportProfile, ExportTable } from './export.js';
 export type { ImportBackChange, ImportBackPlan, ImportBackRejection } from './importBack.js';
 export type { ExpandPlan, ExpandRule } from './expand.js';
 export type { EnumChoices, EnumSource } from './enumSource.js';
+export type { CellAnnotation } from './annot.js';
 export type { LineKind } from './classify.js';
 export type { TsvDocument } from './parse.js';
 export type { ValidationCode, ValidationIssue } from './validate.js';
