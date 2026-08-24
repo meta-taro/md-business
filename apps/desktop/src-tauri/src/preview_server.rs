@@ -22,8 +22,8 @@ use serde::Serialize;
 use tauri::{AppHandle, Manager, State};
 
 use crate::preview_server_logic::{
-    content_type, http_response, http_response_bytes, inject_reload, parse_request_line, route,
-    Route,
+    content_security_policy, content_type, html_response, http_response, http_response_bytes,
+    inject_reload, parse_request_line, route, Route, SitePolicy,
 };
 use crate::workspace::{resolve_image_in_root, SiteAsset, SiteFile};
 
@@ -33,6 +33,9 @@ struct Site {
     /// サイト内での置き場所 → 元のファイル。中身ではなく在り処だけを持つ。
     assets: HashMap<String, PathBuf>,
     version: u64,
+    /// このページ一式の中で script をどこまで動かすか。宣言と同意の結果として
+    /// 画面側から渡ってくる。ここで読み直さないので、宣言の読み間違いが実行に化けない。
+    policy: SitePolicy,
 }
 
 /// 立っているサーバー 1 つぶん。
@@ -57,11 +60,11 @@ pub struct PreviewServerInfo {
     pub port: u16,
 }
 
-/// URL に入れる合鍵。立てるたびに作り直す。
-fn new_token() -> String {
+/// 推測できない 16 バイトを 16 進で。URL に入れる合鍵と、ページごとの印に使う。
+fn random_hex() -> String {
     let mut bytes = [0u8; 16];
     // OS の乱数が引けない環境は考えにくいが、引けないまま固定値へ落とすと
-    // 合鍵が合鍵でなくなる。そのときは立てない側に倒す（呼び出し元が Err にする）。
+    // 合鍵も印も推測できるものになる。出さずに落ちるほうが安全側なので、ここで止める。
     getrandom::fill(&mut bytes).expect("OS の乱数を引けません");
     bytes.iter().map(|b| format!("{b:02x}")).collect()
 }
@@ -90,6 +93,7 @@ fn start_server(
     root: &Path,
     files: Vec<SiteFile>,
     assets: Vec<SiteAsset>,
+    policy: SitePolicy,
 ) -> Result<Running, String> {
     if files.is_empty() {
         return Err("見せるページがありません".to_string());
@@ -103,11 +107,12 @@ fn start_server(
         .map_err(|error| format!("待ち受け先を読めません: {error}"))?
         .port();
 
-    let token = new_token();
+    let token = random_hex();
     let site = Arc::new(Mutex::new(Site {
         pages: to_pages(files),
         assets: to_assets(root, assets),
         version: 1,
+        policy,
     }));
     let stopping = Arc::new(AtomicBool::new(false));
 
@@ -169,7 +174,13 @@ fn respond(target: &str, token: &str, site: &Mutex<Site>) -> Vec<u8> {
             if let Some(content) = site.pages.get(&key) {
                 let kind = content_type(&key);
                 return if kind.starts_with("text/html") {
-                    http_response(200, kind, &inject_reload(content, token))
+                    // 印はページごとに引き直す。使い回すと、1 枚から漏れた印が
+                    // 以後どのページでも通ってしまう。
+                    let nonce = random_hex();
+                    html_response(
+                        &inject_reload(content, token, &nonce),
+                        &content_security_policy(&site.policy, &nonce),
+                    )
                 } else {
                     http_response(200, kind, content)
                 };
@@ -190,6 +201,9 @@ fn respond(target: &str, token: &str, site: &Mutex<Site>) -> Vec<u8> {
 }
 
 /// 覚えている中身を入れ替え、版を進める。開いているブラウザはこの版を見て読み直す。
+///
+/// 何が動いてよいか（`policy`）はここでは触らない。保存のたびに変わると、開いたままの
+/// ブラウザで実行の可否が黙って入れ替わる。宣言を書き換えたときは立て直す。
 fn replace_site(
     running: &Running,
     root: &Path,
@@ -241,7 +255,9 @@ pub fn start_preview_server(
     if let Some(previous) = slot.take() {
         stop_server(&previous);
     }
-    let running = start_server(Path::new(&root), files, assets)?;
+    // いまは業務文書の既定（何も動かさない）で立てる。宣言と同意を突き合わせて
+    // ここへ渡すのは次の作業。
+    let running = start_server(Path::new(&root), files, assets, SitePolicy::default())?;
     let detail = info(&running);
     *slot = Some(running);
     Ok(detail)
@@ -305,7 +321,7 @@ mod tests {
 
     /// 画像を伴わない待ち受け。ページの返し方を見るテストで使う。
     fn start(files: Vec<SiteFile>) -> Result<Running, String> {
-        start_server(Path::new("."), files, vec![])
+        start_server(Path::new("."), files, vec![], SitePolicy::default())
     }
 
     fn site(path: &str, content: &str) -> SiteFile {
@@ -359,8 +375,38 @@ mod tests {
     fn ページには入れ替えの仕掛けが入る() {
         let running = start(pages()).expect("立つ");
         let got = request(running.port, &format!("/{}/index.html", running.token)).expect("返る");
-        assert!(got.contains("<script>"));
+        assert!(got.contains("<script nonce=\""));
         assert!(got.contains(&running.token));
+        stop_server(&running);
+    }
+
+    /// 応答の中から、差し込んだ仕掛けに付いている印を取り出す。
+    fn nonce_of(response: &str) -> String {
+        let after = response
+            .split_once("<script nonce=\"")
+            .expect("仕掛けに印がある")
+            .1;
+        after.split_once('"').expect("印が閉じている").0.to_string()
+    }
+
+    // 印は指示と揃っていないと意味がない。揃っていなければ、差し込んだ仕掛け自体が動かない。
+    #[test]
+    fn 仕掛けの印は同じ応答の指示と揃う() {
+        let running = start(pages()).expect("立つ");
+        let got = request(running.port, &format!("/{}/index.html", running.token)).expect("返る");
+        let nonce = nonce_of(&got);
+        assert!(got.contains(&format!("script-src 'nonce-{nonce}'")));
+        stop_server(&running);
+    }
+
+    // 印を使い回すと、1 枚から漏れた印が以後どのページでも通る。
+    #[test]
+    fn 印は出すたびに引き直す() {
+        let running = start(pages()).expect("立つ");
+        let path = format!("/{}/index.html", running.token);
+        let first = nonce_of(&request(running.port, &path).expect("返る"));
+        let second = nonce_of(&request(running.port, &path).expect("返る"));
+        assert_ne!(first, second);
         stop_server(&running);
     }
 
@@ -482,6 +528,7 @@ mod tests {
             &root.path,
             pages(),
             vec![asset("経費/領収書.png", "assets/img/経費/領収書.png")],
+            SitePolicy::default(),
         )
         .expect("立つ");
 
@@ -505,6 +552,7 @@ mod tests {
             &root.path,
             pages(),
             vec![asset("経費/領収書.png", "assets/img/領収書.png")],
+            SitePolicy::default(),
         )
         .expect("立つ");
         std::fs::remove_file(root.path.join("経費/領収書.png")).expect("消す");
@@ -528,6 +576,7 @@ mod tests {
             &root.path,
             pages(),
             vec![asset("../mdbiz_srv_外.png", "assets/img/外.png")],
+            SitePolicy::default(),
         )
         .expect("立つ");
 

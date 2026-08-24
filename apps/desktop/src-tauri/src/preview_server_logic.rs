@@ -120,6 +120,98 @@ pub fn content_type(path: &str) -> &'static str {
     }
 }
 
+/// ページを出すときに、その中の script をどこまで動かすか。
+///
+/// 動かしてよいかを決めるのは `md-business.yml` の宣言と、この PC での同意の両方だが、
+/// ここが見るのはその結果だけで、**宣言そのものは読まない**。読み手を 2 つ持つと、
+/// 同じファイルに 2 つの答えが出たときに「動かす」と読んだ側が勝つ。
+#[derive(Debug, Clone, Default, PartialEq, Eq, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SitePolicy {
+    /// 利用者が書いた script を動かすか。既定は動かさない。
+    pub scripts: bool,
+    /// プロジェクト自身のファイル以外に、script を取り寄せてよい置き先。
+    #[serde(default)]
+    pub script_origins: Vec<String>,
+}
+
+/// 手元を指しているか。`http://` を通すのはここだけ。
+fn is_local_host(host: &str) -> bool {
+    if let Some(rest) = host.strip_prefix('[') {
+        // IPv6 は `[::1]:8080` の形で来る。括弧の中だけを見る。
+        return rest.split_once(']').is_some_and(|(inner, _)| inner == "::1");
+    }
+    let name = host.split(':').next().unwrap_or("");
+    name == "localhost" || name == "127.0.0.1"
+}
+
+/// 置き先として並べてよいものだけを通す。
+///
+/// 宣言は Git に乗る＝プロジェクト側が自由に書ける。`*` や `https:` のような
+/// 「どこでも」を組み立ててしまうと、宣言を 1 行足すだけで外のコードが動くようになる。
+/// 引用符・空白・`;` は CSP の区切りなので、混ざったものはそこで別の指示に化ける。
+fn usable_origin(origin: &str) -> bool {
+    if origin.contains(['*', '\'', '"', ' ', '\t', ';', ',']) {
+        return false;
+    }
+    let Some(host) = origin
+        .strip_prefix("https://")
+        .or_else(|| origin.strip_prefix("http://"))
+    else {
+        return false;
+    };
+    // 置き先は scheme と host だけ。道筋まで書かれていても、ブラウザが見るのは
+    // 置き先ぜんぶなので、書いてあるより広く許すことになる。
+    if host.is_empty() || host.contains('/') {
+        return false;
+    }
+    // 平文の経路は手元に限る。途中で差し替えられる先から script を引かない。
+    !origin.starts_with("http://") || is_local_host(host)
+}
+
+/// ページに付ける Content-Security-Policy。
+///
+/// 返すのはアプリが組み立てたページだけだが、その中身には利用者や AI が書いた HTML が
+/// そのまま入る。ここで閉じておかないと、本文に script を 1 行書くだけで、
+/// 同じ待ち受けの中を読める。
+///
+/// 業務文書のページで動く script は、**差し込んだ入れ替えの仕掛け 1 つに限る**。
+/// 印（nonce）が付いたものだけを通すので、本文に書かれた script は場所を問わず動かない。
+/// web モードは利用者が script を書くところなので、プロジェクト自身の script を通す。
+/// 同意はプロジェクトへ与えられているから、別ファイルか本文の中かは問わない。
+pub fn content_security_policy(policy: &SitePolicy, nonce: &str) -> String {
+    let script_src = if policy.scripts {
+        let mut sources = vec!["'self'".to_string(), "'unsafe-inline'".to_string()];
+        sources.extend(
+            policy
+                .script_origins
+                .iter()
+                .filter(|origin| usable_origin(origin))
+                .cloned(),
+        );
+        sources.join(" ")
+    } else {
+        format!("'nonce-{nonce}'")
+    };
+    [
+        "default-src 'self'".to_string(),
+        format!("script-src {script_src}"),
+        // 見た目は本文に直に書かれることがある（表の桁揃え・図の色）。ここを閉じると
+        // 業務文書の見え方が崩れるが、閉じないことで増える危険は script ほどではない。
+        "style-src 'self' 'unsafe-inline'".to_string(),
+        "img-src 'self' data:".to_string(),
+        "font-src 'self' data:".to_string(),
+        "connect-src 'self'".to_string(),
+        // 差し込む先を持たない＝古い仕掛けで囲いを抜けられない。
+        "object-src 'none'".to_string(),
+        // 相対の解決先を書き換えられると、`'self'` が指す先ごと動く。
+        "base-uri 'self'".to_string(),
+        "frame-ancestors 'none'".to_string(),
+        "form-action 'self'".to_string(),
+    ]
+    .join("; ")
+}
+
 /// 中身が入れ替わったかを見に行き、変わっていたら読み直す仕掛け。
 ///
 /// 繋ぎっぱなしにせず、一定間隔で聞きに行く形にしている。繋ぎっぱなしだと
@@ -143,8 +235,11 @@ if(v!==seen)location.reload()\
 }
 
 /// 本文の終わりに仕掛けを差し込む。閉じ札が無ければ末尾に足す。
-pub fn inject_reload(html: &str, token: &str) -> String {
-    let script = format!("<script>{}</script>", reload_script(token));
+///
+/// 印（nonce）を付けるのは、業務文書のページでは印の付いた script しか動かないため。
+/// 付け忘れると、入れ替わりを見に行く仕掛けそのものが止まる。
+pub fn inject_reload(html: &str, token: &str, nonce: &str) -> String {
+    let script = format!("<script nonce=\"{nonce}\">{}</script>", reload_script(token));
     match html.rfind("</body>") {
         Some(at) => format!("{}{}{}", &html[..at], script, &html[at..]),
         None => format!("{html}{script}"),
@@ -158,11 +253,25 @@ pub fn http_response(status: u16, content_type: &str, body: &str) -> Vec<u8> {
 
 /// 文字にならない中身（画像）を返すときの応答。組み立ては上と同じ。
 pub fn http_response_bytes(status: u16, content_type: &str, body: &[u8]) -> Vec<u8> {
+    build_response(status, content_type, body, None)
+}
+
+/// ページを返すときの応答。**script をどこまで動かすかを載せるのはここだけ**で、
+/// 画像や文字だけの応答には効かない（読む側がその指示を見ない）。
+pub fn html_response(body: &str, csp: &str) -> Vec<u8> {
+    build_response(200, "text/html; charset=utf-8", body.as_bytes(), Some(csp))
+}
+
+fn build_response(status: u16, content_type: &str, body: &[u8], csp: Option<&str>) -> Vec<u8> {
     let reason = match status {
         200 => "OK",
         400 => "Bad Request",
         404 => "Not Found",
         _ => "Error",
+    };
+    let policy = match csp {
+        Some(value) => format!("Content-Security-Policy: {value}\r\n"),
+        None => String::new(),
     };
     // 手元で見るためのものなので、覚えられると入れ替えが効かなくなる。
     // 別の出どころから読ませる設定（CORS）は付けない。
@@ -171,6 +280,7 @@ pub fn http_response_bytes(status: u16, content_type: &str, body: &[u8]) -> Vec<
 Content-Type: {content_type}\r\n\
 Content-Length: {}\r\n\
 Cache-Control: no-store\r\n\
+{policy}\
 Connection: close\r\n\
 \r\n",
         body.len()
@@ -332,8 +442,8 @@ mod tests {
 
     #[test]
     fn 本文の終わりに入れ替えの仕掛けを入れる() {
-        let out = inject_reload("<html><body><h1>a</h1></body></html>", TOKEN);
-        assert!(out.contains("<script>"));
+        let out = inject_reload("<html><body><h1>a</h1></body></html>", TOKEN, "abc123");
+        assert!(out.contains("<script nonce=\"abc123\">"));
         assert!(out.contains(TOKEN));
         // 本文の外に出すと、閉じたあとの中身として無視される場合がある。
         assert!(out.ends_with("</body></html>"));
@@ -341,9 +451,9 @@ mod tests {
 
     #[test]
     fn 本文の終わりが無ければ末尾に足す() {
-        let out = inject_reload("<h1>a</h1>", TOKEN);
+        let out = inject_reload("<h1>a</h1>", TOKEN, "abc123");
         assert!(out.starts_with("<h1>a</h1>"));
-        assert!(out.contains("<script>"));
+        assert!(out.contains("<script nonce=\"abc123\">"));
     }
 
     #[test]
@@ -387,5 +497,99 @@ mod tests {
     fn 戻せない並びはそのまま残す() {
         assert_eq!(decode_percent("%zz"), "%zz");
         assert_eq!(decode_percent("%E4"), "%E4");
+    }
+
+    fn directive<'a>(csp: &'a str, name: &str) -> &'a str {
+        csp.split(';')
+            .map(str::trim)
+            .find(|part| part == &name || part.starts_with(&format!("{} ", name)))
+            .unwrap_or_else(|| panic!("{} が無い: {}", name, csp))
+    }
+
+    fn document_policy() -> SitePolicy {
+        SitePolicy {
+            scripts: false,
+            script_origins: Vec::new(),
+        }
+    }
+
+    fn web_policy(origins: &[&str]) -> SitePolicy {
+        SitePolicy {
+            scripts: true,
+            script_origins: origins.iter().map(|o| (*o).to_string()).collect(),
+        }
+    }
+
+    // 業務文書のページでは、利用者が書いた script を動かさない。動くのは入れ替えの
+    // 仕掛けだけで、それは印を付けた 1 つに限る。
+    #[test]
+    fn 業務文書では差し込んだ仕掛けだけが動く() {
+        let csp = content_security_policy(&document_policy(), "abc123");
+        assert_eq!(directive(&csp, "script-src"), "script-src 'nonce-abc123'");
+    }
+
+    // web モードで動かすのはプロジェクト自身の script。同意はプロジェクトへ与えられて
+    // いるので、別ファイルか本文の中かの違いは問わない。
+    #[test]
+    fn webモードでは自分自身のscriptが動く() {
+        let csp = content_security_policy(&web_policy(&[]), "abc123");
+        let script = directive(&csp, "script-src");
+        assert!(script.contains("'self'"), "{}", script);
+        assert!(script.contains("'unsafe-inline'"), "{}", script);
+    }
+
+    // 外から持ってくる置き先は、宣言に並べたものだけ。
+    #[test]
+    fn 宣言した置き先だけが並ぶ() {
+        let csp = content_security_policy(&web_policy(&["https://cdn.example.com"]), "abc123");
+        let script = directive(&csp, "script-src");
+        assert!(script.contains("https://cdn.example.com"), "{}", script);
+        assert!(!script.contains("https://other.example.com"), "{}", script);
+    }
+
+    // 「全部許す」が書けてしまうと、宣言を 1 行足すだけで外のコードが動く。
+    // そう書かれていても組み立てない。
+    #[test]
+    fn 全部許す書き方は組み立てない() {
+        let csp = content_security_policy(&web_policy(&["*", "https:", "https://*"]), "abc123");
+        let script = directive(&csp, "script-src");
+        assert_eq!(script, "script-src 'self' 'unsafe-inline'");
+    }
+
+    // 業務文書のページでは、宣言に置き先が並んでいても見ない。
+    #[test]
+    fn 業務文書では置き先を見ない() {
+        let policy = SitePolicy {
+            scripts: false,
+            script_origins: vec!["https://cdn.example.com".to_string()],
+        };
+        let csp = content_security_policy(&policy, "abc123");
+        assert!(!csp.contains("cdn.example.com"), "{}", csp);
+    }
+
+    // どちらのモードでも、既定の取り寄せ先は自分自身に閉じる。
+    #[test]
+    fn どちらでも既定は自分自身に閉じる() {
+        for policy in [document_policy(), web_policy(&["https://cdn.example.com"])] {
+            let csp = content_security_policy(&policy, "abc123");
+            assert_eq!(directive(&csp, "default-src"), "default-src 'self'");
+            assert_eq!(directive(&csp, "object-src"), "object-src 'none'");
+            assert_eq!(directive(&csp, "base-uri"), "base-uri 'self'");
+        }
+    }
+
+    // 印は毎回変わる。使い回すと、次に出すページでも同じ印で紛れ込める。
+    #[test]
+    fn 印は与えられたものをそのまま使う() {
+        let csp = content_security_policy(&document_policy(), "zzz999");
+        assert!(csp.contains("'nonce-zzz999'"), "{}", csp);
+    }
+
+    // 業務文書のページでは印の付いた script しか動かない。差し込む仕掛けにも
+    // 同じ印を付けないと、入れ替えの確認そのものが止まる。
+    #[test]
+    fn 差し込む仕掛けに印を付ける() {
+        let out = inject_reload("<html><body></body></html>", TOKEN, "abc123");
+        assert!(out.contains("<script nonce=\"abc123\">"), "{}", out);
     }
 }
