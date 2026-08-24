@@ -406,6 +406,12 @@ export interface Messages {
   'page.gridRestoreTitle': string;
   'page.gridFullscreenBtn': string;
   'page.gridRestoreBtn': string;
+  'page.previewFullscreenTitle': string;
+  'page.previewRestoreTitle': string;
+  'page.previewFullscreenBtn': string;
+  'page.previewRestoreBtn': string;
+  /** 待ち受けをそのまま映しているときの、プレビュー面の名前。 */
+  'page.livePreviewTitle': string;
   'page.sheetPreviewBtn': string;
   'page.sheetPreviewTitle': string;
   'page.sheetGridBtn': string;
@@ -1006,6 +1012,11 @@ const en: Messages = {
   'page.gridRestoreTitle': 'Back to split view (Esc)',
   'page.gridFullscreenBtn': '⤢ Fullscreen',
   'page.gridRestoreBtn': '↙ Back to split',
+  'page.previewFullscreenTitle': 'Show preview fullscreen',
+  'page.previewRestoreTitle': 'Back to split view (Esc)',
+  'page.previewFullscreenBtn': '⤢ Fullscreen',
+  'page.previewRestoreBtn': '↙ Back to split',
+  'page.livePreviewTitle': 'Live preview',
   'page.sheetPreviewBtn': '🖨 Print view',
   'page.sheetPreviewTitle': 'See how the sheet prints, and export it to PDF / HTML / image',
   'page.sheetGridBtn': '↩ Back to grid',
@@ -1602,6 +1613,11 @@ const ja: Messages = {
   'page.gridRestoreTitle': '分割表示に戻す（Esc）',
   'page.gridFullscreenBtn': '⤢ 全画面',
   'page.gridRestoreBtn': '↙ 分割に戻す',
+  'page.previewFullscreenTitle': 'プレビューを全画面表示',
+  'page.previewRestoreTitle': '分割表示に戻す（Esc）',
+  'page.previewFullscreenBtn': '⤢ 全画面',
+  'page.previewRestoreBtn': '↙ 分割に戻す',
+  'page.livePreviewTitle': '公開中のプレビュー',
   'page.sheetPreviewBtn': '🖨 下見',
   'page.sheetPreviewTitle': '紙に刷ったときの見た目を確かめる（PDF・HTML・画像はここから）',
   'page.sheetGridBtn': '↩ グリッドへ戻る',
@@ -2191,6 +2207,11 @@ const zh: Messages = {
   'page.gridRestoreTitle': '返回分屏视图（Esc）',
   'page.gridFullscreenBtn': '⤢ 全屏',
   'page.gridRestoreBtn': '↙ 返回分屏',
+  'page.previewFullscreenTitle': '全屏显示预览',
+  'page.previewRestoreTitle': '返回分屏视图（Esc）',
+  'page.previewFullscreenBtn': '⤢ 全屏',
+  'page.previewRestoreBtn': '↙ 返回分屏',
+  'page.livePreviewTitle': '实时预览',
   'page.sheetPreviewBtn': '🖨 打印预览',
   'page.sheetPreviewTitle': '查看打印后的效果，并导出 PDF / HTML / 图片',
   'page.sheetGridBtn': '↩ 返回网格',
@@ -2783,6 +2804,11 @@ const ko: Messages = {
   'page.gridRestoreTitle': '분할 보기로 복귀 (Esc)',
   'page.gridFullscreenBtn': '⤢ 전체 화면',
   'page.gridRestoreBtn': '↙ 분할로 복귀',
+  'page.previewFullscreenTitle': '미리보기 전체 화면',
+  'page.previewRestoreTitle': '분할 보기로 복귀 (Esc)',
+  'page.previewFullscreenBtn': '⤢ 전체 화면',
+  'page.previewRestoreBtn': '↙ 분할로 복귀',
+  'page.livePreviewTitle': '실시간 미리보기',
   'page.sheetPreviewBtn': '🖨 인쇄 미리보기',
   'page.sheetPreviewTitle': '인쇄된 모습을 확인하고 PDF / HTML / 이미지로 내보내기',
   'page.sheetGridBtn': '↩ 그리드로 돌아가기',

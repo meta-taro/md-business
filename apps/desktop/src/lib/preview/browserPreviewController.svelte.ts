@@ -69,12 +69,15 @@ class BrowserPreviewController {
   /** どのフォルダを出しているか。フォルダが替わったら畳むために持つ。 */
   #servingRoot: string | null = null;
   /**
-   * 出しているフォルダで、本文の HTML をそのまま載せているか。
+   * 出しているフォルダを web モードとして出しているか（本文の HTML をそのまま載せているか）。
    *
    * 組み直しのたびに宣言と同意を引き直さない。立てたときの答えをそのまま使う。
    * 引き直すと、出している最中に宣言だけを書き換えて実行の範囲を広げられる。
+   *
+   * 読めるようにしてあるのは、アプリのプレビュー面を待ち受けへ向けるかの判断に要るため。
+   * 書き換える口は無い（立てるときと畳むときにだけ変わる）。
    */
-  #servingRawHtml = false;
+  servingWeb = $state<boolean>(false);
   /** 組み直し中。終わるまでに来た変化は #queued にまとめる。 */
   #rebuilding = false;
   /** 組み直し中に更に変化が来た。終わったらもう一度だけ組み直す。 */
@@ -130,7 +133,7 @@ class BrowserPreviewController {
       });
       this.serving = info;
       this.#servingRoot = root;
-      this.#servingRawHtml = rawHtml;
+      this.servingWeb = rawHtml;
       this.#clearNotice();
       // URL は渡さない。出しているものは Rust 側が持っているので、そちらのものを開かせる。
       await invoke('open_preview_in_browser', { browser: choice });
@@ -201,7 +204,7 @@ class BrowserPreviewController {
       await invoke('stop_preview_server');
       this.serving = null;
       this.#servingRoot = null;
-      this.#servingRawHtml = false;
+      this.servingWeb = false;
       this.#clearNotice();
     } catch (e) {
       this.#notify({ kind: 'error', message: e instanceof Error ? e.message : String(e) });
@@ -246,7 +249,7 @@ class BrowserPreviewController {
         this.#queued = false;
         const root = this.#servingRoot;
         if (root === null) return;
-        const plan = await collectSitePlan(root, { rawHtml: this.#servingRawHtml });
+        const plan = await collectSitePlan(root, { rawHtml: this.servingWeb });
         // 組んでいる間に畳まれていたら、Rust 側は何もしない（立っていない間の
         // 作り直しは無視される）。ここで止める必要はない。
         if (plan.pages.length === 0 && plan.assets.length === 0) continue;

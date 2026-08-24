@@ -2,6 +2,8 @@
   import { untrack, onMount, onDestroy, tick } from 'svelte';
   import { themeController } from '$lib/theme.svelte';
   import BrowserOpenButtons from '$lib/components/BrowserOpenButtons.svelte';
+  import { browserPreview } from '$lib/preview/browserPreviewController.svelte';
+  import { livePreviewUrl } from '$lib/preview/livePreview';
   import { previewRenderer } from '$lib/preview/previewRenderer.svelte';
   import type { PreviewResult } from '$lib/preview/previewFactory';
   import { frontmatterMessage } from '$lib/preview/frontmatterMessage';
@@ -1070,8 +1072,27 @@
     gridFullscreen = !gridFullscreen;
   }
 
+  // ── 出している最中の待ち受けを、この面にそのまま映す ──
+  // web モードで出している間だけ。業務文書はこれまでどおりアプリの中で組んだものを出す
+  // （本文の HTML は落としてあるので、ここで待ち受けを指すと出方が変わってしまう）。
+  // 待ち受けは書き換えのたびに中身を入れ替えるので、作っている最中の様子がそのまま流れる。
+  const liveUrl = $derived(
+    livePreviewUrl({
+      base: browserPreview.serving?.url ?? null,
+      web: browserPreview.servingWeb,
+      relPath: workspace.activePath,
+    }),
+  );
+
+  // 待ち受けを映している間はエージェントの手元を見ている時間が長い。分割を畳んで
+  // 見る面だけにできるようにする（指示は別の窓から出すので、こちらは見えていればよい）。
+  let previewFullscreen = $state(false);
+
   // プレビュー iframe を検索対象にできる状態か（TSV グリッド／差分表示中は iframe が無い）。
-  const previewSearchable = $derived(previewReady(paneState, () => preview?.ok === true));
+  // 待ち受けを映している間は外せない（別の出どころなので、こちらから中の字を探せない）。
+  const previewSearchable = $derived(
+    liveUrl === null && previewReady(paneState, () => preview?.ok === true),
+  );
 
   // Ctrl+F の行き先。検証シートを出しているならその表、プレビューが組み上がっていれば
   // プレビュー、どちらでもなければエディター。
@@ -1093,10 +1114,11 @@
         return;
       }
     }
-    if (event.key !== 'Escape' || !gridFullscreen) return;
+    if (event.key !== 'Escape' || (!gridFullscreen && !previewFullscreen)) return;
     const tag = (event.target as HTMLElement | null)?.tagName;
     if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
     gridFullscreen = false;
+    previewFullscreen = false;
   }
 
   // ── 中央ディバイダ（左右幅比のドラッグ調整 + 50/50 リセット・DESIGN §6）──
@@ -1196,6 +1218,7 @@
   class:dragging
   class:grid-full={paneState.grid && gridFullscreen && !diffView.active && !timelineView.active}
   class:image-full={openImage !== null && !diffView.active && !timelineView.active}
+  class:preview-full={previewFullscreen && !diffView.active && !timelineView.active}
   bind:this={splitEl}
   style="--split-cols: {dividerColumns(splitRatio)}"
 >
@@ -1427,8 +1450,34 @@
           {viewport === 'pc' ? t('page.viewportPhoneBtn') : t('page.viewportPcBtn')}
         </button>
       {/if}
+      <!-- 見る面だけにする。作っている最中は書く手が別（エージェント）なので、
+           こちらは広く見えているほうが役に立つ。 -->
+      <button
+        type="button"
+        class="head-btn"
+        onclick={() => (previewFullscreen = !previewFullscreen)}
+        aria-pressed={previewFullscreen}
+        title={previewFullscreen
+          ? t('page.previewRestoreTitle')
+          : t('page.previewFullscreenTitle')}
+      >
+        {previewFullscreen ? t('page.previewRestoreBtn') : t('page.previewFullscreenBtn')}
+      </button>
     </div>
-    {#if preview?.ok}
+    {#if liveUrl !== null}
+      <!-- 出している待ち受けをそのまま映す。組み直さないので、ブラウザで開いた窓と
+           同じものが同じ順で動く（アプリの中だけ動く／動かない、が起きない）。
+           出どころが別なので、中を触る仕掛け（読み進みの追従・図の描き直し・検索）は
+           付けない。触れないものに手を伸ばすと、その都度断られる。 -->
+      <div class="viewer-wrap" class:narrow={viewport === 'phone'}>
+        <iframe
+          class="viewer"
+          style:width={frameWidth(viewport)}
+          src={liveUrl}
+          title={t('page.livePreviewTitle')}
+        ></iframe>
+      </div>
+    {:else if preview?.ok}
       <div class="viewer-wrap" class:narrow={viewport === 'phone'}>
         <iframe
           class="viewer"
@@ -1547,14 +1596,17 @@
   /* 検証グリッド全画面（DESIGN §5.8/§6）。エディター + ディバイダを畳み、グリッド（右ペイン）
      を単一カラムで全幅表示する。条件が外れれば class が落ち自動で分割へ戻る。 */
   .split.grid-full,
-  .split.image-full {
+  .split.image-full,
+  .split.preview-full {
     grid-template-columns: minmax(0, 1fr);
   }
 
   .split.grid-full .pane.editor,
   .split.grid-full .divider,
   .split.image-full .pane.editor,
-  .split.image-full .divider {
+  .split.image-full .divider,
+  .split.preview-full .pane.editor,
+  .split.preview-full .divider {
     display: none;
   }
 
