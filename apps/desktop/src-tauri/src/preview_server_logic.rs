@@ -108,14 +108,28 @@ pub fn content_type(path: &str) -> &'static str {
     match ext.as_str() {
         "html" | "htm" => "text/html; charset=utf-8",
         "css" => "text/css; charset=utf-8",
-        "js" => "text/javascript; charset=utf-8",
-        "json" => "application/json; charset=utf-8",
+        "js" | "mjs" => "text/javascript; charset=utf-8",
+        "json" | "webmanifest" => "application/json; charset=utf-8",
+        "xml" => "application/xml; charset=utf-8",
         "svg" => "image/svg+xml",
         "txt" | "md" => "text/plain; charset=utf-8",
+        "tsv" => "text/tab-separated-values; charset=utf-8",
+        "csv" => "text/csv; charset=utf-8",
         "png" => "image/png",
         "jpg" | "jpeg" => "image/jpeg",
         "gif" => "image/gif",
         "webp" => "image/webp",
+        "ico" => "image/vnd.microsoft.icon",
+        "woff" => "font/woff",
+        "woff2" => "font/woff2",
+        "ttf" => "font/ttf",
+        "otf" => "font/otf",
+        "wasm" => "application/wasm",
+        "pdf" => "application/pdf",
+        "mp4" => "video/mp4",
+        "webm" => "video/webm",
+        "mp3" => "audio/mpeg",
+        "wav" => "audio/wav",
         _ => "application/octet-stream",
     }
 }
@@ -533,6 +547,16 @@ mod tests {
         assert!(content_type("a.html").starts_with("text/html"));
         assert!(content_type("assets/spec.css").starts_with("text/css"));
         assert!(content_type("a.html").contains("utf-8"));
+    }
+
+    #[test]
+    fn サイトに置くものの種類も決める() {
+        assert!(content_type("app.mjs").starts_with("text/javascript"));
+        assert!(content_type("data/sales.tsv").starts_with("text/tab-separated-values"));
+        assert!(content_type("data/sales.csv").starts_with("text/csv"));
+        assert_eq!(content_type("font/x.woff2"), "font/woff2");
+        assert_eq!(content_type("favicon.ico"), "image/vnd.microsoft.icon");
+        assert!(content_type("feed.xml").starts_with("application/xml"));
     }
 
     #[test]

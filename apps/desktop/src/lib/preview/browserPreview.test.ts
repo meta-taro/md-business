@@ -2,17 +2,20 @@ import { describe, it, expect } from 'vitest';
 import { affectsSite, shouldStop } from './browserPreview';
 
 describe('affectsSite', () => {
-  it('サイトに載るのは .md だけ', () => {
+  it('ページになるものが変わったら組み直す', () => {
     expect(affectsSite('docs/仕様.md')).toBe(true);
     expect(affectsSite('README.MD')).toBe(true);
   });
 
-  // 検証シートも参考データもページにならない（siteDocumentPaths と同じ線）。
-  // 変わるたびに組み直すと、表を 1 セット打っている間ずっと組み直しが走る。
-  it('ページにならないものが変わっても組み直さない', () => {
-    expect(affectsSite('docs/test-specs/001-login.tsv')).toBe(false);
-    expect(affectsSite('data/口座.json')).toBe(false);
-    expect(affectsSite('画像.png')).toBe(false);
+  // ページ以外もサイトの一部として出るので、変わったら読み直させる。
+  // ここで落とすと、直したのに開いたままの窓が古いままになる。
+  it('ページ以外が変わっても組み直す', () => {
+    expect(affectsSite('style.css')).toBe(true);
+    expect(affectsSite('js/app.js')).toBe(true);
+    expect(affectsSite('about.html')).toBe(true);
+    expect(affectsSite('docs/test-specs/001-login.tsv')).toBe(true);
+    expect(affectsSite('data/口座.json')).toBe(true);
+    expect(affectsSite('画像.png')).toBe(true);
   });
 
   // 書き出した先の変化で組み直すと、書き出すたびに組み直しが起きる。

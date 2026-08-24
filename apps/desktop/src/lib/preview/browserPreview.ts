@@ -12,12 +12,13 @@ const OUTPUT_DIR = 'dist/';
 /**
  * その相対パスの変化でサイトを組み直すか。
  *
- * ページになるのは `.md` だけ（siteDocumentPaths と同じ線）。検証シートや参考データが
- * 変わるたびに組み直すと、表を 1 セット打っている間ずっと組み直しが走る。
+ * ページになる `.md` だけでなく、CSS・JS・データも同じフォルダから出しているので、
+ * どれが変わっても読み直させる。**種類で絞らない**のは、絞った表がサーバー側の表と
+ * 食い違うと、直したのに窓が古いまま——という、最も気づきにくい止まり方をするため。
+ * 出してよいかを決めるのは常にサーバー側で、ここは「動きがあったか」しか見ない。
  */
 export function affectsSite(relPath: string): boolean {
-  if (relPath.startsWith(OUTPUT_DIR)) return false;
-  return /\.md$/i.test(relPath);
+  return !relPath.startsWith(OUTPUT_DIR);
 }
 
 /**

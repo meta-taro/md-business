@@ -116,7 +116,7 @@ class BrowserPreviewController {
       // 揃っていなければ今までどおり落とすので、業務文書の出方は変わらない。
       const rawHtml = step.policy.scripts && trusted;
       const plan = await collectSitePlan(root, { rawHtml });
-      if (plan.pages.length === 0) {
+      if (plan.pages.length === 0 && plan.assets.length === 0) {
         // 出すものが無い。空の待ち受けを立てても、開いた先に何も無い。
         this.#notify({ kind: 'none' });
         return;
@@ -249,7 +249,7 @@ class BrowserPreviewController {
         const plan = await collectSitePlan(root, { rawHtml: this.#servingRawHtml });
         // 組んでいる間に畳まれていたら、Rust 側は何もしない（立っていない間の
         // 作り直しは無視される）。ここで止める必要はない。
-        if (plan.pages.length === 0) continue;
+        if (plan.pages.length === 0 && plan.assets.length === 0) continue;
         await invoke('update_preview_server', { root, files: plan.files, assets: plan.assets });
       } while (this.#queued);
     } catch (e) {
