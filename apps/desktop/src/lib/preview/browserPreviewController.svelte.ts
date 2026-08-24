@@ -13,7 +13,7 @@ import { openUrl } from '@tauri-apps/plugin-opener';
 import { browser } from '$app/environment';
 import { collectSitePlan } from './collectSite';
 import { affectsSite, shouldStop } from './browserPreview';
-import { sitePolicyFrom } from './sitePolicy';
+import { planStart, sitePolicyFrom } from './sitePolicy';
 
 /** 知らせが自分で消えるまで。書き出しと揃える。 */
 const NOTICE_MS = 8000;
@@ -22,6 +22,14 @@ const NOTICE_MS = 8000;
 export interface PreviewServerInfo {
   url: string;
   port: number;
+}
+
+/** この PC でまだ許していないフォルダが、script を動かすことを求めている。 */
+export interface PendingConsent {
+  /** 尋ねている対象のフォルダ。 */
+  root: string;
+  /** 宣言されている、プロジェクト以外からの取り寄せ先。 */
+  origins: string[];
 }
 
 /** 出せなかったときの知らせ。出せたときは URL を出しっぱなしにするので、ここには入らない。 */
@@ -37,6 +45,12 @@ class BrowserPreviewController {
   serving = $state<PreviewServerInfo | null>(null);
   /** 直近の知らせ。しばらくして自分で消える。 */
   notice = $state<BrowserPreviewNotice | null>(null);
+  /**
+   * 同意を尋ねている最中。人が押すまで待つので、自分では消えない。
+   *
+   * ここに入っている間は待ち受けを立てていない。押されなければ何も動かないままで終わる。
+   */
+  consent = $state<PendingConsent | null>(null);
   /** どのフォルダを出しているか。フォルダが替わったら畳むために持つ。 */
   #servingRoot: string | null = null;
   /** 組み直し中。終わるまでに来た変化は #queued にまとめる。 */
@@ -66,11 +80,23 @@ class BrowserPreviewController {
       // 宣言はプロジェクトの中にあるので、求めているものでしかない。動かしてよいかは
       // Rust 側がこの PC の同意と突き合わせて決める。ここでは汲み取らずに渡すだけ。
       const declaration = await invoke<string>('read_project_config', { root });
+      const policy = sitePolicyFrom(declaration);
+      // 同意を答えるのはアプリの側。ここで持っている値を根拠にしない。
+      const trusted = policy.scripts
+        ? (await invoke<{ trusted: boolean }>('project_trust_status', { path: root })).trusted
+        : false;
+      const step = planStart(policy, trusted);
+      if (step.kind === 'consent') {
+        // 黙って script 抜きで出さない。出てしまうと、書いた本人には
+        // 「宣言が読まれていない」と見えて、宣言のほうを書き換えて回ることになる。
+        this.consent = { root, origins: policy.scriptOrigins };
+        return;
+      }
       const info = await invoke<PreviewServerInfo>('start_preview_server', {
         root,
         files: plan.files,
         assets: plan.assets,
-        policy: sitePolicyFrom(declaration),
+        policy: step.policy,
       });
       this.serving = info;
       this.#servingRoot = root;
@@ -82,6 +108,29 @@ class BrowserPreviewController {
     } finally {
       this.busy = false;
     }
+  }
+
+  /**
+   * 尋ねていたフォルダを許して、そのまま出す。**人が画面で押したときだけ呼ぶ。**
+   *
+   * 許可はこの PC に残り、フォルダの中身が変わっても外れない。プロジェクト側からは書けない。
+   */
+  async allow(): Promise<void> {
+    const pending = this.consent;
+    if (pending === null) return;
+    this.consent = null;
+    try {
+      await invoke('grant_project_trust', { path: pending.root });
+    } catch (e) {
+      this.#notify({ kind: 'error', message: e instanceof Error ? e.message : String(e) });
+      return;
+    }
+    await this.start(pending.root);
+  }
+
+  /** 尋ねるのをやめる。許可は残らないので、次に押せばまた尋ねる。 */
+  dismissConsent(): void {
+    this.consent = null;
   }
 
   /** 待ち受けを畳む。ブラウザ側は次の問い合わせが返らなくなり、そこで止まる。 */

@@ -21,6 +21,7 @@
     browserPreview,
     type BrowserPreviewNotice,
   } from '$lib/preview/browserPreviewController.svelte';
+  import TrustDialog from './TrustDialog.svelte';
   import { timelineView } from '$lib/logs/timelineView.svelte';
   import { t } from '$lib/i18n/i18n.svelte';
   import {
@@ -402,6 +403,16 @@
     {/if}
   </div>
 </div>
+
+<!-- 同意を尋ねている間だけ出る。押されるまで待ち受けは立たない。 -->
+{#if browserPreview.consent !== null}
+  <TrustDialog
+    root={browserPreview.consent.root}
+    origins={browserPreview.consent.origins}
+    onallow={() => void browserPreview.allow()}
+    oncancel={() => browserPreview.dismissConsent()}
+  />
+{/if}
 
 <style>
   .menubar {

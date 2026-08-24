@@ -254,6 +254,15 @@ export interface Messages {
   'newSheet.sheetTitlePlaceholder': string;
   'newSheet.create': string;
   'newSheet.cancel': string;
+  // Web モードの同意ダイアログ
+  'trust.title': string;
+  'trust.body': string;
+  'trust.folder': string;
+  'trust.origins': string;
+  'trust.originsNone': string;
+  'trust.note': string;
+  'trust.allow': string;
+  'trust.cancel': string;
   // Git 変更状態（ツリーのバッジ説明）
   'git.state.modified': string;
   'git.state.added': string;
@@ -841,6 +850,14 @@ const en: Messages = {
   'newSheet.sheetTitlePlaceholder': 'Order flow test sheet',
   'newSheet.create': 'Create',
   'newSheet.cancel': 'Cancel',
+  'trust.title': 'Run the JavaScript in this folder?',
+  'trust.body': 'This folder declares web mode in md-business.yml. If you allow it, the JavaScript that ships with the project runs in your browser. Do not allow a folder whose contents you do not know.',
+  'trust.folder': 'Folder',
+  'trust.origins': 'Loaded from',
+  'trust.originsNone': 'Only files from the project itself',
+  'trust.note': 'The permission stays on this PC, and does not come off when the folder contents change.',
+  'trust.allow': 'Run it',
+  'trust.cancel': 'Not now',
   'git.state.modified': 'Modified (uncommitted)',
   'git.state.added': 'Staged addition',
   'git.state.untracked': 'Untracked (new)',
@@ -1429,6 +1446,14 @@ const ja: Messages = {
   'newSheet.sheetTitlePlaceholder': '受発注ワークフロー 検証シート',
   'newSheet.create': '作成',
   'newSheet.cancel': '取り消し',
+  'trust.title': 'このフォルダの JavaScript を動かしますか',
+  'trust.body': 'このフォルダは md-business.yml で web モードを宣言しています。許可すると、プロジェクトに入っている JavaScript がブラウザで動きます。中身に心当たりのないフォルダでは許可しないでください。',
+  'trust.folder': 'フォルダ',
+  'trust.origins': '読み込み先',
+  'trust.originsNone': 'このプロジェクトのファイルだけ',
+  'trust.note': '許可はこの PC にだけ残ります。フォルダの中身が変わっても外れません。',
+  'trust.allow': '動かす',
+  'trust.cancel': 'やめる',
   'git.state.modified': '変更あり（未コミット）',
   'git.state.added': 'ステージ済みの追加',
   'git.state.untracked': '未追跡（新規）',
@@ -2012,6 +2037,14 @@ const zh: Messages = {
   'newSheet.sheetTitlePlaceholder': '订单流程 验证表',
   'newSheet.create': '创建',
   'newSheet.cancel': '取消',
+  'trust.title': '要运行此文件夹中的 JavaScript 吗？',
+  'trust.body': '此文件夹在 md-business.yml 中声明了 web 模式。允许后，项目自带的 JavaScript 将在浏览器中运行。请勿允许来源不明的文件夹。',
+  'trust.folder': '文件夹',
+  'trust.origins': '加载来源',
+  'trust.originsNone': '仅项目自身的文件',
+  'trust.note': '许可只保存在这台电脑上，文件夹内容变化后也不会失效。',
+  'trust.allow': '运行',
+  'trust.cancel': '暂不',
   'git.state.modified': '已更改（未提交）',
   'git.state.added': '已暂存的新增',
   'git.state.untracked': '未跟踪（新增）',
@@ -2592,6 +2625,14 @@ const ko: Messages = {
   'newSheet.sheetTitlePlaceholder': '수발주 워크플로 검증 시트',
   'newSheet.create': '만들기',
   'newSheet.cancel': '취소',
+  'trust.title': '이 폴더의 JavaScript를 실행할까요?',
+  'trust.body': '이 폴더는 md-business.yml에서 web 모드를 선언했습니다. 허용하면 프로젝트에 포함된 JavaScript가 브라우저에서 실행됩니다. 내용을 알 수 없는 폴더는 허용하지 마세요.',
+  'trust.folder': '폴더',
+  'trust.origins': '불러오는 곳',
+  'trust.originsNone': '프로젝트 자체 파일만',
+  'trust.note': '허용은 이 PC에만 남으며, 폴더 내용이 바뀌어도 해제되지 않습니다.',
+  'trust.allow': '실행',
+  'trust.cancel': '그만두기',
   'git.state.modified': '변경됨 (커밋 안 됨)',
   'git.state.added': '스테이지된 추가',
   'git.state.untracked': '추적 안 됨 (신규)',

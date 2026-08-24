@@ -26,3 +26,23 @@ export function sitePolicyFrom(source: string): SitePolicy {
   const { config } = parseProjectConfig(source);
   return { scripts: config.mode === 'web', scriptOrigins: config.scriptOrigins };
 }
+
+/**
+ * 出す前に何をするか。
+ *
+ * `consent` は失敗ではない。人がこの PC で 1 回押せば出せる、という途中の状態を指す。
+ */
+export type PreviewStart =
+  | { kind: 'go'; policy: SitePolicy }
+  | { kind: 'consent'; policy: SitePolicy };
+
+/**
+ * 宣言と同意を突き合わせて、そのまま出せるか、先に尋ねるかを決める。
+ *
+ * ここで通したものが最後の関門ではない。受け取った側（Rust）が同じ突き合わせをもう一度する。
+ * こちらは尋ねる用事があるかを見るだけで、画面から届いた「許可済み」が動かす根拠にはならない。
+ */
+export function planStart(policy: SitePolicy, trusted: boolean): PreviewStart {
+  if (policy.scripts && !trusted) return { kind: 'consent', policy };
+  return { kind: 'go', policy };
+}
