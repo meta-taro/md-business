@@ -16,6 +16,9 @@ import { affectsSite, shouldStop } from './browserPreview';
 /** 知らせが自分で消えるまで。書き出しと揃える。 */
 const NOTICE_MS = 8000;
 
+/** 宣言の置き場所。書き換わったら読み直す。 */
+const PROJECT_CONFIG_FILENAME = 'md-business.yml';
+
 /**
  * どのブラウザで開くか。**名前だけを渡す。**
  *
@@ -66,8 +69,20 @@ class BrowserPreviewController {
   installed = $state<BrowserChoice[]>([]);
   /** 同意を尋ねている間、押されたのがどのボタンだったか。許した後に同じ先で開く。 */
   #pendingBrowser: BrowserChoice = 'default';
+  /** 同意を尋ねている間、ブラウザを開くつもりだったか。面に映すだけのこともある。 */
+  #pendingOpen = true;
+  /**
+   * 開いているフォルダが web モードを宣言しているか。
+   *
+   * **ボタンを出すかどうかにしか使わない。**動かしてよいかは、立てるときに宣言と
+   * この PC の同意を突き合わせて決める（宣言はプロジェクト側から書けるので、
+   * これを根拠にすると、置いただけのファイルで実行の範囲が広がる）。
+   */
+  declaredWeb = $state<boolean>(false);
   /** どのフォルダを出しているか。フォルダが替わったら畳むために持つ。 */
   #servingRoot: string | null = null;
+  /** いま開いているフォルダ。宣言を読み直すために持つ（出していない間も要る）。 */
+  #root: string | null = null;
   /**
    * 出しているフォルダを web モードとして出しているか（本文の HTML をそのまま載せているか）。
    *
@@ -90,7 +105,7 @@ class BrowserPreviewController {
    * 開いているフォルダは呼ぶ側から受け取る。こちらから読みに行くと、保存のたびに
    * ここを呼ぶワークスペース側との間で参照が輪になる。
    */
-  async start(root: string, choice: BrowserChoice = 'default'): Promise<void> {
+  async start(root: string, choice: BrowserChoice = 'default', open = true): Promise<void> {
     if (this.busy) return;
 
     this.busy = true;
@@ -113,6 +128,7 @@ class BrowserPreviewController {
         // 組み立てる前に返す。許していないフォルダの中身は、まだ形にしない。
         this.consent = { root, origins: policy.scriptOrigins };
         this.#pendingBrowser = choice;
+        this.#pendingOpen = open;
         return;
       }
       // 本文に直接書かれた HTML を載せるのは、宣言と同意が揃ったときだけ。
@@ -135,6 +151,7 @@ class BrowserPreviewController {
       this.#servingRoot = root;
       this.servingWeb = rawHtml;
       this.#clearNotice();
+      if (!open) return;
       // URL は渡さない。出しているものは Rust 側が持っているので、そちらのものを開かせる。
       await invoke('open_preview_in_browser', { browser: choice });
     } catch (e) {
@@ -160,7 +177,7 @@ class BrowserPreviewController {
       this.#notify({ kind: 'error', message: e instanceof Error ? e.message : String(e) });
       return;
     }
-    await this.start(pending.root, this.#pendingBrowser);
+    await this.start(pending.root, this.#pendingBrowser, this.#pendingOpen);
   }
 
   /**
@@ -179,6 +196,20 @@ class BrowserPreviewController {
     } catch (e) {
       this.#notify({ kind: 'error', message: e instanceof Error ? e.message : String(e) });
     }
+  }
+
+  /**
+   * ブラウザを開かずに待ち受けだけ立てる。アプリの面に映すために使う。
+   *
+   * 立っている間は押すと畳む。畳むと面は元の組み立て（本文の HTML は落とす）へ戻るので、
+   * 「いま何を見ているか」がボタンの状態と一致する。
+   */
+  async toggleLive(root: string): Promise<void> {
+    if (this.serving !== null) {
+      await this.stop();
+      return;
+    }
+    await this.start(root, 'default', false);
   }
 
   /** この PC に何が入っているかを調べる。画面ができてから 1 回だけ呼ぶ。 */
@@ -218,6 +249,9 @@ class BrowserPreviewController {
    * ページにならないファイルの変化では組み直さない（affectsSite）。
    */
   onFileChanged(relPath: string): void {
+    // 宣言そのものが書き換わったら読み直す。出している最中の中身は変えない
+    // （立てたときの答えのまま出し続ける）が、ボタンの出方は今の宣言に合わせる。
+    if (relPath === PROJECT_CONFIG_FILENAME) void this.#checkDeclaration(this.#root);
     if (this.serving === null) return;
     if (!affectsSite(relPath)) return;
     void this.#rebuild();
@@ -228,6 +262,8 @@ class BrowserPreviewController {
    * 畳まないと、別のフォルダを開いた後も前のフォルダの中身が同じ URL で出続ける。
    */
   syncRoot(root: string | null): void {
+    this.#root = root;
+    void this.#checkDeclaration(root);
     if (this.#servingRoot === null) return;
     if (!shouldStop(this.#servingRoot, root)) return;
     void this.stop();
@@ -259,6 +295,21 @@ class BrowserPreviewController {
       this.#notify({ kind: 'error', message: e instanceof Error ? e.message : String(e) });
     } finally {
       this.#rebuilding = false;
+    }
+  }
+
+  /** 宣言を読み直す。読めなければ「宣言なし」と同じ扱いにする。 */
+  async #checkDeclaration(root: string | null): Promise<void> {
+    if (root === null) {
+      this.declaredWeb = false;
+      return;
+    }
+    try {
+      const declaration = await invoke<string>('read_project_config', { root });
+      const { sitePolicyFrom } = await import('./sitePolicy');
+      this.declaredWeb = sitePolicyFrom(declaration).scripts;
+    } catch {
+      this.declaredWeb = false;
     }
   }
 

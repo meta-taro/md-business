@@ -71,6 +71,10 @@ export interface Messages {
   'action.siteNone': string;
   'action.browser': string;
   'action.openInBrowser': string;
+  /** 待ち受けを立てて、この面に出しているものをそのまま映す。 */
+  'action.liveStart': string;
+  'action.liveStop': string;
+  'action.liveLabel': string;
   'action.browserTitle': string;
   'action.browserStopTitle': string;
   'action.browserServing': string;
@@ -682,6 +686,9 @@ const en: Messages = {
   'action.siteNone': 'No document could be turned into a page',
   'action.browser': 'Browser',
   'action.openInBrowser': 'Open in {name}',
+  'action.liveStart': 'Run this folder and show it here',
+  'action.liveStop': 'Stop and go back to the document view',
+  'action.liveLabel': 'Live',
   'action.browserTitle': 'Open the folder in your browser (a local address on this machine)',
   'action.browserStopTitle': 'Stop serving to the browser',
   'action.browserServing': 'Serving at {url}',
@@ -1284,6 +1291,9 @@ const ja: Messages = {
   'action.siteNone': 'ページに出来る文書がありませんでした',
   'action.browser': 'ブラウザ',
   'action.openInBrowser': '{name} で開く',
+  'action.liveStart': 'このフォルダを動かして、この面に映す',
+  'action.liveStop': '止めて文書の見え方に戻す',
+  'action.liveLabel': 'ライブ',
   'action.browserTitle': 'ブラウザで見る（この PC の中だけのアドレスで開く）',
   'action.browserStopTitle': 'ブラウザへの表示をやめる',
   'action.browserServing': '{url} で表示中',
@@ -1882,6 +1892,9 @@ const zh: Messages = {
   'action.siteNone': '没有可生成页面的文档',
   'action.browser': '浏览器',
   'action.openInBrowser': '在 {name} 中打开',
+  'action.liveStart': '运行此文件夹并在此处显示',
+  'action.liveStop': '停止并返回文档视图',
+  'action.liveLabel': '实时',
   'action.browserTitle': '在浏览器中查看（使用仅限本机的地址打开）',
   'action.browserStopTitle': '停止向浏览器提供页面',
   'action.browserServing': '正在 {url} 提供页面',
@@ -2476,6 +2489,9 @@ const ko: Messages = {
   'action.siteNone': '페이지로 만들 수 있는 문서가 없습니다',
   'action.browser': '브라우저',
   'action.openInBrowser': '{name}에서 열기',
+  'action.liveStart': '이 폴더를 실행해 이 화면에 표시',
+  'action.liveStop': '중지하고 문서 보기로 복귀',
+  'action.liveLabel': '라이브',
   'action.browserTitle': '브라우저에서 보기 (이 PC 안에서만 열리는 주소)',
   'action.browserStopTitle': '브라우저 표시를 중지',
   'action.browserServing': '{url} 에서 표시 중',
