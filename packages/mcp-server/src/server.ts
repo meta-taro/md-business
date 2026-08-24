@@ -34,6 +34,8 @@ import type { GitCommitInput, GitRunner } from './gitTools.js';
 import type { AppBridge } from './appBridge.js';
 import type { DesktopOpener } from './desktopOpener.js';
 import { safeRelativePath } from './workspacePath.js';
+import { PROJECT_CONFIG_FILENAME } from '@md-business/core';
+import { describeWebMode, parseTrustAnswer } from './webMode.js';
 import { buildToolLogEntry, type ToolLogEntry, type ToolResultLike } from './toolLog.js';
 
 /** MCP クライアントへ提示するサーバー名 / バージョン（プロトコル上の識別子）。 */
@@ -942,6 +944,40 @@ export function createServer(store: DocumentStore, options: CreateServerOptions 
         const r = result.ok ? { ok: true as const, path: safe.relative } : result;
         emit('close_document', safe.relative, r);
         return jsonResult(r, !r.ok);
+      },
+    );
+
+    server.registerTool(
+      'web_mode_status',
+      {
+        description:
+          'このフォルダでプロジェクトの JavaScript が動くかを調べる。md-business.yml の宣言と、この PC での許可の両方を見る。未許可なら、何が宣言されているかを添えて「許可待ち」として返る。許可を与えることはできない（利用者がアプリで行う操作）。',
+        inputSchema: {},
+      },
+      async () => {
+        const result = await app.request({ action: 'trust-status' });
+        if (!result.ok) {
+          emit('web_mode_status', undefined, result);
+          return jsonResult(result, true);
+        }
+        const trust = parseTrustAnswer(result.data);
+        if (trust === null) {
+          // 読めない答えを「許可済み」に寄せない。分からないことをそのまま返す。
+          const unknown = { ok: false as const, error: 'アプリから許可の状態を受け取れませんでした' };
+          emit('web_mode_status', undefined, unknown);
+          return jsonResult(unknown, true);
+        }
+        // 宣言が無い・読めないはどちらも「script を動かさない」側へ落ちる（parseProjectConfig）。
+        // ここで読めなさを失敗として返すと、宣言していないだけのフォルダが失敗に見える。
+        let declaration = '';
+        try {
+          declaration = await store.read(PROJECT_CONFIG_FILENAME);
+        } catch {
+          declaration = '';
+        }
+        const r = { ok: true as const, ...describeWebMode(declaration, trust) };
+        emit('web_mode_status', undefined, r);
+        return jsonResult(r, false);
       },
     );
 

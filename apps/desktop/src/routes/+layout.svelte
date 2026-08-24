@@ -197,6 +197,21 @@
       });
       return;
     }
+    // このフォルダで script を動かしてよいかを尋ねる依頼。中のどの文書かは関係ない。
+    if (request.action === 'trust-status') {
+      if (workspace.root === null) {
+        await respond(false, 'フォルダが開かれていません（アプリでフォルダを開いてください）');
+        return;
+      }
+      try {
+        const status = await invoke<unknown>('project_trust_status', { path: workspace.root });
+        await respond(true, null, status);
+      } catch (error) {
+        // 分からないときに「許してある」とは答えない。答えられないことを理由として返す。
+        await respond(false, typeof error === 'string' ? error : '同意の状態を確認できません');
+      }
+      return;
+    }
     // ここから先は対象を伴う依頼だけ（parseRequestEvent が保証している）。
     const target = request.path;
     if (target === undefined) return;

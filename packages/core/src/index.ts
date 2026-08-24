@@ -12,6 +12,18 @@ export {
 } from './frontmatterError.js';
 export type { FrontmatterProblem, FrontmatterProblemKind } from './frontmatterError.js';
 export {
+  parseProjectConfig,
+  PROJECT_CONFIG_FILENAME,
+  MAX_PROJECT_CONFIG_CHARS,
+} from './projectConfig.js';
+export type {
+  ProjectConfig,
+  ProjectConfigProblem,
+  ProjectConfigProblemKind,
+  ProjectConfigResult,
+  ProjectMode,
+} from './projectConfig.js';
+export {
   findDepthOverflow,
   findStructureOverflow,
   depthValidationError,

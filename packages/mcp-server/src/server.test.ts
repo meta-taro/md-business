@@ -693,7 +693,12 @@ describe('createServer / export_pdf ツール', () => {
     return {
       requests,
       request: async (req: {
-        action: 'export-pdf' | 'open-document' | 'close-document' | 'list-documents';
+        action:
+          | 'export-pdf'
+          | 'open-document'
+          | 'close-document'
+          | 'list-documents'
+          | 'trust-status';
         path?: string;
       }) => {
         requests.push(req);
@@ -703,8 +708,11 @@ describe('createServer / export_pdf ツール', () => {
     };
   }
 
-  async function connectWithApp(app: ReturnType<typeof fakeApp>): Promise<Client> {
-    const server = createServer(new MemoryDocumentStore(), { app });
+  async function connectWithApp(
+    app: ReturnType<typeof fakeApp>,
+    store: MemoryDocumentStore = new MemoryDocumentStore(),
+  ): Promise<Client> {
+    const server = createServer(store, { app });
     const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
     const client = new Client({ name: 'test-client', version: '0.0.0' });
     await Promise.all([client.connect(clientTransport), server.connect(serverTransport)]);
@@ -869,6 +877,71 @@ describe('createServer / export_pdf ツール', () => {
     })) as CallToolResult;
     expect(parse(res).isError).toBe(true);
     expect(app.requests).toEqual([]);
+  });
+
+  it('アプリとの連絡手段が無ければ web_mode_status も公開しない', async () => {
+    // 許可を知っているのはアプリだけ。画面が無いところでは答えようがない。
+    const client = await connect(new MemoryDocumentStore());
+    const { tools } = await client.listTools();
+    expect(tools.map((t) => t.name)).not.toContain('web_mode_status');
+  });
+
+  it('宣言の無いフォルダは document モードとして返る', async () => {
+    const app = fakeApp({ ok: true, data: { path: 'C:/work/docs', trusted: false } });
+    const client = await connectWithApp(app);
+    const res = (await client.callTool({
+      name: 'web_mode_status',
+      arguments: {},
+    })) as CallToolResult;
+    const { text, isError } = parse(res);
+    expect(isError).toBe(false);
+    expect(text).toMatchObject({ ok: true, state: 'document', mode: 'document' });
+    expect(app.requests).toEqual([{ action: 'trust-status' }]);
+  });
+
+  it('web モードの宣言があっても、未許可なら許可待ちとして返る', async () => {
+    // 失敗として返すと依頼元は諦めてしまう。人が 1 回押せば通ることと、
+    // 押すと何が読み込まれるようになるかを添える。
+    const app = fakeApp({ ok: true, data: { path: 'C:/work/site', trusted: false } });
+    const store = new MemoryDocumentStore({
+      'md-business.yml': 'mode: web\nweb:\n  scriptOrigins:\n    - https://cdn.example.com\n',
+    });
+    const client = await connectWithApp(app, store);
+    const res = (await client.callTool({
+      name: 'web_mode_status',
+      arguments: {},
+    })) as CallToolResult;
+    const { text, isError } = parse(res);
+    expect(isError).toBe(false);
+    expect(text).toMatchObject({
+      ok: true,
+      state: 'awaiting-consent',
+      mode: 'web',
+      trusted: false,
+      scriptOrigins: ['https://cdn.example.com'],
+    });
+  });
+
+  it('宣言と許可が揃って初めて動く状態として返る', async () => {
+    const app = fakeApp({ ok: true, data: { path: 'C:/work/site', trusted: true } });
+    const store = new MemoryDocumentStore({ 'md-business.yml': 'mode: web\n' });
+    const client = await connectWithApp(app, store);
+    const res = (await client.callTool({
+      name: 'web_mode_status',
+      arguments: {},
+    })) as CallToolResult;
+    expect(parse(res).text).toMatchObject({ ok: true, state: 'ready', trusted: true });
+  });
+
+  it('許可の状態が読めない応答は失敗として返す', async () => {
+    // 分からないことを「許可済み」に寄せると、誰も押していない許可で script が動く。
+    const app = fakeApp({ ok: true, data: { path: 'C:/work/site' } });
+    const client = await connectWithApp(app);
+    const res = (await client.callTool({
+      name: 'web_mode_status',
+      arguments: {},
+    })) as CallToolResult;
+    expect(parse(res).isError).toBe(true);
   });
 });
 
