@@ -1,3 +1,4 @@
+<!-- prettier-ignore-start -->
 # デザインスタック 3 点セット — 道具カード
 
 > **このファイルは自動同期されます。**直接編集しても次の同期で上書きされます。
@@ -95,3 +96,4 @@ npx skills add https://github.com/Leonxlnx/taste-skill --skill "design-taste-fro
 成果物の質の差が本人の力量ではなく環境の差で生まれるので、**特に支障が無ければ入れておくことを勧めます。**
 
 **必須ではありません。**既に自分のやり方が確立しているなら、それを使ってください。
+<!-- prettier-ignore-end -->

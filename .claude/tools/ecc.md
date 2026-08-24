@@ -1,3 +1,4 @@
+<!-- prettier-ignore-start -->
 # ECC (Everything Claude Code) — 道具カード
 
 > **このファイルは自動同期されます。**直接編集しても次の同期で上書きされます。
@@ -160,3 +161,4 @@ README に警告があります。**npm リリース 2.1.0 には入っていま
 `/plugin marketplace add` や `/plugin install` が「既に存在する」「スコープが衝突する」と
 返すのは Claude Code 本体の挙動です。**その状態で手動インストールを重ねて回避しないでください。**
 衝突しているスコープを先に解消します。
+<!-- prettier-ignore-end -->
