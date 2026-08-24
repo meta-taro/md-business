@@ -129,3 +129,74 @@ describe('renderMarkdownToHtml — security defaults', () => {
     expect(html).toContain('&#x3C;script>alert(1)&#x3C;/script>');
   });
 });
+
+describe('renderMarkdownToHtml — 脚注（注釈）', () => {
+  const FOOTNOTE = '本文[^1]です。\n\n[^1]: 単価は前期の実績に合わせた。';
+
+  it('見出しを文書の言語で出す', () => {
+    // remark-gfm の既定は英語の Footnotes。日本語の請求書・設計書へ
+    // そのまま刷られるので、言語ごとに置き換える。
+    expect(renderMarkdownToHtml(FOOTNOTE, { hasFrontmatter: false, lang: 'ja' })).toContain('>注釈<');
+    expect(renderMarkdownToHtml(FOOTNOTE, { hasFrontmatter: false, lang: 'zh' })).toContain('>注释<');
+    expect(renderMarkdownToHtml(FOOTNOTE, { hasFrontmatter: false, lang: 'ko' })).toContain('>주석<');
+    expect(renderMarkdownToHtml(FOOTNOTE, { hasFrontmatter: false, lang: 'en' })).toContain('>Notes<');
+  });
+
+  it('言語を渡さなければ日本語', () => {
+    expect(renderMarkdownToHtml(FOOTNOTE, { hasFrontmatter: false })).toContain('>注釈<');
+  });
+
+  it('知らない言語は日本語に落とす', () => {
+    expect(renderMarkdownToHtml(FOOTNOTE, { hasFrontmatter: false, lang: 'fr' })).toContain('>注釈<');
+  });
+
+  it('見出しを sr-only で隠さない', () => {
+    // sr-only はどのスタイルシートにも無い。隠す指定のつもりで隠れないまま
+    // 出ていたので、こちらの持つ class を付けて体裁を当てられるようにする。
+    const html = renderMarkdownToHtml(FOOTNOTE, { hasFrontmatter: false });
+    expect(html).not.toContain('sr-only');
+    expect(html).toContain('class="mdb-footnotes__head"');
+  });
+
+  it('戻る記号のラベルも文書の言語で出す', () => {
+    // 目には `↩` しか映らないが、読み上げはこのラベルを読む。ここだけ英語で
+    // 残ると、日本語の文書を読み上げたときに一箇所だけ英語が挟まる。
+    expect(renderMarkdownToHtml(FOOTNOTE, { hasFrontmatter: false, lang: 'ja' })).toContain(
+      'aria-label="注釈 1 の参照元へ戻る"',
+    );
+    expect(renderMarkdownToHtml(FOOTNOTE, { hasFrontmatter: false, lang: 'en' })).toContain(
+      'aria-label="Back to reference 1"',
+    );
+  });
+
+  it('印のそばに注釈の本文を置く（末尾まで飛ばずに読めるように）', () => {
+    // 末尾の一覧まで目を移すと、表や図の途中で読む場所を見失う。印の隣に
+    // 同じ本文を持たせておき、重ねて出すのは各アプリの体裁に任せる。
+    const html = renderMarkdownToHtml(FOOTNOTE, { hasFrontmatter: false });
+    const pop = /<span class="mdb-footnote__pop"[^>]*>([^<]*)<\/span>/.exec(html);
+    expect(pop?.[1]).toBe('単価は前期の実績に合わせた。');
+  });
+
+  it('そばに置いた本文は読み上げに二度読ませない', () => {
+    // 印には aria-describedby が付いていて、読み上げは末尾の本文を読む。
+    const html = renderMarkdownToHtml(FOOTNOTE, { hasFrontmatter: false });
+    expect(html).toContain('<span class="mdb-footnote__pop" aria-hidden="true">');
+  });
+
+  it('そばに置いた本文へ戻る記号を混ぜない', () => {
+    const html = renderMarkdownToHtml(FOOTNOTE, { hasFrontmatter: false });
+    const pop = /<span class="mdb-footnote__pop"[^>]*>([^<]*)<\/span>/.exec(html);
+    expect(pop?.[1]).not.toContain('↩');
+  });
+
+  it('脚注が無ければ何も足さない', () => {
+    const html = renderMarkdownToHtml('ただの本文。', { hasFrontmatter: false });
+    expect(html).toBe('<p>ただの本文。</p>');
+  });
+
+  it('印と本文は今までどおり出す', () => {
+    const html = renderMarkdownToHtml(FOOTNOTE, { hasFrontmatter: false });
+    expect(html).toContain('data-footnote-ref');
+    expect(html).toContain('単価は前期の実績に合わせた。');
+  });
+});
