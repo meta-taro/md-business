@@ -70,6 +70,7 @@ export interface Messages {
   'action.siteDoneSkipped': string;
   'action.siteNone': string;
   'action.browser': string;
+  'action.openInBrowser': string;
   'action.browserTitle': string;
   'action.browserStopTitle': string;
   'action.browserServing': string;
@@ -674,6 +675,7 @@ const en: Messages = {
   'action.siteDoneSkipped': 'Exported {count} files to {dir}/ ({skipped} left out)',
   'action.siteNone': 'No document could be turned into a page',
   'action.browser': 'Browser',
+  'action.openInBrowser': 'Open in {name}',
   'action.browserTitle': 'Open the folder in your browser (a local address on this machine)',
   'action.browserStopTitle': 'Stop serving to the browser',
   'action.browserServing': 'Serving at {url}',
@@ -1270,6 +1272,7 @@ const ja: Messages = {
   'action.siteDoneSkipped': '{dir}/ へ {count} 件書き出しました（{skipped} 件は出せませんでした）',
   'action.siteNone': 'ページに出来る文書がありませんでした',
   'action.browser': 'ブラウザ',
+  'action.openInBrowser': '{name} で開く',
   'action.browserTitle': 'ブラウザで見る（この PC の中だけのアドレスで開く）',
   'action.browserStopTitle': 'ブラウザへの表示をやめる',
   'action.browserServing': '{url} で表示中',
@@ -1862,6 +1865,7 @@ const zh: Messages = {
   'action.siteDoneSkipped': '已导出 {count} 个文件到 {dir}/（{skipped} 个未能导出）',
   'action.siteNone': '没有可生成页面的文档',
   'action.browser': '浏览器',
+  'action.openInBrowser': '在 {name} 中打开',
   'action.browserTitle': '在浏览器中查看（使用仅限本机的地址打开）',
   'action.browserStopTitle': '停止向浏览器提供页面',
   'action.browserServing': '正在 {url} 提供页面',
@@ -2450,6 +2454,7 @@ const ko: Messages = {
   'action.siteDoneSkipped': '{dir}/ 에 {count}개를 내보냈습니다 ({skipped}개는 내보내지 못했습니다)',
   'action.siteNone': '페이지로 만들 수 있는 문서가 없습니다',
   'action.browser': '브라우저',
+  'action.openInBrowser': '{name}에서 열기',
   'action.browserTitle': '브라우저에서 보기 (이 PC 안에서만 열리는 주소)',
   'action.browserStopTitle': '브라우저 표시를 중지',
   'action.browserServing': '{url} 에서 표시 중',

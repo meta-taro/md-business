@@ -9,13 +9,20 @@
  * 割り当てポートは立てるたびに変わるので、こちらでは覚えず、返ってきたものを持つ。
  */
 import { invoke } from '@tauri-apps/api/core';
-import { openUrl } from '@tauri-apps/plugin-opener';
 import { browser } from '$app/environment';
 import { collectSitePlan } from './collectSite';
 import { affectsSite, shouldStop } from './browserPreview';
 
 /** 知らせが自分で消えるまで。書き出しと揃える。 */
 const NOTICE_MS = 8000;
+
+/**
+ * どのブラウザで開くか。**名前だけを渡す。**
+ *
+ * 起動するものの在り処は Rust 側の表から引く。ここから渡すと、ページを開く口が
+ * 任意のプログラムを起動する口になる。
+ */
+export type BrowserChoice = 'default' | 'chrome' | 'edge';
 
 /** Rust `start_preview_server` / `preview_server_status` の戻り。 */
 export interface PreviewServerInfo {
@@ -50,6 +57,15 @@ class BrowserPreviewController {
    * ここに入っている間は待ち受けを立てていない。押されなければ何も動かないままで終わる。
    */
   consent = $state<PendingConsent | null>(null);
+  /**
+   * この PC に入っていると分かったブラウザ。入っていないものはボタンにしない。
+   *
+   * 無いものを並べると、押しても何も起きないボタンになる（起動を頼んだ先が無いことは、
+   * 頼んだ側からは分からない）。
+   */
+  installed = $state<BrowserChoice[]>([]);
+  /** 同意を尋ねている間、押されたのがどのボタンだったか。許した後に同じ先で開く。 */
+  #pendingBrowser: BrowserChoice = 'default';
   /** どのフォルダを出しているか。フォルダが替わったら畳むために持つ。 */
   #servingRoot: string | null = null;
   /**
@@ -71,7 +87,7 @@ class BrowserPreviewController {
    * 開いているフォルダは呼ぶ側から受け取る。こちらから読みに行くと、保存のたびに
    * ここを呼ぶワークスペース側との間で参照が輪になる。
    */
-  async start(root: string): Promise<void> {
+  async start(root: string, choice: BrowserChoice = 'default'): Promise<void> {
     if (this.busy) return;
 
     this.busy = true;
@@ -93,6 +109,7 @@ class BrowserPreviewController {
         // 「宣言が読まれていない」と見えて、宣言のほうを書き換えて回ることになる。
         // 組み立てる前に返す。許していないフォルダの中身は、まだ形にしない。
         this.consent = { root, origins: policy.scriptOrigins };
+        this.#pendingBrowser = choice;
         return;
       }
       // 本文に直接書かれた HTML を載せるのは、宣言と同意が揃ったときだけ。
@@ -115,7 +132,8 @@ class BrowserPreviewController {
       this.#servingRoot = root;
       this.#servingRawHtml = rawHtml;
       this.#clearNotice();
-      await openUrl(info.url);
+      // URL は渡さない。出しているものは Rust 側が持っているので、そちらのものを開かせる。
+      await invoke('open_preview_in_browser', { browser: choice });
     } catch (e) {
       // Rust の Err(String) は reject 値として届く（Error とは限らない）。
       this.#notify({ kind: 'error', message: e instanceof Error ? e.message : String(e) });
@@ -139,7 +157,35 @@ class BrowserPreviewController {
       this.#notify({ kind: 'error', message: e instanceof Error ? e.message : String(e) });
       return;
     }
-    await this.start(pending.root);
+    await this.start(pending.root, this.#pendingBrowser);
+  }
+
+  /**
+   * 選んだブラウザで開く。出していなければ、先に立ててから開く。
+   *
+   * 出している最中は立て直さない。立て直すと URL が変わり、別に開いてある窓が
+   * 繋がらなくなる（同じページを 2 つのブラウザで並べて見られなくなる）。
+   */
+  async openIn(root: string, choice: BrowserChoice): Promise<void> {
+    if (this.serving === null) {
+      await this.start(root, choice);
+      return;
+    }
+    try {
+      await invoke('open_preview_in_browser', { browser: choice });
+    } catch (e) {
+      this.#notify({ kind: 'error', message: e instanceof Error ? e.message : String(e) });
+    }
+  }
+
+  /** この PC に何が入っているかを調べる。画面ができてから 1 回だけ呼ぶ。 */
+  async detectBrowsers(): Promise<void> {
+    try {
+      this.installed = await invoke<BrowserChoice[]>('installed_browsers');
+    } catch {
+      // 調べられなかったときはボタンを出さない。既定のブラウザで開く道は残る。
+      this.installed = [];
+    }
   }
 
   /** 尋ねるのをやめる。許可は残らないので、次に押せばまた尋ねる。 */

@@ -19,8 +19,10 @@
   } from '$lib/preview/siteExportController.svelte';
   import {
     browserPreview,
+    type BrowserChoice,
     type BrowserPreviewNotice,
   } from '$lib/preview/browserPreviewController.svelte';
+  import { onMount } from 'svelte';
   import TrustDialog from './TrustDialog.svelte';
   import { timelineView } from '$lib/logs/timelineView.svelte';
   import { t } from '$lib/i18n/i18n.svelte';
@@ -42,6 +44,16 @@
   //
   // 開いている間はこの行の上をなぞるだけで隣のメニューへ移る（表計算やエディタの作法）。
   // 開いていないときになぞっても開かない。掴んで窓を動かすたびに開くのは邪魔なので。
+  // この PC に何が入っているかは、画面ができてから 1 回だけ調べる。起動を待たせない。
+  onMount(() => void browserPreview.detectBrowsers());
+
+  /** ボタンに出す名前。製品の名前なので訳さない。 */
+  const BROWSER_LABEL: Record<BrowserChoice, string> = {
+    default: '',
+    chrome: 'Chrome',
+    edge: 'Edge',
+  };
+
   let openMenu = $state<MenuId | null>(null);
   const buttons: Partial<Record<MenuId, HTMLButtonElement>> = {};
 
@@ -338,6 +350,26 @@
     <!-- ヘルプは中身が 1 枚しかないので、メニューを挟まずそのまま開く。 -->
     <HelpButton align="left" />
   </nav>
+
+  <!--
+    見る先を選ぶボタン。メニューの中に畳まず、行にそのまま出す。
+    作っている最中に何度も押すものなので、開くまでの手数を増やさない。
+  -->
+  {#if workspace.root !== null}
+    <div class="browsers">
+      {#each browserPreview.installed as choice (choice)}
+        <button
+          type="button"
+          class="note-btn"
+          disabled={browserPreview.busy}
+          title={t('action.openInBrowser', { name: BROWSER_LABEL[choice] })}
+          onclick={() => void browserPreview.openIn(workspace.root ?? '', choice)}
+        >
+          {BROWSER_LABEL[choice]}
+        </button>
+      {/each}
+    </div>
+  {/if}
 
   <!-- 書き出しの知らせ。行の右側の空きに出す（上の行へは出さない。掴む場所が減る）。 -->
   <div class="notices">
@@ -655,6 +687,13 @@
   .export-note.is-error {
     background: var(--danger-bg);
     color: var(--danger-fg);
+  }
+
+  .browsers {
+    flex: none;
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
   }
 
   .note-btn {

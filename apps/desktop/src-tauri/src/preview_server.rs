@@ -21,9 +21,12 @@ use std::time::Duration;
 use serde::Serialize;
 use tauri::{AppHandle, Manager, State};
 
+use tauri_plugin_opener::OpenerExt;
+
 use crate::preview_server_logic::{
-    content_security_policy, content_type, html_response, http_response, http_response_bytes,
-    inject_reload, parse_request_line, resolve_policy, route, Route, SitePolicy,
+    browser_probe_paths, browser_program, content_security_policy, content_type, html_response, http_response,
+    http_response_bytes, inject_reload, parse_request_line, resolve_policy, route, Route,
+    SitePolicy,
 };
 use crate::trust::is_project_trusted;
 use crate::workspace::{resolve_image_in_root, SiteAsset, SiteFile};
@@ -295,6 +298,53 @@ pub fn stop_preview_server(state: State<'_, PreviewServerState>) -> Result<(), S
         stop_server(&running);
     }
     Ok(())
+}
+
+/// この PC に入っているブラウザの名前を返す。
+///
+/// 画面はこの返事にあるものだけをボタンにする。入っていないものを並べると、
+/// 押しても何も起きないボタンになる（起動を頼んだ先が無いことは、頼んだ側からは分からない）。
+#[tauri::command]
+pub fn installed_browsers() -> Vec<String> {
+    let os = std::env::consts::OS;
+    let env = |name: &str| std::env::var(name).ok();
+    ["chrome", "edge"]
+        .into_iter()
+        .filter(|choice| {
+            browser_probe_paths(choice, os, &env)
+                .iter()
+                .any(|path| Path::new(path).exists())
+        })
+        .map(str::to_string)
+        .collect()
+}
+
+/// 出しているページを、選んだブラウザで開く。
+///
+/// **URL は画面から受け取らない。**立っている待ち受けのものを使う。受け取る形にすると、
+/// 「ブラウザで開く」口が、どこでも開ける口になる。起動するものの名前も同じ理由で
+/// 画面から受け取らず、選択肢の名前だけを受けてこちらの表から引く。
+#[tauri::command]
+pub fn open_preview_in_browser(
+    app: AppHandle,
+    state: State<'_, PreviewServerState>,
+    browser: String,
+) -> Result<(), String> {
+    let program = browser_program(&browser, std::env::consts::OS)?;
+    let url = {
+        let slot = state
+            .running
+            .lock()
+            .map_err(|_| "状態を読めません".to_string())?;
+        match slot.as_ref() {
+            Some(running) => info(running).url,
+            // 畳んだ後に押された。開いても繋がらないので、開かずに言う。
+            None => return Err("いまブラウザに出していません".to_string()),
+        }
+    };
+    app.opener()
+        .open_url(url, program)
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
