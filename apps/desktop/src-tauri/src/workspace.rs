@@ -295,6 +295,27 @@ pub fn read_document_impl(root: &Path, rel_path: &str) -> Result<String, String>
     String::from_utf8(bytes).map_err(|_| "UTF-8 として不正なファイルです".to_string())
 }
 
+/// プロジェクトの宣言ファイルの名前。中身の読み方は持たない。
+const PROJECT_CONFIG_FILENAME: &str = "md-business.yml";
+
+/// ルート直下の宣言をそのまま返す。無ければ空文字（Tauri 非依存の実体）。
+///
+/// ここは中身を解釈しない。この宣言を読み解くのは TypeScript 側の 1 か所だけで、
+/// 読み手を 2 つ持つと、同じファイルに 2 つの答えが出たときに「動かす」と読んだ側が勝つ。
+/// 相対パスを受け取らないのも同じ理由で、指せるファイルが 1 つなら指し先がずれない。
+pub fn read_project_config_impl(root: &Path) -> Result<String, String> {
+    let path = root.join(PROJECT_CONFIG_FILENAME);
+    let bytes = match std::fs::read(&path) {
+        Ok(bytes) => bytes,
+        // 宣言を持たないのが業務文書の既定。無いことは失敗ではない。
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(String::new()),
+        Err(e) => return Err(format!("{} を読めません: {}", PROJECT_CONFIG_FILENAME, e)),
+    };
+    // 読めないものを空として返すと「宣言が無い」と見分けが付かなくなる。
+    String::from_utf8(bytes)
+        .map_err(|_| format!("{} が UTF-8 として不正です", PROJECT_CONFIG_FILENAME))
+}
+
 /// ルート配下の正本（md/tsv）へ UTF-8 本文を書き戻す（Tauri 非依存の実体）。
 /// read と同じく canonicalize 後に root 配下判定でパストラバーサル（`../` / シンボリック
 /// リンク脱出）を封じ、対象は既存の `.md` / `.tsv` に限定する（参考データの `.json` / `.xml` は
@@ -670,6 +691,12 @@ pub async fn read_document(root: String, rel_path: String) -> Result<String, Str
     spawn_fs(move || read_document_impl(Path::new(&root), &rel_path)).await
 }
 
+/// フロントから `invoke("read_project_config", { root })` で呼ぶ薄いラッパ。
+#[tauri::command]
+pub async fn read_project_config(root: String) -> Result<String, String> {
+    spawn_fs(move || read_project_config_impl(Path::new(&root))).await
+}
+
 /// フロントから `invoke("write_document", { root, relPath, content })` で呼ぶ薄いラッパ。
 /// 保存成功後に、その canonical パスを自己書き込みとして記録し、監視のエコー（自分の保存が
 /// watcher で跳ね返って再読込・再走査される）を抑制する。
@@ -1042,6 +1069,35 @@ mod tests {
         let body =
             read_document_impl(&root.path, "検証シート/受発注ワークフロー.tsv").expect("読込成功");
         assert_eq!(body, "No.:number\t項目\t結果");
+    }
+
+    // ── read_project_config_impl ─────────────────────────────────────────
+
+    #[test]
+    fn 宣言を読める() {
+        let root = TempRoot::new("cfg_read");
+        root.file("md-business.yml", "mode: web
+");
+        assert_eq!(
+            read_project_config_impl(&root.path).expect("読込成功"),
+            "mode: web
+"
+        );
+    }
+
+    // 宣言が無いのは普通の状態。業務文書のプロジェクトは持たない。
+    #[test]
+    fn 宣言が無ければ空で返る() {
+        let root = TempRoot::new("cfg_absent");
+        assert_eq!(read_project_config_impl(&root.path).expect("読込成功"), "");
+    }
+
+    // 読めないときに空を返すと「宣言が無い」と同じ扱いになる。区別が付く形で断る。
+    #[test]
+    fn 宣言が読めなければ断る() {
+        let root = TempRoot::new("cfg_broken");
+        std::fs::write(root.path.join("md-business.yml"), [0xff, 0xfe]).expect("書き込み");
+        assert!(read_project_config_impl(&root.path).is_err());
     }
 
     // ── write_document_impl ──────────────────────────────────────────────

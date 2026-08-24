@@ -23,8 +23,9 @@ use tauri::{AppHandle, Manager, State};
 
 use crate::preview_server_logic::{
     content_security_policy, content_type, html_response, http_response, http_response_bytes,
-    inject_reload, parse_request_line, route, Route, SitePolicy,
+    inject_reload, parse_request_line, resolve_policy, route, Route, SitePolicy,
 };
+use crate::trust::is_project_trusted;
 use crate::workspace::{resolve_image_in_root, SiteAsset, SiteFile};
 
 /// 覚えているページ一式と、その版。版はブラウザ側が入れ替わりを知るために使う。
@@ -241,10 +242,12 @@ fn info(running: &Running) -> PreviewServerInfo {
 
 #[tauri::command]
 pub fn start_preview_server(
+    app: AppHandle,
     state: State<'_, PreviewServerState>,
     root: String,
     files: Vec<SiteFile>,
     assets: Vec<SiteAsset>,
+    policy: SitePolicy,
 ) -> Result<PreviewServerInfo, String> {
     let mut slot = state
         .running
@@ -255,9 +258,10 @@ pub fn start_preview_server(
     if let Some(previous) = slot.take() {
         stop_server(&previous);
     }
-    // いまは業務文書の既定（何も動かさない）で立てる。宣言と同意を突き合わせて
-    // ここへ渡すのは次の作業。
-    let running = start_server(Path::new(&root), files, assets, SitePolicy::default())?;
+    // 届いた `policy` は宣言の写しでしかない。宣言はプロジェクトの中にあり、
+    // 中身を書いた側が自由に書ける。動かしてよいかは、この PC の同意で決める。
+    let policy = resolve_policy(policy, is_project_trusted(&app, &root)?)?;
+    let running = start_server(Path::new(&root), files, assets, policy)?;
     let detail = info(&running);
     *slot = Some(running);
     Ok(detail)

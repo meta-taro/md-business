@@ -83,6 +83,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             workspace::scan_documents,
             workspace::read_document,
+            workspace::read_project_config,
             workspace::write_document,
             workspace::create_document,
             workspace::rename_entry,

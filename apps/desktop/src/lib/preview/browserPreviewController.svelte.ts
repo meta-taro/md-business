@@ -13,6 +13,7 @@ import { openUrl } from '@tauri-apps/plugin-opener';
 import { browser } from '$app/environment';
 import { collectSitePlan } from './collectSite';
 import { affectsSite, shouldStop } from './browserPreview';
+import { sitePolicyFrom } from './sitePolicy';
 
 /** 知らせが自分で消えるまで。書き出しと揃える。 */
 const NOTICE_MS = 8000;
@@ -62,10 +63,14 @@ class BrowserPreviewController {
         return;
       }
       // 画像は覚えさせず、開いているフォルダのどれを指すかだけ渡す（Rust 側が要求のたびに読む）。
+      // 宣言はプロジェクトの中にあるので、求めているものでしかない。動かしてよいかは
+      // Rust 側がこの PC の同意と突き合わせて決める。ここでは汲み取らずに渡すだけ。
+      const declaration = await invoke<string>('read_project_config', { root });
       const info = await invoke<PreviewServerInfo>('start_preview_server', {
         root,
         files: plan.files,
         assets: plan.assets,
+        policy: sitePolicyFrom(declaration),
       });
       this.serving = info;
       this.#servingRoot = root;

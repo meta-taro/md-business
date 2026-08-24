@@ -141,6 +141,14 @@ fn revoke_impl(store: &Path, folder: &str) -> Result<TrustStatus, String> {
     })
 }
 
+/// この PC でこのフォルダを許してあるか。
+///
+/// 実行してよいかを決める側（下見の待ち受け）から呼ぶ。画面から届いた「許可済み」を
+/// そのまま信じると、依頼を組み立てるところで書き換えられる。答えるのは常にこちら。
+pub fn is_project_trusted(app: &AppHandle, path: &str) -> Result<bool, String> {
+    Ok(status_impl(&store_path(app)?, path)?.trusted)
+}
+
 /// このフォルダを、この PC で許してあるかを答える。
 #[tauri::command]
 pub fn project_trust_status(app: AppHandle, path: String) -> Result<TrustStatus, String> {

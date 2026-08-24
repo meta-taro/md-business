@@ -135,6 +135,26 @@ pub struct SitePolicy {
     pub script_origins: Vec<String>,
 }
 
+/// 宣言と同意を突き合わせて、実際に何を動かすかを決める。
+///
+/// 宣言（`md-business.yml`）はプロジェクトの中にあるので、中身を書いた側が自由に書ける。
+/// 止めているのは常に同意——この PC で人が 1 回押したかどうか——のほうで、
+/// ここはその突き合わせを 1 か所に集めている。
+///
+/// 同意が無いまま script を求められたら、動かさない形へ落とさずに断る。
+/// 黙って落とすと、書いた本人には「宣言が読まれていない」と見え、
+/// 宣言のほうを書き換えて回ることになる。
+pub fn resolve_policy(declared: SitePolicy, trusted: bool) -> Result<SitePolicy, String> {
+    if !declared.scripts {
+        return Ok(SitePolicy::default());
+    }
+    if !trusted {
+        return Err("このフォルダはまだ許可されていません。JavaScript を動かすには、アプリでこのフォルダを 1 回許可してください。"
+            .to_string());
+    }
+    Ok(declared)
+}
+
 /// 手元を指しているか。`http://` を通すのはここだけ。
 fn is_local_host(host: &str) -> bool {
     if let Some(rest) = host.strip_prefix('[') {
@@ -565,6 +585,50 @@ mod tests {
         };
         let csp = content_security_policy(&policy, "abc123");
         assert!(!csp.contains("cdn.example.com"), "{}", csp);
+    }
+
+    // 宣言はプロジェクトの中にあり、書いた側が自由に書ける。動かしてよいと決めるのは同意のほう。
+    #[test]
+    fn 同意があって初めて動かす() {
+        let declared = SitePolicy {
+            scripts: true,
+            script_origins: vec!["https://cdn.example.com".to_string()],
+        };
+        let allowed = resolve_policy(declared, true).expect("通る");
+        assert!(allowed.scripts);
+        assert_eq!(
+            allowed.script_origins,
+            vec!["https://cdn.example.com".to_string()]
+        );
+    }
+
+    // 動かさない形へ黙って落とすと「なぜ動かないのか」が画面から消える。断る。
+    #[test]
+    fn 同意が無ければ立てない() {
+        let declared = SitePolicy {
+            scripts: true,
+            script_origins: vec![],
+        };
+        let refused = resolve_policy(declared, false).expect_err("断る");
+        assert!(refused.contains("許可"), "{}", refused);
+    }
+
+    // 業務文書はもともと何も動かさないので、同意を聞く場面ではない。
+    #[test]
+    fn 業務文書は同意が無くても出せる() {
+        let allowed = resolve_policy(SitePolicy::default(), false).expect("通る");
+        assert!(!allowed.scripts);
+    }
+
+    // 置き先は script を動かすときだけの話。動かさないなら持ち回らない。
+    #[test]
+    fn 業務文書では宣言された置き先を持ち回らない() {
+        let declared = SitePolicy {
+            scripts: false,
+            script_origins: vec!["https://cdn.example.com".to_string()],
+        };
+        let allowed = resolve_policy(declared, true).expect("通る");
+        assert!(allowed.script_origins.is_empty());
     }
 
     // どちらのモードでも、既定の取り寄せ先は自分自身に閉じる。
