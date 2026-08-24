@@ -22,6 +22,15 @@ describe('parseRequestEvent', () => {
     });
   });
 
+  it('同意の照会は対象を伴わない', () => {
+    // 「このフォルダで script を動かしてよいか」はフォルダそのものへの問いで、
+    // 中のどのファイルかは関係ない。
+    expect(parseRequestEvent({ id: 'req-5', action: 'trust-status' })).toEqual({
+      id: 'req-5',
+      action: 'trust-status',
+    });
+  });
+
   it('閉じる依頼は対象を伴う', () => {
     expect(parseRequestEvent({ id: 'req-4', action: 'close-document', path: 'a.md' })).toEqual({
       id: 'req-4',

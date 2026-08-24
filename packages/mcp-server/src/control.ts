@@ -138,12 +138,15 @@ export interface RootEvent {
  * サーバー側には画面が無い。対象文書を開くところ（`open-document`）と、そのうえで
  * 印刷ダイアログを出すところ（`export-pdf`）、開いている文書の一覧
  * （`list-documents`）と閉じるところ（`close-document`）をアプリに任せる。
+ *
+ * `trust-status` は「このフォルダで script を動かしてよいか」の照会。許可はアプリだけが
+ * 持っていて、この路からは尋ねられるだけで、与えることはできない。
  */
 export interface RequestEvent {
   type: 'request';
   /** 応答を突き合わせるための id。 */
   id: string;
-  action: 'export-pdf' | 'open-document' | 'close-document' | 'list-documents';
+  action: 'export-pdf' | 'open-document' | 'close-document' | 'list-documents' | 'trust-status';
   /** 対象のワークスペース相対パス。一覧のように対象を持たない依頼では省く。 */
   path?: string;
 }

@@ -12,7 +12,7 @@ import type { RequestEvent, ResponseCommand } from './control.js';
 
 /** アプリへ頼む操作。 */
 export interface AppRequest {
-  action: 'export-pdf' | 'open-document' | 'close-document' | 'list-documents';
+  action: 'export-pdf' | 'open-document' | 'close-document' | 'list-documents' | 'trust-status';
   /** 対象のワークスペース相対パス。一覧のように対象を持たない依頼では省く。 */
   path?: string;
 }

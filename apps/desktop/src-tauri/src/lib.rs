@@ -13,6 +13,8 @@ mod mcp_logic;
 mod open_arg;
 mod preview_server;
 mod preview_server_logic;
+mod trust;
+mod trust_logic;
 mod watch;
 mod watch_logic;
 mod workspace;
@@ -122,7 +124,10 @@ pub fn run() {
             preview_server::start_preview_server,
             preview_server::update_preview_server,
             preview_server::stop_preview_server,
-            preview_server::preview_server_status
+            preview_server::preview_server_status,
+            trust::project_trust_status,
+            trust::grant_project_trust,
+            trust::revoke_project_trust
         ])
         .build(tauri::generate_context!())
         .expect("error while running tauri application")

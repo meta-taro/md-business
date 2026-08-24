@@ -13,17 +13,22 @@ export type AppRequestAction =
   | 'export-pdf'
   | 'open-document'
   | 'close-document'
-  | 'list-documents';
+  | 'list-documents'
+  | 'trust-status';
 
 const ACTIONS: readonly string[] = [
   'export-pdf',
   'open-document',
   'close-document',
   'list-documents',
+  'trust-status',
 ];
 
-/** 対象を伴わない依頼。開いているものを尋ねるだけなので、指す先が無い。 */
-const ACTIONS_WITHOUT_TARGET: readonly string[] = ['list-documents'];
+/**
+ * 対象を伴わない依頼。開いているものを尋ねる・このフォルダが許されているかを尋ねる、
+ * どちらもフォルダそのものへの問いなので、中のどれかを指す必要が無い。
+ */
+const ACTIONS_WITHOUT_TARGET: readonly string[] = ['list-documents', 'trust-status'];
 
 /** サーバーから届く依頼。 */
 export interface AppRequestPayload {
