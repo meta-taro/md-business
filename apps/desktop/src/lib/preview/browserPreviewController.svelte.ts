@@ -13,7 +13,6 @@ import { openUrl } from '@tauri-apps/plugin-opener';
 import { browser } from '$app/environment';
 import { collectSitePlan } from './collectSite';
 import { affectsSite, shouldStop } from './browserPreview';
-import { planStart, sitePolicyFrom } from './sitePolicy';
 
 /** 知らせが自分で消えるまで。書き出しと揃える。 */
 const NOTICE_MS = 8000;
@@ -80,6 +79,9 @@ class BrowserPreviewController {
       // 宣言はプロジェクトの中にあるので、求めているものでしかない。動かしてよいかは
       // Rust 側がこの PC の同意と突き合わせて決める。ここでは汲み取らずに渡すだけ。
       const declaration = await invoke<string>('read_project_config', { root });
+      // 宣言を読む道具はここで初めて要る。上で読み込むと、YAML の読み手が
+      // 起動時の JS に混ざって、下見を一度も押さない人まで待たされる。
+      const { planStart, sitePolicyFrom } = await import('./sitePolicy');
       const policy = sitePolicyFrom(declaration);
       // 同意を答えるのはアプリの側。ここで持っている値を根拠にしない。
       const trusted = policy.scripts
