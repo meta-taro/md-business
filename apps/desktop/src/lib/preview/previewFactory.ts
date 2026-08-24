@@ -123,6 +123,15 @@ export interface RenderPreviewOptions {
    * 固定文字列ではなく関数で受け取る）。渡すのは静的サイト出力だけ。
    */
   cssHref?: (styleId: string) => string;
+  /**
+   * 本文に直接書かれた HTML をそのまま出すか。既定は出さない（落とす）。
+   *
+   * `true` を渡してよいのは、web モードを宣言していて、かつこの PC で人が 1 回
+   * 許したプロジェクトを、手元の待ち受けから出すときだけ。渡した先では script が
+   * そのまま残るので、動かすかどうかは出す側（サーバーが付ける実行の指示）で決まる。
+   * webview の中（`srcdoc`）へは渡さない。アプリと同じ入れ物で動かさないため。
+   */
+  rawHtml?: boolean;
 }
 
 export interface PreviewProvider extends PreviewProviderMeta {

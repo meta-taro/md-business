@@ -53,3 +53,22 @@ describe('renderMarkdownFallback — 業務スキーマ非該当 .md の標準�
     expect(r.srcdoc).toContain('@media print');
   });
 });
+
+describe('renderMarkdownFallback — rawHtml', () => {
+  it('rawHtml で本文の script をそのまま出す', () => {
+    const r = renderMarkdownFallback('# 見出し\n\n<script>alert(1)</script>', { rawHtml: true });
+    expect(r.srcdoc).toContain('<script>alert(1)</script>');
+  });
+
+  it('rawHtml で本文の要素と属性をそのまま出す', () => {
+    const body = '# 見出し\n\n<button class="tab" data-target="a" onclick="go()">押す</button>';
+    const r = renderMarkdownFallback(body, { rawHtml: true });
+    expect(r.srcdoc).toContain('data-target="a"');
+    expect(r.srcdoc).toContain('onclick="go()"');
+  });
+
+  it('rawHtml を付けなければ今までどおり落とす', () => {
+    const r = renderMarkdownFallback('# 見出し\n\n<button onclick="go()">押す</button>');
+    expect(r.srcdoc).not.toContain('onclick');
+  });
+});

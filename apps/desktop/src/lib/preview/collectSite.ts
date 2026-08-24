@@ -10,7 +10,7 @@
  */
 import { invoke } from '@tauri-apps/api/core';
 import type { DocEntry } from '$lib/workspace/fileTree';
-import type { SitePlan, SiteSource } from './staticSite';
+import type { BuildStaticSiteOptions, SitePlan, SiteSource } from './staticSite';
 import { folderTitle, siteDocumentPaths } from './siteExport';
 
 /** Rust `scan_documents` の戻り。 */
@@ -23,8 +23,14 @@ interface ScanResult {
  *
  * 出せる文書が無いときは空の計画（`pages` が空）を返す。呼ぶ側は `pages.length` で
  * 「何も出せなかった」を判定する。`skipped` には、読めたがページに出来なかった文書が入る。
+ *
+ * @param rawHtml 本文に直接書かれた HTML をそのまま載せるか。既定は載せない。
+ *   渡すのは、web モードを宣言していて、かつこの PC で人が 1 回許したと確かめた側だけ。
  */
-export async function collectSitePlan(root: string): Promise<SitePlan> {
+export async function collectSitePlan(
+  root: string,
+  { rawHtml }: Pick<BuildStaticSiteOptions, 'rawHtml'> = {},
+): Promise<SitePlan> {
   // ワークスペースのツリーは表示用に組み替えてあるので、走査をやり直して平坦な
   // 一覧を取る。除外（.git / node_modules / dist）は Rust 側が済ませている。
   const scan = await invoke<ScanResult>('scan_documents', { root });
@@ -57,5 +63,5 @@ export async function collectSitePlan(root: string): Promise<SitePlan> {
   // ページの組み立てはプレビューと同じ描画一式を使う。起動時に読ませないよう、
   // 実際に組むここで読み込む。
   const { buildStaticSite } = await import('./staticSite');
-  return await buildStaticSite(docs, { title: folderTitle(root) });
+  return await buildStaticSite(docs, { title: folderTitle(root), rawHtml });
 }

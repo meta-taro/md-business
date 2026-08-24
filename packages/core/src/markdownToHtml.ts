@@ -23,6 +23,9 @@ import { splitFrontmatter } from './frontmatter.js';
  *     the Markdown rather than passing it through. Authors who need inline
  *     SVG / Mermaid will get dedicated handling on a later pass — for now,
  *     anything that looks like HTML in the body is silently stripped.
+ *     `rawHtml: true` はその既定を外すが、それだけでは足りない。呼ぶ側は
+ *     受けた HTML を素通しすることになる（sanitizer に通せば結局落ちる）ので、
+ *     出す先で script を止める指示が別に要る。
  *   - The frontmatter is split off first via `splitFrontmatter`; if the caller
  *     already has a body-only string, pass `{ hasFrontmatter: false }`.
  */
@@ -37,6 +40,14 @@ export interface RenderMarkdownToHtmlOptions {
    * （読めない見出しを出すより、既定の言語で出したほうが直しやすい）。
    */
   lang?: string;
+  /**
+   * 本文に直接書かれた HTML をそのまま通すか。既定は通さない。
+   *
+   * `true` にしてよいのは、そのプロジェクトが web モードを宣言していて、
+   * かつこの PC で人が 1 回許している場合だけ。宣言だけでは足りない
+   * （宣言はプロジェクトの中にあるので、中身を書いた側が自由に書ける）。
+   */
+  rawHtml?: boolean;
 }
 
 /**
@@ -146,13 +157,14 @@ function rehypeFootnotePopovers() {
   };
 }
 
-function buildProcessor(lang: string) {
+function buildProcessor(lang: string, rawHtml: boolean) {
   const backLabel = FOOTNOTE_BACK_LABEL[lang] ?? FOOTNOTE_BACK_LABEL['ja']!;
 
   return unified()
     .use(remarkParse)
     .use(remarkGfm)
     .use(remarkRehype, {
+      allowDangerousHtml: rawHtml,
       footnoteLabel: FOOTNOTE_LABEL[lang] ?? FOOTNOTE_LABEL['ja']!,
       // 既定の `sr-only` を外す。見出しは隠さずに出し、体裁は各スタイルが当てる。
       footnoteLabelProperties: { className: ['mdb-footnotes__head'] },
@@ -166,28 +178,29 @@ function buildProcessor(lang: string) {
       },
     })
     .use(rehypeFootnotePopovers)
-    .use(rehypeStringify);
+    .use(rehypeStringify, { allowDangerousHtml: rawHtml });
 }
 
 /**
- * 言語ごとに組み立てた processor を使い回す。見出しの文字列は remark-rehype の
- * 設定なので、言語が変わると別の processor になる。
+ * 組み立てた processor を使い回す。見出しの文字列も生の HTML を通すかも
+ * remark-rehype / rehype-stringify の設定なので、どちらが変わっても別の processor になる。
  */
 const processors = new Map<string, ReturnType<typeof buildProcessor>>();
 
-function processorFor(lang: string): ReturnType<typeof buildProcessor> {
-  const key = lang in FOOTNOTE_LABEL ? lang : 'ja';
+function processorFor(lang: string, rawHtml: boolean): ReturnType<typeof buildProcessor> {
+  const language = lang in FOOTNOTE_LABEL ? lang : 'ja';
+  const key = `${language}:${rawHtml}`;
   const cached = processors.get(key);
   if (cached !== undefined) return cached;
 
-  const built = buildProcessor(key);
+  const built = buildProcessor(language, rawHtml);
   processors.set(key, built);
   return built;
 }
 
 export function renderMarkdownToHtml(src: string, options: RenderMarkdownToHtmlOptions = {}): string {
-  const { hasFrontmatter = true, lang = 'ja' } = options;
+  const { hasFrontmatter = true, lang = 'ja', rawHtml = false } = options;
   const body = hasFrontmatter ? splitFrontmatter(src).body : src;
-  const file = processorFor(lang).processSync(body);
+  const file = processorFor(lang, rawHtml).processSync(body);
   return String(file);
 }

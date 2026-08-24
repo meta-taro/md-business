@@ -52,6 +52,13 @@ class BrowserPreviewController {
   consent = $state<PendingConsent | null>(null);
   /** どのフォルダを出しているか。フォルダが替わったら畳むために持つ。 */
   #servingRoot: string | null = null;
+  /**
+   * 出しているフォルダで、本文の HTML をそのまま載せているか。
+   *
+   * 組み直しのたびに宣言と同意を引き直さない。立てたときの答えをそのまま使う。
+   * 引き直すと、出している最中に宣言だけを書き換えて実行の範囲を広げられる。
+   */
+  #servingRawHtml = false;
   /** 組み直し中。終わるまでに来た変化は #queued にまとめる。 */
   #rebuilding = false;
   /** 組み直し中に更に変化が来た。終わったらもう一度だけ組み直す。 */
@@ -69,13 +76,6 @@ class BrowserPreviewController {
 
     this.busy = true;
     try {
-      const plan = await collectSitePlan(root);
-      if (plan.pages.length === 0) {
-        // 出すものが無い。空の待ち受けを立てても、開いた先に何も無い。
-        this.#notify({ kind: 'none' });
-        return;
-      }
-      // 画像は覚えさせず、開いているフォルダのどれを指すかだけ渡す（Rust 側が要求のたびに読む）。
       // 宣言はプロジェクトの中にあるので、求めているものでしかない。動かしてよいかは
       // Rust 側がこの PC の同意と突き合わせて決める。ここでは汲み取らずに渡すだけ。
       const declaration = await invoke<string>('read_project_config', { root });
@@ -91,9 +91,20 @@ class BrowserPreviewController {
       if (step.kind === 'consent') {
         // 黙って script 抜きで出さない。出てしまうと、書いた本人には
         // 「宣言が読まれていない」と見えて、宣言のほうを書き換えて回ることになる。
+        // 組み立てる前に返す。許していないフォルダの中身は、まだ形にしない。
         this.consent = { root, origins: policy.scriptOrigins };
         return;
       }
+      // 本文に直接書かれた HTML を載せるのは、宣言と同意が揃ったときだけ。
+      // 揃っていなければ今までどおり落とすので、業務文書の出方は変わらない。
+      const rawHtml = step.policy.scripts && trusted;
+      const plan = await collectSitePlan(root, { rawHtml });
+      if (plan.pages.length === 0) {
+        // 出すものが無い。空の待ち受けを立てても、開いた先に何も無い。
+        this.#notify({ kind: 'none' });
+        return;
+      }
+      // 画像は覚えさせず、開いているフォルダのどれを指すかだけ渡す（Rust 側が要求のたびに読む）。
       const info = await invoke<PreviewServerInfo>('start_preview_server', {
         root,
         files: plan.files,
@@ -102,6 +113,7 @@ class BrowserPreviewController {
       });
       this.serving = info;
       this.#servingRoot = root;
+      this.#servingRawHtml = rawHtml;
       this.#clearNotice();
       await openUrl(info.url);
     } catch (e) {
@@ -143,6 +155,7 @@ class BrowserPreviewController {
       await invoke('stop_preview_server');
       this.serving = null;
       this.#servingRoot = null;
+      this.#servingRawHtml = false;
       this.#clearNotice();
     } catch (e) {
       this.#notify({ kind: 'error', message: e instanceof Error ? e.message : String(e) });
@@ -187,7 +200,7 @@ class BrowserPreviewController {
         this.#queued = false;
         const root = this.#servingRoot;
         if (root === null) return;
-        const plan = await collectSitePlan(root);
+        const plan = await collectSitePlan(root, { rawHtml: this.#servingRawHtml });
         // 組んでいる間に畳まれていたら、Rust 側は何もしない（立っていない間の
         // 作り直しは無視される）。ここで止める必要はない。
         if (plan.pages.length === 0) continue;

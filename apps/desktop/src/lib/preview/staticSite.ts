@@ -60,6 +60,14 @@ export interface SitePlan {
 export interface BuildStaticSiteOptions {
   /** 一覧ページの見出し。開いているフォルダ名を渡す想定。 */
   title?: string;
+  /**
+   * 本文に直接書かれた HTML をそのまま載せるか。既定は載せない。
+   *
+   * 渡してよいのは、web モードを宣言していて、かつこの PC で人が 1 回許した
+   * プロジェクトだけ。載ったものを動かすかどうかは、出す側（待ち受けが付ける
+   * 実行の指示）が決める。
+   */
+  rawHtml?: boolean;
 }
 
 const MD_EXT = /\.md$/i;
@@ -235,6 +243,7 @@ export async function buildStaticSite(
       theme: 'light',
       shortcuts: false,
       cssHref: (styleId) => `${upToRoot(path)}assets/${styleId}.css`,
+      rawHtml: options.rawHtml,
     });
     if (!result.ok) {
       skipped.push({ path: doc.path, reason: result.reason });

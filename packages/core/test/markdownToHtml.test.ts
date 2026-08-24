@@ -200,3 +200,34 @@ describe('renderMarkdownToHtml — 脚注（注釈）', () => {
     expect(html).toContain('単価は前期の実績に合わせた。');
   });
 });
+
+describe('renderMarkdownToHtml — rawHtml', () => {
+  it('rawHtml で生の HTML をそのまま出す', () => {
+    const html = renderMarkdownToHtml('<section class="hero">やあ</section>', {
+      hasFrontmatter: false,
+      rawHtml: true,
+    });
+    expect(html).toContain('<section class="hero">');
+  });
+
+  it('rawHtml で script をそのまま出す', () => {
+    const html = renderMarkdownToHtml('<script>alert(1)</script>', {
+      hasFrontmatter: false,
+      rawHtml: true,
+    });
+    expect(html).toContain('<script>alert(1)</script>');
+  });
+
+  it('rawHtml でも囲みの中は文字のまま', () => {
+    const md = '```\n<script>alert(1)</script>\n```';
+    const html = renderMarkdownToHtml(md, { hasFrontmatter: false, rawHtml: true });
+    expect(html).toContain('&#x3C;script>alert(1)&#x3C;/script>');
+  });
+
+  it('rawHtml を付けても Markdown の描き方は変わらない', () => {
+    const md = '# 見出し\n\n| a | b |\n| --- | --- |\n| 1 | 2 |';
+    const plain = renderMarkdownToHtml(md, { hasFrontmatter: false });
+    const raw = renderMarkdownToHtml(md, { hasFrontmatter: false, rawHtml: true });
+    expect(raw).toBe(plain);
+  });
+});
