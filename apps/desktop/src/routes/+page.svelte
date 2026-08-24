@@ -1,6 +1,7 @@
 <script lang="ts">
   import { untrack, onMount, onDestroy, tick } from 'svelte';
   import { themeController } from '$lib/theme.svelte';
+  import BrowserOpenButtons from '$lib/components/BrowserOpenButtons.svelte';
   import { previewRenderer } from '$lib/preview/previewRenderer.svelte';
   import type { PreviewResult } from '$lib/preview/previewFactory';
   import { frontmatterMessage } from '$lib/preview/frontmatterMessage';
@@ -1402,6 +1403,9 @@
     {:else}
     <div class="pane-head preview-head">
       <span>{t('page.previewHead')}{#if preview?.ok} — {preview.label}{/if}</span>
+      <!-- 別の窓でも見るためのボタン。見ている面の見出しに置く（作っている最中に
+           何度も押すものなので、目を離した先に置かない）。 -->
+      <BrowserOpenButtons root={workspace.root} />
       {#if sheetPreview}
         <button
           type="button"
