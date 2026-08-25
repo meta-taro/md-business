@@ -12,6 +12,7 @@ export type MenuItemId =
 	| 'openFolder'
 	| 'save'
 	| 'autosave'
+	| 'revokeTrust'
 	| 'pdf'
 	| 'html'
 	| 'image'
@@ -26,7 +27,7 @@ export type MenuItemId =
 export const MENU_IDS: readonly MenuId[] = ['file', 'export', 'view'];
 
 export const MENU_ITEMS: Record<MenuId, readonly MenuItemId[]> = {
-	file: ['openFolder', 'save', 'autosave'],
+	file: ['openFolder', 'save', 'autosave', 'revokeTrust'],
 	export: ['pdf', 'html', 'image', 'site', 'browser', 'publish'],
 	view: ['theme', 'timeline', 'language'],
 };
@@ -37,6 +38,8 @@ export interface MenuCaps {
 	hasRoot: boolean;
 	canSave: boolean;
 	autosaveOn: boolean;
+	/** 開いているフォルダを、この PC で web モードとして動かしてよいと許してあるか。 */
+	trusted: boolean;
 	canPdf: boolean;
 	canHtml: boolean;
 	canImage: boolean;
@@ -76,6 +79,10 @@ export function isItemEnabled(item: MenuItemId, caps: MenuCaps): boolean {
 		case 'publish':
 			// 下見を取りに行けるかだけ。出せる/出せないの判断は、下見を見てから。
 			return caps.canPublish;
+		case 'revokeTrust':
+			// 許してあるフォルダでだけ押せる。許していないときに押せると、
+			// 何も起きない操作が「効かない」と読まれる。
+			return caps.trusted;
 		case 'timeline':
 			return caps.hasRoot || caps.timelineOpen;
 	}

@@ -105,6 +105,9 @@ export interface Messages {
   'action.liveLabel': string;
   'action.browserTitle': string;
   'action.browserServing': string;
+  /** 一度許したフォルダを、この PC で許していない状態へ戻す。 */
+  'action.revokeTrust': string;
+  'action.revokeTrustDone': string;
   'action.theme': string;
   'action.themeToLight': string;
   'action.themeToDark': string;
@@ -758,6 +761,9 @@ const en: Messages = {
   'action.liveLabel': 'Live',
   'action.browserTitle': 'Open the folder in your browser (a local address on this machine)',
   'action.browserServing': 'Serving at {url}',
+  'action.revokeTrust': 'Withdraw permission to run JavaScript',
+  'action.revokeTrustDone':
+    'Permission withdrawn. The JavaScript in this folder no longer runs on this PC.',
   'action.theme': 'Theme',
   'action.themeToLight': 'Switch to light theme',
   'action.themeToDark': 'Switch to dark theme',
@@ -1401,6 +1407,9 @@ const ja: Messages = {
   'action.liveLabel': 'ライブ',
   'action.browserTitle': 'ブラウザで見る（この PC の中だけのアドレスで開く）',
   'action.browserServing': '{url} で表示中',
+  'action.revokeTrust': 'JavaScript の許可を取り消す',
+  'action.revokeTrustDone':
+    '許可を取り消しました。このフォルダの JavaScript は、この PC では動きません。',
   'action.theme': 'テーマ',
   'action.themeToLight': 'ライトテーマに切替',
   'action.themeToDark': 'ダークテーマに切替',
@@ -2040,6 +2049,8 @@ const zh: Messages = {
   'action.liveLabel': '实时',
   'action.browserTitle': '在浏览器中查看（使用仅限本机的地址打开）',
   'action.browserServing': '正在 {url} 提供页面',
+  'action.revokeTrust': '撤销运行 JavaScript 的许可',
+  'action.revokeTrustDone': '已撤销许可。此文件夹的 JavaScript 不再在本机运行。',
   'action.theme': '主题',
   'action.themeToLight': '切换到浅色主题',
   'action.themeToDark': '切换到深色主题',
@@ -2675,6 +2686,8 @@ const ko: Messages = {
   'action.liveLabel': '라이브',
   'action.browserTitle': '브라우저에서 보기 (이 PC 안에서만 열리는 주소)',
   'action.browserServing': '{url} 에서 표시 중',
+  'action.revokeTrust': 'JavaScript 실행 허가 취소',
+  'action.revokeTrustDone': '허가를 취소했습니다. 이 폴더의 JavaScript는 이 PC에서 실행되지 않습니다.',
   'action.theme': '테마',
   'action.themeToLight': '라이트 테마로 전환',
   'action.themeToDark': '다크 테마로 전환',

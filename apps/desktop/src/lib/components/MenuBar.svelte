@@ -65,6 +65,7 @@
     canSite: siteExport.canExport,
     canPublish: publish.canPublish,
     browserBusy: browserPreview.busy,
+    trusted: browserPreview.trusted,
     timelineOpen: timelineView.active,
   });
 
@@ -94,6 +95,8 @@
         return publish.busy ? t('publish.preparing') : t('publish.label');
       case 'browser':
         return t('action.browser');
+      case 'revokeTrust':
+        return t('action.revokeTrust');
       case 'theme':
         // 押した先を書く。今どちらかは画面の明暗そのものを見れば分かる。
         return themeController.value === 'dark' ? t('action.themeToLight') : t('action.themeToDark');
@@ -143,6 +146,10 @@
         // 開くだけ。止める口はここに置かない（出ているものを止めたい用事が無く、
         // 押した人には「開く」としか読めない場所なので）。
         if (workspace.root !== null) void browserPreview.openIn(workspace.root, 'default');
+        return;
+      case 'revokeTrust':
+        // 許可はこの PC に残るので、戻す口も PC の側に要る。
+        if (workspace.root !== null) void browserPreview.revoke(workspace.root);
         return;
       case 'theme':
         themeController.toggle();
@@ -205,9 +212,11 @@
     return [note, ...result.skipped.map((skip) => `${skip.path}: ${skip.reason}`)].join('\n');
   }
 
-  // ブラウザ表示が始められなかった理由。出せている間は URL の方を出すので、ここは通らない。
+  // ブラウザ表示の知らせ。出せている間は URL の方を出すので、ここへは来ない。
   function browserNote(notice: BrowserPreviewNotice): string {
-    return notice.kind === 'error' ? notice.message : t('action.siteNone');
+    if (notice.kind === 'error') return notice.message;
+    if (notice.kind === 'revoked') return t('action.revokeTrustDone');
+    return t('action.siteNone');
   }
 
   // 画像書き出しの知らせ。1 枚のときは置き場、一括のときは枚数。途中で止めたときは
@@ -447,7 +456,13 @@
         {t('action.browserServing', { url: browserPreview.serving.url })}
       </span>
     {:else if browserPreview.notice !== null}
-      <span class="export-note is-error" role="status" title={browserNote(browserPreview.notice)}>
+      <!-- 取り消せたことは不具合ではないので、赤くしない。 -->
+      <span
+        class="export-note"
+        class:is-error={browserPreview.notice.kind === 'error'}
+        role="status"
+        title={browserNote(browserPreview.notice)}
+      >
         {browserNote(browserPreview.notice)}
       </span>
     {/if}

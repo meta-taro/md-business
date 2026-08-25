@@ -23,6 +23,7 @@ const idle: MenuCaps = {
   canPublish: false,
   browserBusy: false,
   timelineOpen: false,
+  trusted: false,
 };
 
 describe('メニューの並び', () => {
@@ -39,6 +40,10 @@ describe('メニューの並び', () => {
       'browser',
       'publish',
     ]);
+  });
+
+  it('許可を戻す口は、フォルダを扱うメニューに置く', () => {
+    expect(itemsOf('file')).toEqual(['openFolder', 'save', 'autosave', 'revokeTrust']);
   });
 
   it('どの項目もちょうど 1 つのメニューに属する（重複も迷子も作らない）', () => {
@@ -79,6 +84,11 @@ describe('押せるかどうか', () => {
   it('出すのは、下見を取れる状態のときだけ押せる', () => {
     expect(isItemEnabled('publish', idle)).toBe(false);
     expect(isItemEnabled('publish', { ...idle, canPublish: true })).toBe(true);
+  });
+
+  it('許可の取り消しは、許してあるフォルダでだけ押せる', () => {
+    expect(isItemEnabled('revokeTrust', { ...idle, hasRoot: true })).toBe(false);
+    expect(isItemEnabled('revokeTrust', { ...idle, hasRoot: true, trusted: true })).toBe(true);
   });
 
   it('時系列はフォルダを開いてから', () => {

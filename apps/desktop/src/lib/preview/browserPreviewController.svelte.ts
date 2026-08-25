@@ -46,6 +46,8 @@ export interface PendingConsent {
 export type BrowserPreviewNotice =
   /** ページに出来る文書が 1 つも無かった。 */
   | { kind: 'none' }
+  /** この PC の許可を戻した。次に出すときは script 抜きの組み立てに戻る。 */
+  | { kind: 'revoked' }
   | { kind: 'error'; message: string };
 
 class BrowserPreviewController {
@@ -80,6 +82,13 @@ class BrowserPreviewController {
    * これを根拠にすると、置いただけのファイルで実行の範囲が広がる）。
    */
   declaredWeb = $state<boolean>(false);
+  /**
+   * 開いているフォルダを、この PC で許してあるか。
+   *
+   * **戻す口を出すかどうかにしか使わない。**declaredWeb と同じで、動かしてよいかは
+   * 立てるときに引き直す。
+   */
+  trusted = $state<boolean>(false);
   /** どのフォルダを出しているか。フォルダが替わったら畳むために持つ。 */
   #servingRoot: string | null = null;
   /** いま開いているフォルダ。宣言を読み直すために持つ（出していない間も要る）。 */
@@ -122,6 +131,8 @@ class BrowserPreviewController {
       const trusted = policy.scripts
         ? (await invoke<{ trusted: boolean }>('project_trust_status', { path: root })).trusted
         : false;
+      // 戻す口を出すかどうかは、いま引いた答えに合わせる（許した直後から押せる）。
+      this.trusted = trusted;
       const step = planStart(policy, trusted);
       if (step.kind === 'consent') {
         // 黙って script 抜きで出さない。出てしまうと、書いた本人には
@@ -174,6 +185,7 @@ class BrowserPreviewController {
     this.consent = null;
     try {
       await invoke('grant_project_trust', { path: pending.root });
+      this.trusted = true;
     } catch (e) {
       this.#notify({ kind: 'error', message: e instanceof Error ? e.message : String(e) });
       return;
@@ -221,6 +233,35 @@ class BrowserPreviewController {
       // 調べられなかったときはボタンを出さない。既定のブラウザで開く道は残る。
       this.installed = [];
     }
+  }
+
+  /**
+   * この PC の許可を戻す。**人が画面で押したときだけ呼ぶ。**
+   *
+   * 出している最中なら畳む。許可を戻したのに、その許可で立てたものが出続けると、
+   * 押した人には戻せたのかどうかが分からない。
+   */
+  async revoke(root: string): Promise<void> {
+    try {
+      await invoke('revoke_project_trust', { path: root });
+    } catch (e) {
+      this.#notify({ kind: 'error', message: e instanceof Error ? e.message : String(e) });
+      return;
+    }
+    this.trusted = false;
+    // 畳むのは stop() を通さずに頼む。立ち上げの最中は stop() が何もしないので、
+    // 戻したはずの許可で立てたものが出たままになる。
+    if (this.#servingRoot === root) {
+      try {
+        await invoke('stop_preview_server');
+      } catch {
+        // 畳めなくても許可は戻っている。次に立てるときは script 抜きの組み立てになる。
+      }
+      this.serving = null;
+      this.#servingRoot = null;
+      this.servingWeb = false;
+    }
+    this.#notify({ kind: 'revoked' });
   }
 
   /** 尋ねるのをやめる。許可は残らないので、次に押せばまた尋ねる。 */
@@ -306,6 +347,7 @@ class BrowserPreviewController {
   async #checkDeclaration(root: string | null, trigger: LiveTrigger): Promise<void> {
     if (root === null) {
       this.declaredWeb = false;
+      this.trusted = false;
       return;
     }
     try {
@@ -314,6 +356,7 @@ class BrowserPreviewController {
       this.declaredWeb = sitePolicyFrom(declaration).scripts;
     } catch {
       this.declaredWeb = false;
+      this.trusted = false;
       return;
     }
     await this.#autoLive(root, trigger);
@@ -331,6 +374,7 @@ class BrowserPreviewController {
       const trusted = this.declaredWeb
         ? (await invoke<{ trusted: boolean }>('project_trust_status', { path: root })).trusted
         : false;
+      this.trusted = trusted;
       if (
         !shouldAutoLive({
           trigger,
