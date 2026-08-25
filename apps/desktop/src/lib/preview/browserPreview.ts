@@ -29,3 +29,44 @@ export function affectsSite(relPath: string): boolean {
 export function shouldStop(servingRoot: string, currentRoot: string | null): boolean {
   return servingRoot !== currentRoot;
 }
+
+/** ライブを立てるかを考えた切っ掛け。 */
+export type LiveTrigger =
+  /** フォルダを開いた（人がそのフォルダを選んだ）。 */
+  | 'opened'
+  /** 同じフォルダを取り直した（開き直し・再走査）。 */
+  | 'rescanned'
+  /** 宣言そのものが書き換わった。 */
+  | 'declared';
+
+export interface AutoLiveInput {
+  trigger: LiveTrigger;
+  /** 開いているフォルダが web モードを宣言しているか。 */
+  declaredWeb: boolean;
+  /** この PC でそのフォルダを許してあるか。 */
+  trusted: boolean;
+  /** もう待ち受けが立っているか。 */
+  serving: boolean;
+}
+
+/**
+ * 押さずにライブを立てるか。
+ *
+ * 同意はこの PC でそのフォルダに 1 回押したもので、「次からは黙って出してよい」と重なる。
+ * だから同意済みのフォルダを開いた時だけ立てる。まだ同意が無いフォルダで自動に尋ねない
+ * （開いただけで許可を訊く窓が出ると、読むだけのつもりの人にまで押させることになる）。
+ *
+ * 切っ掛けを見ているのは、宣言がプロジェクトの中にあって書いた側から置けるため。
+ * 置かれた瞬間に立てる形にすると、ファイルを 1 つ置くだけで手元にポートが開く。
+ * 取り直しでも立てない。押して畳んだ人の手を、再走査のたびに元へ戻すことになる。
+ */
+export function shouldAutoLive({
+  trigger,
+  declaredWeb,
+  trusted,
+  serving,
+}: AutoLiveInput): boolean {
+  if (trigger !== 'opened') return false;
+  if (serving) return false;
+  return declaredWeb && trusted;
+}

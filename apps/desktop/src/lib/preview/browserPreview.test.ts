@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { affectsSite, shouldStop } from './browserPreview';
+import { affectsSite, shouldAutoLive, shouldStop } from './browserPreview';
 
 describe('affectsSite', () => {
   it('ページになるものが変わったら組み直す', () => {
@@ -37,5 +37,38 @@ describe('shouldStop', () => {
 
   it('同じフォルダのままなら畳まない', () => {
     expect(shouldStop('C:/work/a', 'C:/work/a')).toBe(false);
+  });
+});
+
+describe('shouldAutoLive', () => {
+  const base = { trigger: 'opened', declaredWeb: true, trusted: true, serving: false } as const;
+
+  it('web モードで同意済みのフォルダを開いたら、押さずに立てる', () => {
+    expect(shouldAutoLive(base)).toBe(true);
+  });
+
+  // 開いただけで許可を訊く窓が出ると、読むだけのつもりの人にまで押させることになる。
+  it('同意がなければ立てない', () => {
+    expect(shouldAutoLive({ ...base, trusted: false })).toBe(false);
+  });
+
+  it('宣言が無ければ立てない', () => {
+    expect(shouldAutoLive({ ...base, declaredWeb: false })).toBe(false);
+  });
+
+  // 宣言はプロジェクトの中にあるので、書いた側から置ける。置かれた瞬間に待ち受けが
+  // 立つ形にすると、ファイルを 1 つ置くだけで手元にポートが開く。
+  it('宣言が書き換わったことでは立てない', () => {
+    expect(shouldAutoLive({ ...base, trigger: 'declared' })).toBe(false);
+  });
+
+  // 押して畳んだ人の手を、再走査のたびに元へ戻すことになる。
+  it('同じフォルダを取り直しただけでは立てない', () => {
+    expect(shouldAutoLive({ ...base, trigger: 'rescanned' })).toBe(false);
+  });
+
+  // 押して止めた人の手を上書きしない。立て直すと URL も変わる。
+  it('もう立っているなら立て直さない', () => {
+    expect(shouldAutoLive({ ...base, serving: true })).toBe(false);
   });
 });

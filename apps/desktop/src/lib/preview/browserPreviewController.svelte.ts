@@ -11,7 +11,8 @@
 import { invoke } from '@tauri-apps/api/core';
 import { browser } from '$app/environment';
 import { collectSitePlan } from './collectSite';
-import { affectsSite, shouldStop } from './browserPreview';
+import { affectsSite, shouldAutoLive, shouldStop } from './browserPreview';
+import type { LiveTrigger } from './browserPreview';
 
 /** 知らせが自分で消えるまで。書き出しと揃える。 */
 const NOTICE_MS = 8000;
@@ -251,7 +252,7 @@ class BrowserPreviewController {
   onFileChanged(relPath: string): void {
     // 宣言そのものが書き換わったら読み直す。出している最中の中身は変えない
     // （立てたときの答えのまま出し続ける）が、ボタンの出方は今の宣言に合わせる。
-    if (relPath === PROJECT_CONFIG_FILENAME) void this.#checkDeclaration(this.#root);
+    if (relPath === PROJECT_CONFIG_FILENAME) void this.#checkDeclaration(this.#root, 'declared');
     if (this.serving === null) return;
     if (!affectsSite(relPath)) return;
     void this.#rebuild();
@@ -262,8 +263,11 @@ class BrowserPreviewController {
    * 畳まないと、別のフォルダを開いた後も前のフォルダの中身が同じ URL で出続ける。
    */
   syncRoot(root: string | null): void {
+    // 取り直しと開き直しを分ける。同じフォルダを走査し直しただけで立て直すと、
+    // 押して畳んだ人の手が、走査のたびに元へ戻る。
+    const trigger: LiveTrigger = this.#root === root ? 'rescanned' : 'opened';
     this.#root = root;
-    void this.#checkDeclaration(root);
+    void this.#checkDeclaration(root, trigger);
     if (this.#servingRoot === null) return;
     if (!shouldStop(this.#servingRoot, root)) return;
     void this.stop();
@@ -299,7 +303,7 @@ class BrowserPreviewController {
   }
 
   /** 宣言を読み直す。読めなければ「宣言なし」と同じ扱いにする。 */
-  async #checkDeclaration(root: string | null): Promise<void> {
+  async #checkDeclaration(root: string | null, trigger: LiveTrigger): Promise<void> {
     if (root === null) {
       this.declaredWeb = false;
       return;
@@ -310,6 +314,36 @@ class BrowserPreviewController {
       this.declaredWeb = sitePolicyFrom(declaration).scripts;
     } catch {
       this.declaredWeb = false;
+      return;
+    }
+    await this.#autoLive(root, trigger);
+  }
+
+  /**
+   * 押さずにライブを立てる。
+   *
+   * 同意済みのフォルダを開いたときだけ。同意が無ければ何もしない（尋ねる窓も出さない）。
+   * 立てるだけで、ブラウザは開かない。
+   */
+  async #autoLive(root: string, trigger: LiveTrigger): Promise<void> {
+    try {
+      // 同意を答えるのはアプリの側。宣言している間だけ訊きに行く。
+      const trusted = this.declaredWeb
+        ? (await invoke<{ trusted: boolean }>('project_trust_status', { path: root })).trusted
+        : false;
+      if (
+        !shouldAutoLive({
+          trigger,
+          declaredWeb: this.declaredWeb,
+          trusted,
+          serving: this.serving !== null,
+        })
+      ) {
+        return;
+      }
+      await this.start(root, 'default', false);
+    } catch {
+      // 調べられなければ立てない。ボタンは出ているので、押せば今までどおり立つ。
     }
   }
 
