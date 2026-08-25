@@ -69,6 +69,7 @@ export interface Messages {
   'action.siteDone': string;
   'action.siteDoneSkipped': string;
   'action.siteNone': string;
+  'action.siteConsent': string;
   'action.browser': string;
   'action.openInBrowser': string;
   /** 待ち受けを立てて、この面に出しているものをそのまま映す。 */
@@ -684,6 +685,8 @@ const en: Messages = {
   'action.siteDone': 'Exported {count} files to {dir}/',
   'action.siteDoneSkipped': 'Exported {count} files to {dir}/ ({skipped} left out)',
   'action.siteNone': 'No document could be turned into a page',
+  'action.siteConsent':
+    'This folder declares web mode but is not allowed on this PC yet. Press Live once and allow it, then export.',
   'action.browser': 'Browser',
   'action.openInBrowser': 'Open in {name}',
   'action.liveStart': 'Run this folder and show it here',
@@ -1289,6 +1292,8 @@ const ja: Messages = {
   'action.siteDone': '{dir}/ へ {count} 件書き出しました',
   'action.siteDoneSkipped': '{dir}/ へ {count} 件書き出しました（{skipped} 件は出せませんでした）',
   'action.siteNone': 'ページに出来る文書がありませんでした',
+  'action.siteConsent':
+    'このフォルダは web モードですが、この PC ではまだ許していません。「ライブ」を一度押して許可してから書き出してください',
   'action.browser': 'ブラウザ',
   'action.openInBrowser': '{name} で開く',
   'action.liveStart': 'このフォルダを動かして、この面に映す',
@@ -1890,6 +1895,8 @@ const zh: Messages = {
   'action.siteDone': '已导出 {count} 个文件到 {dir}/',
   'action.siteDoneSkipped': '已导出 {count} 个文件到 {dir}/（{skipped} 个未能导出）',
   'action.siteNone': '没有可生成页面的文档',
+  'action.siteConsent':
+    '此文件夹声明为 web 模式，但本机尚未允许。请先按一次「实时」并允许，然后再导出。',
   'action.browser': '浏览器',
   'action.openInBrowser': '在 {name} 中打开',
   'action.liveStart': '运行此文件夹并在此处显示',
@@ -2487,6 +2494,8 @@ const ko: Messages = {
   'action.siteDone': '{dir}/ 에 {count}개를 내보냈습니다',
   'action.siteDoneSkipped': '{dir}/ 에 {count}개를 내보냈습니다 ({skipped}개는 내보내지 못했습니다)',
   'action.siteNone': '페이지로 만들 수 있는 문서가 없습니다',
+  'action.siteConsent':
+    '이 폴더는 web 모드이지만 이 PC에서는 아직 허용하지 않았습니다. 「라이브」를 한 번 눌러 허용한 뒤 내보내세요.',
   'action.browser': '브라우저',
   'action.openInBrowser': '{name}에서 열기',
   'action.liveStart': '이 폴더를 실행해 이 화면에 표시',

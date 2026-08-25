@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { planStart, sitePolicyFrom } from './sitePolicy';
+import { planWrite, planStart, sitePolicyFrom } from './sitePolicy';
 
 describe('sitePolicyFrom', () => {
   it('宣言が無ければ何も動かさない', () => {
@@ -40,5 +40,25 @@ describe('planStart', () => {
   // 動かない理由が画面に出ないと、宣言のほうを書き換えて回ることになる。
   it('同意が無ければ尋ねる', () => {
     expect(planStart(open, false)).toEqual({ kind: 'consent', policy: open });
+  });
+});
+
+describe('planWrite', () => {
+  const closed = { scripts: false, scriptOrigins: [] };
+  const open = { scripts: true, scriptOrigins: ['https://example.com'] };
+
+  // 業務文書はこれまでどおり本文の HTML を落として出す。
+  it('業務文書は落としたまま書き出す', () => {
+    expect(planWrite(closed, false)).toEqual({ kind: 'go', rawHtml: false });
+  });
+
+  // 見たものと出すものを揃える。ここが false のままだと CSS も JS も入らない dist が出る。
+  it('宣言と同意が揃っていればそのまま書き出す', () => {
+    expect(planWrite(open, true)).toEqual({ kind: 'go', rawHtml: true });
+  });
+
+  // 黙って落として書き出すと、開くまで壊れているとわからない成果物になる。
+  it('同意が無ければ書き出さずに尋ねる', () => {
+    expect(planWrite(open, false)).toEqual({ kind: 'consent', policy: open });
   });
 });

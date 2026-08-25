@@ -173,6 +173,7 @@
   function siteNote(result: SiteExportResult): string {
     if (result.kind === 'error') return result.message;
     if (result.kind === 'none') return t('action.siteNone');
+    if (result.kind === 'consent') return t('action.siteConsent');
     if (result.skipped.length === 0) {
       return t('action.siteDone', { dir: result.dir, count: result.count });
     }
@@ -187,7 +188,8 @@
   // 件数だけだと、直しようがない。
   function siteNoteTitle(result: SiteExportResult): string {
     const note = siteNote(result);
-    if (result.kind === 'error' || result.skipped.length === 0) return note;
+    if (result.kind === 'error' || result.kind === 'consent') return note;
+    if (result.skipped.length === 0) return note;
     return [note, ...result.skipped.map((skip) => `${skip.path}: ${skip.reason}`)].join('\n');
   }
 
