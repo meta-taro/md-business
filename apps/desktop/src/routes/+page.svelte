@@ -1704,6 +1704,27 @@
     gap: var(--space-3);
   }
 
+  /* 見る面の見出しは、載るボタンが多い（ライブ・ブラウザ・幅・全画面）。面を狭めると
+     1 行に収まらなくなるので、収まらない分は次の行へ送る。高さを決め打つと、
+     溢れた分は上下に切れて読めなくなり、右端のボタンは押せなくなる。 */
+  .preview-head {
+    height: auto;
+    min-height: 34px;
+    flex-wrap: wrap;
+    padding-top: var(--space-1);
+    padding-bottom: var(--space-1);
+    row-gap: var(--space-1);
+  }
+
+  /* 見出しの名前は 1 行に留めて、入らない分は末尾を省く。折り返させると、
+     ボタンの高さに揃えてある行の中で 2 行になり、上下が切れる。 */
+  .preview-head > span {
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
   /* 比べる版の選択はグリッドの見出しに並べる。全画面トグルだけを右端へ寄せ、
      間に入る比較の表示は左詰めのまま伸ばす。 */
   .grid-head .head-btn.fullscreen {
