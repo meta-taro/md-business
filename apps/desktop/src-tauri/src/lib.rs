@@ -101,6 +101,7 @@ pub fn run() {
             git::git_switch_create,
             git::git_commit,
             git::git_push,
+            git::publish_survey,
             git::git_pull,
             git::git_diff,
             git::git_blame,

@@ -320,6 +320,43 @@ pub fn build_forge_file_url(remote_url: Option<&str>, branch: &str, rel_path: &s
     Some(format!("{base}/{segment}/{branch}/{rel}"))
 }
 
+/// URL の問い合わせ欄へ値を入れられる形にする。
+/// 予約されていない文字だけそのまま通し、残りは %XX へ落とす。
+/// ブランチ名には `/` `#` `?` が入りうるので、素で載せると別の場所を指す URL になる。
+fn encode_query_value(value: &str) -> String {
+    let mut out = String::with_capacity(value.len());
+    for byte in value.bytes() {
+        match byte {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'.' | b'_' | b'~' => {
+                out.push(byte as char);
+            }
+            _ => out.push_str(&format!("%{byte:02X}")),
+        }
+    }
+    out
+}
+
+/// remote URL + ブランチから、置き先で走っている実行の一覧 URL を組み立てる。
+///
+/// 出したあと、実際に公開されるかは置き先で走る仕組みが決める。走っているところへ
+/// 行ける導線が無いと、出たのか出ていないのかが画面から分からない。
+/// 一覧の場所が分かる置き先だけ組み立て、それ以外は None（導線を出さない）。
+/// 当てずっぽうで組むと、開いた先が無いページになる。
+pub fn build_forge_runs_url(remote_url: Option<&str>, branch: &str) -> Option<String> {
+    let branch = branch.trim();
+    if branch.is_empty() {
+        return None;
+    }
+    let remote = remote_url?.trim();
+    let base = remote_to_web_base(remote)?;
+    let branch = encode_query_value(branch);
+    match detect_forge(Some(remote)).as_deref() {
+        Some("github") => Some(format!("{base}/actions?query=branch%3A{branch}")),
+        Some("gitlab") => Some(format!("{base}/-/pipelines?ref={branch}")),
+        _ => None,
+    }
+}
+
 /// `git -C <root> <args...>` を実行し、成功時のみ stdout を UTF-8（lossy）で返す。
 /// git 未導入（spawn 失敗）・非 0 終了（非リポジトリ等）は None（呼び出し側で graceful 劣化）。
 /// `--no-optional-locks` で index.lock 生成を避け、他プロセスの git 操作と競合しないようにする。
@@ -790,6 +827,99 @@ pub fn push_plan(
 #[tauri::command]
 pub async fn git_push(root: String) -> Result<PushOutcome, String> {
     spawn_git(move || git_push_impl(Path::new(&root))).await
+}
+
+/// `git log --format=%s` の出力を見出しの一覧にする（Tauri 非依存の純関数）。
+/// 空の行は数に入れない。上限で切るのは、下見が読めない長さになるのを避けるため。
+pub fn parse_log_subjects(stdout: &str, max: usize) -> Vec<String> {
+    stdout
+        .lines()
+        .map(str::trim)
+        .filter(|line| !line.is_empty())
+        .take(max)
+        .map(str::to_string)
+        .collect()
+}
+
+/// 下見に並べる見出しの上限。これを超える分は件数だけを出す。
+const PENDING_MAX: usize = 20;
+
+/// 出す前に見せる材料。**ここでは何も決めない**（出せる・出せないの判断はフロント側）。
+/// 断る理由を文言でここから返さないのは、画面の言葉が 4 つあるため。
+#[derive(Serialize, Debug, Clone, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct PublishSurvey {
+    pub status: GitStatus,
+    /// 置き先の URL。git が持っているものをそのまま出す（組み替えない）。
+    pub remote: Option<String>,
+    /// このブランチに送り先が決まっているか。
+    pub has_upstream: bool,
+    /// 前回出したところから積んである commit の見出し（新しい順・PENDING_MAX まで）。
+    pub pending: Vec<String>,
+    /// 出したあと、走っているところを見に行く URL。分からない置き先では None。
+    pub runs_url: Option<String>,
+}
+
+/// どの送り先へ出ることになるかの名前。upstream があるならその remote、
+/// 無いときは push_plan と同じ選び方（origin / 唯一のリモート）に揃える。
+/// ここがずれると、下見に出した置き先と実際に出る先が食い違う。
+fn publish_remote_name(root: &Path, upstream: Option<&str>) -> Option<String> {
+    if let Some(upstream) = upstream {
+        return upstream.split('/').next().map(str::to_string);
+    }
+    let remotes = git_remotes_impl(root);
+    if remotes.iter().any(|remote| remote == "origin") {
+        return Some("origin".to_string());
+    }
+    if remotes.len() == 1 {
+        return Some(remotes[0].clone());
+    }
+    None
+}
+
+/// 公開の下見を集める（Tauri 非依存の実体）。読むだけで、何も書き換えない。
+pub fn publish_survey_impl(root: &Path) -> PublishSurvey {
+    let status = git_status_impl(root);
+    let upstream = run_git(root, &["rev-parse", "--abbrev-ref", "@{u}"])
+        .map(|out| out.trim().to_string())
+        .filter(|out| !out.is_empty());
+    let remote = publish_remote_name(root, upstream.as_deref())
+        .and_then(|name| run_git(root, &["remote", "get-url", &name]))
+        .map(|out| out.trim().to_string())
+        .filter(|out| !out.is_empty());
+    let pending = if upstream.is_some() {
+        run_git(root, &["log", "--format=%s", "@{u}..HEAD"])
+            .map(|out| parse_log_subjects(&out, PENDING_MAX))
+            .unwrap_or_default()
+    } else {
+        Vec::new()
+    };
+    let runs_url = status
+        .branch
+        .as_deref()
+        .and_then(|branch| build_forge_runs_url(remote.as_deref(), branch));
+    PublishSurvey {
+        status,
+        remote,
+        has_upstream: upstream.is_some(),
+        pending,
+        runs_url,
+    }
+}
+
+/// フロントから `invoke("publish_survey", { root })` で呼ぶラッパ。
+/// git の呼び出しは待たされることがあるので、別スレッドへ逃がす。
+#[tauri::command]
+pub async fn publish_survey(root: String) -> PublishSurvey {
+    tauri::async_runtime::spawn_blocking(move || publish_survey_impl(Path::new(&root)))
+        .await
+        .unwrap_or_else(|_| PublishSurvey {
+            status: GitStatus::not_a_repo(),
+            remote: None,
+            has_upstream: false,
+            pending: Vec::new(),
+            runs_url: None,
+        })
 }
 
 /// upstream から pull する。成功時は最新の GitStatus（behind が解消される）を返す。
@@ -1509,6 +1639,89 @@ mod tests {
             .as_deref(),
             Some("https://github.com/o/r/blob/main/sub/file.md")
         );
+    }
+
+    // ── parse_log_subjects ───────────────────────────────────────────────
+
+    #[test]
+    fn 出していない分の見出しを並べる() {
+        let out = "二つ目の見出し
+最初の見出し
+";
+        assert_eq!(
+            parse_log_subjects(out, 10),
+            vec!["二つ目の見出し".to_string(), "最初の見出し".to_string()]
+        );
+    }
+
+    // 何十件も積んでいることがある。全部並べると、下見が読めない長さになる。
+    #[test]
+    fn 見出しは上限で切る() {
+        let out = "a
+b
+c
+";
+        assert_eq!(parse_log_subjects(out, 2), vec!["a".to_string(), "b".to_string()]);
+    }
+
+    #[test]
+    fn 見出しの無い行は数に入れない() {
+        assert_eq!(parse_log_subjects("
+  
+", 10), Vec::<String>::new());
+    }
+
+    // ── build_forge_runs_url ─────────────────────────────────────────────
+
+    #[test]
+    fn runs_url_githubはブランチで絞った実行一覧() {
+        let want = "https://github.com/meta-taro/md-business/actions?query=branch%3Amain";
+        assert_eq!(
+            build_forge_runs_url(Some("https://github.com/meta-taro/md-business.git"), "main")
+                .as_deref(),
+            Some(want)
+        );
+        assert_eq!(
+            build_forge_runs_url(Some("git@github.com:meta-taro/md-business.git"), "main")
+                .as_deref(),
+            Some(want)
+        );
+    }
+
+    // ブランチ名は URL の問い合わせ欄へ入る。区切りをそのまま載せると別の場所を指す。
+    #[test]
+    fn runs_url_区切りを含むブランチ名はそのまま載せない() {
+        assert_eq!(
+            build_forge_runs_url(Some("https://github.com/o/r"), "feat/web-mode").as_deref(),
+            Some("https://github.com/o/r/actions?query=branch%3Afeat%2Fweb-mode")
+        );
+        assert_eq!(
+            build_forge_runs_url(Some("https://gitlab.com/g/p"), "feat/web-mode").as_deref(),
+            Some("https://gitlab.com/g/p/-/pipelines?ref=feat%2Fweb-mode")
+        );
+    }
+
+    #[test]
+    fn runs_url_gitlabはパイプラインの一覧() {
+        assert_eq!(
+            build_forge_runs_url(Some("https://gitlab.com/g/p.git"), "dev").as_deref(),
+            Some("https://gitlab.com/g/p/-/pipelines?ref=dev")
+        );
+    }
+
+    // 一覧の場所が分からない置き先で当てずっぽうの URL を出すと、開いた先が無い。
+    #[test]
+    fn runs_url_場所の分からない置き先では作らない() {
+        assert_eq!(
+            build_forge_runs_url(Some("git@bitbucket.org:t/r.git"), "main"),
+            None
+        );
+        assert_eq!(
+            build_forge_runs_url(Some("https://git.example.com/x.git"), "main"),
+            None
+        );
+        assert_eq!(build_forge_runs_url(None, "main"), None);
+        assert_eq!(build_forge_runs_url(Some("https://github.com/o/r"), "   "), None);
     }
 
     #[test]
