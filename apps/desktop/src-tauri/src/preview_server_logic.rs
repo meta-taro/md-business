@@ -240,10 +240,27 @@ pub fn content_security_policy(policy: &SitePolicy, nonce: &str) -> String {
         "object-src 'none'".to_string(),
         // 相対の解決先を書き換えられると、`'self'` が指す先ごと動く。
         "base-uri 'self'".to_string(),
-        "frame-ancestors 'none'".to_string(),
+        format!("frame-ancestors {}", frame_ancestors()),
         "form-action 'self'".to_string(),
     ]
     .join("; ")
+}
+
+/// 枠に入れてよい側。
+///
+/// プレビューの枠を持っているのはアプリ自身なので、そこだけを並べる。閉じ切ると
+/// アプリの中では何も出せず、ブラウザで開くまで中身を確かめられない。
+/// アプリの置き先は動かす場所ごとに違うため、まとめて並べておく。
+///
+/// 開発中はアプリ自身が手元の待ち受けから読み込まれるので、その分を足す
+/// （`tauri.conf.json` の `devUrl` と同じ番号）。
+fn frame_ancestors() -> String {
+    let app = "'self' tauri://localhost http://tauri.localhost";
+    if cfg!(debug_assertions) {
+        format!("{app} http://localhost:1430")
+    } else {
+        app.to_string()
+    }
 }
 
 /// 中身が入れ替わったかを見に行き、変わっていたら読み直す仕掛け。
@@ -689,6 +706,25 @@ mod tests {
         };
         let csp = content_security_policy(&policy, "abc123");
         assert!(!csp.contains("cdn.example.com"), "{}", csp);
+    }
+
+    // プレビューの枠を持っているのはアプリ自身。ここを閉じ切ると、アプリの中では
+    // 何も出せず、ブラウザで開くまで中身を確かめられない。
+    #[test]
+    fn アプリの枠の中では開ける() {
+        let csp = content_security_policy(&document_policy(), "abc123");
+        let ancestors = directive(&csp, "frame-ancestors");
+        assert!(ancestors.contains("http://tauri.localhost"), "{}", ancestors);
+        assert!(ancestors.contains("tauri://localhost"), "{}", ancestors);
+    }
+
+    // 外の頁から枠に入れられない。手元の待ち受けを外から覗く道にしない。
+    #[test]
+    fn 外の頁からは枠に入れられない() {
+        let csp = content_security_policy(&document_policy(), "abc123");
+        let ancestors = directive(&csp, "frame-ancestors");
+        assert!(!ancestors.contains('*'), "{}", ancestors);
+        assert!(!ancestors.contains("https://"), "{}", ancestors);
     }
 
     // 宣言はプロジェクトの中にあり、書いた側が自由に書ける。動かしてよいと決めるのは同意のほう。
