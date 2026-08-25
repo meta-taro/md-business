@@ -62,7 +62,6 @@
     imagePicking: imageExport.picking,
     canSite: siteExport.canExport,
     browserBusy: browserPreview.busy,
-    browserServing: browserPreview.serving !== null,
     timelineOpen: timelineView.active,
   });
 
@@ -126,11 +125,9 @@
         void siteExport.run();
         return;
       case 'browser':
-        if (browserPreview.serving === null) {
-          if (workspace.root !== null) void browserPreview.start(workspace.root);
-        } else {
-          void browserPreview.stop();
-        }
+        // 開くだけ。止める口はここに置かない（出ているものを止めたい用事が無く、
+        // 押した人には「開く」としか読めない場所なので）。
+        if (workspace.root !== null) void browserPreview.openIn(workspace.root, 'default');
         return;
       case 'theme':
         themeController.toggle();

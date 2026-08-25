@@ -42,7 +42,6 @@ export interface MenuCaps {
 	imagePicking: boolean;
 	canSite: boolean;
 	browserBusy: boolean;
-	browserServing: boolean;
 	timelineOpen: boolean;
 }
 
@@ -70,8 +69,8 @@ export function isItemEnabled(item: MenuItemId, caps: MenuCaps): boolean {
 		case 'site':
 			return caps.canSite;
 		case 'browser':
-			// 出している最中なら、フォルダを閉じたあとでも止められる必要がある。
-			return !caps.browserBusy && (caps.browserServing || caps.hasRoot);
+			// 押せば開くだけ。出しているかは見ない（開いていれば、そのまま同じ先へ開く）。
+			return !caps.browserBusy && caps.hasRoot;
 		case 'timeline':
 			return caps.hasRoot || caps.timelineOpen;
 	}
@@ -82,8 +81,6 @@ export function itemToggleState(item: MenuItemId, caps: MenuCaps): boolean | nul
 	switch (item) {
 		case 'autosave':
 			return caps.autosaveOn;
-		case 'browser':
-			return caps.browserServing;
 		case 'timeline':
 			return caps.timelineOpen;
 		default:

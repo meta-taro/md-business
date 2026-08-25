@@ -28,23 +28,24 @@
 
 {#if root !== null && (browserPreview.declaredWeb || browserPreview.installed.length > 0)}
   <div class="browsers">
-    {#if browserPreview.declaredWeb}
-      <!-- web モードのフォルダでだけ出す。押すと待ち受けを立て、この面をそちらへ向ける。
-           ブラウザは開かない（見ながら書く間は、窓を増やさないほうが手が止まらない）。 -->
+    {#if browserPreview.declaredWeb && browserPreview.serving === null}
+      <!-- web モードのフォルダで、まだ立っていない間だけ出す。押すと待ち受けを立て、
+           この面をそちらへ向ける。ブラウザは開かない（見ながら書く間は、窓を増やさない
+           ほうが手が止まらない）。
+
+           立った後は消える。**止めるボタンにしない。**web モードのフォルダを開いたら
+           立つのが既定なので、止めても次に開けば立つ。押した先にあるのは、この面を
+           script 抜きの組み立てへ落とすことだけで、それを見たい場面が無い。 -->
       <button
         type="button"
         class="browser-btn"
-        class:is-live={browserPreview.serving !== null}
         disabled={browserPreview.busy}
-        aria-pressed={browserPreview.serving !== null}
-        title={browserPreview.serving !== null ? t('action.liveStop') : t('action.liveStart')}
-        onclick={() => void browserPreview.toggleLive(root)}
+        title={t('action.liveStart')}
+        onclick={() => void browserPreview.goLive(root)}
       >
-        <!-- 出ている間だけ点す丸。止まっているときは輪郭だけ。 -->
+        <!-- 電波の形。まだ出ていないので中は塗らない。 -->
         <svg class="browser-ico" viewBox="0 0 16 16" aria-hidden="true">
-          <circle cx="8" cy="8" r="3.2"
-            fill={browserPreview.serving !== null ? 'currentColor' : 'none'}
-            stroke="currentColor" stroke-width="1.2" />
+          <circle cx="8" cy="8" r="3.2" fill="none" stroke="currentColor" stroke-width="1.2" />
           <path d="M3.2 3.2a6.8 6.8 0 0 0 0 9.6M12.8 3.2a6.8 6.8 0 0 1 0 9.6"
             fill="none" stroke="currentColor" stroke-width="1.2" />
         </svg>

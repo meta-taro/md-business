@@ -202,14 +202,14 @@ class BrowserPreviewController {
   /**
    * ブラウザを開かずに待ち受けだけ立てる。アプリの面に映すために使う。
    *
-   * 立っている間は押すと畳む。畳むと面は元の組み立て（本文の HTML は落とす）へ戻るので、
-   * 「いま何を見ているか」がボタンの状態と一致する。
+   * 立てるだけで、止める口は画面に出さない。同意済みのフォルダを開けば立つのが既定なので、
+   * 止めても次に開けば立つ。押して止まるのは、この面が script 抜きの組み立てへ戻ることだけで、
+   * それを見たい場面が無い（宣言を書き換える話であって、押して切り替える話ではない）。
+   *
+   * 残してあるのは、まだ同意が無いフォルダで尋ねる入り口と、立て損ねたときの立て直しのため。
    */
-  async toggleLive(root: string): Promise<void> {
-    if (this.serving !== null) {
-      await this.stop();
-      return;
-    }
+  async goLive(root: string): Promise<void> {
+    if (this.serving !== null) return;
     await this.start(root, 'default', false);
   }
 
