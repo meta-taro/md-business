@@ -21,12 +21,15 @@ use std::time::Duration;
 use serde::Serialize;
 use tauri::{AppHandle, Manager, State};
 
+use tauri_plugin_opener::OpenerExt;
+
 use crate::preview_server_logic::{
-    content_security_policy, content_type, html_response, http_response, http_response_bytes,
-    inject_reload, parse_request_line, resolve_policy, route, Route, SitePolicy,
+    browser_probe_paths, browser_program, content_security_policy, content_type, html_response, http_response,
+    http_response_bytes, inject_reload, parse_request_line, resolve_policy, route, Route,
+    SitePolicy,
 };
 use crate::trust::is_project_trusted;
-use crate::workspace::{resolve_image_in_root, SiteAsset, SiteFile};
+use crate::workspace::{resolve_site_asset_in_root, SiteAsset, SiteFile};
 
 /// 覚えているページ一式と、その版。版はブラウザ側が入れ替わりを知るために使う。
 struct Site {
@@ -77,13 +80,13 @@ fn to_pages(files: Vec<SiteFile>) -> HashMap<String, String> {
         .collect()
 }
 
-/// 画像の在り処を控える。開いているフォルダの外・画像でないものはここで落ちる
-/// （読めない 1 枚のために、見せること自体を止めない）。
+/// サイトに載せるファイルの在り処を控える。開いているフォルダの外・出せない種類は
+/// ここで落ちる（読めない 1 つのために、見せること自体を止めない）。
 fn to_assets(root: &Path, assets: Vec<SiteAsset>) -> HashMap<String, PathBuf> {
     assets
         .into_iter()
         .filter_map(|asset| {
-            let source = resolve_image_in_root(root, &asset.src).ok()?;
+            let source = resolve_site_asset_in_root(root, &asset.src).ok()?;
             Some((asset.dest.replace('\\', "/"), source))
         })
         .collect()
@@ -96,7 +99,8 @@ fn start_server(
     assets: Vec<SiteAsset>,
     policy: SitePolicy,
 ) -> Result<Running, String> {
-    if files.is_empty() {
+    // 本文から作ったページが 1 つも無くても、書いた HTML だけのサイトは成立する。
+    if files.is_empty() && assets.is_empty() {
         return Err("見せるページがありません".to_string());
     }
     // 0 番を渡して OS に空きを選ばせる。ポートは押した時点で画面へ渡すので、
@@ -191,10 +195,25 @@ fn respond(target: &str, token: &str, site: &Mutex<Site>) -> Vec<u8> {
             let Some(source) = site.assets.get(&key).cloned() else {
                 return not_found();
             };
+            let policy = site.policy.clone();
             drop(site);
+            let kind = content_type(&key);
             match std::fs::read(&source) {
-                Ok(bytes) => http_response_bytes(200, content_type(&key), &bytes),
-                // 出した後に消された・読めなくなった。ページ自体は出ているので、その 1 枚だけ落とす。
+                // 手で書いた HTML にも読み直しの仕掛けを入れる。入れないと、直しても
+                // 開いたままの窓が古いままになる——作っている最中を見るためのものなので、
+                // そこが止まると出す意味が無くなる。
+                Ok(bytes) if kind.starts_with("text/html") => match String::from_utf8(bytes) {
+                    Ok(text) => {
+                        let nonce = random_hex();
+                        html_response(
+                            &inject_reload(&text, token, &nonce),
+                            &content_security_policy(&policy, &nonce),
+                        )
+                    }
+                    Err(_) => not_found(),
+                },
+                Ok(bytes) => http_response_bytes(200, kind, &bytes),
+                // 出した後に消された・読めなくなった。ページ自体は出ているので、その 1 つだけ落とす。
                 Err(_) => not_found(),
             }
         }
@@ -295,6 +314,53 @@ pub fn stop_preview_server(state: State<'_, PreviewServerState>) -> Result<(), S
         stop_server(&running);
     }
     Ok(())
+}
+
+/// この PC に入っているブラウザの名前を返す。
+///
+/// 画面はこの返事にあるものだけをボタンにする。入っていないものを並べると、
+/// 押しても何も起きないボタンになる（起動を頼んだ先が無いことは、頼んだ側からは分からない）。
+#[tauri::command]
+pub fn installed_browsers() -> Vec<String> {
+    let os = std::env::consts::OS;
+    let env = |name: &str| std::env::var(name).ok();
+    ["chrome", "edge"]
+        .into_iter()
+        .filter(|choice| {
+            browser_probe_paths(choice, os, &env)
+                .iter()
+                .any(|path| Path::new(path).exists())
+        })
+        .map(str::to_string)
+        .collect()
+}
+
+/// 出しているページを、選んだブラウザで開く。
+///
+/// **URL は画面から受け取らない。**立っている待ち受けのものを使う。受け取る形にすると、
+/// 「ブラウザで開く」口が、どこでも開ける口になる。起動するものの名前も同じ理由で
+/// 画面から受け取らず、選択肢の名前だけを受けてこちらの表から引く。
+#[tauri::command]
+pub fn open_preview_in_browser(
+    app: AppHandle,
+    state: State<'_, PreviewServerState>,
+    browser: String,
+) -> Result<(), String> {
+    let program = browser_program(&browser, std::env::consts::OS)?;
+    let url = {
+        let slot = state
+            .running
+            .lock()
+            .map_err(|_| "状態を読めません".to_string())?;
+        match slot.as_ref() {
+            Some(running) => info(running).url,
+            // 畳んだ後に押された。開いても繋がらないので、開かずに言う。
+            None => return Err("いまブラウザに出していません".to_string()),
+        }
+    };
+    app.opener()
+        .open_url(url, program)
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]

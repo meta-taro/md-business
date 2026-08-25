@@ -69,9 +69,13 @@ export interface Messages {
   'action.siteDone': string;
   'action.siteDoneSkipped': string;
   'action.siteNone': string;
+  'action.siteConsent': string;
   'action.browser': string;
+  'action.openInBrowser': string;
+  /** 待ち受けを立てて、この面に出しているものをそのまま映す。 */
+  'action.liveStart': string;
+  'action.liveLabel': string;
   'action.browserTitle': string;
-  'action.browserStopTitle': string;
   'action.browserServing': string;
   'action.theme': string;
   'action.themeToLight': string;
@@ -405,6 +409,12 @@ export interface Messages {
   'page.gridRestoreTitle': string;
   'page.gridFullscreenBtn': string;
   'page.gridRestoreBtn': string;
+  'page.previewFullscreenTitle': string;
+  'page.previewRestoreTitle': string;
+  'page.previewFullscreenBtn': string;
+  'page.previewRestoreBtn': string;
+  /** 待ち受けをそのまま映しているときの、プレビュー面の名前。 */
+  'page.livePreviewTitle': string;
   'page.sheetPreviewBtn': string;
   'page.sheetPreviewTitle': string;
   'page.sheetGridBtn': string;
@@ -673,9 +683,13 @@ const en: Messages = {
   'action.siteDone': 'Exported {count} files to {dir}/',
   'action.siteDoneSkipped': 'Exported {count} files to {dir}/ ({skipped} left out)',
   'action.siteNone': 'No document could be turned into a page',
+  'action.siteConsent':
+    'This folder declares web mode but is not allowed on this PC yet. Press Live once and allow it, then export.',
   'action.browser': 'Browser',
+  'action.openInBrowser': 'Open in {name}',
+  'action.liveStart': 'Run this folder and show it here',
+  'action.liveLabel': 'Live',
   'action.browserTitle': 'Open the folder in your browser (a local address on this machine)',
-  'action.browserStopTitle': 'Stop serving to the browser',
   'action.browserServing': 'Serving at {url}',
   'action.theme': 'Theme',
   'action.themeToLight': 'Switch to light theme',
@@ -1004,6 +1018,11 @@ const en: Messages = {
   'page.gridRestoreTitle': 'Back to split view (Esc)',
   'page.gridFullscreenBtn': '⤢ Fullscreen',
   'page.gridRestoreBtn': '↙ Back to split',
+  'page.previewFullscreenTitle': 'Show preview fullscreen',
+  'page.previewRestoreTitle': 'Back to split view (Esc)',
+  'page.previewFullscreenBtn': '⤢ Fullscreen',
+  'page.previewRestoreBtn': '↙ Back to split',
+  'page.livePreviewTitle': 'Live preview',
   'page.sheetPreviewBtn': '🖨 Print view',
   'page.sheetPreviewTitle': 'See how the sheet prints, and export it to PDF / HTML / image',
   'page.sheetGridBtn': '↩ Back to grid',
@@ -1269,9 +1288,13 @@ const ja: Messages = {
   'action.siteDone': '{dir}/ へ {count} 件書き出しました',
   'action.siteDoneSkipped': '{dir}/ へ {count} 件書き出しました（{skipped} 件は出せませんでした）',
   'action.siteNone': 'ページに出来る文書がありませんでした',
+  'action.siteConsent':
+    'このフォルダは web モードですが、この PC ではまだ許していません。「ライブ」を一度押して許可してから書き出してください',
   'action.browser': 'ブラウザ',
+  'action.openInBrowser': '{name} で開く',
+  'action.liveStart': 'このフォルダを動かして、この面に映す',
+  'action.liveLabel': 'ライブ',
   'action.browserTitle': 'ブラウザで見る（この PC の中だけのアドレスで開く）',
-  'action.browserStopTitle': 'ブラウザへの表示をやめる',
   'action.browserServing': '{url} で表示中',
   'action.theme': 'テーマ',
   'action.themeToLight': 'ライトテーマに切替',
@@ -1599,6 +1622,11 @@ const ja: Messages = {
   'page.gridRestoreTitle': '分割表示に戻す（Esc）',
   'page.gridFullscreenBtn': '⤢ 全画面',
   'page.gridRestoreBtn': '↙ 分割に戻す',
+  'page.previewFullscreenTitle': 'プレビューを全画面表示',
+  'page.previewRestoreTitle': '分割表示に戻す（Esc）',
+  'page.previewFullscreenBtn': '⤢ 全画面',
+  'page.previewRestoreBtn': '↙ 分割に戻す',
+  'page.livePreviewTitle': '公開中のプレビュー',
   'page.sheetPreviewBtn': '🖨 下見',
   'page.sheetPreviewTitle': '紙に刷ったときの見た目を確かめる（PDF・HTML・画像はここから）',
   'page.sheetGridBtn': '↩ グリッドへ戻る',
@@ -1861,9 +1889,13 @@ const zh: Messages = {
   'action.siteDone': '已导出 {count} 个文件到 {dir}/',
   'action.siteDoneSkipped': '已导出 {count} 个文件到 {dir}/（{skipped} 个未能导出）',
   'action.siteNone': '没有可生成页面的文档',
+  'action.siteConsent':
+    '此文件夹声明为 web 模式，但本机尚未允许。请先按一次「实时」并允许，然后再导出。',
   'action.browser': '浏览器',
+  'action.openInBrowser': '在 {name} 中打开',
+  'action.liveStart': '运行此文件夹并在此处显示',
+  'action.liveLabel': '实时',
   'action.browserTitle': '在浏览器中查看（使用仅限本机的地址打开）',
-  'action.browserStopTitle': '停止向浏览器提供页面',
   'action.browserServing': '正在 {url} 提供页面',
   'action.theme': '主题',
   'action.themeToLight': '切换到浅色主题',
@@ -2187,6 +2219,11 @@ const zh: Messages = {
   'page.gridRestoreTitle': '返回分屏视图（Esc）',
   'page.gridFullscreenBtn': '⤢ 全屏',
   'page.gridRestoreBtn': '↙ 返回分屏',
+  'page.previewFullscreenTitle': '全屏显示预览',
+  'page.previewRestoreTitle': '返回分屏视图（Esc）',
+  'page.previewFullscreenBtn': '⤢ 全屏',
+  'page.previewRestoreBtn': '↙ 返回分屏',
+  'page.livePreviewTitle': '实时预览',
   'page.sheetPreviewBtn': '🖨 打印预览',
   'page.sheetPreviewTitle': '查看打印后的效果，并导出 PDF / HTML / 图片',
   'page.sheetGridBtn': '↩ 返回网格',
@@ -2449,9 +2486,13 @@ const ko: Messages = {
   'action.siteDone': '{dir}/ 에 {count}개를 내보냈습니다',
   'action.siteDoneSkipped': '{dir}/ 에 {count}개를 내보냈습니다 ({skipped}개는 내보내지 못했습니다)',
   'action.siteNone': '페이지로 만들 수 있는 문서가 없습니다',
+  'action.siteConsent':
+    '이 폴더는 web 모드이지만 이 PC에서는 아직 허용하지 않았습니다. 「라이브」를 한 번 눌러 허용한 뒤 내보내세요.',
   'action.browser': '브라우저',
+  'action.openInBrowser': '{name}에서 열기',
+  'action.liveStart': '이 폴더를 실행해 이 화면에 표시',
+  'action.liveLabel': '라이브',
   'action.browserTitle': '브라우저에서 보기 (이 PC 안에서만 열리는 주소)',
-  'action.browserStopTitle': '브라우저 표시를 중지',
   'action.browserServing': '{url} 에서 표시 중',
   'action.theme': '테마',
   'action.themeToLight': '라이트 테마로 전환',
@@ -2778,6 +2819,11 @@ const ko: Messages = {
   'page.gridRestoreTitle': '분할 보기로 복귀 (Esc)',
   'page.gridFullscreenBtn': '⤢ 전체 화면',
   'page.gridRestoreBtn': '↙ 분할로 복귀',
+  'page.previewFullscreenTitle': '미리보기 전체 화면',
+  'page.previewRestoreTitle': '분할 보기로 복귀 (Esc)',
+  'page.previewFullscreenBtn': '⤢ 전체 화면',
+  'page.previewRestoreBtn': '↙ 분할로 복귀',
+  'page.livePreviewTitle': '실시간 미리보기',
   'page.sheetPreviewBtn': '🖨 인쇄 미리보기',
   'page.sheetPreviewTitle': '인쇄된 모습을 확인하고 PDF / HTML / 이미지로 내보내기',
   'page.sheetGridBtn': '↩ 그리드로 돌아가기',

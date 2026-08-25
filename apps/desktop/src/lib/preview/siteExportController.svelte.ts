@@ -29,6 +29,13 @@ export type SiteExportResult =
   | { kind: 'done'; dir: string; count: number; skipped: SiteSkip[] }
   /** 出せる文書が 1 つも無かった。 */
   | { kind: 'none'; skipped: SiteSkip[] }
+  /**
+   * web モードのフォルダだが、この PC でまだ許していない。
+   *
+   * 落として書き出さない。落とした中身は見た目が壊れていないので、
+   * 開くまで（配ってから）気づけない。
+   */
+  | { kind: 'consent' }
   | { kind: 'error'; message: string };
 
 class SiteExportController {
@@ -51,8 +58,22 @@ class SiteExportController {
 
     this.busy = true;
     try {
+      // 宣言と同意の突き合わせも、ブラウザ表示と同じものを通す。ここを飛ばすと
+      // 本文の HTML も CSS も JS も入らないフォルダが、成功として出来上がる。
+      const declaration = await invoke<string>('read_project_config', { root });
+      const { planWrite, sitePolicyFrom } = await import('./sitePolicy');
+      const policy = sitePolicyFrom(declaration);
+      const trusted = policy.scripts
+        ? (await invoke<{ trusted: boolean }>('project_trust_status', { path: root })).trusted
+        : false;
+      const step = planWrite(policy, trusted);
+      if (step.kind === 'consent') {
+        this.#notify({ kind: 'consent' });
+        return;
+      }
+
       // 組み立てはブラウザ表示と同じ手順を通す（collectSite）。
-      const plan = await collectSitePlan(root);
+      const plan = await collectSitePlan(root, { rawHtml: step.rawHtml });
       if (plan.pages.length === 0) {
         // 出せる文書が無いか、全部プレビューに失敗した。中身の無いサイトを置いても使い道が無い。
         this.#notify({ kind: 'none', skipped: plan.skipped });

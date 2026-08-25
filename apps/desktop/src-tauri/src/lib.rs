@@ -82,6 +82,7 @@ pub fn run() {
         // 文書ツリーの走査 / 読込 / 書込コマンド（設計書 §5）。
         .invoke_handler(tauri::generate_handler![
             workspace::scan_documents,
+            workspace::scan_site_assets,
             workspace::read_document,
             workspace::read_project_config,
             workspace::write_document,
@@ -126,6 +127,8 @@ pub fn run() {
             preview_server::update_preview_server,
             preview_server::stop_preview_server,
             preview_server::preview_server_status,
+            preview_server::open_preview_in_browser,
+            preview_server::installed_browsers,
             trust::project_trust_status,
             trust::grant_project_trust,
             trust::revoke_project_trust

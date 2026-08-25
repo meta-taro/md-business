@@ -21,7 +21,6 @@ const idle: MenuCaps = {
   imagePicking: false,
   canSite: false,
   browserBusy: false,
-  browserServing: false,
   timelineOpen: false,
 };
 
@@ -60,8 +59,9 @@ describe('押せるかどうか', () => {
     expect(isItemEnabled('image', { ...idle, canImage: false, imagePicking: true })).toBe(true);
   });
 
-  it('ブラウザ表示は、出している最中ならフォルダが無くても止められる', () => {
-    expect(isItemEnabled('browser', { ...idle, browserServing: true })).toBe(true);
+  it('ブラウザで開くのは、フォルダを開いてから', () => {
+    expect(isItemEnabled('browser', idle)).toBe(false);
+    expect(isItemEnabled('browser', { ...idle, hasRoot: true })).toBe(true);
   });
 
   it('ブラウザ表示は、切り替えの最中は押せない', () => {
@@ -77,12 +77,13 @@ describe('押せるかどうか', () => {
 describe('入り切りの印', () => {
   it('入り切りするものだけ、今どちらかを持つ', () => {
     expect(itemToggleState('autosave', idle)).toBe(true);
-    expect(itemToggleState('browser', idle)).toBe(false);
     expect(itemToggleState('timeline', { ...idle, timelineOpen: true })).toBe(true);
   });
 
   it('一度きりの操作は入り切りを持たない（チェック印を出さない）', () => {
     expect(itemToggleState('pdf', idle)).toBe(null);
+    // 出しているかどうかは印にしない。押せば開くだけで、止めるものではない。
+    expect(itemToggleState('browser', idle)).toBe(null);
     expect(itemToggleState('openFolder', idle)).toBe(null);
     expect(itemToggleState('theme', idle)).toBe(null);
   });

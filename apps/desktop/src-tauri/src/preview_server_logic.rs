@@ -108,14 +108,28 @@ pub fn content_type(path: &str) -> &'static str {
     match ext.as_str() {
         "html" | "htm" => "text/html; charset=utf-8",
         "css" => "text/css; charset=utf-8",
-        "js" => "text/javascript; charset=utf-8",
-        "json" => "application/json; charset=utf-8",
+        "js" | "mjs" => "text/javascript; charset=utf-8",
+        "json" | "webmanifest" => "application/json; charset=utf-8",
+        "xml" => "application/xml; charset=utf-8",
         "svg" => "image/svg+xml",
         "txt" | "md" => "text/plain; charset=utf-8",
+        "tsv" => "text/tab-separated-values; charset=utf-8",
+        "csv" => "text/csv; charset=utf-8",
         "png" => "image/png",
         "jpg" | "jpeg" => "image/jpeg",
         "gif" => "image/gif",
         "webp" => "image/webp",
+        "ico" => "image/vnd.microsoft.icon",
+        "woff" => "font/woff",
+        "woff2" => "font/woff2",
+        "ttf" => "font/ttf",
+        "otf" => "font/otf",
+        "wasm" => "application/wasm",
+        "pdf" => "application/pdf",
+        "mp4" => "video/mp4",
+        "webm" => "video/webm",
+        "mp3" => "audio/mpeg",
+        "wav" => "audio/wav",
         _ => "application/octet-stream",
     }
 }
@@ -226,10 +240,27 @@ pub fn content_security_policy(policy: &SitePolicy, nonce: &str) -> String {
         "object-src 'none'".to_string(),
         // 相対の解決先を書き換えられると、`'self'` が指す先ごと動く。
         "base-uri 'self'".to_string(),
-        "frame-ancestors 'none'".to_string(),
+        format!("frame-ancestors {}", frame_ancestors()),
         "form-action 'self'".to_string(),
     ]
     .join("; ")
+}
+
+/// 枠に入れてよい側。
+///
+/// プレビューの枠を持っているのはアプリ自身なので、そこだけを並べる。閉じ切ると
+/// アプリの中では何も出せず、ブラウザで開くまで中身を確かめられない。
+/// アプリの置き先は動かす場所ごとに違うため、まとめて並べておく。
+///
+/// 開発中はアプリ自身が手元の待ち受けから読み込まれるので、その分を足す
+/// （`tauri.conf.json` の `devUrl` と同じ番号）。
+fn frame_ancestors() -> String {
+    let app = "'self' tauri://localhost http://tauri.localhost";
+    if cfg!(debug_assertions) {
+        format!("{app} http://localhost:1430")
+    } else {
+        app.to_string()
+    }
 }
 
 /// 中身が入れ替わったかを見に行き、変わっていたら読み直す仕掛け。
@@ -337,6 +368,86 @@ pub fn decode_percent(value: &str) -> String {
         i += 1;
     }
     String::from_utf8(out).unwrap_or_else(|_| value.to_string())
+}
+
+/// 選んだブラウザを、この OS で呼ぶときの名前へ直す。
+///
+/// 画面から届くのは選択肢の名前（`chrome` / `edge` / `default`）だけで、
+/// **起動するものの名前はここの表から引く**。届いた文字列をそのまま起動すると、
+/// ページを開く口が、任意のプログラムを起動する口になる。
+///
+/// `default` は相手を選ばない（OS の既定に任せる）。表に無いものは当てずっぽうで
+/// 起動せずに断る。名前を間違えて起動すると、何も起きないのか、別のものが
+/// 立ち上がったのかが画面から分からない。
+pub fn browser_program(choice: &str, os: &str) -> Result<Option<&'static str>, String> {
+    if choice == "default" {
+        return Ok(None);
+    }
+    // 同じブラウザでも、呼ぶ名前は OS ごとに違う。
+    let name = match (choice, os) {
+        ("chrome", "windows") => "chrome",
+        ("chrome", "macos") => "Google Chrome",
+        ("chrome", "linux") => "google-chrome",
+        ("edge", "windows") => "msedge",
+        ("edge", "macos") => "Microsoft Edge",
+        ("edge", "linux") => "microsoft-edge",
+        ("chrome" | "edge", _) => {
+            return Err(format!("{os} でのブラウザの呼び名を知りません"))
+        }
+        _ => return Err(format!("知らないブラウザです: {choice}")),
+    };
+    Ok(Some(name))
+}
+
+/// 選んだブラウザが、この PC のどこにあり得るか。**在るかどうかは見ない**（見るのは呼ぶ側）。
+///
+/// 在り処を当たらずに起動を頼むと、無かったときに何も起きない。押した側からは
+/// 「効かないボタン」にしか見えないので、先に当たっておいて、無ければそう言えるようにする。
+///
+/// 環境変数が引けない置き場は候補に出さない。空の親から組み立てると、
+/// 根から始まる別の場所を指してしまう。
+pub fn browser_probe_paths(
+    choice: &str,
+    os: &str,
+    env: &dyn Fn(&str) -> Option<String>,
+) -> Vec<String> {
+    match (choice, os) {
+        ("chrome", "windows") => windows_paths(env, r"Google\Chrome\Application\chrome.exe"),
+        ("edge", "windows") => windows_paths(env, r"Microsoft\Edge\Application\msedge.exe"),
+        ("chrome", "macos") => mac_paths(env, "Google Chrome.app"),
+        ("edge", "macos") => mac_paths(env, "Microsoft Edge.app"),
+        // Linux は置き場が配布ごとに違う。PATH に載っている名前で呼ぶので、そこを当たる。
+        ("chrome", "linux") => path_entries(env, "google-chrome"),
+        ("edge", "linux") => path_entries(env, "microsoft-edge"),
+        _ => Vec::new(),
+    }
+}
+
+/// 32bit 側と利用者ごとの置き場も並べる。どれに入るかは入れ方で変わる。
+fn windows_paths(env: &dyn Fn(&str) -> Option<String>, tail: &str) -> Vec<String> {
+    ["ProgramFiles", "ProgramFiles(x86)", "LOCALAPPDATA"]
+        .iter()
+        .filter_map(|name| env(name))
+        .map(|base| format!(r"{base}\{tail}"))
+        .collect()
+}
+
+fn mac_paths(env: &dyn Fn(&str) -> Option<String>, app: &str) -> Vec<String> {
+    let mut out = vec![format!("/Applications/{app}")];
+    if let Some(home) = env("HOME") {
+        out.push(format!("{home}/Applications/{app}"));
+    }
+    out
+}
+
+fn path_entries(env: &dyn Fn(&str) -> Option<String>, name: &str) -> Vec<String> {
+    let Some(path) = env("PATH") else {
+        return Vec::new();
+    };
+    path.split(':')
+        .filter(|dir| !dir.is_empty())
+        .map(|dir| format!("{}/{name}", dir.trim_end_matches('/')))
+        .collect()
 }
 
 #[cfg(test)]
@@ -453,6 +564,16 @@ mod tests {
         assert!(content_type("a.html").starts_with("text/html"));
         assert!(content_type("assets/spec.css").starts_with("text/css"));
         assert!(content_type("a.html").contains("utf-8"));
+    }
+
+    #[test]
+    fn サイトに置くものの種類も決める() {
+        assert!(content_type("app.mjs").starts_with("text/javascript"));
+        assert!(content_type("data/sales.tsv").starts_with("text/tab-separated-values"));
+        assert!(content_type("data/sales.csv").starts_with("text/csv"));
+        assert_eq!(content_type("font/x.woff2"), "font/woff2");
+        assert_eq!(content_type("favicon.ico"), "image/vnd.microsoft.icon");
+        assert!(content_type("feed.xml").starts_with("application/xml"));
     }
 
     #[test]
@@ -587,6 +708,25 @@ mod tests {
         assert!(!csp.contains("cdn.example.com"), "{}", csp);
     }
 
+    // プレビューの枠を持っているのはアプリ自身。ここを閉じ切ると、アプリの中では
+    // 何も出せず、ブラウザで開くまで中身を確かめられない。
+    #[test]
+    fn アプリの枠の中では開ける() {
+        let csp = content_security_policy(&document_policy(), "abc123");
+        let ancestors = directive(&csp, "frame-ancestors");
+        assert!(ancestors.contains("http://tauri.localhost"), "{}", ancestors);
+        assert!(ancestors.contains("tauri://localhost"), "{}", ancestors);
+    }
+
+    // 外の頁から枠に入れられない。手元の待ち受けを外から覗く道にしない。
+    #[test]
+    fn 外の頁からは枠に入れられない() {
+        let csp = content_security_policy(&document_policy(), "abc123");
+        let ancestors = directive(&csp, "frame-ancestors");
+        assert!(!ancestors.contains('*'), "{}", ancestors);
+        assert!(!ancestors.contains("https://"), "{}", ancestors);
+    }
+
     // 宣言はプロジェクトの中にあり、書いた側が自由に書ける。動かしてよいと決めるのは同意のほう。
     #[test]
     fn 同意があって初めて動かす() {
@@ -655,5 +795,107 @@ mod tests {
     fn 差し込む仕掛けに印を付ける() {
         let out = inject_reload("<html><body></body></html>", TOKEN, "abc123");
         assert!(out.contains("<script nonce=\"abc123\">"), "{}", out);
+    }
+
+    // 画面から届くのは選択肢の名前だけで、起動するものの名前はこちら側の表から引く。
+    // 届いた文字列をそのまま起動すると、ページを開く口が任意のプログラムを起動する口になる。
+    #[test]
+    fn 知らない名前では何も起動しない() {
+        assert!(browser_program("firefox", "windows").is_err());
+        assert!(browser_program("cmd", "windows").is_err());
+        assert!(browser_program("", "windows").is_err());
+    }
+
+    // 既定は相手を選ばない（OS に任せる）。
+    #[test]
+    fn 既定は相手を選ばない() {
+        assert_eq!(browser_program("default", "windows"), Ok(None));
+        assert_eq!(browser_program("default", "macos"), Ok(None));
+        assert_eq!(browser_program("default", "linux"), Ok(None));
+    }
+
+    // 同じブラウザでも、呼ぶ名前が OS ごとに違う。
+    #[test]
+    fn 呼ぶ名前はosごとに違う() {
+        assert_eq!(browser_program("chrome", "windows"), Ok(Some("chrome")));
+        assert_eq!(browser_program("edge", "windows"), Ok(Some("msedge")));
+        assert_eq!(browser_program("chrome", "macos"), Ok(Some("Google Chrome")));
+        assert_eq!(browser_program("edge", "macos"), Ok(Some("Microsoft Edge")));
+        assert_eq!(browser_program("chrome", "linux"), Ok(Some("google-chrome")));
+        assert_eq!(browser_program("edge", "linux"), Ok(Some("microsoft-edge")));
+    }
+
+    // 名前を知らない OS では、当てずっぽうで起動しない。
+    #[test]
+    fn 知らないosでは名指ししない() {
+        assert!(browser_program("chrome", "freebsd").is_err());
+        // 相手を選ばないなら OS を知らなくても困らない。
+        assert_eq!(browser_program("default", "freebsd"), Ok(None));
+    }
+
+    // 置き場は OS ごとに違う。無い環境変数の分は候補に出さない
+    // （空の親を持つ path を作ると、根から始まる別の場所を指す）。
+    #[test]
+    fn windowsでは実行ファイルの置き場を当たる() {
+        let env = |name: &str| match name {
+            "ProgramFiles" => Some(r"C:\Program Files".to_string()),
+            "LOCALAPPDATA" => Some(r"C:\Users\me\AppData\Local".to_string()),
+            _ => None,
+        };
+        let paths = browser_probe_paths("chrome", "windows", &env);
+        assert!(
+            paths.contains(&r"C:\Program Files\Google\Chrome\Application\chrome.exe".to_string()),
+            "{paths:?}"
+        );
+        assert!(
+            paths.contains(
+                &r"C:\Users\me\AppData\Local\Google\Chrome\Application\chrome.exe"
+                    .to_string()
+            ),
+            "{paths:?}"
+        );
+        // 32bit 側は環境変数が無いので、候補にも出ない。
+        assert!(!paths.iter().any(|p| p.contains("(x86)")), "{paths:?}");
+
+        let edge = browser_probe_paths("edge", "windows", &env);
+        assert!(
+            edge.contains(&r"C:\Program Files\Microsoft\Edge\Application\msedge.exe".to_string()),
+            "{edge:?}"
+        );
+    }
+
+    #[test]
+    fn macでは_applications_を当たる() {
+        let env = |name: &str| (name == "HOME").then(|| "/Users/me".to_string());
+        let paths = browser_probe_paths("chrome", "macos", &env);
+        assert!(paths.contains(&"/Applications/Google Chrome.app".to_string()), "{paths:?}");
+        assert!(
+            paths.contains(&"/Users/me/Applications/Google Chrome.app".to_string()),
+            "{paths:?}"
+        );
+        let edge = browser_probe_paths("edge", "macos", &env);
+        assert!(edge.contains(&"/Applications/Microsoft Edge.app".to_string()), "{edge:?}");
+    }
+
+    // Linux は置き場が配布ごとに違うので、PATH に載っているかで見る。
+    #[test]
+    fn linuxではpathの中を当たる() {
+        let env = |name: &str| (name == "PATH").then(|| "/usr/bin:/usr/local/bin".to_string());
+        let paths = browser_probe_paths("chrome", "linux", &env);
+        assert_eq!(
+            paths,
+            vec![
+                "/usr/bin/google-chrome".to_string(),
+                "/usr/local/bin/google-chrome".to_string(),
+            ]
+        );
+    }
+
+    // 相手を選ばないなら、当たる先は無い（OS の既定に任せる）。
+    #[test]
+    fn 既定では在り処を当たらない() {
+        let env = |_: &str| None;
+        assert!(browser_probe_paths("default", "windows", &env).is_empty());
+        assert!(browser_probe_paths("chrome", "freebsd", &env).is_empty());
     }
 }

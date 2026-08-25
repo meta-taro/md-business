@@ -185,4 +185,21 @@ describe('buildStaticSite — 画像', () => {
 
     expect(plan.assets).toEqual([]);
   });
+
+  // web モードのページ。宣言と同意が揃ったときだけ、呼ぶ側が rawHtml を渡してくる。
+  it('rawHtml で本文の script をそのまま載せる', async () => {
+    const plan = await buildStaticSite([{ path: 'index.md', source: '# LP\n\n<script>go()</script>\n' }], {
+      rawHtml: true,
+    });
+
+    const page = plan.files.find((f) => f.path === 'index.html');
+    expect(page?.content).toContain('<script>go()</script>');
+  });
+
+  it('rawHtml を渡さなければ今までどおり落とす', async () => {
+    const plan = await buildStaticSite([{ path: 'index.md', source: '# LP\n\n<script>go()</script>\n' }]);
+
+    const page = plan.files.find((f) => f.path === 'index.html');
+    expect(page?.content).not.toContain('go()');
+  });
 });

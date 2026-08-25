@@ -46,6 +46,15 @@ pub(crate) const ALLOWED_EXTS: [&str; 4] = ["md", "tsv", "json", "xml"];
 /// 掃除（`sanitizeHtml.ts`）が `data:image/…` として通す並びと揃えてある。揃っていないと、
 /// ツリーには出るのに画面へ出ない種類ができる。
 pub(crate) const IMAGE_EXTS: [&str; 6] = ["png", "jpg", "jpeg", "gif", "webp", "svg"];
+/// サイトの一部として出してよい種類（小文字比較）。
+///
+/// **`.md` は入れない。**ページになる側なので、生のまま出すと同じ中身が 2 通りの見え方をする。
+/// 拡張子の並びで切るのは、名前だけのファイル（`.env` など）を落とすため。
+/// ここに無いものは出さない——出す側の表に足すまでは、置いてあっても届かない。
+pub(crate) const SITE_ASSET_EXTS: [&str; 25] = [
+    "html", "htm", "css", "js", "mjs", "map", "json", "webmanifest", "xml", "tsv", "csv", "txt",
+    "wasm", "woff", "woff2", "ttf", "otf", "pdf", "mp4", "webm", "mp3", "wav", "ico", "vtt", "toml",
+];
 /// ディレクトリのネスト上限（設計書 §3.2）。超過分は打ち切り truncated=true。
 const MAX_DEPTH: usize = 12;
 /// 収集ファイル数の上限（設計書 §3.2）。超過分は打ち切り truncated=true。
@@ -121,6 +130,12 @@ pub(crate) fn is_tree_ext(ext: &str) -> bool {
     ALLOWED_EXTS.contains(&ext) || IMAGE_EXTS.contains(&ext)
 }
 
+/// パスの拡張子がサイトへ出せる種類なら小文字化して返す。対象外・拡張子なしは None。
+fn site_asset_ext(path: &Path) -> Option<String> {
+    lower_ext(path)
+        .filter(|e| SITE_ASSET_EXTS.contains(&e.as_str()) || IMAGE_EXTS.contains(&e.as_str()))
+}
+
 /// パスの拡張子がツリーの対象なら小文字化して返す。対象外・拡張子なしは None。
 fn tree_ext(path: &Path) -> Option<String> {
     lower_ext(path).filter(|e| is_tree_ext(e.as_str()))
@@ -141,6 +156,23 @@ pub(crate) fn resolve_image_in_root(root: &Path, rel_path: &str) -> Result<PathB
         Some(ext) if IMAGE_EXTS.contains(&ext.as_str()) => Ok(canon),
         _ => Err("画像として開けるのは png / jpg / gif / webp / svg のみです".to_string()),
     }
+}
+
+/// サイトの一部として出すファイルを解決する（ブラウザ表示の入口ゲート）。
+///
+/// 出すのは開いているフォルダの中だけで、種類も表にあるものに限る。どちらかを外すと、
+/// 待ち受けが「この PC のファイルを読む口」になる。
+pub(crate) fn resolve_site_asset_in_root(root: &Path, rel_path: &str) -> Result<PathBuf, String> {
+    let canon_root = std::fs::canonicalize(root).map_err(|e| format!("ルート解決失敗: {}", e))?;
+    let canon = std::fs::canonicalize(root.join(rel_path))
+        .map_err(|e| format!("ファイル解決失敗: {}", e))?;
+    if !canon.starts_with(&canon_root) {
+        return Err("ルート外へのアクセスは拒否されます".to_string());
+    }
+    if site_asset_ext(&canon).is_none() {
+        return Err("サイトに出せない種類です".to_string());
+    }
+    Ok(canon)
 }
 
 /// ルート配下の既存ファイルを解決する（読み取り系コマンドの入口ゲート）。
@@ -181,7 +213,15 @@ pub fn scan_documents_with_limits(
     let mut entries: Vec<DocEntry> = Vec::new();
     let mut truncated = false;
     let mut budget = ScanBudget::new(max_visited, time_limit);
-    walk(root, root, 0, &mut entries, &mut truncated, &mut budget)?;
+    walk(
+        root,
+        root,
+        0,
+        &mut entries,
+        &mut truncated,
+        &mut budget,
+        &tree_ext,
+    )?;
     // readdir 順は OS 依存のため rel_path で安定ソート（フロント buildTree でも再ソートするが決定化しておく）。
     entries.sort_by(|a, b| a.rel_path.cmp(&b.rel_path));
     Ok(ScanResult { entries, truncated })
@@ -235,6 +275,7 @@ fn walk(
     out: &mut Vec<DocEntry>,
     truncated: &mut bool,
     budget: &mut ScanBudget,
+    ext_of: &dyn Fn(&Path) -> Option<String>,
 ) -> Result<(), String> {
     for child in read_children(dir)? {
         if out.len() >= MAX_ENTRIES {
@@ -261,9 +302,9 @@ fn walk(
                 *truncated = true;
                 continue;
             }
-            walk(root, &path, depth + 1, out, truncated, budget)?;
+            walk(root, &path, depth + 1, out, truncated, budget, ext_of)?;
         } else if child.is_file {
-            if let Some(ext) = tree_ext(&path) {
+            if let Some(ext) = ext_of(&path) {
                 let rel = path
                     .strip_prefix(root)
                     .map_err(|e| format!("相対パス化失敗: {}", e))?;
@@ -277,6 +318,33 @@ fn walk(
         }
     }
     Ok(())
+}
+
+/// ルート配下から、サイトの一部として出せるファイルを集める（Tauri 非依存の実体）。
+///
+/// ページになる `.md` は入らない。除外するフォルダ（`dist` / `node_modules` / 隠しフォルダ）は
+/// 文書の走査と同じ。書き出した結果を出し直すと、出したものをまた出すことになる。
+pub fn scan_site_assets_impl(root: &Path) -> Result<ScanResult, String> {
+    if !root.is_dir() {
+        return Err(format!(
+            "ルートがディレクトリではありません: {}",
+            root.display()
+        ));
+    }
+    let mut entries: Vec<DocEntry> = Vec::new();
+    let mut truncated = false;
+    let mut budget = ScanBudget::new(MAX_VISITED, Some(SCAN_TIME_LIMIT));
+    walk(
+        root,
+        root,
+        0,
+        &mut entries,
+        &mut truncated,
+        &mut budget,
+        &site_asset_ext,
+    )?;
+    entries.sort_by(|a, b| a.rel_path.cmp(&b.rel_path));
+    Ok(ScanResult { entries, truncated })
 }
 
 /// ルートと相対パスを結合・正規化し、root 配下の対象拡張子のみ UTF-8 で読む（Tauri 非依存の実体）。
@@ -660,6 +728,14 @@ pub async fn scan_documents(root: String) -> Result<ScanResult, String> {
         .map_err(|e| format!("走査を実行できませんでした: {}", e))?
 }
 
+/// フロントから `invoke("scan_site_assets", { root })` で呼ぶ薄いラッパ。
+#[tauri::command]
+pub async fn scan_site_assets(root: String) -> Result<ScanResult, String> {
+    tauri::async_runtime::spawn_blocking(move || scan_site_assets_impl(Path::new(&root)))
+        .await
+        .map_err(|e| format!("走査を実行できませんでした: {}", e))?
+}
+
 /// フロントから `invoke("directory_exists", { path })` で呼ぶ薄いラッパ。
 #[tauri::command]
 pub async fn directory_exists(path: String) -> bool {
@@ -854,6 +930,52 @@ mod tests {
         std::fs::write(&outside, "x").expect("外に置く");
         assert!(resolve_image_in_root(&root.path, "../mdbiz_outside.png").is_err());
         let _ = std::fs::remove_file(&outside);
+    }
+
+    #[test]
+    fn サイトに置けるものだけ解決する() {
+        let root = TempRoot::new("resolve_site_asset");
+        root.file("style.css", "body{}");
+        root.file("app.js", "1");
+        root.file("index.html", "<p>a</p>");
+        root.file("data/sales.tsv", "a	b");
+        root.file("logo.png", "x");
+        root.file("page.md", "# a");
+        root.file(".env", "SECRET=1");
+        root.file("key.pem", "x");
+        for ok in ["style.css", "app.js", "index.html", "data/sales.tsv", "logo.png"] {
+            assert!(resolve_site_asset_in_root(&root.path, ok).is_ok(), "{ok}");
+        }
+        // .md はページになる側。生のまま出すと、同じ中身が 2 通りの見え方をする。
+        for ng in ["page.md", ".env", "key.pem"] {
+            assert!(resolve_site_asset_in_root(&root.path, ng).is_err(), "{ng}");
+        }
+    }
+
+    #[test]
+    fn サイトに置けるものもルート外は拒む() {
+        let root = TempRoot::new("resolve_site_asset_escape");
+        let outside = root.path.parent().expect("親").join("mdbiz_outside.css");
+        std::fs::write(&outside, "x").expect("外に置く");
+        assert!(resolve_site_asset_in_root(&root.path, "../mdbiz_outside.css").is_err());
+        let _ = std::fs::remove_file(&outside);
+    }
+
+    #[test]
+    fn scan_site_assets_はページ以外を集める() {
+        let root = TempRoot::new("scan_site_assets");
+        root.file("style.css", "body{}");
+        root.file("js/app.js", "1");
+        root.file("about.html", "<p>a</p>");
+        root.file("img/logo.png", "x");
+        root.file("page.md", "# a");
+        root.file("dist/old.css", "x");
+        root.file("node_modules/lib/x.js", "x");
+        let result = scan_site_assets_impl(&root.path).expect("走査成功");
+        assert_eq!(
+            rel_paths(&result),
+            vec!["about.html", "img/logo.png", "js/app.js", "style.css"]
+        );
     }
 
     #[test]

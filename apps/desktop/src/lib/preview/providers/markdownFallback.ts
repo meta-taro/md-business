@@ -10,6 +10,10 @@
  * 本文は core の CSP 安全な MD→HTML パイプラインで HTML 化し、sanitizeViewerHtml で
  * inline `<svg>` / 画像 data URL を許しつつ `<script>` / event handler / `javascript:`
  * を落とす（prose provider と同じ防御）。
+ *
+ * `rawHtml` を渡されたときだけ、この落とす工程を通さない。渡ってくるのは web モードを
+ * 宣言していて、かつこの PC で人が 1 回許したプロジェクトを手元の待ち受けから出すときだけ
+ * （画面の中の下見には渡らない）。
  */
 import { renderMarkdownToHtml } from '@md-business/core';
 import { buildPreviewDocument } from '../previewDocument';
@@ -190,9 +194,12 @@ export function renderMarkdownFallback(
   body: string,
   options: RenderPreviewOptions = {},
 ): PreviewOk {
-  const bodyHtml = body
-    ? sanitizeViewerHtml(renderMarkdownToHtml(body, { hasFrontmatter: false }))
-    : '';
+  // rawHtml のときは sanitize しない。落とすと、web モードで書いた script も
+  // 属性も消えるので、通す意味が無くなる。ここを通ったものを動かしてよいかは、
+  // 出す側（待ち受けが付ける実行の指示）が決める。
+  const rawHtml = options.rawHtml === true;
+  const html = body ? renderMarkdownToHtml(body, { hasFrontmatter: false, rawHtml }) : '';
+  const bodyHtml = rawHtml ? html : sanitizeViewerHtml(html);
   const documentTitle = titleFromBody(body);
 
   return {

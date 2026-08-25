@@ -21,6 +21,7 @@
     browserPreview,
     type BrowserPreviewNotice,
   } from '$lib/preview/browserPreviewController.svelte';
+  import { onMount } from 'svelte';
   import TrustDialog from './TrustDialog.svelte';
   import { timelineView } from '$lib/logs/timelineView.svelte';
   import { t } from '$lib/i18n/i18n.svelte';
@@ -42,6 +43,11 @@
   //
   // 開いている間はこの行の上をなぞるだけで隣のメニューへ移る（表計算やエディタの作法）。
   // 開いていないときになぞっても開かない。掴んで窓を動かすたびに開くのは邪魔なので。
+  // この PC に何が入っているかは、画面ができてから 1 回だけ調べる。起動を待たせない。
+  // 調べた結果を使うボタンはプレビューの見出しにあるが、そちらは開いている文書によって
+  // 出たり消えたりするので、常にある行のほうから 1 回だけ調べる。
+  onMount(() => void browserPreview.detectBrowsers());
+
   let openMenu = $state<MenuId | null>(null);
   const buttons: Partial<Record<MenuId, HTMLButtonElement>> = {};
 
@@ -56,7 +62,6 @@
     imagePicking: imageExport.picking,
     canSite: siteExport.canExport,
     browserBusy: browserPreview.busy,
-    browserServing: browserPreview.serving !== null,
     timelineOpen: timelineView.active,
   });
 
@@ -120,11 +125,9 @@
         void siteExport.run();
         return;
       case 'browser':
-        if (browserPreview.serving === null) {
-          if (workspace.root !== null) void browserPreview.start(workspace.root);
-        } else {
-          void browserPreview.stop();
-        }
+        // 開くだけ。止める口はここに置かない（出ているものを止めたい用事が無く、
+        // 押した人には「開く」としか読めない場所なので）。
+        if (workspace.root !== null) void browserPreview.openIn(workspace.root, 'default');
         return;
       case 'theme':
         themeController.toggle();
@@ -167,6 +170,7 @@
   function siteNote(result: SiteExportResult): string {
     if (result.kind === 'error') return result.message;
     if (result.kind === 'none') return t('action.siteNone');
+    if (result.kind === 'consent') return t('action.siteConsent');
     if (result.skipped.length === 0) {
       return t('action.siteDone', { dir: result.dir, count: result.count });
     }
@@ -181,7 +185,8 @@
   // 件数だけだと、直しようがない。
   function siteNoteTitle(result: SiteExportResult): string {
     const note = siteNote(result);
-    if (result.kind === 'error' || result.skipped.length === 0) return note;
+    if (result.kind === 'error' || result.kind === 'consent') return note;
+    if (result.skipped.length === 0) return note;
     return [note, ...result.skipped.map((skip) => `${skip.path}: ${skip.reason}`)].join('\n');
   }
 
