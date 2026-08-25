@@ -24,7 +24,8 @@ use tauri::{AppHandle, Manager, State};
 use tauri_plugin_opener::OpenerExt;
 
 use crate::preview_server_logic::{
-    browser_probe_paths, browser_program, content_security_policy, content_type, html_response, http_response,
+    browser_probe_paths, browser_program, content_security_policy, content_type,
+    exported_content_security_policy, html_response, http_response,
     http_response_bytes, inject_reload, parse_request_line, resolve_policy, route, Route,
     SitePolicy,
 };
@@ -372,6 +373,17 @@ pub fn preview_server_status(
         .lock()
         .map_err(|_| "状態を読めません".to_string())?;
     Ok(slot.as_ref().map(info))
+}
+
+/// 書き出したフォルダのページに焼き込む制限。
+///
+/// 下見の待ち受けは同じ制限を見出しとして返しているが、書き出したフォルダには
+/// 返す人がいない。ページ自身に持たせるほかないので、組み立てる側へ文字列で渡す。
+/// 組み立ては画面側にあるが、中身をそちらで組み直すと、下見と書き出しで別々に
+/// 育っていく。ずれても誰も落ちないまま、確かめたページと配ったページが変わる。
+#[tauri::command]
+pub fn exported_site_csp(policy: SitePolicy) -> String {
+    exported_content_security_policy(&policy)
 }
 
 /// アプリ終了時に畳む。放置すると待ち受けたままプロセスが残りうる。

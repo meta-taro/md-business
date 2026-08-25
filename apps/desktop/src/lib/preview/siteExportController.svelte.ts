@@ -80,8 +80,15 @@ class SiteExportController {
         return { kind: 'consent' };
       }
 
+      // 出来上がったフォルダには、見出しを返す待ち受けが付いてこない。下見と同じ
+      // 制限をページ自身に持たせる。中身は待ち受けと同じところで組む（別々に書くと、
+      // ずれても誰も落ちないまま、確かめたページと配ったページが変わる）。
+      const csp = await invoke<string>('exported_site_csp', {
+        policy: { scripts: step.rawHtml, scriptOrigins: policy.scriptOrigins },
+      });
+
       // 組み立てはブラウザ表示と同じ手順を通す（collectSite）。
-      const plan = await collectSitePlan(root, { rawHtml: step.rawHtml });
+      const plan = await collectSitePlan(root, { rawHtml: step.rawHtml, csp });
       if (plan.pages.length === 0) {
         // 出せる文書が無いか、全部プレビューに失敗した。中身の無いサイトを置いても使い道が無い。
         return { kind: 'none', skipped: plan.skipped };

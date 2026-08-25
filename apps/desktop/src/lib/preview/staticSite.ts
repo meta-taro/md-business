@@ -68,6 +68,14 @@ export interface BuildStaticSiteOptions {
    * 実行の指示）が決める。
    */
   rawHtml?: boolean;
+  /**
+   * 出来上がったページに焼き込む Content-Security-Policy。渡さなければ何も足さない。
+   *
+   * 下見の待ち受けは同じ制限を見出しとして返すが、書き出したフォルダには返す人が
+   * いない。ページ自身に持たせないと、下見では引けなかった置き先が、配ったものでは
+   * 引けるようになる。中身は待ち受け側と同じところ（Rust）で組む。
+   */
+  csp?: string;
 }
 
 const MD_EXT = /\.md$/i;
@@ -214,6 +222,19 @@ function buildIndexPage(title: string, pages: readonly RenderedPage[]): string {
   });
 }
 
+/**
+ * ページの先頭に制限を差し込む。
+ *
+ * 読み込みが始まる前に効かせたいので `<head>` の先頭へ置く。焼き込むのはこちらが
+ * 組み立てたページだけで、プロジェクトが自分で書いた `.html` はそのまま運ぶ
+ * （人が書いたものを黙って書き換えない）。そちらは待ち受けが見出しで同じ制限を返す。
+ */
+function withCsp(html: string, csp: string): string {
+  const meta = `<meta http-equiv="Content-Security-Policy" content="${escapeHtml(csp)}">`;
+  return html.replace('<head>', `<head>
+${meta}`);
+}
+
 export async function buildStaticSite(
   docs: readonly SiteSource[],
   options: BuildStaticSiteOptions = {},
@@ -268,12 +289,18 @@ export async function buildStaticSite(
     });
   }
 
+  // 焼き込みはページを組み終えてから 1 か所でまとめてやる。描くところごとに入れると、
+  // 後からページの種類が増えたときに片方だけ抜ける。
+  const built = options.csp
+    ? files.map((file) => ({ ...file, content: withCsp(file.content, options.csp as string) }))
+    : files;
+
   for (const [id, css] of styles) {
-    files.push({ path: `assets/${id}.css`, content: css });
+    built.push({ path: `assets/${id}.css`, content: css });
   }
 
   return {
-    files,
+    files: built,
     pages: rendered.map((page) => page.path),
     assets: [...assets.values()],
     skipped,

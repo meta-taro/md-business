@@ -203,3 +203,51 @@ describe('buildStaticSite — 画像', () => {
     expect(page?.content).not.toContain('go()');
   });
 });
+
+describe('buildStaticSite — 出来上がったページの制限', () => {
+  const CSP = "default-src 'self' file:; script-src 'none'";
+
+  /** ブラウザが読む値で見る（書き方の違いに引きずられないため）。 */
+  function metaCsp(html: string): string | null {
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+    return doc
+      .querySelector('meta[http-equiv="Content-Security-Policy"]')
+      ?.getAttribute('content') ?? null;
+  }
+
+  it('組み立てたページに制限を焼き込む', async () => {
+    const plan = await buildStaticSite([{ path: '覚書.md', source: PLAIN }], { csp: CSP });
+    const page = plan.files.find((f) => f.path === '覚書.html');
+
+    expect(metaCsp(page?.content ?? '')).toBe(CSP);
+  });
+
+  it('自動で作る一覧にも同じものを焼き込む', async () => {
+    // 一覧は本文から作らない唯一のページ。ここが抜けると、最初に開く 1 枚だけ
+    // 制限の外に出る。
+    const plan = await buildStaticSite([{ path: '覚書.md', source: PLAIN }], { csp: CSP });
+    const index = plan.files.find((f) => f.path === 'index.html');
+
+    expect(index?.content).toContain('Content-Security-Policy');
+  });
+
+  it('焼き込むのはページだけで、CSS には触らない', async () => {
+    const plan = await buildStaticSite([{ path: '覚書.md', source: PLAIN }], { csp: CSP });
+    const css = plan.files.find((f) => f.path === 'assets/markdown.css');
+
+    expect(css?.content).not.toContain('Content-Security-Policy');
+  });
+
+  it('制限は本文より先に置く（読み込みが始まる前に効かせる）', async () => {
+    const plan = await buildStaticSite([{ path: '覚書.md', source: PLAIN }], { csp: CSP });
+    const page = plan.files.find((f) => f.path === '覚書.html')?.content ?? '';
+
+    expect(page.indexOf('Content-Security-Policy')).toBeLessThan(page.indexOf('<link rel='));
+  });
+
+  it('渡さなければ何も足さない（今までどおり）', async () => {
+    const plan = await buildStaticSite([{ path: '覚書.md', source: PLAIN }]);
+
+    expect(plan.files.every((f) => !f.content.includes('Content-Security-Policy'))).toBe(true);
+  });
+});

@@ -26,10 +26,12 @@ interface ScanResult {
  *
  * @param rawHtml 本文に直接書かれた HTML をそのまま載せるか。既定は載せない。
  *   渡すのは、web モードを宣言していて、かつこの PC で人が 1 回許したと確かめた側だけ。
+ * @param csp ページに焼き込む制限。フォルダへ書き出す側だけが渡す。ブラウザ表示は
+ *   待ち受けが同じものを見出しで返すので、ページには持たせない。
  */
 export async function collectSitePlan(
   root: string,
-  { rawHtml }: Pick<BuildStaticSiteOptions, 'rawHtml'> = {},
+  { rawHtml, csp }: Pick<BuildStaticSiteOptions, 'rawHtml' | 'csp'> = {},
 ): Promise<SitePlan> {
   // ワークスペースのツリーは表示用に組み替えてあるので、走査をやり直して平坦な
   // 一覧を取る。除外（.git / node_modules / dist）は Rust 側が済ませている。
@@ -69,7 +71,7 @@ export async function collectSitePlan(
   // ページの組み立てはプレビューと同じ描画一式を使う。起動時に読ませないよう、
   // 実際に組むここで読み込む。
   const { buildStaticSite } = await import('./staticSite');
-  const plan = await buildStaticSite(docs, { title: folderTitle(root), rawHtml });
+  const plan = await buildStaticSite(docs, { title: folderTitle(root), rawHtml, csp });
   const extra = await siteAssets(root, rawHtml);
   if (extra.length === 0) return plan;
   // 組み立てが同じ置き場所を使っていたら、そちらを残す（本文から作ったページと

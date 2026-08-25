@@ -215,32 +215,75 @@ fn usable_origin(origin: &str) -> bool {
 /// 同意はプロジェクトへ与えられているから、別ファイルか本文の中かは問わない。
 pub fn content_security_policy(policy: &SitePolicy, nonce: &str) -> String {
     let script_src = if policy.scripts {
-        let mut sources = vec!["'self'".to_string(), "'unsafe-inline'".to_string()];
-        sources.extend(
-            policy
-                .script_origins
-                .iter()
-                .filter(|origin| usable_origin(origin))
-                .cloned(),
-        );
-        sources.join(" ")
+        project_scripts(policy, false)
     } else {
         format!("'nonce-{nonce}'")
     };
+    build_policy(&script_src, false, &frame_ancestors())
+}
+
+/// 書き出したフォルダのページに焼き込む Content-Security-Policy。
+///
+/// 下見と同じ制限を、出来上がったものにも付ける。付けないと、下見では引けなかった
+/// 置き先が出来上がったフォルダでは引けてしまい、確かめたページと配ったページが
+/// 別のものになる。この違いは配ってから出るので、いちばん気づきにくい。
+///
+/// 下見と違うのは 3 か所だけで、いずれも待ち受けが無いことから来る。
+///   - 入れ替えの仕掛けが入らないので、業務文書のページでは何も動かさない
+///   - 置き先へ上げる前に、フォルダをそのまま開いて確かめる人がいる。その開き方では
+///     自分のフォルダが `'self'` に当たらないので、手元のファイルを足す
+///   - 枠に入れてよい側は、アプリではなく出した先そのもの
+///
+/// 焼き込むのは、こちらが組み立てたページだけ。プロジェクトが自分で書いた `.html` は
+/// 中身をそのまま運ぶ（人が書いたものを黙って書き換えない）。
+pub fn exported_content_security_policy(policy: &SitePolicy) -> String {
+    let script_src = if policy.scripts {
+        project_scripts(policy, true)
+    } else {
+        "'none'".to_string()
+    };
+    build_policy(&script_src, true, "'self'")
+}
+
+/// プロジェクト自身の script と、宣言に並んだ置き先。
+fn project_scripts(policy: &SitePolicy, local_files: bool) -> String {
+    let mut sources = vec!["'self'".to_string(), "'unsafe-inline'".to_string()];
+    if local_files {
+        sources.push("file:".to_string());
+    }
+    sources.extend(
+        policy
+            .script_origins
+            .iter()
+            .filter(|origin| usable_origin(origin))
+            .cloned(),
+    );
+    sources.join(" ")
+}
+
+/// 並びを 1 か所で組む。下見と書き出しで違うのは script の出どころと、手元のファイルを
+/// 取り寄せ先に足すかどうかだけなので、それ以外がずれないよう同じ配列から作る。
+///
+/// 見た目を外から取り寄せる口は、どちらでも開けない。CSS は置き先を宣言できない
+/// ＝プロジェクトのフォルダに置いてもらう。
+fn build_policy(script_src: &str, local_files: bool, frame_ancestors: &str) -> String {
+    // フォルダをそのまま開いた場合、ページ自身の出どころが `'self'` に当たらない。
+    // 待ち受けから見ているときは手元のファイルをそもそも引けないので、足しても効かない。
+    let local = if local_files { " file:" } else { "" };
     [
-        "default-src 'self'".to_string(),
+        format!("default-src 'self'{local}"),
         format!("script-src {script_src}"),
         // 見た目は本文に直に書かれることがある（表の桁揃え・図の色）。ここを閉じると
         // 業務文書の見え方が崩れるが、閉じないことで増える危険は script ほどではない。
-        "style-src 'self' 'unsafe-inline'".to_string(),
-        "img-src 'self' data:".to_string(),
-        "font-src 'self' data:".to_string(),
+        format!("style-src 'self' 'unsafe-inline'{local}"),
+        format!("img-src 'self' data:{local}"),
+        format!("font-src 'self' data:{local}"),
         "connect-src 'self'".to_string(),
         // 差し込む先を持たない＝古い仕掛けで囲いを抜けられない。
         "object-src 'none'".to_string(),
         // 相対の解決先を書き換えられると、`'self'` が指す先ごと動く。
         "base-uri 'self'".to_string(),
-        format!("frame-ancestors {}", frame_ancestors()),
+        format!("frame-ancestors {frame_ancestors}"),
         "form-action 'self'".to_string(),
     ]
     .join("; ")
@@ -706,6 +749,49 @@ mod tests {
         };
         let csp = content_security_policy(&policy, "abc123");
         assert!(!csp.contains("cdn.example.com"), "{}", csp);
+    }
+
+    // 書き出したフォルダのページにも、下見と同じ制限を焼き込む。ここが空だと、
+    // 下見では引けなかった置き先が、出来上がったフォルダでは引けるようになる。
+    #[test]
+    fn 書き出しでも宣言した置き先だけが並ぶ() {
+        let csp = exported_content_security_policy(&web_policy(&["https://cdn.example.com"]));
+        let script = directive(&csp, "script-src");
+        assert!(script.contains("https://cdn.example.com"), "{}", script);
+        assert!(!script.contains("https://other.example.com"), "{}", script);
+    }
+
+    // 書き出したページには入れ替えの仕掛けが入らない（見ている間だけの仕掛けなので）。
+    // 印だけを通す書き方にすると、印の無い script が全部落ちる＝何も動かないのと同じだが、
+    // 読んだ人には「印を付ければ動く」と読める。動かさないとはっきり書く。
+    #[test]
+    fn 書き出した業務文書では何も動かない() {
+        let csp = exported_content_security_policy(&document_policy());
+        assert_eq!(directive(&csp, "script-src"), "script-src 'none'");
+    }
+
+    // 置き先へ上げる前に、出来上がったフォルダをそのまま開いて確かめる人がいる。
+    // その開き方では自分のフォルダが `'self'` に当たらないので、手元のファイルを足す。
+    #[test]
+    fn 書き出したフォルダは開いたまま読める() {
+        let csp = exported_content_security_policy(&web_policy(&[]));
+        for name in ["default-src", "script-src", "style-src", "img-src", "font-src"] {
+            assert!(directive(&csp, name).contains("file:"), "{}", directive(&csp, name));
+        }
+    }
+
+    // 見た目を外から取り寄せる口は、書き出しでも開けない（下見と同じ）。
+    #[test]
+    fn 書き出しでも外の見た目は取り寄せない() {
+        let csp = exported_content_security_policy(&web_policy(&["https://cdn.example.com"]));
+        assert!(!directive(&csp, "style-src").contains("https://"), "{}", csp);
+    }
+
+    // アプリの枠の話は、アプリの外へ出したものには関係ない。
+    #[test]
+    fn 書き出したページはアプリの枠を並べない() {
+        let csp = exported_content_security_policy(&web_policy(&[]));
+        assert!(!csp.contains("tauri://"), "{}", csp);
     }
 
     // プレビューの枠を持っているのはアプリ自身。ここを閉じ切ると、アプリの中では

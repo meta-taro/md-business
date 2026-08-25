@@ -130,6 +130,7 @@ pub fn run() {
             preview_server::preview_server_status,
             preview_server::open_preview_in_browser,
             preview_server::installed_browsers,
+            preview_server::exported_site_csp,
             trust::project_trust_status,
             trust::grant_project_trust,
             trust::revoke_project_trust
