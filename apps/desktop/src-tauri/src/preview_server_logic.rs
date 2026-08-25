@@ -816,7 +816,7 @@ mod tests {
 
     // 同じブラウザでも、呼ぶ名前が OS ごとに違う。
     #[test]
-    fn 呼ぶ名前はOSごとに違う() {
+    fn 呼ぶ名前はosごとに違う() {
         assert_eq!(browser_program("chrome", "windows"), Ok(Some("chrome")));
         assert_eq!(browser_program("edge", "windows"), Ok(Some("msedge")));
         assert_eq!(browser_program("chrome", "macos"), Ok(Some("Google Chrome")));
@@ -827,7 +827,7 @@ mod tests {
 
     // 名前を知らない OS では、当てずっぽうで起動しない。
     #[test]
-    fn 知らないOSでは名指ししない() {
+    fn 知らないosでは名指ししない() {
         assert!(browser_program("chrome", "freebsd").is_err());
         // 相手を選ばないなら OS を知らなくても困らない。
         assert_eq!(browser_program("default", "freebsd"), Ok(None));
