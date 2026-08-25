@@ -10,6 +10,7 @@
  * （何を書いたのかが本人にも分からなくなるため）。文言はここでは決めず、呼ぶ側の
  * 訳語に任せる（`describe`）。純粋なまま置いておきたいので、読み取りも外から渡す。
  */
+import { blockFailure, blockNote } from '../markdown/blockNote';
 import { resolveRelPath } from '../workspace/relPath';
 import { collectChartBlocks } from './chartBlocks';
 import { buildChartData, parseDataTable } from './chartData';
@@ -59,15 +60,6 @@ function toDataUri(svg: string): string {
   return `data:image/svg+xml;base64,${btoa(binary)}`;
 }
 
-/** 理由は引用として出す。改行が入ると引用が切れるので 1 行に畳む。 */
-function note(reason: string): string {
-  return `> ${reason.replace(/\s*\n\s*/g, ' ')}`;
-}
-
-function failure(reason: string, raw: string): string {
-  return `${note(reason)}\n\n${raw}`;
-}
-
 export async function loadCharts(
   source: string,
   options: LoadChartsOptions,
@@ -89,7 +81,7 @@ export async function loadCharts(
   for (const block of blocks) {
     const parsed = parseChartSpec(block.body);
     if (!parsed.ok) {
-      out.set(block.raw, failure(options.describe(parsed.problem), block.raw));
+      out.set(block.raw, blockFailure(options.describe(parsed.problem), block.raw));
       continue;
     }
 
@@ -98,7 +90,7 @@ export async function loadCharts(
     if (path === null) {
       out.set(
         block.raw,
-        failure(options.describe({ kind: 'bad-path', raw: spec.source, line: null }), block.raw),
+        blockFailure(options.describe({ kind: 'bad-path', raw: spec.source, line: null }), block.raw),
       );
       continue;
     }
@@ -109,7 +101,7 @@ export async function loadCharts(
     } catch {
       out.set(
         block.raw,
-        failure(options.describe({ kind: 'read-failed', raw: spec.source, line: null }), block.raw),
+        blockFailure(options.describe({ kind: 'read-failed', raw: spec.source, line: null }), block.raw),
       );
       continue;
     }
@@ -118,7 +110,7 @@ export async function loadCharts(
     if (!built.ok) {
       out.set(
         block.raw,
-        failure(
+        blockFailure(
           options.describe({ kind: built.problem.kind, raw: built.problem.raw, line: null }),
           block.raw,
         ),
@@ -138,7 +130,7 @@ export async function loadCharts(
     const skipped =
       built.data.unreadable === 0
         ? ''
-        : `\n\n${note(
+        : `\n\n${blockNote(
             options.describe({
               kind: 'unreadable-cells',
               raw: String(built.data.unreadable),

@@ -44,6 +44,7 @@ export async function collectSitePlan(
   // 画像はページの組み立て側がファイルとして運ぶので、ここでは埋めない。
   const { composeExportSource } = await import('./composeSource');
   const { chartMessage } = await import('$lib/chart/chartMessage');
+  const { dataMessage } = await import('$lib/dataBlock/dataMessage');
   const { CHART_INK } = await import('$lib/chart/chartInk');
   const { renderMermaidSvg } = await import('./renderMermaid');
   const { t } = await import('$lib/i18n/i18n.svelte');
@@ -57,6 +58,8 @@ export async function collectSitePlan(
         docPath: path,
         io: { readText: (target) => invoke<string>('read_document', { root, relPath: target }) },
         describe: (problem) => chartMessage(problem, t),
+        describeData: (problem) => dataMessage(problem, t),
+        rawHtml,
         ink: CHART_INK.light,
         mermaid: { theme: 'light', render: renderMermaidSvg },
       }),

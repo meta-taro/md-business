@@ -4,12 +4,14 @@ import { composeExportSource } from './composeSource';
 const FENCE = '```';
 const TSV = '月\t売上\n1月\t10\n2月\t20\n';
 const CHART = `${FENCE}chart\ntype: line\nsource: ./売上.tsv\nx: 月\ny: 売上\n${FENCE}`;
+const DATA = `${FENCE}data\nsource: ./売上.tsv\n${FENCE}`;
 
 function compose(
   source: string,
   overrides: {
     readImage?: (path: string) => Promise<string>;
     readText?: (path: string) => Promise<string>;
+    rawHtml?: boolean;
   } = {},
 ) {
   return composeExportSource(source, {
@@ -19,6 +21,8 @@ function compose(
       readText: overrides.readText ?? (() => Promise.resolve(TSV)),
     },
     describe: (problem) => `[${problem.kind}]`,
+    describeData: (problem) => `[${problem.kind}]`,
+    rawHtml: overrides.rawHtml,
   });
 }
 
@@ -32,6 +36,7 @@ ${FENCE}`;
       docPath: 'docs/月報.md',
       io: { readText: () => Promise.resolve(TSV) },
       describe: (problem) => `[${problem.kind}]`,
+      describeData: (problem) => `[${problem.kind}]`,
       mermaid: {
         theme: 'light',
         render: () =>
@@ -47,6 +52,7 @@ ${FENCE}`;
       docPath: 'docs/月報.md',
       io: { readText: () => Promise.resolve(TSV) },
       describe: (problem) => `[${problem.kind}]`,
+      describeData: (problem) => `[${problem.kind}]`,
     });
     expect(out).toBe('![図](./a.png)');
   });
@@ -60,6 +66,24 @@ ${FENCE}`;
     const out = await compose(CHART);
     expect(out).toContain('](data:image/svg+xml;base64,');
     expect(out).not.toContain(`${FENCE}chart`);
+  });
+
+  it('データの囲みを表に替える', async () => {
+    const out = await compose(DATA);
+    expect(out).toContain('| 月 | 売上 |');
+    expect(out).toContain('| 1月 | 10 |');
+    expect(out).not.toContain(`${FENCE}data`);
+  });
+
+  it('生の HTML が通る組み立てなら、中身をそのまま渡す囲みも添える', async () => {
+    const out = await compose(DATA, { rawHtml: true });
+    expect(out).toContain('<script type="application/json" data-source="./売上.tsv">');
+    expect(out).toContain('"売上":"10"');
+  });
+
+  it('通らない組み立てには添えない（落とされるものを本文に混ぜない）', async () => {
+    const out = await compose(DATA);
+    expect(out).not.toContain('<script');
   });
 
   it('画像と図が両方あってもどちらも入る', async () => {

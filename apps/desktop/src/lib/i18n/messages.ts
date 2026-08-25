@@ -541,6 +541,18 @@ export interface Messages {
   'chart.badPath': string;
   'chart.readFailed': string;
   'chart.unreadableCells': string;
+
+  // 本文に置いたデータの囲み（```data）。開いた .json / .xml の画面（data.*）とは別。
+  'dataBlock.failed': string;
+  'dataBlock.atLine': string;
+  'dataBlock.empty': string;
+  'dataBlock.syntax': string;
+  'dataBlock.unknownKey': string;
+  'dataBlock.duplicateKey': string;
+  'dataBlock.missing': string;
+  'dataBlock.badPath': string;
+  'dataBlock.readFailed': string;
+  'dataBlock.noRows': string;
   // 更新のお知らせ（7 状態 + 変更履歴）
   'update.dialogLabel': string;
   'update.checkingTitle': string;
@@ -1174,6 +1186,17 @@ const en: Messages = {
   'chart.badPath': 'this file is not inside the open folder ({raw}).',
   'chart.readFailed': 'could not read the table ({raw}).',
   'chart.unreadableCells': '{raw} cell(s) did not read as a number and were left blank in the chart.',
+
+  'dataBlock.failed': 'Could not build the table. {detail}',
+  'dataBlock.atLine': 'Line {line}: {detail}',
+  'dataBlock.empty': 'the block is empty. Write source to point at a table.',
+  'dataBlock.syntax': 'this line is not written as `name: value` ({raw}).',
+  'dataBlock.unknownKey': 'unknown setting ({raw}).',
+  'dataBlock.duplicateKey': 'the same setting is written twice ({raw}).',
+  'dataBlock.missing': 'a setting is missing ({raw}).',
+  'dataBlock.badPath': 'this file is not inside the open folder ({raw}).',
+  'dataBlock.readFailed': 'could not read the table ({raw}).',
+  'dataBlock.noRows': 'the table has no rows.',
   'update.dialogLabel': 'Application update',
   'update.checkingTitle': 'Checking for updates…',
   'update.upToDateTitle': 'You are up to date',
@@ -1805,6 +1828,17 @@ const ja: Messages = {
   'chart.badPath': '開いているフォルダの中にありません（{raw}）。',
   'chart.readFailed': '表を読めません（{raw}）。',
   'chart.unreadableCells': '数として読めないセルが {raw} 個ありました。その分は図では空けてあります。',
+
+  'dataBlock.failed': 'データを表にできません。{detail}',
+  'dataBlock.atLine': '{line} 行目: {detail}',
+  'dataBlock.empty': '囲みが空です。source に表の場所を書いてください。',
+  'dataBlock.syntax': 'この行が `名前: 値` の形になっていません（{raw}）。',
+  'dataBlock.unknownKey': '知らない指定です（{raw}）。',
+  'dataBlock.duplicateKey': '同じ指定が 2 度書かれています（{raw}）。',
+  'dataBlock.missing': '指定が足りません（{raw}）。',
+  'dataBlock.badPath': '開いているフォルダの中にありません（{raw}）。',
+  'dataBlock.readFailed': '表を読めません（{raw}）。',
+  'dataBlock.noRows': '表に行がありません。',
   'update.dialogLabel': 'アプリの更新',
   'update.checkingTitle': '更新を確認しています…',
   'update.upToDateTitle': '最新の状態です',
@@ -2429,6 +2463,17 @@ const zh: Messages = {
   'chart.badPath': '该文件不在已打开的文件夹内（{raw}）。',
   'chart.readFailed': '无法读取表格（{raw}）。',
   'chart.unreadableCells': '有 {raw} 个单元格无法作为数字读取，图中相应位置留空。',
+
+  'dataBlock.failed': '无法将数据转成表格。{detail}',
+  'dataBlock.atLine': '第 {line} 行：{detail}',
+  'dataBlock.empty': '代码块为空。请用 source 指定表格位置。',
+  'dataBlock.syntax': '该行不是 `名称: 值` 的形式（{raw}）。',
+  'dataBlock.unknownKey': '无法识别的设置（{raw}）。',
+  'dataBlock.duplicateKey': '同一设置写了两次（{raw}）。',
+  'dataBlock.missing': '缺少设置（{raw}）。',
+  'dataBlock.badPath': '该文件不在已打开的文件夹内（{raw}）。',
+  'dataBlock.readFailed': '无法读取表格（{raw}）。',
+  'dataBlock.noRows': '表格中没有数据行。',
   'update.dialogLabel': '应用更新',
   'update.checkingTitle': '正在检查更新…',
   'update.upToDateTitle': '已是最新版本',
@@ -3056,6 +3101,17 @@ const ko: Messages = {
   'chart.badPath': '열려 있는 폴더 안에 없습니다({raw}).',
   'chart.readFailed': '표를 읽을 수 없습니다({raw}).',
   'chart.unreadableCells': '숫자로 읽지 못한 칸이 {raw}개 있어 차트에서는 비워 두었습니다.',
+
+  'dataBlock.failed': '데이터를 표로 만들 수 없습니다. {detail}',
+  'dataBlock.atLine': '{line}번째 줄: {detail}',
+  'dataBlock.empty': '블록이 비어 있습니다. source 에 표의 위치를 적어 주세요.',
+  'dataBlock.syntax': '이 줄이 `이름: 값` 형태가 아닙니다({raw}).',
+  'dataBlock.unknownKey': '알 수 없는 설정입니다({raw}).',
+  'dataBlock.duplicateKey': '같은 설정이 두 번 적혀 있습니다({raw}).',
+  'dataBlock.missing': '설정이 부족합니다({raw}).',
+  'dataBlock.badPath': '열려 있는 폴더 안에 없습니다({raw}).',
+  'dataBlock.readFailed': '표를 읽을 수 없습니다({raw}).',
+  'dataBlock.noRows': '표에 행이 없습니다.',
   'update.dialogLabel': '앱 업데이트',
   'update.checkingTitle': '업데이트를 확인하는 중…',
   'update.upToDateTitle': '최신 상태입니다',

@@ -1,5 +1,5 @@
 /**
- * 書き出す本文を仕上げる（画像を埋め、図を描く）。
+ * 書き出す本文を仕上げる（画像を埋め、図を描き、表を差し込む）。
  *
  * プレビューは打鍵のたびに組み直すので、画像も図も「読めたものから順に反映する」形で
  * 持っている（`+page.svelte`）。書き出しは 1 回きりなので、そちらの状態を待たずに
@@ -16,6 +16,9 @@ import { loadInlineImages } from '../image/loadInlineImages';
 import { replaceChartBlocks } from '../chart/chartBlocks';
 import { loadCharts } from '../chart/loadCharts';
 import type { ChartLoadProblem } from '../chart/loadCharts';
+import { replaceDataBlocks } from '../dataBlock/dataBlocks';
+import { loadDataBlocks } from '../dataBlock/loadData';
+import type { DataLoadProblem } from '../dataBlock/loadData';
 import { loadMermaidImages } from './mermaidBlocks';
 import type { LoadMermaidOptions } from './mermaidBlocks';
 import { replaceFencedBlocks } from '../markdown/fencedBlocks';
@@ -36,6 +39,10 @@ export interface ComposeSourceOptions {
   io: ComposeSourceIo;
   /** 図を描けなかった理由を 1 文にする。 */
   describe: (problem: ChartLoadProblem) => string;
+  /** 表にできなかった理由を 1 文にする。 */
+  describeData: (problem: DataLoadProblem) => string;
+  /** 生の HTML がそのまま通る組み立てか。表に中身をそのまま渡す囲みを添えるかが変わる。 */
+  rawHtml?: boolean;
   /** 図の文字色。 */
   ink?: string;
   /** 作図（mermaid）の描画。渡さなければ囲みのまま残る。 */
@@ -63,6 +70,14 @@ export async function composeExportSource(
   });
   const withCharts = replaceChartBlocks(withImages, charts);
 
-  if (options.mermaid === undefined) return withCharts;
-  return replaceFencedBlocks(withCharts, await loadMermaidImages(withCharts, options.mermaid));
+  const data = await loadDataBlocks(withCharts, {
+    docPath: options.docPath,
+    read: options.io.readText,
+    describe: options.describeData,
+    rawHtml: options.rawHtml,
+  });
+  const withData = replaceDataBlocks(withCharts, data);
+
+  if (options.mermaid === undefined) return withData;
+  return replaceFencedBlocks(withData, await loadMermaidImages(withData, options.mermaid));
 }

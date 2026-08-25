@@ -107,6 +107,7 @@ class ImageExportController {
     const { composeExportSource } = await import('./composeSource');
     const { workspaceIo } = await import('./workspaceIo');
     const { chartMessage } = await import('$lib/chart/chartMessage');
+    const { dataMessage } = await import('$lib/dataBlock/dataMessage');
     const { CHART_INK } = await import('$lib/chart/chartInk');
     const { t } = await import('$lib/i18n/i18n.svelte');
     const { renderMermaidSvg } = await import('./renderMermaid');
@@ -119,6 +120,7 @@ class ImageExportController {
           docPath: relPath,
           io,
           describe: (problem) => chartMessage(problem, t),
+          describeData: (problem) => dataMessage(problem, t),
           mermaid: { theme: 'light', render: renderMermaidSvg },
           ink: CHART_INK.light,
         });

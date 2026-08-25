@@ -56,6 +56,9 @@
   import { CHART_INK } from '$lib/chart/chartInk';
   import { chartMessage } from '$lib/chart/chartMessage';
   import { loadCharts } from '$lib/chart/loadCharts';
+  import { replaceDataBlocks } from '$lib/dataBlock/dataBlocks';
+  import { dataMessage } from '$lib/dataBlock/dataMessage';
+  import { loadDataBlocks } from '$lib/dataBlock/loadData';
   import { inlineImages } from '$lib/image/inlineImages';
   import { loadInlineImages, type InlineImageFailure } from '$lib/image/loadInlineImages';
   import { formatSize } from '$lib/components/fileInfo';
@@ -387,9 +390,34 @@
     });
   });
 
-  // 描くのは画像と図を埋めた本文。読めたものが 1 つも無ければ元の本文がそのまま返る。
+  // 本文の `data` の囲みも同じく、指した表を読んで Markdown の表に差し替える。
+  // 画面は生の HTML を落とすので、中身をそのまま渡す囲みはここでは添えない（書き出し側で添う）。
+  let dataMarkup = $state<ReadonlyMap<string, string>>(new Map());
+  let dataGeneration = 0;
+  $effect(() => {
+    const root = workspace.root;
+    const relPath = workspace.activePath;
+    const source = debouncedSource;
+    if (root === null || relPath === null || !shouldRenderPreview(paneState)) {
+      dataMarkup = new Map();
+      return;
+    }
+    const generation = ++dataGeneration;
+    void loadDataBlocks(source, {
+      docPath: relPath,
+      read: (path) => invoke<string>('read_document', { root, relPath: path }),
+      describe: (problem) => dataMessage(problem, t),
+    }).then((result) => {
+      if (generation === dataGeneration) dataMarkup = result;
+    });
+  });
+
+  // 描くのは画像と図と表を埋めた本文。読めたものが 1 つも無ければ元の本文がそのまま返る。
   const previewSource = $derived(
-    replaceChartBlocks(inlineImages(debouncedSource, inlineUrls), chartMarkup),
+    replaceDataBlocks(
+      replaceChartBlocks(inlineImages(debouncedSource, inlineUrls), chartMarkup),
+      dataMarkup,
+    ),
   );
 
   let preview = $state<PreviewResult | null>(null);
