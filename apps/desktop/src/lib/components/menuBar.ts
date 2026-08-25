@@ -17,6 +17,7 @@ export type MenuItemId =
 	| 'image'
 	| 'site'
 	| 'browser'
+	| 'publish'
 	| 'theme'
 	| 'timeline'
 	| 'language';
@@ -26,7 +27,7 @@ export const MENU_IDS: readonly MenuId[] = ['file', 'export', 'view'];
 
 export const MENU_ITEMS: Record<MenuId, readonly MenuItemId[]> = {
 	file: ['openFolder', 'save', 'autosave'],
-	export: ['pdf', 'html', 'image', 'site', 'browser'],
+	export: ['pdf', 'html', 'image', 'site', 'browser', 'publish'],
 	view: ['theme', 'timeline', 'language'],
 };
 
@@ -41,6 +42,7 @@ export interface MenuCaps {
 	canImage: boolean;
 	imagePicking: boolean;
 	canSite: boolean;
+	canPublish: boolean;
 	browserBusy: boolean;
 	timelineOpen: boolean;
 }
@@ -71,6 +73,9 @@ export function isItemEnabled(item: MenuItemId, caps: MenuCaps): boolean {
 		case 'browser':
 			// 押せば開くだけ。出しているかは見ない（開いていれば、そのまま同じ先へ開く）。
 			return !caps.browserBusy && caps.hasRoot;
+		case 'publish':
+			// 下見を取りに行けるかだけ。出せる/出せないの判断は、下見を見てから。
+			return caps.canPublish;
 		case 'timeline':
 			return caps.hasRoot || caps.timelineOpen;
 	}

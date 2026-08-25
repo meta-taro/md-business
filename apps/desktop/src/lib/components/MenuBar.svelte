@@ -17,6 +17,8 @@
     siteExport,
     type SiteExportResult,
   } from '$lib/preview/siteExportController.svelte';
+  import { publish } from '$lib/preview/publishController.svelte';
+  import { openUrl } from '@tauri-apps/plugin-opener';
   import {
     browserPreview,
     type BrowserPreviewNotice,
@@ -61,6 +63,7 @@
     canImage: imageExport.canExport,
     imagePicking: imageExport.picking,
     canSite: siteExport.canExport,
+    canPublish: publish.canPublish,
     browserBusy: browserPreview.busy,
     timelineOpen: timelineView.active,
   });
@@ -87,6 +90,8 @@
         return t('action.image');
       case 'site':
         return t('action.site');
+      case 'publish':
+        return publish.busy ? t('publish.preparing') : t('publish.label');
       case 'browser':
         return t('action.browser');
       case 'theme':
@@ -97,6 +102,12 @@
       case 'language':
         return t('lang.label');
     }
+  }
+
+  /** 出した先を、この PC のブラウザで開く。開けなくてもアプリ側は何もしない。 */
+  function openLink(url: string | null | undefined): void {
+    if (!url) return;
+    void openUrl(url).catch(() => undefined);
   }
 
   function runItem(item: MenuItemId): void {
@@ -123,6 +134,10 @@
         return;
       case 'site':
         void siteExport.run();
+        return;
+      case 'publish':
+        // 組み立ててから下見を出す。ここでは何も外へ出さない（出すのは下見の中で押す）。
+        void publish.prepare();
         return;
       case 'browser':
         // 開くだけ。止める口はここに置かない（出ているものを止めたい用事が無く、
@@ -392,6 +407,36 @@
         {siteNote(siteExport.result)}
       </span>
     {/if}
+    {#if publish.done !== null}
+      <!-- 出した後。走っているところへ行ける導線が無いと、出たのか出ていないのかが
+           画面から分からない。閉じるまで置いておく（読み飛ばすと辿る先が消える）。 -->
+      <span class="export-note is-publish" role="status">
+        {publish.done.committed > 0
+          ? t('publish.doneCommitted', { count: publish.done.committed })
+          : t('publish.done')}
+        {#if publish.done.runsUrl !== null}
+          <button class="note-link" type="button" onclick={() => openLink(publish.done?.runsUrl)}>
+            {t('publish.runs')}
+          </button>
+        {/if}
+        {#if publish.done.url !== null}
+          <button class="note-link" type="button" onclick={() => openLink(publish.done?.url)}>
+            {t('publish.url')}
+          </button>
+        {/if}
+        <button class="note-link" type="button" onclick={() => publish.dismiss()}>
+          {t('common.close')}
+        </button>
+      </span>
+    {/if}
+    {#if publish.error !== null}
+      <span class="export-note is-error is-publish" role="status" title={publish.error}>
+        {t('publish.error', { message: publish.error })}
+        <button class="note-link" type="button" onclick={() => publish.dismiss()}>
+          {t('common.close')}
+        </button>
+      </span>
+    {/if}
     {#if browserPreview.serving !== null}
       <!-- 出している間はアドレスを出しっぱなしにする。消すと、開き直す先が分からなくなる。 -->
       <span
@@ -655,6 +700,26 @@
     font-size: var(--text-2xs-size);
     line-height: 1.8;
     color: var(--text-secondary);
+  }
+
+  /* 出した後の案内は、辿る先（走っているところ・置き先）を押せる形で持つので幅を切らない。 */
+  .export-note.is-publish {
+    max-width: none;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+  }
+
+  .note-link {
+    flex: none;
+    padding: 0;
+    border: none;
+    background: none;
+    color: var(--accent);
+    font-family: inherit;
+    font-size: inherit;
+    text-decoration: underline;
+    cursor: pointer;
   }
 
   .export-note.is-error {

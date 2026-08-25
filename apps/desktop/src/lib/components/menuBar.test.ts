@@ -20,6 +20,7 @@ const idle: MenuCaps = {
   canImage: false,
   imagePicking: false,
   canSite: false,
+  canPublish: false,
   browserBusy: false,
   timelineOpen: false,
 };
@@ -30,7 +31,14 @@ describe('メニューの並び', () => {
   });
 
   it('書き出し系は 1 つのメニューに集まる', () => {
-    expect(itemsOf('export')).toEqual(['pdf', 'html', 'image', 'site', 'browser']);
+    expect(itemsOf('export')).toEqual([
+      'pdf',
+      'html',
+      'image',
+      'site',
+      'browser',
+      'publish',
+    ]);
   });
 
   it('どの項目もちょうど 1 つのメニューに属する（重複も迷子も作らない）', () => {
@@ -66,6 +74,11 @@ describe('押せるかどうか', () => {
 
   it('ブラウザ表示は、切り替えの最中は押せない', () => {
     expect(isItemEnabled('browser', { ...idle, hasRoot: true, browserBusy: true })).toBe(false);
+  });
+
+  it('出すのは、下見を取れる状態のときだけ押せる', () => {
+    expect(isItemEnabled('publish', idle)).toBe(false);
+    expect(isItemEnabled('publish', { ...idle, canPublish: true })).toBe(true);
   });
 
   it('時系列はフォルダを開いてから', () => {

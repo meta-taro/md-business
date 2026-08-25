@@ -50,12 +50,21 @@ class SiteExportController {
     return !this.busy && workspace.root !== null;
   }
 
-  /** Top bar のボタンから呼ぶ。 */
+  /** Top bar のボタンから呼ぶ。結果は自分で出す。 */
   async run(): Promise<void> {
     if (!this.canExport) return;
     const root = workspace.root;
     if (root === null) return;
+    this.#notify(await this.execute(root));
+  }
 
+  /**
+   * 書き出しだけを行い、結果を返す（表示はしない）。
+   *
+   * 出す操作のように、書き出したあとに続きがある側から呼ぶ。途中の結果を出してしまうと、
+   * まだ終わっていないのに終わったように見える。
+   */
+  async execute(root: string): Promise<SiteExportResult> {
     this.busy = true;
     try {
       // 宣言と同意の突き合わせも、ブラウザ表示と同じものを通す。ここを飛ばすと
@@ -68,16 +77,14 @@ class SiteExportController {
         : false;
       const step = planWrite(policy, trusted);
       if (step.kind === 'consent') {
-        this.#notify({ kind: 'consent' });
-        return;
+        return { kind: 'consent' };
       }
 
       // 組み立てはブラウザ表示と同じ手順を通す（collectSite）。
       const plan = await collectSitePlan(root, { rawHtml: step.rawHtml });
       if (plan.pages.length === 0) {
         // 出せる文書が無いか、全部プレビューに失敗した。中身の無いサイトを置いても使い道が無い。
-        this.#notify({ kind: 'none', skipped: plan.skipped });
-        return;
+        return { kind: 'none', skipped: plan.skipped };
       }
 
       // 画像は中身を渡さず「どれをどこへ」だけを渡す。読むのも置くのも Rust 側。
@@ -86,15 +93,15 @@ class SiteExportController {
         files: plan.files,
         assets: plan.assets,
       });
-      this.#notify({
+      return {
         kind: 'done',
         dir: written.dir,
         count: written.count,
         skipped: plan.skipped,
-      });
+      };
     } catch (e) {
       // Rust の Err(String) は reject 値として届く（Error とは限らない）。
-      this.#notify({ kind: 'error', message: e instanceof Error ? e.message : String(e) });
+      return { kind: 'error', message: e instanceof Error ? e.message : String(e) };
     } finally {
       this.busy = false;
     }

@@ -70,6 +70,34 @@ export interface Messages {
   'action.siteDoneSkipped': string;
   'action.siteNone': string;
   'action.siteConsent': string;
+  /** 組み立てて置き先へ出す一連（押すのは人）。 */
+  'publish.label': string;
+  'publish.title': string;
+  'publish.dialogTitle': string;
+  'publish.remote': string;
+  'publish.branch': string;
+  'publish.branchNew': string;
+  'publish.built': string;
+  'publish.changed': string;
+  'publish.pending': string;
+  'publish.more': string;
+  'publish.message': string;
+  'publish.defaultMessage': string;
+  'publish.confirm': string;
+  'publish.cancel': string;
+  'publish.preparing': string;
+  'publish.publishing': string;
+  'publish.done': string;
+  'publish.doneCommitted': string;
+  'publish.runs': string;
+  'publish.url': string;
+  'publish.noRepo': string;
+  'publish.noRemote': string;
+  'publish.detached': string;
+  'publish.conflicted': string;
+  'publish.behind': string;
+  'publish.nothing': string;
+  'publish.error': string;
   'action.browser': string;
   'action.openInBrowser': string;
   /** 待ち受けを立てて、この面に出しているものをそのまま映す。 */
@@ -685,6 +713,33 @@ const en: Messages = {
   'action.siteNone': 'No document could be turned into a page',
   'action.siteConsent':
     'This folder declares web mode but is not allowed on this PC yet. Press Live once and allow it, then export.',
+  'publish.label': 'Publish',
+  'publish.title': 'Build this folder and publish it to its destination',
+  'publish.dialogTitle': 'Before publishing',
+  'publish.remote': 'Destination',
+  'publish.branch': 'Branch',
+  'publish.branchNew': 'This branch is not there yet. Publishing creates it.',
+  'publish.built': 'Built {count} files',
+  'publish.changed': '{count} files will change',
+  'publish.pending': '{count} commits not published yet',
+  'publish.more': '{count} more',
+  'publish.message': 'Summary for the record',
+  'publish.defaultMessage': 'Update site',
+  'publish.confirm': 'Publish',
+  'publish.cancel': 'Cancel',
+  'publish.preparing': 'Building…',
+  'publish.publishing': 'Publishing…',
+  'publish.done': 'Published',
+  'publish.doneCommitted': 'Recorded {count} files and published',
+  'publish.runs': 'See it running',
+  'publish.url': 'Continue on the destination',
+  'publish.noRepo': 'This folder is not managed by git, so there is nowhere to publish to.',
+  'publish.noRemote': 'No destination is set. Add a git remote first.',
+  'publish.detached': 'You are not on a branch. Switch to one first.',
+  'publish.conflicted': 'Some files are not merged yet: {paths}',
+  'publish.behind': 'The destination is {count} commits ahead. Pull first.',
+  'publish.nothing': 'Nothing to publish.',
+  'publish.error': 'Could not publish: {message}',
   'action.browser': 'Browser',
   'action.openInBrowser': 'Open in {name}',
   'action.liveStart': 'Run this folder and show it here',
@@ -1290,6 +1345,33 @@ const ja: Messages = {
   'action.siteNone': 'ページに出来る文書がありませんでした',
   'action.siteConsent':
     'このフォルダは web モードですが、この PC ではまだ許していません。「ライブ」を一度押して許可してから書き出してください',
+  'publish.label': '公開',
+  'publish.title': '組み立てて、置き先へ出す',
+  'publish.dialogTitle': '出す前に',
+  'publish.remote': '置き先',
+  'publish.branch': 'ブランチ',
+  'publish.branchNew': 'この名前は置き先にまだありません。出すと作られます。',
+  'publish.built': '{count} 件を組み立てました',
+  'publish.changed': '変わるファイル {count} 件',
+  'publish.pending': 'まだ出していない分 {count} 件',
+  'publish.more': 'ほか {count} 件',
+  'publish.message': '記録に残す見出し',
+  'publish.defaultMessage': 'サイトを更新',
+  'publish.confirm': '出す',
+  'publish.cancel': 'やめる',
+  'publish.preparing': '組み立てています…',
+  'publish.publishing': '出しています…',
+  'publish.done': '出しました',
+  'publish.doneCommitted': '{count} 件を記録して出しました',
+  'publish.runs': '走っているところを見る',
+  'publish.url': '続きを置き先で開く',
+  'publish.noRepo': 'このフォルダは git で管理されていません。出す先が決められません。',
+  'publish.noRemote': '置き先が決まっていません。git のリモートを足してから出してください。',
+  'publish.detached': 'どのブランチにも乗っていません。ブランチへ移ってから出してください。',
+  'publish.conflicted': '突き合わせが終わっていないファイルがあります: {paths}',
+  'publish.behind': '置き先の方が {count} 件進んでいます。先に取り込んでから出してください。',
+  'publish.nothing': '出すものがありません。',
+  'publish.error': '出せませんでした: {message}',
   'action.browser': 'ブラウザ',
   'action.openInBrowser': '{name} で開く',
   'action.liveStart': 'このフォルダを動かして、この面に映す',
@@ -1891,6 +1973,33 @@ const zh: Messages = {
   'action.siteNone': '没有可生成页面的文档',
   'action.siteConsent':
     '此文件夹声明为 web 模式，但本机尚未允许。请先按一次「实时」并允许，然后再导出。',
+  'publish.label': '发布',
+  'publish.title': '构建并发布到目标位置',
+  'publish.dialogTitle': '发布前确认',
+  'publish.remote': '目标位置',
+  'publish.branch': '分支',
+  'publish.branchNew': '目标位置上还没有这个分支，发布时会创建。',
+  'publish.built': '已构建 {count} 个文件',
+  'publish.changed': '将有 {count} 个文件变更',
+  'publish.pending': '还有 {count} 个提交未发布',
+  'publish.more': '还有 {count} 个',
+  'publish.message': '记录用的说明',
+  'publish.defaultMessage': '更新网站',
+  'publish.confirm': '发布',
+  'publish.cancel': '取消',
+  'publish.preparing': '正在构建…',
+  'publish.publishing': '正在发布…',
+  'publish.done': '已发布',
+  'publish.doneCommitted': '已记录 {count} 个文件并发布',
+  'publish.runs': '查看运行情况',
+  'publish.url': '在目标位置继续',
+  'publish.noRepo': '此文件夹不在 git 管理下，无法确定发布目标。',
+  'publish.noRemote': '尚未设置目标位置。请先添加 git 远程仓库。',
+  'publish.detached': '当前不在任何分支上。请先切换到分支。',
+  'publish.conflicted': '有文件尚未合并完成：{paths}',
+  'publish.behind': '目标位置比本地多 {count} 个提交。请先拉取。',
+  'publish.nothing': '没有要发布的内容。',
+  'publish.error': '无法发布：{message}',
   'action.browser': '浏览器',
   'action.openInBrowser': '在 {name} 中打开',
   'action.liveStart': '运行此文件夹并在此处显示',
@@ -2488,6 +2597,33 @@ const ko: Messages = {
   'action.siteNone': '페이지로 만들 수 있는 문서가 없습니다',
   'action.siteConsent':
     '이 폴더는 web 모드이지만 이 PC에서는 아직 허용하지 않았습니다. 「라이브」를 한 번 눌러 허용한 뒤 내보내세요.',
+  'publish.label': '배포',
+  'publish.title': '만들어서 대상 위치로 내보냅니다',
+  'publish.dialogTitle': '내보내기 전 확인',
+  'publish.remote': '대상 위치',
+  'publish.branch': '브랜치',
+  'publish.branchNew': '대상 위치에 이 브랜치가 아직 없습니다. 내보내면 만들어집니다.',
+  'publish.built': '{count}개 파일을 만들었습니다',
+  'publish.changed': '{count}개 파일이 바뀝니다',
+  'publish.pending': '아직 내보내지 않은 커밋 {count}개',
+  'publish.more': '외 {count}개',
+  'publish.message': '기록에 남길 설명',
+  'publish.defaultMessage': '사이트 업데이트',
+  'publish.confirm': '내보내기',
+  'publish.cancel': '취소',
+  'publish.preparing': '만드는 중…',
+  'publish.publishing': '내보내는 중…',
+  'publish.done': '내보냈습니다',
+  'publish.doneCommitted': '{count}개 파일을 기록하고 내보냈습니다',
+  'publish.runs': '실행되는 곳 보기',
+  'publish.url': '대상 위치에서 계속하기',
+  'publish.noRepo': '이 폴더는 git으로 관리되지 않아 내보낼 곳을 정할 수 없습니다.',
+  'publish.noRemote': '대상 위치가 정해져 있지 않습니다. git 원격을 먼저 추가하세요.',
+  'publish.detached': '어느 브랜치에도 있지 않습니다. 브랜치로 옮긴 뒤 내보내세요.',
+  'publish.conflicted': '아직 합치지 못한 파일이 있습니다: {paths}',
+  'publish.behind': '대상 위치가 {count}개 앞서 있습니다. 먼저 가져온 뒤 내보내세요.',
+  'publish.nothing': '내보낼 것이 없습니다.',
+  'publish.error': '내보내지 못했습니다: {message}',
   'action.browser': '브라우저',
   'action.openInBrowser': '{name}에서 열기',
   'action.liveStart': '이 폴더를 실행해 이 화면에 표시',

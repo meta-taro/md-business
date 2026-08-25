@@ -19,6 +19,7 @@
   import { search } from '$lib/search/search.svelte';
   import TopBar from '$lib/components/TopBar.svelte';
   import MenuBar from '$lib/components/MenuBar.svelte';
+  import { publish } from '$lib/preview/publishController.svelte';
   import StatusBar from '$lib/components/StatusBar.svelte';
   import SourceControlPanel from '$lib/components/SourceControlPanel.svelte';
   import FileTree from '$lib/components/FileTree.svelte';
@@ -421,6 +422,12 @@
   自動確認は起動から数秒後で、更新が無ければ最後まで読み込まれない。
 -->
 {#if updater.visible}
+  {#if publish.plan !== null}
+    <!-- 出す前の下見。押すまで外へは何も出ない。 -->
+    {#await import('$lib/components/PublishDialog.svelte') then { default: PublishDialog }}
+      <PublishDialog plan={publish.plan} build={publish.build} />
+    {/await}
+  {/if}
   {#await import('$lib/update/UpdateDialog.svelte') then { default: UpdateDialog }}
     <UpdateDialog />
   {/await}
