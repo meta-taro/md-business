@@ -126,6 +126,7 @@ describe('createServer / MCP 配線', () => {
       'update_document',
       'update_tsv_row',
       'validate_document',
+      'write_site_file',
     ]);
   });
 
@@ -1042,6 +1043,47 @@ describe('createServer / declare_web_mode', () => {
     })) as CallToolResult;
     expect(parse(res).isError).toBe(true);
     expect(await store.read('md-business.yml')).toBe('mode: [web\n');
+  });
+});
+
+describe('createServer / write_site_file', () => {
+  const WEB = { 'md-business.yml': 'mode: web\n' };
+
+  it('web を名乗るフォルダにサイトの部品を書き、記録に残す', async () => {
+    const store = new MemoryDocumentStore(WEB);
+    const { client, logs } = await connectWithLog(store);
+    const res = (await client.callTool({
+      name: 'write_site_file',
+      arguments: { path: 'index.html', content: '<h1>やあ</h1>' },
+    })) as CallToolResult;
+    const { text, isError } = parse(res);
+    expect(isError).toBe(false);
+    expect(text).toMatchObject({ ok: true, path: 'index.html', created: true });
+    expect(await store.read('index.html')).toBe('<h1>やあ</h1>');
+    expect(logs.at(-1)).toMatchObject({ tool: 'write_site_file', path: 'index.html', ok: true });
+  });
+
+  it('名乗っていないフォルダには書かない', async () => {
+    // 置いても一覧に出ないので、作った当人にも確かめる手段が無い。
+    const store = new MemoryDocumentStore();
+    const client = await connect(store);
+    const res = (await client.callTool({
+      name: 'write_site_file',
+      arguments: { path: 'index.html', content: '<h1>やあ</h1>' },
+    })) as CallToolResult;
+    expect(parse(res).isError).toBe(true);
+    expect(await store.exists('index.html')).toBe(false);
+  });
+
+  it('業務文書は専用の口へ回す', async () => {
+    const store = new MemoryDocumentStore(WEB);
+    const client = await connect(store);
+    const res = (await client.callTool({
+      name: 'write_site_file',
+      arguments: { path: 'spec.md', content: '# 仕様' },
+    })) as CallToolResult;
+    expect(parse(res).isError).toBe(true);
+    expect(await store.exists('spec.md')).toBe(false);
   });
 });
 

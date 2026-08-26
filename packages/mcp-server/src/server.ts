@@ -42,6 +42,7 @@ import {
   declareSummary,
   WEB_MODE_DECLARATION_TEXT,
 } from './webMode.js';
+import { writeSiteFile } from './siteFiles.js';
 import { buildToolLogEntry, type ToolLogEntry, type ToolResultLike } from './toolLog.js';
 
 /** MCP クライアントへ提示するサーバー名 / バージョン（プロトコル上の識別子）。 */
@@ -873,6 +874,26 @@ export function createServer(store: DocumentStore, options: CreateServerOptions 
       };
       emit('declare_web_mode', PROJECT_CONFIG_FILENAME, r);
       return jsonResult(r);
+    },
+  );
+
+  server.registerTool(
+    'write_site_file',
+    {
+      description:
+        'サイトの部品（HTML / CSS / JS など）を 1 ファイル書く。中身は渡されたまま置く。' +
+        `web モードを名乗っているフォルダでしか書けない（先に declare_web_mode）。` +
+        '業務文書（.md）と検証シート（.tsv）はここでは書かない——それぞれ専用の口がある。' +
+        '書いた結果が意図どおりかは、ブラウザで見て確かめる。',
+      inputSchema: {
+        path: z.string().describe('ワークスペース相対パス（例 index.html / assets/app.js）'),
+        content: z.string().describe('ファイルの中身そのもの。既にあれば置き換える'),
+      },
+    },
+    async ({ path, content }) => {
+      const r = await writeSiteFile(store, { path, content });
+      emit('write_site_file', r.ok ? r.path : path, r);
+      return jsonResult(r, !r.ok);
     },
   );
 
