@@ -38,6 +38,13 @@ export interface ProjectConfig {
    * Always empty in document mode, and empty unless the project names them.
    */
   scriptOrigins: string[];
+  /**
+   * Where the project's own development server answers, when it runs one.
+   *
+   * The app points a window at this; it never starts the process. Only an
+   * address on this machine is accepted — see `readDevServer`.
+   */
+  devServer: string | null;
 }
 
 export type ProjectConfigProblemKind =
@@ -50,7 +57,9 @@ export type ProjectConfigProblemKind =
   /** `web.scriptOrigins` was present but is not a list. */
   | 'bad-script-origins'
   /** One entry of `web.scriptOrigins` was not usable and was dropped. */
-  | 'origin-rejected';
+  | 'origin-rejected'
+  /** `web.devServer` was present but not an address this app will point at. */
+  | 'bad-dev-server';
 
 export interface ProjectConfigProblem {
   kind: ProjectConfigProblemKind;
@@ -70,7 +79,7 @@ export interface ProjectConfigResult {
 
 /** What a project gets when it has declared nothing, or declared it badly. */
 function closedConfig(): ProjectConfig {
-  return { mode: 'document', scriptOrigins: [] };
+  return { mode: 'document', scriptOrigins: [], devServer: null };
 }
 
 /** Plain text is only trustworthy when it never leaves the machine. */
@@ -163,6 +172,57 @@ function readScriptOrigins(
 }
 
 /**
+ * Turn a declared development-server address into one the app may display.
+ *
+ * Unlike `scriptOrigins`, a path is kept: a site is sometimes served under one,
+ * and the address is used as written rather than as a permission that spreads
+ * across an origin.
+ *
+ * Only this machine is accepted. The declaration ships with the project, so an
+ * address elsewhere would let a file in the repository choose what the app
+ * displays — and the window it lands in has no content restrictions, because
+ * the project's own scripts have to run there. A development server that is
+ * not on this machine is also not a development server.
+ */
+function readDevServer(entry: unknown): { url: string } | { message: string } {
+  const written = typeof entry === 'string' ? entry.trim() : '';
+  if (written === '') {
+    return {
+      message: 'web.devServer must be an address such as http://localhost:4321.',
+    };
+  }
+  let url: URL;
+  try {
+    url = new URL(written);
+  } catch {
+    return {
+      message: `web.devServer "${written}" is not an address. Write it in full, such as http://localhost:4321.`,
+    };
+  }
+  if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+    return {
+      message: `web.devServer "${written}" is not served over http. Write http://localhost:4321, with the port your server prints.`,
+    };
+  }
+  if (url.username !== '' || url.password !== '') {
+    return {
+      message: `web.devServer "${written}" carries credentials. Write the address alone.`,
+    };
+  }
+  if (!isLocalHost(url)) {
+    return {
+      message: `web.devServer "${written}" is not on this machine. Write localhost, 127.0.0.1 or [::1] — the app shows a server you are running here, and never starts one.`,
+    };
+  }
+  if (url.search !== '' || url.hash !== '') {
+    return {
+      message: `web.devServer "${written}" carries a query. Write the address the server prints, such as ${url.origin}${url.pathname}.`,
+    };
+  }
+  return { url: url.href };
+}
+
+/**
  * Read the project configuration file.
  *
  * Never throws, and never leaves the caller without a configuration: anything
@@ -231,11 +291,22 @@ export function parseProjectConfig(source: string): ProjectConfigResult {
   // Read only in the mode it applies to. Answering with origins a document
   // project happens to list would suggest they are in effect somewhere.
   let scriptOrigins: string[] = [];
+  let devServer: string | null = null;
   if (mode === 'web') {
     const web = root.web;
     if (web !== undefined && web !== null) {
       if (typeof web === 'object' && !Array.isArray(web)) {
-        scriptOrigins = readScriptOrigins(web as Record<string, unknown>, problems);
+        const settings = web as Record<string, unknown>;
+        scriptOrigins = readScriptOrigins(settings, problems);
+        const declaredDev = settings.devServer;
+        if (declaredDev !== undefined && declaredDev !== null) {
+          const read = readDevServer(declaredDev);
+          if ('message' in read) {
+            problems.push({ kind: 'bad-dev-server', message: read.message });
+          } else {
+            devServer = read.url;
+          }
+        }
       } else {
         problems.push({
           kind: 'bad-script-origins',
@@ -245,7 +316,7 @@ export function parseProjectConfig(source: string): ProjectConfigResult {
     }
   }
 
-  return { config: { mode, scriptOrigins }, problems };
+  return { config: { mode, scriptOrigins, devServer }, problems };
 }
 
 /**
