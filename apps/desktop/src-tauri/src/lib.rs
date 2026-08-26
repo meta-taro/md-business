@@ -85,6 +85,7 @@ pub fn run() {
             workspace::scan_site_assets,
             workspace::read_document,
             workspace::read_project_config,
+            workspace::set_web_mode,
             workspace::write_document,
             workspace::create_document,
             workspace::rename_entry,

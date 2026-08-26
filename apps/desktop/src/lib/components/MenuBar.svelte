@@ -66,6 +66,8 @@
     canPublish: publish.canPublish,
     browserBusy: browserPreview.busy,
     trusted: browserPreview.trusted,
+    declaredWeb: browserPreview.declaredWeb,
+    canDeclareWeb: browserPreview.canDeclareWeb,
     timelineOpen: timelineView.active,
   });
 
@@ -95,6 +97,8 @@
         return publish.busy ? t('publish.preparing') : t('publish.label');
       case 'browser':
         return t('action.browser');
+      case 'webMode':
+        return t('action.webMode');
       case 'revokeTrust':
         return t('action.revokeTrust');
       case 'theme':
@@ -146,6 +150,11 @@
         // 開くだけ。止める口はここに置かない（出ているものを止めたい用事が無く、
         // 押した人には「開く」としか読めない場所なので）。
         if (workspace.root !== null) void browserPreview.openIn(workspace.root, 'default');
+        return;
+      case 'webMode':
+        // 宣言はフォルダの側に残る（git に入る）。押しても script はまだ動かない。
+        if (workspace.root !== null)
+          void browserPreview.setWebMode(workspace.root, !browserPreview.declaredWeb);
         return;
       case 'revokeTrust':
         // 許可はこの PC に残るので、戻す口も PC の側に要る。
@@ -216,6 +225,8 @@
   function browserNote(notice: BrowserPreviewNotice): string {
     if (notice.kind === 'error') return notice.message;
     if (notice.kind === 'revoked') return t('action.revokeTrustDone');
+    if (notice.kind === 'declared') return t('action.webModeDeclared');
+    if (notice.kind === 'withdrawn') return t('action.webModeWithdrawn');
     return t('action.siteNone');
   }
 

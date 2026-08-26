@@ -12,6 +12,7 @@ export type MenuItemId =
 	| 'openFolder'
 	| 'save'
 	| 'autosave'
+	| 'webMode'
 	| 'revokeTrust'
 	| 'pdf'
 	| 'html'
@@ -27,7 +28,7 @@ export type MenuItemId =
 export const MENU_IDS: readonly MenuId[] = ['file', 'export', 'view'];
 
 export const MENU_ITEMS: Record<MenuId, readonly MenuItemId[]> = {
-	file: ['openFolder', 'save', 'autosave', 'revokeTrust'],
+	file: ['openFolder', 'save', 'autosave', 'webMode', 'revokeTrust'],
 	export: ['pdf', 'html', 'image', 'site', 'browser', 'publish'],
 	view: ['theme', 'timeline', 'language'],
 };
@@ -40,6 +41,10 @@ export interface MenuCaps {
 	autosaveOn: boolean;
 	/** 開いているフォルダを、この PC で web モードとして動かしてよいと許してあるか。 */
 	trusted: boolean;
+	/** 開いているフォルダが web モードを名乗っているか。印にしか使わない。 */
+	declaredWeb: boolean;
+	/** その宣言をアプリから書き換えられるか（手で書いた宣言には手を出さない）。 */
+	canDeclareWeb: boolean;
 	canPdf: boolean;
 	canHtml: boolean;
 	canImage: boolean;
@@ -79,6 +84,10 @@ export function isItemEnabled(item: MenuItemId, caps: MenuCaps): boolean {
 		case 'publish':
 			// 下見を取りに行けるかだけ。出せる/出せないの判断は、下見を見てから。
 			return caps.canPublish;
+		case 'webMode':
+			// 宣言を置くだけで、動かす許可にはならない。
+			// 手で書いた宣言があるときは押せない（中身を崩さない）。
+			return caps.canDeclareWeb;
 		case 'revokeTrust':
 			// 許してあるフォルダでだけ押せる。許していないときに押せると、
 			// 何も起きない操作が「効かない」と読まれる。
@@ -93,6 +102,8 @@ export function itemToggleState(item: MenuItemId, caps: MenuCaps): boolean | nul
 	switch (item) {
 		case 'autosave':
 			return caps.autosaveOn;
+		case 'webMode':
+			return caps.declaredWeb;
 		case 'timeline':
 			return caps.timelineOpen;
 		default:

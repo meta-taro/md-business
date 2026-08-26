@@ -108,6 +108,10 @@ export interface Messages {
   /** 一度許したフォルダを、この PC で許していない状態へ戻す。 */
   'action.revokeTrust': string;
   'action.revokeTrustDone': string;
+  /** md-business.yml へ web モードを書く／取り下げる。宣言であって、実行の許可ではない。 */
+  'action.webMode': string;
+  'action.webModeDeclared': string;
+  'action.webModeWithdrawn': string;
   'action.theme': string;
   'action.themeToLight': string;
   'action.themeToDark': string;
@@ -764,6 +768,11 @@ const en: Messages = {
   'action.revokeTrust': 'Withdraw permission to run JavaScript',
   'action.revokeTrustDone':
     'Permission withdrawn. The JavaScript in this folder no longer runs on this PC.',
+  'action.webMode': 'Web mode',
+  'action.webModeDeclared':
+    'Web mode declared in md-business.yml. To run it, press Live and allow this folder once on this PC.',
+  'action.webModeWithdrawn':
+    'Declaration withdrawn and md-business.yml removed. The permission on this PC stays.',
   'action.theme': 'Theme',
   'action.themeToLight': 'Switch to light theme',
   'action.themeToDark': 'Switch to dark theme',
@@ -1410,6 +1419,11 @@ const ja: Messages = {
   'action.revokeTrust': 'JavaScript の許可を取り消す',
   'action.revokeTrustDone':
     '許可を取り消しました。このフォルダの JavaScript は、この PC では動きません。',
+  'action.webMode': 'web モード',
+  'action.webModeDeclared':
+    'md-business.yml に web モードを宣言しました。動かすには「ライブ」を押して、この PC で 1 回許可します。',
+  'action.webModeWithdrawn':
+    '宣言を取り下げて md-business.yml を消しました。この PC の許可はそのまま残ります。',
   'action.theme': 'テーマ',
   'action.themeToLight': 'ライトテーマに切替',
   'action.themeToDark': 'ダークテーマに切替',
@@ -2051,6 +2065,10 @@ const zh: Messages = {
   'action.browserServing': '正在 {url} 提供页面',
   'action.revokeTrust': '撤销运行 JavaScript 的许可',
   'action.revokeTrustDone': '已撤销许可。此文件夹的 JavaScript 不再在本机运行。',
+  'action.webMode': 'Web 模式',
+  'action.webModeDeclared':
+    '已在 md-business.yml 中声明 Web 模式。要运行，请点击“实时”并在本机许可一次。',
+  'action.webModeWithdrawn': '已撤销声明并删除 md-business.yml。本机的许可仍然保留。',
   'action.theme': '主题',
   'action.themeToLight': '切换到浅色主题',
   'action.themeToDark': '切换到深色主题',
@@ -2688,6 +2706,10 @@ const ko: Messages = {
   'action.browserServing': '{url} 에서 표시 중',
   'action.revokeTrust': 'JavaScript 실행 허가 취소',
   'action.revokeTrustDone': '허가를 취소했습니다. 이 폴더의 JavaScript는 이 PC에서 실행되지 않습니다.',
+  'action.webMode': '웹 모드',
+  'action.webModeDeclared':
+    'md-business.yml에 웹 모드를 선언했습니다. 실행하려면 「라이브」를 누르고 이 PC에서 한 번 허가하세요.',
+  'action.webModeWithdrawn': '선언을 취소하고 md-business.yml을 삭제했습니다. 이 PC의 허가는 그대로 남습니다.',
   'action.theme': '테마',
   'action.themeToLight': '라이트 테마로 전환',
   'action.themeToDark': '다크 테마로 전환',

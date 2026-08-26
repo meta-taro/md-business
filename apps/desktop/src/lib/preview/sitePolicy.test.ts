@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { planWrite, planStart, sitePolicyFrom } from './sitePolicy';
+import { planWrite, planStart, sitePolicyFrom, webModeToggle } from './sitePolicy';
 
 describe('sitePolicyFrom', () => {
   it('宣言が無ければ何も動かさない', () => {
@@ -60,5 +60,23 @@ describe('planWrite', () => {
   // 黙って落として書き出すと、開くまで壊れているとわからない成果物になる。
   it('同意が無ければ書き出さずに尋ねる', () => {
     expect(planWrite(open, false)).toEqual({ kind: 'consent', policy: open });
+  });
+});
+
+describe('webModeToggle', () => {
+  it('宣言の無いフォルダには置ける', () => {
+    expect(webModeToggle('')).toBe('declare');
+    expect(webModeToggle('\n  \n')).toBe('declare');
+  });
+
+  it('自分で書いた宣言は取り下げられる', () => {
+    expect(webModeToggle('mode: web\n')).toBe('withdraw');
+  });
+
+  // 手で書いた宣言をアプリから崩さない。押せないことで先に見せる。
+  it('ほかの設定がある宣言には手を出さない', () => {
+    const written = 'mode: web\nweb:\n  scriptOrigins:\n    - https://example.com\n';
+    expect(webModeToggle(written)).toBe('locked');
+    expect(webModeToggle('mode: document\n')).toBe('locked');
   });
 });

@@ -68,3 +68,20 @@ export function planWrite(policy: SitePolicy, trusted: boolean): SiteWriteStart 
   if (step.kind === 'consent') return step;
   return { kind: 'go', rawHtml: policy.scripts && trusted };
 }
+
+/**
+ * アプリが宣言を書き換えられるか。
+ *
+ * `locked` は、人かエージェントが自分で書いた宣言があるということ。
+ * そこへアプリから足し引きすると、書いた行や覚え書きを黙って崩すことになる。
+ * 同じ判断を書き込む側（Rust）もしている。ここは押せるかを決めるだけ。
+ */
+export type WebModeToggle = 'declare' | 'withdraw' | 'locked';
+
+/** @param source `md-business.yml` の中身。ファイルが無ければ空文字。 */
+export function webModeToggle(source: string): WebModeToggle {
+  const body = source.trim();
+  if (body === '') return 'declare';
+  if (body === 'mode: web') return 'withdraw';
+  return 'locked';
+}

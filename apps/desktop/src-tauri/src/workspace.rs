@@ -384,6 +384,40 @@ pub fn read_project_config_impl(root: &Path) -> Result<String, String> {
         .map_err(|_| format!("{} が UTF-8 として不正です", PROJECT_CONFIG_FILENAME))
 }
 
+/// アプリが書く宣言の中身。**これだけ**を書き、これだけを消す。
+///
+/// 説明を添えないのは、アプリの表示言語が何であれ、プロジェクト側のファイルに
+/// 特定の言語を焼き付けないため。
+const WEB_MODE_DECLARATION: &str = "mode: web\n";
+
+/// ルート直下の宣言で web モードを名乗る／取り下げる（Tauri 非依存の実体）。
+///
+/// 既にある宣言へ足しに行かない。書き方をもう 1 つ持つと、手で書いた行や覚え書きを
+/// 黙って崩すことになる。だから置けるのは空のときだけで、消せるのは自分が書いた 1 行だけ。
+///
+/// **これは許可ではない。**宣言を書いても script は動かない（この PC で人が許すのは別）し、
+/// 取り下げても許した事実は残る。
+pub fn set_web_mode_impl(root: &Path, on: bool) -> Result<(), String> {
+    let path = root.join(PROJECT_CONFIG_FILENAME);
+    let current = read_project_config_impl(root)?;
+    if on {
+        if !current.trim().is_empty() {
+            return Err(format!("{} はすでにあります", PROJECT_CONFIG_FILENAME));
+        }
+        std::fs::write(&path, WEB_MODE_DECLARATION)
+            .map_err(|e| format!("{} を書けません: {}", PROJECT_CONFIG_FILENAME, e))
+    } else {
+        if current.is_empty() && !path.exists() {
+            return Ok(());
+        }
+        if current.trim() != WEB_MODE_DECLARATION.trim() {
+            return Err(format!("{} にほかの設定があります", PROJECT_CONFIG_FILENAME));
+        }
+        std::fs::remove_file(&path)
+            .map_err(|e| format!("{} を消せません: {}", PROJECT_CONFIG_FILENAME, e))
+    }
+}
+
 /// ルート配下の正本（md/tsv）へ UTF-8 本文を書き戻す（Tauri 非依存の実体）。
 /// read と同じく canonicalize 後に root 配下判定でパストラバーサル（`../` / シンボリック
 /// リンク脱出）を封じ、対象は既存の `.md` / `.tsv` に限定する（参考データの `.json` / `.xml` は
@@ -771,6 +805,12 @@ pub async fn read_document(root: String, rel_path: String) -> Result<String, Str
 #[tauri::command]
 pub async fn read_project_config(root: String) -> Result<String, String> {
     spawn_fs(move || read_project_config_impl(Path::new(&root))).await
+}
+
+/// フロントから `invoke("set_web_mode", { root, on })` で呼ぶ薄いラッパ。
+#[tauri::command]
+pub async fn set_web_mode(root: String, on: bool) -> Result<(), String> {
+    spawn_fs(move || set_web_mode_impl(Path::new(&root), on)).await
 }
 
 /// フロントから `invoke("write_document", { root, relPath, content })` で呼ぶ薄いラッパ。
@@ -1220,6 +1260,60 @@ mod tests {
         let root = TempRoot::new("cfg_broken");
         std::fs::write(root.path.join("md-business.yml"), [0xff, 0xfe]).expect("書き込み");
         assert!(read_project_config_impl(&root.path).is_err());
+    }
+
+    // ── set_web_mode_impl ──────────────────────────────────
+
+    #[test]
+    fn 宣言の無いフォルダを_webモードにできる() {
+        let root = TempRoot::new("web_on");
+        set_web_mode_impl(&root.path, true).expect("宣言できる");
+        assert_eq!(
+            read_project_config_impl(&root.path).expect("読込成功"),
+            "mode: web\n"
+        );
+    }
+
+    // 宣言はプロジェクトの持ち物。書いた人が置いたものへ足しに行かない。
+    #[test]
+    fn 既にある宣言は上書きしない() {
+        let root = TempRoot::new("web_keep");
+        let written = "# LP\nmode: document\n";
+        root.file("md-business.yml", written);
+        assert!(set_web_mode_impl(&root.path, true).is_err());
+        assert_eq!(
+            read_project_config_impl(&root.path).expect("読込成功"),
+            written
+        );
+    }
+
+    #[test]
+    fn webモードをやめると宣言が消える() {
+        let root = TempRoot::new("web_off");
+        set_web_mode_impl(&root.path, true).expect("宣言できる");
+        set_web_mode_impl(&root.path, false).expect("取り下げられる");
+        assert!(!root.path.join("md-business.yml").exists());
+    }
+
+    // 消せるのは自分が書いた 1 行だけ。ほかの設定を巻き添えにしない。
+    #[test]
+    fn 書いた覚えのない宣言は消さない() {
+        let root = TempRoot::new("web_off_keep");
+        let written = "mode: web\nweb:\n  scriptOrigins:\n    - https://example.com\n";
+        root.file("md-business.yml", written);
+        assert!(set_web_mode_impl(&root.path, false).is_err());
+        assert_eq!(
+            read_project_config_impl(&root.path).expect("読込成功"),
+            written
+        );
+    }
+
+    // 宣言していないフォルダで取り下げても、直す用事は無い。
+    #[test]
+    fn 宣言が無いフォルダの取り下げは何もしない() {
+        let root = TempRoot::new("web_off_absent");
+        set_web_mode_impl(&root.path, false).expect("失敗にしない");
+        assert!(!root.path.join("md-business.yml").exists());
     }
 
     // ── write_document_impl ──────────────────────────────────────────────

@@ -24,6 +24,8 @@ const idle: MenuCaps = {
   browserBusy: false,
   timelineOpen: false,
   trusted: false,
+  declaredWeb: false,
+  canDeclareWeb: false,
 };
 
 describe('メニューの並び', () => {
@@ -42,8 +44,14 @@ describe('メニューの並び', () => {
     ]);
   });
 
-  it('許可を戻す口は、フォルダを扱うメニューに置く', () => {
-    expect(itemsOf('file')).toEqual(['openFolder', 'save', 'autosave', 'revokeTrust']);
+  it('宣言と許可の口は、フォルダを扱うメニューに置く', () => {
+    expect(itemsOf('file')).toEqual([
+      'openFolder',
+      'save',
+      'autosave',
+      'webMode',
+      'revokeTrust',
+    ]);
   });
 
   it('どの項目もちょうど 1 つのメニューに属する（重複も迷子も作らない）', () => {
@@ -84,6 +92,18 @@ describe('押せるかどうか', () => {
   it('出すのは、下見を取れる状態のときだけ押せる', () => {
     expect(isItemEnabled('publish', idle)).toBe(false);
     expect(isItemEnabled('publish', { ...idle, canPublish: true })).toBe(true);
+  });
+
+  // 手で書いた宣言があるフォルダでは押せない（アプリから崩さない）。
+  it('web モードは、宣言を書き換えられるときだけ押せる', () => {
+    expect(isItemEnabled('webMode', { ...idle, hasRoot: true })).toBe(false);
+    expect(isItemEnabled('webMode', { ...idle, hasRoot: true, canDeclareWeb: true })).toBe(true);
+  });
+
+  // 宣言しているかを印で見せる。押す前に、今どちらなのかが分かる。
+  it('web モードは今の状態を印で返す', () => {
+    expect(itemToggleState('webMode', idle)).toBe(false);
+    expect(itemToggleState('webMode', { ...idle, declaredWeb: true })).toBe(true);
   });
 
   it('許可の取り消しは、許してあるフォルダでだけ押せる', () => {

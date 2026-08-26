@@ -48,6 +48,10 @@ export type BrowserPreviewNotice =
   | { kind: 'none' }
   /** この PC の許可を戻した。次に出すときは script 抜きの組み立てに戻る。 */
   | { kind: 'revoked' }
+  /** 宣言を置いた。置いただけでは動かないので、次に何をするかまで伝える。 */
+  | { kind: 'declared' }
+  /** 宣言を取り下げた。この PC の許可は残る。 */
+  | { kind: 'withdrawn' }
   | { kind: 'error'; message: string };
 
 class BrowserPreviewController {
@@ -82,6 +86,13 @@ class BrowserPreviewController {
    * これを根拠にすると、置いただけのファイルで実行の範囲が広がる）。
    */
   declaredWeb = $state<boolean>(false);
+  /**
+   * その宣言をアプリから書き換えられるか。
+   *
+   * 手やエージェントが書いた宣言があるときは false。メニューを押せなくして、
+   * 中身を黙って崩さないことを先に見せる。
+   */
+  canDeclareWeb = $state<boolean>(false);
   /**
    * 開いているフォルダを、この PC で許してあるか。
    *
@@ -264,6 +275,23 @@ class BrowserPreviewController {
     this.#notify({ kind: 'revoked' });
   }
 
+  /**
+   * フォルダの宣言を置く／取り下げる。**人が画面で押したときだけ呼ぶ。**
+   *
+   * これは許可ではない。置いても動くのは、この PC で 1 回許してから。
+   * 置いた瞬間に待ち受けが立つことは無い（読み直しは 'declared' として扱う）。
+   */
+  async setWebMode(root: string, on: boolean): Promise<void> {
+    try {
+      await invoke('set_web_mode', { root, on });
+    } catch (e) {
+      this.#notify({ kind: 'error', message: e instanceof Error ? e.message : String(e) });
+      return;
+    }
+    await this.#checkDeclaration(root, 'declared');
+    this.#notify({ kind: on ? 'declared' : 'withdrawn' });
+  }
+
   /** 尋ねるのをやめる。許可は残らないので、次に押せばまた尋ねる。 */
   dismissConsent(): void {
     this.consent = null;
@@ -347,15 +375,18 @@ class BrowserPreviewController {
   async #checkDeclaration(root: string | null, trigger: LiveTrigger): Promise<void> {
     if (root === null) {
       this.declaredWeb = false;
+      this.canDeclareWeb = false;
       this.trusted = false;
       return;
     }
     try {
       const declaration = await invoke<string>('read_project_config', { root });
-      const { sitePolicyFrom } = await import('./sitePolicy');
+      const { sitePolicyFrom, webModeToggle } = await import('./sitePolicy');
       this.declaredWeb = sitePolicyFrom(declaration).scripts;
+      this.canDeclareWeb = webModeToggle(declaration) !== 'locked';
     } catch {
       this.declaredWeb = false;
+      this.canDeclareWeb = false;
       this.trusted = false;
       return;
     }
