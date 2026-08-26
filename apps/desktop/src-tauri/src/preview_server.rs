@@ -244,6 +244,26 @@ fn replace_site(
     Ok(())
 }
 
+/// 在り処はそのままに、版だけ進める。
+///
+/// サイトに載せるファイルは中身を覚えず、要求のたびに元を読む。だから **書き換わった
+/// だけ**なら、組み直さなくても次の読み直しで新しい中身が出る。組み直すと本文から作る
+/// ページまで作り直すことになり、CSS を 1 行直すたびに全文を描き直す。
+///
+/// 覚えていない置き場所なら false。呼んだ側は組み直しへ回す（新しく置かれたファイルは、
+/// 在り処を覚えるまで出せない）。
+fn touch_asset(running: &Running, rel_path: &str) -> Result<bool, String> {
+    let mut site = running
+        .site
+        .lock()
+        .map_err(|_| "中身を書き換えられません".to_string())?;
+    if !site.assets.contains_key(&rel_path.replace('\\', "/")) {
+        return Ok(false);
+    }
+    site.version += 1;
+    Ok(true)
+}
+
 /// 受け付けを止める。待ち受けは接続を待って止まっているので、
 /// 合図を立ててから自分で 1 本繋ぎ、起こして畳ませる。
 fn stop_server(running: &Running) {
@@ -302,6 +322,23 @@ pub fn update_preview_server(
         Some(running) => replace_site(running, Path::new(&root), files, assets),
         // 立っていないときの作り直しは、何もしないのが正しい（立て直しはボタンの仕事）。
         None => Ok(()),
+    }
+}
+
+/// 書き換わったファイル 1 つを、組み直さずに映す。その場で済んだら true。
+#[tauri::command]
+pub fn refresh_preview_asset(
+    state: State<'_, PreviewServerState>,
+    rel_path: String,
+) -> Result<bool, String> {
+    let slot = state
+        .running
+        .lock()
+        .map_err(|_| "状態を読めません".to_string())?;
+    match slot.as_ref() {
+        Some(running) => touch_asset(running, &rel_path),
+        // 立っていないなら映す先が無い。組み直させる必要も無い。
+        None => Ok(true),
     }
 }
 
@@ -623,6 +660,43 @@ mod tests {
         assert!(got.starts_with("HTTP/1.1 200 "));
         assert!(got.contains("image/png"));
         assert!(got.contains("PNGDATA"));
+        stop_server(&running);
+    }
+
+    // 中身を覚えていないので、書き換わっただけなら組み直さなくても次に読んだときに新しくなる。
+    #[test]
+    fn 書き換わっただけなら組み直さずに版を進める() {
+        let root = ImageRoot::new("touch");
+        std::fs::write(root.path.join("style.css"), "body{color:#000}").expect("置く");
+        let running = start_server(
+            &root.path,
+            pages(),
+            vec![asset("style.css", "style.css")],
+            SitePolicy::default(),
+        )
+        .expect("立つ");
+        let target = format!("/{}/__version", running.token);
+        let before = request(running.port, &target).expect("返る");
+
+        std::fs::write(root.path.join("style.css"), "body{color:#fff}").expect("書き換える");
+        assert!(touch_asset(&running, "style.css").expect("答える"));
+
+        assert_ne!(before, request(running.port, &target).expect("返る"));
+        let got = request(running.port, &format!("/{}/style.css", running.token)).expect("返る");
+        assert!(got.contains("#fff"));
+        stop_server(&running);
+    }
+
+    // 在り処を覚えていないものは出せない。組み直す側へ回すために false を返す。
+    #[test]
+    fn 知らない置き場所は組み直しへ回す() {
+        let running = start(pages()).expect("立つ");
+        let target = format!("/{}/__version", running.token);
+        let before = request(running.port, &target).expect("返る");
+
+        assert!(!touch_asset(&running, "新しい.css").expect("答える"));
+
+        assert_eq!(before, request(running.port, &target).expect("返る"));
         stop_server(&running);
     }
 

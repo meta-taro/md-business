@@ -12,7 +12,7 @@ import type { FileChangeEvent } from '$lib/workspace/watchLogic';
 const OUTPUT_DIR = 'dist/';
 
 /** 組み直すかの判断に要るものだけ。 */
-export type SiteWatchInput = Pick<FileChangeEvent, 'relPath' | 'scope'>;
+export type SiteWatchInput = Pick<FileChangeEvent, 'relPath' | 'scope' | 'kind'>;
 
 /**
  * その変化でサイトを組み直すか。
@@ -32,6 +32,19 @@ export function affectsSite(change: SiteWatchInput, servingWeb: boolean): boolea
   if (change.relPath.startsWith(OUTPUT_DIR)) return false;
   if (change.scope === 'config') return false;
   return change.scope === 'tree' || servingWeb;
+}
+
+/**
+ * 組み直さずに、その場で新しくできるか。
+ *
+ * サイトにしか出ない部品は、待ち受けが中身を覚えずに要求のたびに元を読む。だから
+ * **書き換わっただけ**なら、版を進めれば次の読み直しで新しいものが出る。組み直すと
+ * 本文から作るページまで作り直すので、CSS を 1 行直すたびに全文を描き直すことになる。
+ *
+ * 増えた・消えたときは在り処を覚え直さないと出せないので、組み直しへ回す。
+ */
+export function canRefreshInPlace(change: SiteWatchInput): boolean {
+  return change.scope === 'site' && change.kind === 'modified';
 }
 
 /**

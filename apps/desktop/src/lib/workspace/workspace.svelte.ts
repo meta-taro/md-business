@@ -943,7 +943,7 @@ class WorkspaceStore {
       // ブラウザ表示にも反映する。自分の保存は監視イベントとして戻ってこない（エコー
       // 抑制）ので、ここで知らせないとアプリ内の編集だけ反映されないことになる。
       // タブで開けるのは一覧に出る文書だけなので、種類は tree で確定する。
-      browserPreview.onFileChanged({ relPath, scope: 'tree' });
+      browserPreview.onFileChanged({ relPath, scope: 'tree', kind: 'modified' });
       return true;
     } catch (e) {
       this.error = errorMessage(e);

@@ -11,7 +11,13 @@
 import { invoke } from '@tauri-apps/api/core';
 import { browser } from '$app/environment';
 import { collectSitePlan } from './collectSite';
-import { affectsSite, shouldAutoLive, shouldStop, type SiteWatchInput } from './browserPreview';
+import {
+  affectsSite,
+  canRefreshInPlace,
+  shouldAutoLive,
+  shouldStop,
+  type SiteWatchInput,
+} from './browserPreview';
 import type { LiveTrigger } from './browserPreview';
 
 /** 知らせが自分で消えるまで。書き出しと揃える。 */
@@ -325,6 +331,10 @@ class BrowserPreviewController {
       void this.#checkDeclaration(this.#root, 'declared');
     if (this.serving === null) return;
     if (!affectsSite(change, this.servingWeb)) return;
+    if (canRefreshInPlace(change)) {
+      void this.#refreshAsset(change.relPath);
+      return;
+    }
     void this.#rebuild();
   }
 
@@ -341,6 +351,21 @@ class BrowserPreviewController {
     if (this.#servingRoot === null) return;
     if (!shouldStop(this.#servingRoot, root)) return;
     void this.stop();
+  }
+
+  /**
+   * 書き換わったファイル 1 つを、組み直さずに映す。
+   *
+   * 待ち受けが在り処を覚えていなければ（置かれたばかりのファイル）その場では出せないので、
+   * 組み直しへ回す。ここで黙って諦めると、増えたファイルだけが出ないまま残る。
+   */
+  async #refreshAsset(relPath: string): Promise<void> {
+    try {
+      const done = await invoke<boolean>('refresh_preview_asset', { relPath });
+      if (!done) await this.#rebuild();
+    } catch (e) {
+      this.#notify({ kind: 'error', message: e instanceof Error ? e.message : String(e) });
+    }
   }
 
   /**

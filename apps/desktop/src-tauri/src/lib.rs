@@ -127,6 +127,7 @@ pub fn run() {
             deep_link::take_link_request,
             preview_server::start_preview_server,
             preview_server::update_preview_server,
+            preview_server::refresh_preview_asset,
             preview_server::stop_preview_server,
             preview_server::preview_server_status,
             preview_server::open_preview_in_browser,

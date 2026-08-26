@@ -1,9 +1,13 @@
 import { describe, it, expect } from 'vitest';
-import { affectsSite, shouldAutoLive, shouldStop } from './browserPreview';
+import { affectsSite, canRefreshInPlace, shouldAutoLive, shouldStop } from './browserPreview';
 
-/** テスト補助：監視から届く形（relPath と scope）を組み立てる。 */
-function ch(relPath: string, scope: 'tree' | 'site' | 'config' = 'tree') {
-  return { relPath, scope };
+/** テスト補助：監視から届く形を組み立てる。 */
+function ch(
+  relPath: string,
+  scope: 'tree' | 'site' | 'config' = 'tree',
+  kind: 'modified' | 'rescan' = 'modified',
+) {
+  return { relPath, scope, kind };
 }
 
 describe('affectsSite', () => {
@@ -43,6 +47,25 @@ describe('affectsSite', () => {
   it('書き出し先の変化では組み直さない', () => {
     expect(affectsSite(ch('dist/index.html', 'site'), true)).toBe(false);
     expect(affectsSite(ch('dist/a.md'), true)).toBe(false);
+  });
+});
+
+describe('canRefreshInPlace', () => {
+  // 待ち受けは要求のたびに元を読むので、書き換わっただけなら版を進めれば新しくなる。
+  it('サイトの部品が書き換わっただけなら、その場で映せる', () => {
+    expect(canRefreshInPlace(ch('style.css', 'site'))).toBe(true);
+    expect(canRefreshInPlace(ch('index.html', 'site'))).toBe(true);
+  });
+
+  // 増えた・消えたときは在り処を覚え直さないと出せない。
+  it('サイトの部品が増えた・消えたときは組み直す', () => {
+    expect(canRefreshInPlace(ch('js/app.js', 'site', 'rescan'))).toBe(false);
+  });
+
+  // ページは中身を覚えているので、組み直さないと変わらない。
+  it('ページになるものは組み直す', () => {
+    expect(canRefreshInPlace(ch('docs/仕様.md'))).toBe(false);
+    expect(canRefreshInPlace(ch('data/口座.json'))).toBe(false);
   });
 });
 
