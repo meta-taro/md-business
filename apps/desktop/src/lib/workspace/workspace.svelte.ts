@@ -88,6 +88,23 @@ interface ScanResult {
   truncated: boolean;
 }
 
+/**
+ * そのフォルダが web モードを名乗っているか。
+ *
+ * 名乗っていれば、サイトの部品も一覧に出して開けるようにする。宣言を置くことと、
+ * この PC で動かしてよいと許すことは別なので、ここで見るのは宣言だけ。
+ * 読めない・置いていないフォルダは業務文書だけのままにする（既定を広げない）。
+ */
+async function declaresWeb(root: string): Promise<boolean> {
+  try {
+    const declaration = await invoke<string>('read_project_config', { root });
+    const { sitePolicyFrom } = await import('$lib/preview/sitePolicy');
+    return sitePolicyFrom(declaration).scripts;
+  } catch {
+    return false;
+  }
+}
+
 function errorMessage(e: unknown): string {
   if (e instanceof Error) return e.message;
   if (typeof e === 'string') return e;
@@ -103,6 +120,14 @@ class WorkspaceStore {
   expanded = $state<Set<string>>(new Set());
   /** 走査が深さ / 件数上限で打ち切られたか（警告表示用）。 */
   truncated = $state<boolean>(false);
+  /**
+   * 今開いているフォルダで、サイトの部品まで一覧に出しているか。
+   *
+   * 宣言を読み直すのは走査のときだけなので、開いたあとの読み取りはこの印に従う。
+   * 一覧に出したものが開けない、あるいはその逆にならないよう、走査と読み取りで
+   * 同じ値を渡す。
+   */
+  siteVisible = $state<boolean>(false);
 
   /**
    * 開いている文書の並び。「編集の唯一の真実」は文書ごとに要るので、1 枚ぶんを
@@ -663,7 +688,8 @@ class WorkspaceStore {
     this.noticeRestored(false);
     this.shareNotice = null;
     try {
-      const result = await invoke<ScanResult>('scan_documents', { root });
+      const includeSite = await declaresWeb(root);
+      const result = await invoke<ScanResult>('scan_documents', { root, includeSite });
       const tree = buildTree(result.entries);
       // 同じフォルダを取り直しただけ（保存・改名・ブランチ切替）なら今の見え方を保つ。
       // 別のフォルダへ移るときだけ、そのフォルダの記憶（初めてなら既定）から組み立て直す。
@@ -684,6 +710,7 @@ class WorkspaceStore {
       // 同じフォルダを取り直しただけのときは何もしない。
       browserPreview.syncRoot(root);
       this.truncated = result.truncated;
+      this.siteVisible = includeSite;
       this.error = null;
       // 次回起動で自動復元できるよう、開けたフォルダを記憶する（WebView の localStorage）。
       if (browser) localStorage.setItem(LAST_FOLDER_KEY, root);
@@ -849,7 +876,11 @@ class WorkspaceStore {
       return;
     }
     try {
-      const content = await invoke<string>('read_document', { root: this.root, relPath });
+      const content = await invoke<string>('read_document', {
+        root: this.root,
+        relPath,
+        includeSite: this.siteVisible,
+      });
       // 保存時刻を持たない中身で入れ替える（別のファイルの時刻を引き継がせない）。
       this.placeDoc(relPath, openedDoc(content));
       this.error = null;

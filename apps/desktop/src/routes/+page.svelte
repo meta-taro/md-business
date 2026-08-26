@@ -76,6 +76,7 @@
   import { browser } from '$app/environment';
   import { workspace } from '$lib/workspace/workspace.svelte';
   import { resolveRelPath } from '$lib/workspace/relPath';
+  import { isSitePart } from '$lib/workspace/siteFile';
   import { diffView } from '$lib/git/diffView.svelte';
   import { timelineView } from '$lib/logs/timelineView.svelte';
   import TimelineView from '$lib/components/TimelineView.svelte';
@@ -939,6 +940,11 @@
 
   // 画像は文書ではないので本文を持たない。開いている間は編集も書き出しも起きない
   // （プレビューを出さない＝[PDF] / [HTML] / [画像] の活性条件が立たない）。
+  // サイトの部品（.html / .css / .js など）は、web を名乗るフォルダでだけ一覧に出る。
+  // 中身は文書ではないので、ここで組み立て直さず、そのまま見せて読むだけにする
+  // （左のエディターも読み取り専用＝本文が変わらない＝自動保存も動かない）。
+  const sitePart = $derived(workspace.activePath !== null && isSitePart(workspace.activePath));
+
   const openImage = $derived(workspace.image);
   const imageKind = $derived(openImage === null ? '' : imageKindLabel(openImage.mime));
   let imageFit = $state<ImageFitMode>('fit');
@@ -1261,7 +1267,7 @@
         value={source}
         onChange={handleEditorChange}
         onSync={handleEditorSync}
-        readOnly={dataDoc !== null}
+        readOnly={dataDoc !== null || sitePart}
         caret={editorCaret}
       />
     {/await}
@@ -1334,6 +1340,14 @@
         fit={imageFit}
         onMeasure={(size) => (imageNatural = size)}
       />
+    {:else if sitePart}
+      <!-- サイトの部品。ここで組み立てても、ブラウザが出すものとは別物になる。
+           確かめる先を 1 つに保つため、この面では中身に手を加えない。 -->
+      <div class="pane-head site-head">
+        <span>{t('site.head')}</span>
+        <span class="chip">{t('site.readOnly')}</span>
+      </div>
+      <p class="site-note">{t('site.note')}</p>
     {:else if isTsv && tsvDoc}
       <div class="pane-head grid-head">
         <span>{t('page.gridHead')}</span>
@@ -1701,6 +1715,18 @@
   /* 参考データのペインヘッダは、見出しの右に形式と「読み取り専用」を並べる。 */
   .data-head {
     gap: var(--space-2);
+  }
+
+  /* サイトの部品のペインヘッダは、見出しの右に「読み取り専用」を置くだけ。 */
+  .site-head {
+    gap: var(--space-2);
+  }
+
+  .site-note {
+    margin: 0;
+    padding: var(--space-4);
+    color: var(--text-tertiary);
+    font-size: var(--text-sm-size);
   }
 
   /* 画像のペインヘッダは、見出しの右に種類と大きさを並べ、見せ方の切り替えを右端へ寄せる。 */
