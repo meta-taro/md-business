@@ -607,7 +607,9 @@ describe('createServer / instructions', () => {
     expect(text).toContain('write_site_file');
     // 宣言を置いただけで動かしてよいことにはならない、が抜けると許可の話とすり替わる。
     expect(text).toMatch(/宣言/);
-    expect(text).toContain('ブラウザ');
+    // 見る先を別の窓にすると、書くたび利用者が行き来することになる。
+    // 出来上がりは開いている面にそのまま映るので、そこを指す。
+    expect(text).not.toContain('ブラウザ');
   });
 });
 

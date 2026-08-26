@@ -3,7 +3,7 @@
   import { themeController } from '$lib/theme.svelte';
   import BrowserOpenButtons from '$lib/components/BrowserOpenButtons.svelte';
   import { browserPreview } from '$lib/preview/browserPreviewController.svelte';
-  import { livePreviewUrl } from '$lib/preview/livePreview';
+  import { livePreviewUrl, sitePartPane } from '$lib/preview/livePreview';
   import { previewRenderer } from '$lib/preview/previewRenderer.svelte';
   import type { PreviewResult } from '$lib/preview/previewFactory';
   import { frontmatterMessage } from '$lib/preview/frontmatterMessage';
@@ -1117,6 +1117,7 @@
       relPath: workspace.activePath,
     }),
   );
+  const sitePane = $derived(sitePartPane(liveUrl, browserPreview.declaredWeb));
 
   // 待ち受けを映している間はエージェントの手元を見ている時間が長い。分割を畳んで
   // 見る面だけにできるようにする（指示は別の窓から出すので、こちらは見えていればよい）。
@@ -1341,13 +1342,52 @@
         onMeasure={(size) => (imageNatural = size)}
       />
     {:else if sitePart}
-      <!-- サイトの部品。ここで組み立てても、ブラウザが出すものとは別物になる。
-           確かめる先を 1 つに保つため、この面では中身に手を加えない。 -->
+      <!-- サイトの部品。ここで組み直すと、ブラウザが出すものと別物になるので、
+           出している待ち受けをそのまま映す。立っていなければ、立てる口をこの面に出す。
+           断り書きだけを出すと、見る手立てが別の窓しか無いように読める。 -->
       <div class="pane-head site-head">
         <span>{t('site.head')}</span>
-        <span class="chip">{t('site.readOnly')}</span>
+        {#if sitePane !== 'live'}
+          <span class="chip">{t('site.readOnly')}</span>
+        {/if}
+        <BrowserOpenButtons root={workspace.root} />
+        {#if sitePane === 'live'}
+          <button
+            type="button"
+            class="head-btn"
+            onclick={() => (viewport = nextViewport(viewport))}
+            aria-pressed={viewport === 'phone'}
+            title={viewport === 'pc' ? t('page.viewportPhoneTitle') : t('page.viewportPcTitle')}
+          >
+            {viewport === 'pc' ? t('page.viewportPhoneBtn') : t('page.viewportPcBtn')}
+          </button>
+          <button
+            type="button"
+            class="head-btn"
+            onclick={() => (previewFullscreen = !previewFullscreen)}
+            aria-pressed={previewFullscreen}
+            title={previewFullscreen
+              ? t('page.previewRestoreTitle')
+              : t('page.previewFullscreenTitle')}
+          >
+            {previewFullscreen ? t('page.previewRestoreBtn') : t('page.previewFullscreenBtn')}
+          </button>
+        {/if}
       </div>
-      <p class="site-note">{t('site.note')}</p>
+      {#if sitePane === 'live'}
+        <div class="viewer-wrap" class:narrow={viewport === 'phone'}>
+          <iframe
+            class="viewer"
+            style:width={frameWidth(viewport)}
+            src={liveUrl}
+            title={t('page.livePreviewTitle')}
+          ></iframe>
+        </div>
+      {:else if sitePane === 'start'}
+        <p class="site-note">{t('site.startNote')}</p>
+      {:else}
+        <p class="site-note">{t('site.declareNote')}</p>
+      {/if}
     {:else if isTsv && tsvDoc}
       <div class="pane-head grid-head">
         <span>{t('page.gridHead')}</span>

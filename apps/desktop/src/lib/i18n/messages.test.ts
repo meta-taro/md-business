@@ -147,3 +147,21 @@ describe('AI に頼む文', () => {
     }
   });
 });
+
+// 手で書いた HTML を開いた面に断り書きだけを出すと、見る手立てが別の窓しか無いように
+// 読める。まだ映していないときこそ、この面に出せることを書いておく。
+describe('サイトの部品の面', () => {
+  it('どの言語でも、押すボタンの名前で立て方を書いている', () => {
+    for (const locale of LOCALES) {
+      expect(messages[locale]['site.startNote'], locale).toContain(
+        messages[locale]['action.liveLabel'],
+      );
+    }
+  });
+
+  it('どの言語でも、宣言が要ることが書いてある', () => {
+    for (const locale of LOCALES) {
+      expect(messages[locale]['site.declareNote'], locale).not.toBe('');
+    }
+  });
+});

@@ -46,3 +46,24 @@ export function livePreviewUrl({ base, web, relPath }: LivePreviewTarget): strin
   const encoded = [...parts.slice(0, -1), page].map((part) => encodeURIComponent(part));
   return `${root}${encoded.join('/')}`;
 }
+
+/** サイトの部品を開いている面に何を出すか。 */
+export type SitePartPane =
+  /** 出している待ち受けをそのまま映す。 */
+  | 'live'
+  /** 待ち受けを立てる口を出す。 */
+  | 'start'
+  /** web モードの宣言から先に要る。 */
+  | 'declare';
+
+/**
+ * 手で書いた HTML や CSS を開いたときに出すもの。
+ *
+ * 立っている待ち受けがあれば、そこへ向ける。面の中で組み直すと、ブラウザで開いた窓と
+ * 別物になり、どちらが本当かを確かめる先が 2 つになる。立っていないときに断り書きだけを
+ * 出すと、見る手立てが別の窓しか無いように読めるので、立てる口を出す。
+ */
+export function sitePartPane(liveUrl: string | null, declaredWeb: boolean): SitePartPane {
+  if (liveUrl !== null) return 'live';
+  return declaredWeb ? 'start' : 'declare';
+}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { livePreviewUrl } from './livePreview';
+import { livePreviewUrl, sitePartPane } from './livePreview';
 
 /** この PC の区切り。文字として書くと読む側で消えるので、符号から作る。 */
 const SEP = String.fromCharCode(92);
@@ -57,5 +57,19 @@ describe('livePreviewUrl', () => {
 
   it('サイトの外へ出る指定は入口へ落とす', () => {
     expect(livePreviewUrl({ base: BASE, web: true, relPath: '../外.md' })).toBe(BASE);
+  });
+});
+
+describe('sitePartPane', () => {
+  it('待ち受けが立っていればそこへ向ける', () => {
+    expect(sitePartPane(`${BASE}index.html`, true)).toBe('live');
+  });
+
+  it('立っていなければ立てる口を出す', () => {
+    expect(sitePartPane(null, true)).toBe('start');
+  });
+
+  it('web モードを宣言していないフォルダでは立てる口も出さない', () => {
+    expect(sitePartPane(null, false)).toBe('declare');
   });
 });

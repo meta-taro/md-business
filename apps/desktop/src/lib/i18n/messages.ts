@@ -527,7 +527,8 @@ export interface Messages {
   // サイトの部品（.html / .css / .js など）を開いたとき
   'site.head': string;
   'site.readOnly': string;
-  'site.note': string;
+  'site.startNote': string;
+  'site.declareNote': string;
   'frontmatter.failed': string;
   'frontmatter.atLine': string;
   'frontmatter.indentation': string;
@@ -1186,7 +1187,9 @@ const en: Messages = {
   'imageView.inlineFailed': 'Cannot read the image: {ref} ({message})',
   'site.head': 'Site file',
   'site.readOnly': 'Read-only',
-  'site.note': 'Not built here. Open it in the browser to check.',
+  'site.startNote': 'Not showing yet. Press Live above and it appears here.',
+  'site.declareNote':
+    'This folder is not declared as a site. Declare it in md-business.yml to show it here.',
   'frontmatter.failed': 'Could not read the frontmatter. {detail}',
   'frontmatter.atLine': 'Line {line}: {detail}',
   'frontmatter.indentation': 'the indentation does not line up with the lines above.',
@@ -1841,7 +1844,9 @@ const ja: Messages = {
   'imageView.inlineFailed': '画像を読めません: {ref}（{message}）',
   'site.head': 'サイトの部品',
   'site.readOnly': '読み取り専用',
-  'site.note': '中身はここでは組み立てない。ブラウザで開いて確かめる。',
+  'site.startNote': 'まだ映していない。上の「ライブ」を押すと、ここに出る。',
+  'site.declareNote':
+    'このフォルダはサイトとして宣言されていない。md-business.yml で宣言すると、ここに映せる。',
   'frontmatter.failed': 'frontmatter を読み取れませんでした。{detail}',
   'frontmatter.atLine': '{line} 行目: {detail}',
   'frontmatter.indentation': '行頭の字下げが、上の行とそろっていません。',
@@ -2487,7 +2492,9 @@ const zh: Messages = {
   'imageView.inlineFailed': '无法读取图片: {ref}（{message}）',
   'site.head': '站点文件',
   'site.readOnly': '只读',
-  'site.note': '此处不进行渲染。请在浏览器中查看。',
+  'site.startNote': '尚未显示。点击上方的「实时」即可在此显示。',
+  'site.declareNote':
+    '此文件夹尚未声明为站点。在 md-business.yml 中声明后即可在此显示。',
   'frontmatter.failed': '无法读取 frontmatter。{detail}',
   'frontmatter.atLine': '第 {line} 行：{detail}',
   'frontmatter.indentation': '行首缩进与上面几行没有对齐。',
@@ -3136,7 +3143,9 @@ const ko: Messages = {
   'imageView.inlineFailed': '이미지를 읽을 수 없습니다: {ref}({message})',
   'site.head': '사이트 파일',
   'site.readOnly': '읽기 전용',
-  'site.note': '여기서는 렌더링하지 않습니다. 브라우저에서 확인하세요.',
+  'site.startNote': '아직 표시하지 않았습니다. 위의 「라이브」를 누르면 여기에 나옵니다.',
+  'site.declareNote':
+    '이 폴더는 사이트로 선언되지 않았습니다. md-business.yml 에 선언하면 여기에 표시할 수 있습니다.',
   'frontmatter.failed': 'frontmatter를 읽을 수 없습니다. {detail}',
   'frontmatter.atLine': '{line}번째 줄: {detail}',
   'frontmatter.indentation': '줄 앞 들여쓰기가 위 줄과 맞지 않습니다.',
