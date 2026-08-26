@@ -210,6 +210,7 @@ describe('fileChangeFromLog', () => {
     expect(fileChangeFromLog(log({ tool: 'create_document', path: 'specs/a.md' }))).toEqual({
       relPath: 'specs/a.md',
       kind: 'rescan',
+      scope: 'tree',
     });
   });
 
@@ -217,6 +218,7 @@ describe('fileChangeFromLog', () => {
     expect(fileChangeFromLog(log({ tool: 'update_document', path: 'specs/a.md' }))).toEqual({
       relPath: 'specs/a.md',
       kind: 'modified',
+      scope: 'tree',
     });
   });
 
@@ -225,10 +227,23 @@ describe('fileChangeFromLog', () => {
     expect(fileChangeFromLog(log({ tool: 'append_tsv_row', path: 'sheets/t.tsv' }))).toEqual({
       relPath: 'sheets/t.tsv',
       kind: 'modified',
+      scope: 'tree',
     });
     expect(fileChangeFromLog(log({ tool: 'update_tsv_row', path: 'sheets/t.tsv' }))).toEqual({
       relPath: 'sheets/t.tsv',
       kind: 'modified',
+      scope: 'tree',
+    });
+  });
+
+  it('宣言を置いたら宣言そのものの変化として扱う', () => {
+    // 監視が張れない環境でも、置かれた宣言に気づけるようにする。
+    expect(
+      fileChangeFromLog(log({ tool: 'declare_web_mode', path: 'md-business.yml' })),
+    ).toEqual({
+      relPath: 'md-business.yml',
+      kind: 'modified',
+      scope: 'config',
     });
   });
 

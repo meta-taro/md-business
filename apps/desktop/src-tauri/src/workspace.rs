@@ -130,10 +130,14 @@ pub(crate) fn is_tree_ext(ext: &str) -> bool {
     ALLOWED_EXTS.contains(&ext) || IMAGE_EXTS.contains(&ext)
 }
 
+/// サイトへ出せる種類か。走査・監視で同じ範囲を使う。
+pub(crate) fn is_site_asset_ext(ext: &str) -> bool {
+    SITE_ASSET_EXTS.contains(&ext) || IMAGE_EXTS.contains(&ext)
+}
+
 /// パスの拡張子がサイトへ出せる種類なら小文字化して返す。対象外・拡張子なしは None。
 fn site_asset_ext(path: &Path) -> Option<String> {
-    lower_ext(path)
-        .filter(|e| SITE_ASSET_EXTS.contains(&e.as_str()) || IMAGE_EXTS.contains(&e.as_str()))
+    lower_ext(path).filter(|e| is_site_asset_ext(e.as_str()))
 }
 
 /// パスの拡張子がツリーの対象なら小文字化して返す。対象外・拡張子なしは None。
@@ -364,7 +368,7 @@ pub fn read_document_impl(root: &Path, rel_path: &str) -> Result<String, String>
 }
 
 /// プロジェクトの宣言ファイルの名前。中身の読み方は持たない。
-const PROJECT_CONFIG_FILENAME: &str = "md-business.yml";
+pub(crate) const PROJECT_CONFIG_FILENAME: &str = "md-business.yml";
 
 /// ルート直下の宣言をそのまま返す。無ければ空文字（Tauri 非依存の実体）。
 ///

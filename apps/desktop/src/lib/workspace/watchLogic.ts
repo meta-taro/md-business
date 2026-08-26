@@ -12,6 +12,12 @@ export interface FileChangeEvent {
   relPath: string;
   /** `'modified'`=内容変更 / `'rescan'`=ツリー構造変更（作成・削除・リネーム）。 */
   kind: 'modified' | 'rescan';
+  /**
+   * その変更が誰に効くか。`'tree'`=一覧に出る文書 / `'site'`=サイトの部品 /
+   * `'config'`=このフォルダの宣言。**送り側（Rust）が決める。**こちらで拡張子を
+   * 見分け直すと、同じ表を 2 か所に持つことになる。
+   */
+  scope: 'tree' | 'site' | 'config';
 }
 
 /** 判断に使う現在の画面状態。 */
@@ -42,6 +48,9 @@ export function decideFileChangeAction(
   event: FileChangeEvent,
   view: WatchViewState,
 ): FileChangeAction {
+  // 一覧に出ないもの（サイトの部品・宣言）は、読み直す先も走査し直す先も無い。
+  // 見ているのはブラウザの側なので、そちらの担当（browserPreview）へ回る。
+  if (event.scope !== 'tree') return 'ignore';
   if (event.kind === 'rescan') return 'rescan';
   // ここから kind === 'modified'
   if (view.activePath === null || event.relPath !== view.activePath) return 'ignore';

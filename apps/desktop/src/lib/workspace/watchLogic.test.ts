@@ -2,11 +2,35 @@ import { describe, it, expect } from 'vitest';
 import { decideFileChangeAction, type FileChangeEvent } from './watchLogic';
 
 /** テスト補助：kind と relPath から監視イベントを組み立てる。 */
-function ev(kind: FileChangeEvent['kind'], relPath: string): FileChangeEvent {
-  return { kind, relPath };
+function ev(
+  kind: FileChangeEvent['kind'],
+  relPath: string,
+  scope: FileChangeEvent['scope'] = 'tree',
+): FileChangeEvent {
+  return { kind, relPath, scope };
 }
 
 describe('decideFileChangeAction', () => {
+  it('一覧に出ないものは無視する（サイトの部品・宣言）', () => {
+    // ここで rescan を返すと、CSS を 1 つ書くたびにフォルダを走査し直すことになる。
+    // 走査し直しても、一覧に出ないものは一覧に出ない。
+    expect(
+      decideFileChangeAction(ev('rescan', 'style.css', 'site'), { activePath: null, dirty: false }),
+    ).toBe('ignore');
+    expect(
+      decideFileChangeAction(ev('modified', 'index.html', 'site'), {
+        activePath: 'index.html',
+        dirty: false,
+      }),
+    ).toBe('ignore');
+    expect(
+      decideFileChangeAction(ev('modified', 'md-business.yml', 'config'), {
+        activePath: null,
+        dirty: false,
+      }),
+    ).toBe('ignore');
+  });
+
   it('rescan は開いているファイル・dirty に関係なく rescan', () => {
     // ツリー構造が変わったので、開いているファイルの状態に依らず再走査する。
     expect(

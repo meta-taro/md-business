@@ -143,6 +143,7 @@ export function indicatorText(status: McpStatus): McpIndicator {
 export interface McpFileChange {
   relPath: string;
   kind: 'modified' | 'rescan';
+  scope: 'tree' | 'site' | 'config';
 }
 
 /**
@@ -155,11 +156,19 @@ export interface McpFileChange {
 export function fileChangeFromLog(entry: McpLogEntry): McpFileChange | null {
   if (!entry.ok || entry.path === undefined) return null;
   // 作成はツリーの構造が変わる。更新は中身だけなので、開いているファイルだけが対象。
-  if (entry.tool === 'create_document') return { relPath: entry.path, kind: 'rescan' };
-  if (entry.tool === 'update_document') return { relPath: entry.path, kind: 'modified' };
+  if (entry.tool === 'create_document') {
+    return { relPath: entry.path, kind: 'rescan', scope: 'tree' };
+  }
+  if (entry.tool === 'update_document') {
+    return { relPath: entry.path, kind: 'modified', scope: 'tree' };
+  }
   // 検証シートの行追加・行更新も既存ファイルへの書き込み（新規作成はしない）。
   if (entry.tool === 'append_tsv_row' || entry.tool === 'update_tsv_row') {
-    return { relPath: entry.path, kind: 'modified' };
+    return { relPath: entry.path, kind: 'modified', scope: 'tree' };
+  }
+  // 宣言が置かれたら、それを読み直す側へ回す（監視が張れない環境でも気づけるように）。
+  if (entry.tool === 'declare_web_mode') {
+    return { relPath: entry.path, kind: 'modified', scope: 'config' };
   }
   return null;
 }

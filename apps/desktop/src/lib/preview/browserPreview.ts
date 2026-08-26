@@ -6,19 +6,32 @@
  * この判断を Tauri を起動せずに確かめられるようにするため（siteExport.ts と同じ切り方）。
  */
 
+import type { FileChangeEvent } from '$lib/workspace/watchLogic';
+
 /** 書き出し先。ここの変化は自分が書いた結果なので、受けて組み直すと堂々巡りになる。 */
 const OUTPUT_DIR = 'dist/';
 
+/** 組み直すかの判断に要るものだけ。 */
+export type SiteWatchInput = Pick<FileChangeEvent, 'relPath' | 'scope'>;
+
 /**
- * その相対パスの変化でサイトを組み直すか。
+ * その変化でサイトを組み直すか。
  *
  * ページになる `.md` だけでなく、CSS・JS・データも同じフォルダから出しているので、
- * どれが変わっても読み直させる。**種類で絞らない**のは、絞った表がサーバー側の表と
- * 食い違うと、直したのに窓が古いまま——という、最も気づきにくい止まり方をするため。
- * 出してよいかを決めるのは常にサーバー側で、ここは「動きがあったか」しか見ない。
+ * どれが変わっても読み直させる。**ここで種類を見分けない**のは、見分けた表が
+ * サーバー側の表と食い違うと、直したのに窓が古いまま——という、最も気づきにくい
+ * 止まり方をするため。どちらに効くかは送り側が決めて `scope` に載せてくる。
+ *
+ * サイトにしか出ない部品（HTML / CSS / JS）は、web モードで出している間だけ数える。
+ * 業務文書として出しているときは集めていないので、組み直しても同じものが出る＝
+ * 見ている人には、何も変えていないのに窓が瞬いたようにしか映らない。
+ *
+ * 宣言そのものは数えない。それが何を意味するかは、宣言を読み直す側が決める。
  */
-export function affectsSite(relPath: string): boolean {
-  return !relPath.startsWith(OUTPUT_DIR);
+export function affectsSite(change: SiteWatchInput, servingWeb: boolean): boolean {
+  if (change.relPath.startsWith(OUTPUT_DIR)) return false;
+  if (change.scope === 'config') return false;
+  return change.scope === 'tree' || servingWeb;
 }
 
 /**

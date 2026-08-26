@@ -8,7 +8,7 @@ use serde::Serialize;
 use std::path::{Component, Path, PathBuf};
 use std::time::{Duration, Instant};
 
-use crate::workspace::{is_excluded_dir, is_tree_ext};
+use crate::workspace::{is_excluded_dir, is_site_asset_ext, is_tree_ext, PROJECT_CONFIG_FILENAME};
 
 /// notify のイベント種別を、判断に必要な粒度へ畳んだもの。
 /// 配線層（lib.rs）が `notify::EventKind` からこの値へ写像して渡す。
@@ -32,6 +32,23 @@ pub enum RawEvent {
 pub struct FileChange {
     pub rel_path: String,
     pub kind: FileChangeKind,
+    pub scope: FileChangeScope,
+}
+
+/// その変更が誰に効くか。同じ「変わった」でも、直す先が違う。
+///
+/// 一覧に出す種類とサイトに出す種類は重なる（`.json` / `.tsv` など）ので、**どちらの表に
+/// 先に当たったか**をここに残す。受け取る側で拡張子を見分け直すと、同じ表を 2 か所に
+/// 持つことになり、片方だけ増やしたときに黙って食い違う。
+#[derive(Serialize, Debug, Clone, Copy, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum FileChangeScope {
+    /// 一覧に出る文書。開いていれば読み直しの対象。
+    Tree,
+    /// サイトの一部として出すもの（HTML / CSS / JS など）。一覧には出ない。
+    Site,
+    /// このフォルダの宣言そのもの。
+    Config,
 }
 
 /// 変更の種別。フロントは `'modified' | 'rescan'` として受ける。
@@ -62,13 +79,19 @@ pub fn classify_event(raw: RawEvent, paths: &[PathBuf], root: &Path) -> Vec<File
     };
     paths
         .iter()
-        .filter_map(|p| rel_under_root(p, root).map(|rel_path| FileChange { rel_path, kind }))
+        .filter_map(|p| {
+            rel_under_root(p, root).map(|(rel_path, scope)| FileChange {
+                rel_path,
+                kind,
+                scope,
+            })
+        })
         .collect()
 }
 
-/// `path` が root 配下の対象ファイル（走査対象の拡張子・除外ディレクトリ外）なら、`/` 区切りの
-/// 相対パスを返す。対象外・root 外は None。
-fn rel_under_root(path: &Path, root: &Path) -> Option<String> {
+/// `path` が root 配下の対象ファイル（対象の拡張子・除外ディレクトリ外）なら、`/` 区切りの
+/// 相対パスと、それが誰に効くかを返す。対象外・root 外は None。
+fn rel_under_root(path: &Path, root: &Path) -> Option<(String, FileChangeScope)> {
     let rel = path.strip_prefix(root).ok()?;
     // パス構成要素に除外ディレクトリ名が 1 つでもあれば対象外。
     for comp in rel.components() {
@@ -78,16 +101,25 @@ fn rel_under_root(path: &Path, root: &Path) -> Option<String> {
             }
         }
     }
+    let rel_path = rel.to_string_lossy().replace('\\', "/");
+    // 宣言はフォルダの直下にあるものだけ。深いところの同名は、別の何かとして扱う。
+    if rel_path == PROJECT_CONFIG_FILENAME {
+        return Some((rel_path, FileChangeScope::Config));
+    }
     // 拡張子ゲート（削除済みでも文字列判定なので成立する）。
     let ext = path
         .extension()
         .and_then(|e| e.to_str())
-        .map(|e| e.to_ascii_lowercase());
-    match ext {
-        Some(e) if is_tree_ext(e.as_str()) => {}
-        _ => return None,
+        .map(|e| e.to_ascii_lowercase())?;
+    // 両方の表に載っている種類（`.json` / `.tsv` など）は一覧の側を先に取る。一覧に
+    // 出るはずのものが出ないと、増えたファイルがどこからも見えなくなる。
+    if is_tree_ext(ext.as_str()) {
+        return Some((rel_path, FileChangeScope::Tree));
     }
-    Some(rel.to_string_lossy().replace('\\', "/"))
+    if is_site_asset_ext(ext.as_str()) {
+        return Some((rel_path, FileChangeScope::Site));
+    }
+    None
 }
 
 /// `path` が直近の自己書き込み（`recent` に記録済み）に `window` 以内で一致するか。
@@ -187,6 +219,7 @@ mod tests {
             vec![FileChange {
                 rel_path: "a.md".into(),
                 kind: FileChangeKind::Modified,
+                scope: FileChangeScope::Tree,
             }]
         );
     }
@@ -200,6 +233,7 @@ mod tests {
                 vec![FileChange {
                     rel_path: "docs/x.tsv".into(),
                     kind: FileChangeKind::Rescan,
+                    scope: FileChangeScope::Tree,
                 }],
                 "raw={:?}",
                 raw
@@ -213,11 +247,52 @@ mod tests {
     }
 
     #[test]
-    fn md_tsv以外の拡張子は捨てる() {
-        assert!(classify_event(RawEvent::Modified, &[join("a.txt")], &root()).is_empty());
-        assert!(classify_event(RawEvent::Created, &[join("a.exe")], &root()).is_empty());
+    fn どちらの表にも無い拡張子は捨てる() {
+        // 一覧にもサイトにも出ない種類は、変わっても画面に出るものが無い。
+        assert!(classify_event(RawEvent::Modified, &[join("a.exe")], &root()).is_empty());
+        assert!(classify_event(RawEvent::Created, &[join("notes.bak")], &root()).is_empty());
         // 拡張子なし（ディレクトリ等）も捨てる。
         assert!(classify_event(RawEvent::Created, &[join("subdir")], &root()).is_empty());
+        // 名前だけのファイル（`.env` など）は拡張子として読まない。
+        assert!(classify_event(RawEvent::Created, &[join(".env")], &root()).is_empty());
+    }
+
+    #[test]
+    fn サイトへ出す種類も通知しscopeはsiteになる() {
+        // ここを落とすと、書いた HTML / CSS / JS が変わってもライブが動かない。
+        for rel in ["index.html", "assets/style.css", "js/app.js", "note.txt"] {
+            let changes = classify_event(RawEvent::Modified, &[join(rel)], &root());
+            assert_eq!(changes.len(), 1, "rel={}", rel);
+            assert_eq!(changes[0].rel_path, rel);
+            assert_eq!(changes[0].scope, FileChangeScope::Site, "rel={}", rel);
+        }
+    }
+
+    #[test]
+    fn 両方の表にある種類は一覧の側で通知する() {
+        for rel in ["a.md", "docs/c.tsv", "data/x.json", "receipts/a.png"] {
+            let changes = classify_event(RawEvent::Modified, &[join(rel)], &root());
+            assert_eq!(changes.len(), 1, "rel={}", rel);
+            assert_eq!(changes[0].scope, FileChangeScope::Tree, "rel={}", rel);
+        }
+    }
+
+    #[test]
+    fn 宣言そのものはconfigとして通知する() {
+        // エージェントが宣言を書いた瞬間にアプリが気づけるよう、拡張子の表とは別に通す。
+        let changes = classify_event(RawEvent::Created, &[join("md-business.yml")], &root());
+        assert_eq!(changes.len(), 1);
+        assert_eq!(changes[0].rel_path, "md-business.yml");
+        assert_eq!(changes[0].scope, FileChangeScope::Config);
+    }
+
+    #[test]
+    fn 宣言以外のymlは捨てる() {
+        assert!(classify_event(RawEvent::Modified, &[join("other.yml")], &root()).is_empty());
+        // 深いところの同名は宣言ではない。
+        assert!(
+            classify_event(RawEvent::Modified, &[join("conf/md-business.yml")], &root()).is_empty()
+        );
     }
 
     #[test]
@@ -265,7 +340,7 @@ mod tests {
 
     #[test]
     fn 複数パスをまとめて分類し対象外だけ捨てる() {
-        let paths = [join("a.md"), join("b.txt"), join("docs/c.tsv")];
+        let paths = [join("a.md"), join("b.exe"), join("docs/c.tsv")];
         let changes = classify_event(RawEvent::Modified, &paths, &root());
         let rels: Vec<&str> = changes.iter().map(|c| c.rel_path.as_str()).collect();
         assert_eq!(rels, vec!["a.md", "docs/c.tsv"]);
@@ -328,14 +403,17 @@ mod tests {
             FileChange {
                 rel_path: "a.md".into(),
                 kind: FileChangeKind::Modified,
+                scope: FileChangeScope::Tree,
             },
             FileChange {
                 rel_path: "a.md".into(),
                 kind: FileChangeKind::Modified,
+                scope: FileChangeScope::Tree,
             },
             FileChange {
                 rel_path: "b.tsv".into(),
                 kind: FileChangeKind::Rescan,
+                scope: FileChangeScope::Tree,
             },
         ];
         let deduped = map_changes_dedup(changes);
@@ -345,10 +423,12 @@ mod tests {
                 FileChange {
                     rel_path: "a.md".into(),
                     kind: FileChangeKind::Modified,
+                    scope: FileChangeScope::Tree,
                 },
                 FileChange {
                     rel_path: "b.tsv".into(),
                     kind: FileChangeKind::Rescan,
+                    scope: FileChangeScope::Tree,
                 },
             ]
         );
@@ -360,10 +440,12 @@ mod tests {
             FileChange {
                 rel_path: "a.md".into(),
                 kind: FileChangeKind::Rescan,
+                scope: FileChangeScope::Tree,
             },
             FileChange {
                 rel_path: "a.md".into(),
                 kind: FileChangeKind::Modified,
+                scope: FileChangeScope::Tree,
             },
         ];
         let deduped = map_changes_dedup(changes);

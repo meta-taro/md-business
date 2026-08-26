@@ -11,7 +11,7 @@
 import { invoke } from '@tauri-apps/api/core';
 import { browser } from '$app/environment';
 import { collectSitePlan } from './collectSite';
-import { affectsSite, shouldAutoLive, shouldStop } from './browserPreview';
+import { affectsSite, shouldAutoLive, shouldStop, type SiteWatchInput } from './browserPreview';
 import type { LiveTrigger } from './browserPreview';
 
 /** 知らせが自分で消えるまで。書き出しと揃える。 */
@@ -318,12 +318,13 @@ class BrowserPreviewController {
    * ファイルが変わったときに呼ぶ。出していない間は何もしない。
    * ページにならないファイルの変化では組み直さない（affectsSite）。
    */
-  onFileChanged(relPath: string): void {
+  onFileChanged(change: SiteWatchInput): void {
     // 宣言そのものが書き換わったら読み直す。出している最中の中身は変えない
     // （立てたときの答えのまま出し続ける）が、ボタンの出方は今の宣言に合わせる。
-    if (relPath === PROJECT_CONFIG_FILENAME) void this.#checkDeclaration(this.#root, 'declared');
+    if (change.relPath === PROJECT_CONFIG_FILENAME)
+      void this.#checkDeclaration(this.#root, 'declared');
     if (this.serving === null) return;
-    if (!affectsSite(relPath)) return;
+    if (!affectsSite(change, this.servingWeb)) return;
     void this.#rebuild();
   }
 

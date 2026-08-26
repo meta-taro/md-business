@@ -1,27 +1,48 @@
 import { describe, it, expect } from 'vitest';
 import { affectsSite, shouldAutoLive, shouldStop } from './browserPreview';
 
+/** テスト補助：監視から届く形（relPath と scope）を組み立てる。 */
+function ch(relPath: string, scope: 'tree' | 'site' | 'config' = 'tree') {
+  return { relPath, scope };
+}
+
 describe('affectsSite', () => {
   it('ページになるものが変わったら組み直す', () => {
-    expect(affectsSite('docs/仕様.md')).toBe(true);
-    expect(affectsSite('README.MD')).toBe(true);
+    expect(affectsSite(ch('docs/仕様.md'), false)).toBe(true);
+    expect(affectsSite(ch('README.MD'), false)).toBe(true);
   });
 
   // ページ以外もサイトの一部として出るので、変わったら読み直させる。
   // ここで落とすと、直したのに開いたままの窓が古いままになる。
-  it('ページ以外が変わっても組み直す', () => {
-    expect(affectsSite('style.css')).toBe(true);
-    expect(affectsSite('js/app.js')).toBe(true);
-    expect(affectsSite('about.html')).toBe(true);
-    expect(affectsSite('docs/test-specs/001-login.tsv')).toBe(true);
-    expect(affectsSite('data/口座.json')).toBe(true);
-    expect(affectsSite('画像.png')).toBe(true);
+  it('web モードで出している間は、書いた HTML / CSS / JS でも組み直す', () => {
+    expect(affectsSite(ch('style.css', 'site'), true)).toBe(true);
+    expect(affectsSite(ch('js/app.js', 'site'), true)).toBe(true);
+    expect(affectsSite(ch('about.html', 'site'), true)).toBe(true);
+  });
+
+  // 一覧に出るものは、どちらのモードでもページや添付として出る。
+  it('文書やデータの変化は、出し方に関係なく組み直す', () => {
+    expect(affectsSite(ch('docs/test-specs/001-login.tsv'), false)).toBe(true);
+    expect(affectsSite(ch('data/口座.json'), false)).toBe(true);
+    expect(affectsSite(ch('画像.png'), false)).toBe(true);
+  });
+
+  // 業務文書として出している間は、これらを集めていない。組み直しても中身は同じで、
+  // 見ている人には、何もしていないのに窓が瞬いたようにしか映らない。
+  it('業務文書として出している間は、サイトの部品では組み直さない', () => {
+    expect(affectsSite(ch('style.css', 'site'), false)).toBe(false);
+    expect(affectsSite(ch('about.html', 'site'), false)).toBe(false);
+  });
+
+  // 宣言が何を意味するかは、宣言を読み直す側が決める。
+  it('宣言そのものでは組み直さない', () => {
+    expect(affectsSite(ch('md-business.yml', 'config'), true)).toBe(false);
   });
 
   // 書き出した先の変化で組み直すと、書き出すたびに組み直しが起きる。
   it('書き出し先の変化では組み直さない', () => {
-    expect(affectsSite('dist/index.html')).toBe(false);
-    expect(affectsSite('dist/a.md')).toBe(false);
+    expect(affectsSite(ch('dist/index.html', 'site'), true)).toBe(false);
+    expect(affectsSite(ch('dist/a.md'), true)).toBe(false);
   });
 });
 
