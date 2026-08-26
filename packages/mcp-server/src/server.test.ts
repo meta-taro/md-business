@@ -111,6 +111,7 @@ describe('createServer / MCP 配線', () => {
       'check_tsv',
       'create_document',
       'data_to_table',
+      'declare_web_mode',
       'filter_records',
       'get_schema',
       'list_schemas',
@@ -933,6 +934,25 @@ describe('createServer / export_pdf ツール', () => {
     expect(parse(res).text).toMatchObject({ ok: true, state: 'ready', trusted: true });
   });
 
+  it('宣言を書いても、この PC の許可は動かない', async () => {
+    // ここが web モード全体の要。エージェントは宣言を書けるが、許可には手が届かない。
+    // 書いた直後に「動く」へ変わるなら、宣言と同意を分けた意味が無い。
+    const app = fakeApp({ ok: true, data: { path: 'C:/work/site', trusted: false } });
+    const store = new MemoryDocumentStore();
+    const client = await connectWithApp(app, store);
+    await client.callTool({ name: 'declare_web_mode', arguments: {} });
+    const res = (await client.callTool({
+      name: 'web_mode_status',
+      arguments: {},
+    })) as CallToolResult;
+    expect(parse(res).text).toMatchObject({
+      ok: true,
+      state: 'awaiting-consent',
+      mode: 'web',
+      trusted: false,
+    });
+  });
+
   it('許可の状態が読めない応答は失敗として返す', async () => {
     // 分からないことを「許可済み」に寄せると、誰も押していない許可で script が動く。
     const app = fakeApp({ ok: true, data: { path: 'C:/work/site' } });
@@ -942,6 +962,86 @@ describe('createServer / export_pdf ツール', () => {
       arguments: {},
     })) as CallToolResult;
     expect(parse(res).isError).toBe(true);
+  });
+});
+
+describe('createServer / declare_web_mode', () => {
+  it('アプリが無くても公開する（宣言はただのファイルで、許可ではない）', async () => {
+    // web_mode_status と非対称なのは意図したもの。許可の「状態」はアプリしか知らないが、
+    // 宣言を書くのはワークスペースへの書き込みで、画面が無くても成立する。
+    const client = await connect(new MemoryDocumentStore());
+    const { tools } = await client.listTools();
+    expect(tools.map((t) => t.name)).toContain('declare_web_mode');
+  });
+
+  it('宣言の無いフォルダに web モードを書く', async () => {
+    const store = new MemoryDocumentStore();
+    const client = await connect(store);
+    const res = (await client.callTool({
+      name: 'declare_web_mode',
+      arguments: {},
+    })) as CallToolResult;
+    const { text, isError } = parse(res);
+    expect(isError).toBe(false);
+    expect(text).toMatchObject({ ok: true, changed: true, mode: 'web', path: 'md-business.yml' });
+    expect(await store.read('md-business.yml')).toBe('mode: web\n');
+  });
+
+  it('書いた宣言には、次に人が何をするかを添える', async () => {
+    // 「宣言できた」で終えると、依頼元は動くものと思って先へ進む。
+    const client = await connect(new MemoryDocumentStore());
+    const res = (await client.callTool({
+      name: 'declare_web_mode',
+      arguments: {},
+    })) as CallToolResult;
+    const { summary } = parse(res).text as { summary: string };
+    expect(summary).toContain('許可');
+  });
+
+  it('すでに web モードなら、書かずに済んだこととして返す', async () => {
+    // 宣言に置き先が足してある。求めているものは既にそこにあるので、失敗ではない。
+    const written = 'mode: web\nweb:\n  scriptOrigins:\n    - https://cdn.example.com\n';
+    const store = new MemoryDocumentStore({ 'md-business.yml': written });
+    const client = await connect(store);
+    const res = (await client.callTool({
+      name: 'declare_web_mode',
+      arguments: {},
+    })) as CallToolResult;
+    const { text, isError } = parse(res);
+    expect(isError).toBe(false);
+    expect(text).toMatchObject({
+      ok: true,
+      changed: false,
+      mode: 'web',
+      scriptOrigins: ['https://cdn.example.com'],
+    });
+    expect(await store.read('md-business.yml')).toBe(written);
+  });
+
+  it('手で書かれた document モードの宣言は書き換えない', async () => {
+    // 書いた人が「動かさない」と決めた宣言。上書きすると、決めたことが黙って消える。
+    const store = new MemoryDocumentStore({ 'md-business.yml': '# 業務文書だけ\nmode: document\n' });
+    const client = await connect(store);
+    const res = (await client.callTool({
+      name: 'declare_web_mode',
+      arguments: {},
+    })) as CallToolResult;
+    const { text, isError } = parse(res);
+    expect(isError).toBe(true);
+    expect(text).toMatchObject({ ok: false });
+    expect(await store.read('md-business.yml')).toBe('# 業務文書だけ\nmode: document\n');
+  });
+
+  it('読めない宣言も書き換えずに返す', async () => {
+    // 読めないものを消してよいことにすると、壊れた宣言がある日 web モードに化ける。
+    const store = new MemoryDocumentStore({ 'md-business.yml': 'mode: [web\n' });
+    const client = await connect(store);
+    const res = (await client.callTool({
+      name: 'declare_web_mode',
+      arguments: {},
+    })) as CallToolResult;
+    expect(parse(res).isError).toBe(true);
+    expect(await store.read('md-business.yml')).toBe('mode: [web\n');
   });
 });
 

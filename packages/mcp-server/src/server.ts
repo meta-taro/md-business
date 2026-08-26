@@ -34,8 +34,14 @@ import type { GitCommitInput, GitRunner } from './gitTools.js';
 import type { AppBridge } from './appBridge.js';
 import type { DesktopOpener } from './desktopOpener.js';
 import { safeRelativePath } from './workspacePath.js';
-import { PROJECT_CONFIG_FILENAME } from '@md-business/core';
-import { describeWebMode, parseTrustAnswer } from './webMode.js';
+import { parseProjectConfig, PROJECT_CONFIG_FILENAME } from '@md-business/core';
+import {
+  describeWebMode,
+  parseTrustAnswer,
+  planDeclareWebMode,
+  declareSummary,
+  WEB_MODE_DECLARATION_TEXT,
+} from './webMode.js';
 import { buildToolLogEntry, type ToolLogEntry, type ToolResultLike } from './toolLog.js';
 
 /** MCP クライアントへ提示するサーバー名 / バージョン（プロトコル上の識別子）。 */
@@ -814,6 +820,58 @@ export function createServer(store: DocumentStore, options: CreateServerOptions 
       if (dateTo !== undefined) sq.dateTo = dateTo;
       const r = await searchDocuments(store, sq);
       emit('search_documents', undefined, { ok: true });
+      return jsonResult(r);
+    },
+  );
+
+  server.registerTool(
+    'declare_web_mode',
+    {
+      description:
+        `${PROJECT_CONFIG_FILENAME} に web モードを宣言し、このフォルダを HTML / CSS / JS ごと組み立てて見られる形にする。` +
+        '宣言はプロジェクトが求めているものを書くだけで、実行の許可ではない。' +
+        '許可は利用者が自分の PC で 1 回与えるもので、ここから触れる口は無い。' +
+        '既にある宣言は書き換えず、そのまま返す。',
+      inputSchema: {},
+    },
+    async () => {
+      // 宣言が無いフォルダは「まだ何も言っていない」だけなので、空として読む。
+      // 置いてあるのに読めないのは別で、その場合は中身が分からない以上、
+      // 書き換えてよい相手かを決められない。触らずに返す。
+      let source = '';
+      if (await store.exists(PROJECT_CONFIG_FILENAME)) {
+        try {
+          source = await store.read(PROJECT_CONFIG_FILENAME);
+        } catch (error) {
+          const r = {
+            ok: false as const,
+            error: `${PROJECT_CONFIG_FILENAME} を読めないので、書き換えませんでした（${String(error)}）。`,
+            path: PROJECT_CONFIG_FILENAME,
+          };
+          emit('declare_web_mode', PROJECT_CONFIG_FILENAME, r);
+          return jsonResult(r, true);
+        }
+      }
+
+      const plan = planDeclareWebMode(source);
+      if (plan.kind === 'refuse') {
+        const r = { ok: false as const, error: plan.error, path: PROJECT_CONFIG_FILENAME };
+        emit('declare_web_mode', PROJECT_CONFIG_FILENAME, r);
+        return jsonResult(r, true);
+      }
+
+      if (plan.kind === 'write') await store.write(PROJECT_CONFIG_FILENAME, WEB_MODE_DECLARATION_TEXT);
+      const written = plan.kind === 'write' ? WEB_MODE_DECLARATION_TEXT : source;
+      const { config } = parseProjectConfig(written);
+      const r = {
+        ok: true as const,
+        changed: plan.kind === 'write',
+        mode: config.mode,
+        scriptOrigins: config.scriptOrigins,
+        path: PROJECT_CONFIG_FILENAME,
+        summary: declareSummary(plan.kind === 'write'),
+      };
+      emit('declare_web_mode', PROJECT_CONFIG_FILENAME, r);
       return jsonResult(r);
     },
   );

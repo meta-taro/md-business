@@ -1,7 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import {
   parseProjectConfig,
+  webModeToggle,
   PROJECT_CONFIG_FILENAME,
+  WEB_MODE_DECLARATION,
   type ProjectConfigResult,
 } from '../src/projectConfig.js';
 
@@ -161,5 +163,42 @@ describe('parseProjectConfig — where scripts may come from', () => {
     );
     expect(result.config.mode).toBe('document');
     expect(result.config.scriptOrigins).toEqual([]);
+  });
+});
+
+describe('WEB_MODE_DECLARATION', () => {
+  it('reads back as web mode through the one reader', () => {
+    const result = parseProjectConfig(WEB_MODE_DECLARATION);
+    expect(result.config.mode).toBe('web');
+    expect(result.problems).toEqual([]);
+  });
+
+  it('carries no comment, because the app that writes it speaks four languages', () => {
+    expect(WEB_MODE_DECLARATION).not.toContain('#');
+  });
+});
+
+describe('webModeToggle - what a writer may do to a file it does not own', () => {
+  it('offers to declare when there is no file yet', () => {
+    expect(webModeToggle('')).toBe('declare');
+  });
+
+  it('offers to withdraw exactly what it could have written itself', () => {
+    expect(webModeToggle(WEB_MODE_DECLARATION)).toBe('withdraw');
+  });
+
+  it('reads through blank lines, which say nothing in YAML', () => {
+    expect(webModeToggle('\n\nmode: web\n\n')).toBe('withdraw');
+  });
+
+  it('locks a declaration that carries more than the line it would write', () => {
+    // Withdrawing here would take the comment and the origins with it.
+    const written =
+      '# our landing page\nmode: web\nweb:\n  scriptOrigins:\n    - https://cdn.example.com\n';
+    expect(webModeToggle(written)).toBe('locked');
+  });
+
+  it('locks a document-mode declaration rather than overwriting it', () => {
+    expect(webModeToggle('mode: document\n')).toBe('locked');
   });
 });

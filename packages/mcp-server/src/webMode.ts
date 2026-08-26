@@ -14,7 +14,9 @@
 
 import {
   parseProjectConfig,
+  webModeToggle,
   PROJECT_CONFIG_FILENAME,
+  WEB_MODE_DECLARATION,
   type ProjectConfigProblem,
   type ProjectMode,
 } from '@md-business/core';
@@ -112,3 +114,52 @@ export function describeWebMode(source: string, trust: TrustAnswer): WebModeStat
     summary: summarize(state, config.scriptOrigins),
   };
 }
+
+/**
+ * 宣言を書くよう頼まれたときに、何をしてよいか。
+ *
+ * `already` は失敗ではない。求められているものが既にそこにあるだけで、
+ * 次にすること（人が許可する）は `write` と変わらない。
+ */
+export type DeclarePlan =
+  | { kind: 'write' }
+  | { kind: 'already' }
+  | { kind: 'refuse'; error: string };
+
+/**
+ * 宣言を書き足してよいかを決める。
+ *
+ * 書けるのは、宣言がまだ無いときだけ。既にある宣言は、書いた人のもの。
+ * 読めない宣言も同じ扱いにする。読めないものを置き換えてよいことにすると、
+ * 壊れた宣言がある日 web モードに化けて、誰も書いた覚えのない宣言が残る。
+ *
+ * @param source `md-business.yml` の中身。ファイルが無ければ空文字。
+ */
+export function planDeclareWebMode(source: string): DeclarePlan {
+  const { config } = parseProjectConfig(source);
+  // 置き先を添えてあるなど、こちらが書ける形でなくても、web モードなら用は足りている。
+  if (config.mode === 'web') return { kind: 'already' };
+  if (webModeToggle(source) === 'declare') return { kind: 'write' };
+  return {
+    kind: 'refuse',
+    error:
+      `${PROJECT_CONFIG_FILENAME} には既に別の宣言が書かれているので、書き換えませんでした。` +
+      `上書きすると、書いた人が決めたことや覚え書きが黙って消えます。` +
+      `web モードにするなら、この宣言を人が直してください。`,
+  };
+}
+
+/** 宣言を書いた（または既にあった）あとの説明。次に人が何をすれば動くかで終える。 */
+export function declareSummary(changed: boolean): string {
+  return (
+    (changed
+      ? `${PROJECT_CONFIG_FILENAME} に web モードを宣言しました。`
+      : `${PROJECT_CONFIG_FILENAME} では既に web モードが宣言されています。`) +
+    `これはプロジェクトが求めているものを書いただけで、実行の許可ではありません。` +
+    `動かすには、利用者がアプリでこのフォルダを開き、確認の表示で 1 回許可する必要があります。` +
+    `許可を与える口はこちらにはありません。`
+  );
+}
+
+/** 書き込む中身。宣言の本文は 1 か所（core）にしか無い。 */
+export const WEB_MODE_DECLARATION_TEXT = WEB_MODE_DECLARATION;

@@ -13,8 +13,10 @@ export {
 export type { FrontmatterProblem, FrontmatterProblemKind } from './frontmatterError.js';
 export {
   parseProjectConfig,
+  webModeToggle,
   PROJECT_CONFIG_FILENAME,
   MAX_PROJECT_CONFIG_CHARS,
+  WEB_MODE_DECLARATION,
 } from './projectConfig.js';
 export type {
   ProjectConfig,
@@ -22,6 +24,7 @@ export type {
   ProjectConfigProblemKind,
   ProjectConfigResult,
   ProjectMode,
+  WebModeToggle,
 } from './projectConfig.js';
 export {
   findDepthOverflow,

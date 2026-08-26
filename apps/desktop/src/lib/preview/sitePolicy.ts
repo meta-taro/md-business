@@ -72,16 +72,8 @@ export function planWrite(policy: SitePolicy, trusted: boolean): SiteWriteStart 
 /**
  * アプリが宣言を書き換えられるか。
  *
- * `locked` は、人かエージェントが自分で書いた宣言があるということ。
- * そこへアプリから足し引きすると、書いた行や覚え書きを黙って崩すことになる。
- * 同じ判断を書き込む側（Rust）もしている。ここは押せるかを決めるだけ。
+ * 判断そのものは宣言を読む側（core）に置いてある。読む場所と、書き換えてよいかを
+ * 決める場所が離れると、片方だけ直したときに「読めるが壊す」書き換えが通る。
+ * 実際に書き込む Rust も同じ規則を持っているが、あちらは言語が違うので写しになる。
  */
-export type WebModeToggle = 'declare' | 'withdraw' | 'locked';
-
-/** @param source `md-business.yml` の中身。ファイルが無ければ空文字。 */
-export function webModeToggle(source: string): WebModeToggle {
-  const body = source.trim();
-  if (body === '') return 'declare';
-  if (body === 'mode: web') return 'withdraw';
-  return 'locked';
-}
+export { webModeToggle, type WebModeToggle } from '@md-business/core';

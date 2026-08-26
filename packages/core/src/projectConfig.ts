@@ -247,3 +247,40 @@ export function parseProjectConfig(source: string): ProjectConfigResult {
 
   return { config: { mode, scriptOrigins }, problems };
 }
+
+/**
+ * The single line a tool may write on a project's behalf to declare web mode.
+ *
+ * It is the shortest text `parseProjectConfig` reads back as web mode, and it
+ * carries no comment on purpose. The app that offers to write it has four
+ * interface languages, and the file stays in the repository long after whoever
+ * pressed the button — a sentence in one of those languages would be a guess
+ * about who reads the project next.
+ */
+export const WEB_MODE_DECLARATION = 'mode: web\n';
+
+/**
+ * What a tool may do to `md-business.yml` without damaging what it finds.
+ *
+ * The file belongs to whoever wrote the project, so a tool may only create the
+ * declaration where there is none, and may only remove the exact line it could
+ * have written itself. Anything else — a comment, declared origins, a mode
+ * spelled out by hand — is `locked`: still readable, still honoured, but not
+ * for a tool to rewrite. Editing it would silently drop lines nobody asked to
+ * lose, and the loss would not show until the project stopped behaving.
+ *
+ * Writing the declaration is not permission to run anything. It states what
+ * the project asks for; consent is a separate per-machine record the project
+ * cannot reach.
+ */
+export type WebModeToggle = 'declare' | 'withdraw' | 'locked';
+
+/** @param source contents of `md-business.yml`, or an empty string if absent. */
+export function webModeToggle(source: string): WebModeToggle {
+  // Blank lines around the declaration say nothing in YAML, so a file that is
+  // only whitespace is an absent declaration, not a locked one.
+  const body = source.trim();
+  if (body === '') return 'declare';
+  if (body === WEB_MODE_DECLARATION.trim()) return 'withdraw';
+  return 'locked';
+}
