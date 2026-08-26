@@ -62,6 +62,22 @@ describe('buildToolLogEntry', () => {
     expect('path' in entry).toBe(false);
   });
 
+  it('新しく作ったかを結果が言っていれば載せる（受け取る側が反映の仕方を選べるように）', () => {
+    expect(
+      buildToolLogEntry('write_site_file', { ok: true, path: 'index.html', created: true }, undefined, 6000),
+    ).toEqual({ type: 'log', tool: 'write_site_file', ok: true, ts: 6000, path: 'index.html', created: true });
+    expect(
+      buildToolLogEntry('write_site_file', { ok: true, path: 'style.css', created: false }, undefined, 6001)
+        .created,
+    ).toBe(false);
+  });
+
+  it('言っていない結果には created を付けない', () => {
+    expect('created' in buildToolLogEntry('update_document', { ok: true, path: 'a.md' }, undefined, 7000)).toBe(
+      false,
+    );
+  });
+
   it('ts はそのまま透過する（時刻は呼び出し側が確定）', () => {
     expect(buildToolLogEntry('search_documents', { ok: true }, undefined, 42).ts).toBe(42);
   });

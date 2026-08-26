@@ -26,6 +26,11 @@ export interface WatchViewState {
   activePath: string | null;
   /** 開いているファイルに未保存編集があるか。 */
   dirty: boolean;
+  /**
+   * 今のフォルダで、サイトの部品も一覧に出ているか（web を名乗っているか）。
+   * 出ていないフォルダでは追いかける先が無く、出ているフォルダでは業務文書と同じ扱いになる。
+   */
+  siteVisible: boolean;
 }
 
 /**
@@ -40,6 +45,7 @@ export type FileChangeAction = 'reload' | 'rescan' | 'conflict' | 'ignore';
 /**
  * 監視イベントと画面状態から反応を決める。
  *
+ * - 一覧に出ないものは無視する（宣言、および web を名乗っていないフォルダのサイトの部品）。
  * - `rescan`（構造変更）は開いているファイル状態に依らず最優先で再走査。
  * - `modified` は「開いているファイルそのもの」の変更だけを扱い、それ以外は無視する。
  *   未編集なら読み直し（reload）、編集中なら編集を守るため competing 表示（conflict）。
@@ -48,9 +54,13 @@ export function decideFileChangeAction(
   event: FileChangeEvent,
   view: WatchViewState,
 ): FileChangeAction {
-  // 一覧に出ないもの（サイトの部品・宣言）は、読み直す先も走査し直す先も無い。
+  // 宣言はこのフォルダの扱いを決める紙で、一覧にも画面にも出ない。
+  if (event.scope === 'config') return 'ignore';
+  // サイトの部品は、web を名乗っていないフォルダでは一覧に出ない＝読み直す先も走査し直す先も無い。
   // 見ているのはブラウザの側なので、そちらの担当（browserPreview）へ回る。
-  if (event.scope !== 'tree') return 'ignore';
+  // 名乗っているフォルダでは一覧に出るので、業務文書と同じように追いかける。ここで無視すると、
+  // AI が書いたファイルが一覧に出ないまま残り、書けたのかどうかが利用者から見えない。
+  if (event.scope === 'site' && !view.siteVisible) return 'ignore';
   if (event.kind === 'rescan') return 'rescan';
   // ここから kind === 'modified'
   if (view.activePath === null || event.relPath !== view.activePath) return 'ignore';

@@ -315,6 +315,7 @@
       const action = decideFileChangeAction(change, {
         activePath: workspace.activePath,
         dirty: workspace.dirty,
+        siteVisible: workspace.siteVisible,
       });
       if (action === 'reload') void workspace.select(change.relPath);
       else if (action === 'rescan') void workspace.rescanPreservingActive();

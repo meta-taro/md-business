@@ -20,6 +20,11 @@ export interface ToolLogEntry {
   path?: string;
   /** 失敗理由など補足。成功時は持たせない。 */
   detail?: string;
+  /**
+   * その書き込みでファイルが新しく出来たか。作った/書き換えたを区別して返すツールだけが持つ。
+   * 受け取る側は、新しく出来たときだけ一覧を組み直せばよくなる。
+   */
+  created?: boolean;
 }
 
 /** entry を組むのに参照するツール結果の最小形（成功・失敗の共通部分だけ見る）。 */
@@ -29,6 +34,8 @@ export interface ToolResultLike {
   path?: string | null;
   /** 失敗結果が持つ日本語理由。 */
   error?: string;
+  /** 成功結果が「新しく出来たか」を区別して返すなら、その値。 */
+  created?: boolean;
 }
 
 /**
@@ -37,6 +44,7 @@ export interface ToolResultLike {
  * - `path` は成功結果の正規化済み `result.path` を最優先し、無ければ（null 含む）引数の
  *   `argPath`（失敗時のフォールバック）を使う。どちらも無いツールでは省略する。
  * - `detail` は失敗時のみ `error` を載せる（成功時は付けない）。
+ * - `created` は結果が持っているときだけ載せる（区別しないツールでは項目ごと出さない）。
  */
 export function buildToolLogEntry(
   tool: string,
@@ -48,5 +56,6 @@ export function buildToolLogEntry(
   const path = result.path ?? argPath;
   if (path !== undefined) entry.path = path;
   if (!result.ok && result.error !== undefined) entry.detail = result.error;
+  if (typeof result.created === 'boolean') entry.created = result.created;
   return entry;
 }

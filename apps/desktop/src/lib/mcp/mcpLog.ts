@@ -36,6 +36,8 @@ export interface McpLogEntry {
   path?: string;
   /** 失敗理由など補足。 */
   detail?: string;
+  /** その書き込みでファイルが新しく出来たか。作った/書き換えたを区別するツールだけが持つ。 */
+  created?: boolean;
 }
 
 /**
@@ -62,12 +64,12 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 /**
  * `mcp-log` イベントの payload を操作ログとして解釈する。読めない形は null（読み飛ばす）。
- * 補足項目（path / detail）は型が合うときだけ載せ、合わなくても本体は捨てない。
+ * 補足項目（path / detail / created）は型が合うときだけ載せ、合わなくても本体は捨てない。
  */
 export function parseLogEvent(payload: unknown): McpLogEntry | null {
   if (!isRecord(payload)) return null;
   if (payload['type'] !== 'log') return null;
-  const { tool, ok, ts, path, detail } = payload;
+  const { tool, ok, ts, path, detail, created } = payload;
   if (typeof tool !== 'string' || typeof ok !== 'boolean' || typeof ts !== 'number') return null;
   return {
     tool,
@@ -75,6 +77,7 @@ export function parseLogEvent(payload: unknown): McpLogEntry | null {
     ts,
     ...(typeof path === 'string' ? { path } : {}),
     ...(typeof detail === 'string' ? { detail } : {}),
+    ...(typeof created === 'boolean' ? { created } : {}),
   };
 }
 
@@ -165,6 +168,13 @@ export function fileChangeFromLog(entry: McpLogEntry): McpFileChange | null {
   // 検証シートの行追加・行更新も既存ファイルへの書き込み（新規作成はしない）。
   if (entry.tool === 'append_tsv_row' || entry.tool === 'update_tsv_row') {
     return { relPath: entry.path, kind: 'modified', scope: 'tree' };
+  }
+  // サイトの部品は、新しく出来たときだけ一覧が変わる。書き換えただけならその 1 枚を
+  // 出し直せば済み、組み直すと本文から作るページまで作り直すことになる。
+  // 作ったかどうかが分からない古い形は、取りこぼさない側（組み直す）へ倒す。
+  if (entry.tool === 'write_site_file') {
+    const kind = entry.created === false ? 'modified' : 'rescan';
+    return { relPath: entry.path, kind, scope: 'site' };
   }
   // 宣言が置かれたら、それを読み直す側へ回す（監視が張れない環境でも気づけるように）。
   if (entry.tool === 'declare_web_mode') {

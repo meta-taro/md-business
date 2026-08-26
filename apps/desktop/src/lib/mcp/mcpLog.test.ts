@@ -79,6 +79,17 @@ describe('parseLogEvent', () => {
     expect(parseLogEvent({ type: 'log', tool: 'x', ok: true, ts: '1' })).toBeNull();
   });
 
+  it('created は在るときだけ載せる（新しく出来たのかを受け取る側が知るため）', () => {
+    expect(
+      parseLogEvent({ type: 'log', tool: 'write_site_file', ok: true, ts: 5, created: true }),
+    ).toEqual({ tool: 'write_site_file', ok: true, ts: 5, created: true });
+    expect(
+      'created' in
+        (parseLogEvent({ type: 'log', tool: 'write_site_file', ok: true, ts: 5, created: 'yes' }) ??
+          {}),
+    ).toBe(false);
+  });
+
   it('型の合わない補足項目は落として本体は残す', () => {
     expect(parseLogEvent({ type: 'log', tool: 'x', ok: true, ts: 1, path: 3 })).toEqual({
       tool: 'x',
@@ -244,6 +255,28 @@ describe('fileChangeFromLog', () => {
       relPath: 'md-business.yml',
       kind: 'modified',
       scope: 'config',
+    });
+  });
+
+  it('サイトの部品を新しく作ったら走査し直す（一覧に出るように）', () => {
+    expect(
+      fileChangeFromLog(log({ tool: 'write_site_file', path: 'index.html', created: true })),
+    ).toEqual({ relPath: 'index.html', kind: 'rescan', scope: 'site' });
+  });
+
+  it('元から在るサイトの部品への書き換えは、その 1 枚だけの変化として渡す', () => {
+    // 一覧は変わらないので組み直さない。組み直すと、CSS を 1 行直すたびに
+    // 本文から作るページまで作り直すことになる。
+    expect(
+      fileChangeFromLog(log({ tool: 'write_site_file', path: 'style.css', created: false })),
+    ).toEqual({ relPath: 'style.css', kind: 'modified', scope: 'site' });
+  });
+
+  it('作ったかどうかが分からなければ走査し直す（取りこぼさない側へ倒す）', () => {
+    expect(fileChangeFromLog(log({ tool: 'write_site_file', path: 'index.html' }))).toEqual({
+      relPath: 'index.html',
+      kind: 'rescan',
+      scope: 'site',
     });
   });
 
