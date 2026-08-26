@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   TREE_STATES_MAX,
+  emptyTreeMessage,
   fileLabel,
   forgetTreeState,
   hasRestoredView,
@@ -164,5 +165,22 @@ describe('fileLabel', () => {
 
   it('空なら空', () => {
     expect(fileLabel('')).toBe('');
+  });
+});
+
+describe('emptyTreeMessage', () => {
+  it('絞り込みが最優先（絞った結果 0 件は「無い」ではない）', () => {
+    expect(emptyTreeMessage(true, false)).toBe('tree.filterNoMatch');
+    expect(emptyTreeMessage(true, true)).toBe('tree.filterNoMatch');
+  });
+
+  it('業務文書だけのフォルダは扱える種類を挙げる', () => {
+    expect(emptyTreeMessage(false, false)).toBe('tree.noFiles');
+  });
+
+  // web を名乗るフォルダでは HTML / CSS も並ぶ。`.md / .tsv` だけを挙げると
+  // 「置いたのに出ない」と読めてしまう。
+  it('web を名乗るフォルダは別の言い方にする', () => {
+    expect(emptyTreeMessage(false, true)).toBe('tree.noFilesWeb');
   });
 });

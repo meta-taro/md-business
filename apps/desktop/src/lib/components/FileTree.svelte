@@ -20,7 +20,7 @@
   import type { MessageKey } from '$lib/i18n/messages';
   import { folderLabel } from '$lib/workspace/recentFolders';
   import { buildShareLink } from '$lib/workspace/shareLink';
-  import { fileLabel } from '$lib/workspace/treeState';
+  import { emptyTreeMessage, fileLabel } from '$lib/workspace/treeState';
   import {
     toAbsolutePath,
     menuActionsForKind,
@@ -564,13 +564,11 @@
       {/if}
     </div>
   {:else if rows.length === 0}
-    <!-- フィルタで 0 件 か 空フォルダ かで文言を分ける。 -->
+    <!-- フィルタで 0 件 か 空フォルダ かで文言を分ける。空フォルダは、そのフォルダが
+         何を並べる場所なのか（web を名乗っているか）で変わる。 -->
+    {@const emptyKey = emptyTreeMessage(filtering, workspace.siteVisible)}
     <div class="empty">
-      {#if filtering}
-        <p class="hint">{t('tree.filterNoMatch', { query: filterQuery.trim() })}</p>
-      {:else}
-        <p class="hint">{t('tree.noFiles')}</p>
-      {/if}
+      <p class="hint">{t(emptyKey, { query: filterQuery.trim() })}</p>
     </div>
   {:else}
     <!-- 十字キーはツリー全体で受け、行の button には roving tabindex を配る。 -->

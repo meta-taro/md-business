@@ -215,6 +215,7 @@ export interface Messages {
   'tree.openFolder': string;
   'tree.filterNoMatch': string;
   'tree.noFiles': string;
+  'tree.noFilesWeb': string;
   'tree.truncated': string;
   'tree.openAsk': string;
   'tree.openAskHint': string;
@@ -384,6 +385,7 @@ export interface Messages {
   'mcp.copiedConfig': string;
   'mcp.writeConfig': string;
   'mcp.wroteConfig': string;
+  'mcp.wroteConfigNext': string;
   'mcp.writeConfigFailed': string;
   'mcp.writeConfigNote': string;
   'mcp.howto': string;
@@ -875,6 +877,7 @@ const en: Messages = {
   'tree.openFolder': 'Open folder',
   'tree.filterNoMatch': 'No files match\n"{query}"',
   'tree.noFiles': 'No .md / .tsv\nfiles found',
+  'tree.noFilesWeb': 'Nothing here yet\nHTML / CSS show up too',
   'tree.truncated': 'Showing partial results (limit reached)',
   'tree.openAsk': 'Open the folder {folder}?',
   'tree.openAskHint': 'Another program asked to show {path}. It is outside every folder you have opened.',
@@ -1036,7 +1039,8 @@ const en: Messages = {
   'mcp.copyConfig': 'Copy client settings',
   'mcp.copiedConfig': 'Settings copied',
   'mcp.writeConfig': 'Add settings to the open folder',
-  'mcp.wroteConfig': 'Settings written',
+  'mcp.wroteConfig': 'Settings written to {path}',
+  'mcp.wroteConfigNext': 'Start an AI client in this folder and it can use this app’s tools.',
   'mcp.writeConfigFailed': 'The settings could not be written',
   'mcp.writeConfigNote':
     'Writes .mcp.json into the open folder. It holds an access token, so in a Git repository it is added to .gitignore. Settings already in the file are kept.',
@@ -1529,6 +1533,7 @@ const ja: Messages = {
   'tree.openFolder': 'フォルダを開く',
   'tree.filterNoMatch': '「{query}」に\n一致するファイルがありません',
   'tree.noFiles': '.md / .tsv が\n見つかりませんでした',
+  'tree.noFilesWeb': 'まだ何もありません\nHTML / CSS もここに並びます',
   'tree.truncated': '一部のみ表示（上限に達したため打ち切りました）',
   'tree.openAsk': '{folder} を開きますか',
   'tree.openAskHint': 'ほかのプログラムから {path} を出すよう頼まれました。これまでに開いたどのフォルダの中にもありません。',
@@ -1690,7 +1695,8 @@ const ja: Messages = {
   'mcp.copyConfig': '接続設定を写す',
   'mcp.copiedConfig': '接続設定を写しました',
   'mcp.writeConfig': '開いているフォルダへ設定を置く',
-  'mcp.wroteConfig': '設定を置きました',
+  'mcp.wroteConfig': '{path} に設定を置きました',
+  'mcp.wroteConfigNext': 'このフォルダで AI クライアントを開くと、このアプリの道具が使えるようになる。',
   'mcp.writeConfigFailed': '設定を置けませんでした',
   'mcp.writeConfigNote':
     '開いているフォルダに .mcp.json を書く。接続トークンが入るので、Git リポジトリなら .gitignore へ追記する。すでにある設定は残す。',
@@ -2176,6 +2182,7 @@ const zh: Messages = {
   'tree.openFolder': '打开文件夹',
   'tree.filterNoMatch': '没有匹配\n“{query}”的文件',
   'tree.noFiles': '未找到\n.md / .tsv 文件',
+  'tree.noFilesWeb': '这里还是空的\nHTML / CSS 也会出现在这里',
   'tree.truncated': '仅显示部分（已达上限而截断）',
   'tree.openAsk': '要打开文件夹 {folder} 吗？',
   'tree.openAskHint': '其他程序请求显示 {path}。它不在你打开过的任何文件夹中。',
@@ -2337,7 +2344,8 @@ const zh: Messages = {
   'mcp.copyConfig': '复制连接设置',
   'mcp.copiedConfig': '已复制连接设置',
   'mcp.writeConfig': '将设置写入打开的文件夹',
-  'mcp.wroteConfig': '已写入设置',
+  'mcp.wroteConfig': '已将设置写入 {path}',
+  'mcp.wroteConfigNext': '在该文件夹中启动 AI 客户端，即可使用本应用的工具。',
   'mcp.writeConfigFailed': '无法写入设置',
   'mcp.writeConfigNote':
     '在打开的文件夹中写入 .mcp.json。其中包含连接令牌，因此在 Git 仓库中会追加到 .gitignore。已有的设置会保留。',
@@ -2820,6 +2828,7 @@ const ko: Messages = {
   'tree.openFolder': '폴더 열기',
   'tree.filterNoMatch': '"{query}"과(와)\n일치하는 파일이 없습니다',
   'tree.noFiles': '.md / .tsv 파일을\n찾을 수 없습니다',
+  'tree.noFilesWeb': '아직 아무것도 없습니다\nHTML / CSS도 여기에 표시됩니다',
   'tree.truncated': '일부만 표시 (상한에 도달하여 중단)',
   'tree.openAsk': '{folder} 폴더를 열까요?',
   'tree.openAskHint': '다른 프로그램이 {path} 를 표시하도록 요청했습니다. 지금까지 연 어떤 폴더에도 없습니다.',
@@ -2981,7 +2990,8 @@ const ko: Messages = {
   'mcp.copyConfig': '연결 설정 복사',
   'mcp.copiedConfig': '연결 설정을 복사했습니다',
   'mcp.writeConfig': '열려 있는 폴더에 설정 넣기',
-  'mcp.wroteConfig': '설정을 넣었습니다',
+  'mcp.wroteConfig': '{path} 에 설정을 넣었습니다',
+  'mcp.wroteConfigNext': '이 폴더에서 AI 클라이언트를 열면 이 앱의 도구를 쓸 수 있습니다.',
   'mcp.writeConfigFailed': '설정을 넣지 못했습니다',
   'mcp.writeConfigNote':
     '열려 있는 폴더에 .mcp.json 을 씁니다. 접속 토큰이 들어가므로 Git 저장소라면 .gitignore 에 추가합니다. 이미 있는 설정은 남깁니다.',
