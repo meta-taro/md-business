@@ -596,6 +596,19 @@ describe('createServer / instructions', () => {
     expect(text).toContain('search_lines');
     expect(text).toContain('read_lines');
   });
+
+  it('サイトの部品は web モードの口で触ることを書く', async () => {
+    const text = await instructions();
+    // 部品には形が無く素のファイル編集でも書けてしまう。宣言から確かめるまでの
+    // 一続きを名指ししないと、途中の口だけ使われて画面にも記録にも出ない。
+    expect(text).toContain('declare_web_mode');
+    expect(text).toContain('list_site_files');
+    expect(text).toContain('read_site_file');
+    expect(text).toContain('write_site_file');
+    // 宣言を置いただけで動かしてよいことにはならない、が抜けると許可の話とすり替わる。
+    expect(text).toMatch(/宣言/);
+    expect(text).toContain('ブラウザ');
+  });
 });
 
 describe('createServer / git ツール', () => {
