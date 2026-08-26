@@ -1778,9 +1778,20 @@
     gap: var(--space-2);
   }
 
-  /* サイトの部品のペインヘッダは、見出しの右に「読み取り専用」を置くだけ。 */
+  /* サイトの部品のペインヘッダは、映しているかどうかで中身が変わる。 */
   .site-head {
     gap: var(--space-2);
+  }
+
+  /* 待ち受けの在り処は長くなりうるので、縮む側にして右の切り替えを押し出さない。 */
+  .site-url {
+    min-width: 0;
+    overflow: hidden;
+    color: var(--text-tertiary);
+    font-family: var(--font-mono);
+    font-size: var(--text-sm-size);
+    white-space: nowrap;
+    text-overflow: ellipsis;
   }
 
   .site-note {
