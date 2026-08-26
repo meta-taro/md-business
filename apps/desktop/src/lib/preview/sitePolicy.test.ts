@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { planWrite, planStart, sitePolicyFrom, webModeToggle } from './sitePolicy';
+import { devServerFrom, planWrite, planStart, sitePolicyFrom, webModeToggle } from './sitePolicy';
 
 describe('sitePolicyFrom', () => {
   it('宣言が無ければ何も動かさない', () => {
@@ -21,6 +21,23 @@ describe('sitePolicyFrom', () => {
   // 読めない宣言を「web らしいから動かす」と汲み取らない。
   it('読めない宣言は動かさない側へ落ちる', () => {
     expect(sitePolicyFrom('mode: [web')).toEqual({ scripts: false, scriptOrigins: [] });
+  });
+});
+
+describe('devServerFrom', () => {
+  it('宣言が無ければ向ける先も無い', () => {
+    expect(devServerFrom('')).toBe(null);
+  });
+
+  it('宣言された待ち受けの在り処を返す', () => {
+    const source = 'mode: web\nweb:\n  devServer: http://localhost:4321\n';
+    expect(devServerFrom(source)).toBe('http://localhost:4321/');
+  });
+
+  // 向ける先を決めるのは宣言を読む側（core）。ここで汲み取り直さない。
+  it('この PC の外を指す宣言は落ちる', () => {
+    const source = 'mode: web\nweb:\n  devServer: https://example.com\n';
+    expect(devServerFrom(source)).toBe(null);
   });
 });
 

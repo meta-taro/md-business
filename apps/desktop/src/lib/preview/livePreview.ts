@@ -48,13 +48,28 @@ export function livePreviewUrl({ base, web, relPath }: LivePreviewTarget): strin
 }
 
 /** サイトの部品を開いている面に何を出すか。 */
-export type SitePartPane =
-  /** 出している待ち受けをそのまま映す。 */
-  | 'live'
+export type SitePartView =
+  /** プロジェクトが自分で動かしている待ち受けを映す。 */
+  | { kind: 'dev'; url: string }
+  /** その待ち受けを宣言しているのに、まだ応えていない。 */
+  | { kind: 'dev-down'; url: string }
+  /** アプリが立てた待ち受けをそのまま映す。 */
+  | { kind: 'live'; url: string }
   /** 待ち受けを立てる口を出す。 */
-  | 'start'
+  | { kind: 'start' }
   /** web モードの宣言から先に要る。 */
-  | 'declare';
+  | { kind: 'declare' };
+
+export interface SitePartInput {
+  /** アプリが立てた待ち受けの、いま開いているファイルに当たる先。 */
+  liveUrl: string | null;
+  /** プロジェクトが宣言した、自前の待ち受けの在り処。 */
+  devServer: string | null;
+  /** その在り処が応えているか。 */
+  devAnswering: boolean;
+  /** 開いているフォルダが web モードを名乗っているか。 */
+  declaredWeb: boolean;
+}
 
 /**
  * 手で書いた HTML や CSS を開いたときに出すもの。
@@ -62,8 +77,17 @@ export type SitePartPane =
  * 立っている待ち受けがあれば、そこへ向ける。面の中で組み直すと、ブラウザで開いた窓と
  * 別物になり、どちらが本当かを確かめる先が 2 つになる。立っていないときに断り書きだけを
  * 出すと、見る手立てが別の窓しか無いように読めるので、立てる口を出す。
+ *
+ * 自前の待ち受けを宣言しているフォルダでは、そちらが先。Astro や Vite のように
+ * ページを組み上げてから出すものは、アプリが同じ中身を組み直せない。応えていないときに
+ * 手元の待ち受けへすり替えないのも同じ理由で、宣言した在り処と違うものが黙って映ると、
+ * 直す先が分からなくなる。
  */
-export function sitePartPane(liveUrl: string | null, declaredWeb: boolean): SitePartPane {
-  if (liveUrl !== null) return 'live';
-  return declaredWeb ? 'start' : 'declare';
+export function sitePartView(input: SitePartInput): SitePartView {
+  const { liveUrl, devServer, devAnswering, declaredWeb } = input;
+  if (devServer !== null) {
+    return devAnswering ? { kind: 'dev', url: devServer } : { kind: 'dev-down', url: devServer };
+  }
+  if (liveUrl !== null) return { kind: 'live', url: liveUrl };
+  return declaredWeb ? { kind: 'start' } : { kind: 'declare' };
 }

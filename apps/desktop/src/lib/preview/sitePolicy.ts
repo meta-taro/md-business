@@ -28,6 +28,19 @@ export function sitePolicyFrom(source: string): SitePolicy {
 }
 
 /**
+ * プロジェクトが自分で動かしている待ち受けの在り処。宣言していなければ null。
+ *
+ * これも宣言の写しで、アプリが何かを起動する根拠にはならない。**md-business は
+ * `astro dev` のような処理を起こさない。**向こうで動いているものへ面を向けるだけ。
+ * どこへ向けてよいかの線引き（この PC の中だけ）は読む側（core）に置いてある。
+ *
+ * @param source `md-business.yml` の中身。ファイルが無ければ空文字。
+ */
+export function devServerFrom(source: string): string | null {
+  return parseProjectConfig(source).config.devServer;
+}
+
+/**
  * 出す前に何をするか。
  *
  * `consent` は失敗ではない。人がこの PC で 1 回押せば出せる、という途中の状態を指す。

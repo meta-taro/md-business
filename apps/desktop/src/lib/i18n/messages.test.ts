@@ -164,4 +164,12 @@ describe('サイトの部品の面', () => {
       expect(messages[locale]['site.declareNote'], locale).not.toBe('');
     }
   });
+
+  // 応えていない待ち受けは、宣言した在り処を出さないと何を直せばいいか分からない。
+  // 立ち上げるのは向こう側なので、こちらの操作を書いても押す先が無い。
+  it('どの言語でも、応えていない待ち受けの在り処を差し込める', () => {
+    for (const locale of LOCALES) {
+      expect(messages[locale]['site.devDownNote'], locale).toContain('{url}');
+    }
+  });
 });

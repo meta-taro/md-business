@@ -3,7 +3,7 @@
   import { themeController } from '$lib/theme.svelte';
   import BrowserOpenButtons from '$lib/components/BrowserOpenButtons.svelte';
   import { browserPreview } from '$lib/preview/browserPreviewController.svelte';
-  import { livePreviewUrl, sitePartPane } from '$lib/preview/livePreview';
+  import { livePreviewUrl, sitePartView } from '$lib/preview/livePreview';
   import { previewRenderer } from '$lib/preview/previewRenderer.svelte';
   import type { PreviewResult } from '$lib/preview/previewFactory';
   import { frontmatterMessage } from '$lib/preview/frontmatterMessage';
@@ -1117,7 +1117,16 @@
       relPath: workspace.activePath,
     }),
   );
-  const sitePane = $derived(sitePartPane(liveUrl, browserPreview.declaredWeb));
+  const sitePane = $derived(
+    sitePartView({
+      liveUrl,
+      devServer: browserPreview.declaredDev,
+      devAnswering: browserPreview.devAnswering,
+      declaredWeb: browserPreview.declaredWeb,
+    }),
+  );
+  /** 映しているか。映していれば、面の広さを変える口を出す。 */
+  const siteShowing = $derived(sitePane.kind === 'dev' || sitePane.kind === 'live');
 
   // 待ち受けを映している間はエージェントの手元を見ている時間が長い。分割を畳んで
   // 見る面だけにできるようにする（指示は別の窓から出すので、こちらは見えていればよい）。
@@ -1344,14 +1353,24 @@
     {:else if sitePart}
       <!-- サイトの部品。ここで組み直すと、ブラウザが出すものと別物になるので、
            出している待ち受けをそのまま映す。立っていなければ、立てる口をこの面に出す。
-           断り書きだけを出すと、見る手立てが別の窓しか無いように読める。 -->
+           断り書きだけを出すと、見る手立てが別の窓しか無いように読める。
+           プロジェクトが自分で待ち受けを持っているなら、そちらを映す。組み上げ方が
+           こちらには分からないので、手元で組み直したものを代わりに出さない。 -->
       <div class="pane-head site-head">
-        <span>{t('site.head')}</span>
-        {#if sitePane !== 'live'}
+        <span>{sitePane.kind === 'dev' || sitePane.kind === 'dev-down'
+            ? t('site.devHead')
+            : t('site.head')}</span>
+        {#if !siteShowing}
           <span class="chip">{t('site.readOnly')}</span>
         {/if}
-        <BrowserOpenButtons root={workspace.root} />
-        {#if sitePane === 'live'}
+        {#if sitePane.kind === 'dev'}
+          <span class="site-url">{sitePane.url}</span>
+        {:else if sitePane.kind !== 'dev-down'}
+          <!-- 自前の待ち受けがあるフォルダでは、こちらから別の待ち受けを立てない。
+               同じフォルダから中身の違うものが 2 つ出ると、どちらが本当か分からなくなる。 -->
+          <BrowserOpenButtons root={workspace.root} />
+        {/if}
+        {#if siteShowing}
           <button
             type="button"
             class="head-btn"
@@ -1374,16 +1393,18 @@
           </button>
         {/if}
       </div>
-      {#if sitePane === 'live'}
+      {#if sitePane.kind === 'dev' || sitePane.kind === 'live'}
         <div class="viewer-wrap" class:narrow={viewport === 'phone'}>
           <iframe
             class="viewer"
             style:width={frameWidth(viewport)}
-            src={liveUrl}
+            src={sitePane.url}
             title={t('page.livePreviewTitle')}
           ></iframe>
         </div>
-      {:else if sitePane === 'start'}
+      {:else if sitePane.kind === 'dev-down'}
+        <p class="site-note">{t('site.devDownNote', { url: sitePane.url })}</p>
+      {:else if sitePane.kind === 'start'}
         <p class="site-note">{t('site.startNote')}</p>
       {:else}
         <p class="site-note">{t('site.declareNote')}</p>

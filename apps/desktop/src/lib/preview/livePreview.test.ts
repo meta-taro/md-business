@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { livePreviewUrl, sitePartPane } from './livePreview';
+import { livePreviewUrl, sitePartView } from './livePreview';
 
 /** この PC の区切り。文字として書くと読む側で消えるので、符号から作る。 */
 const SEP = String.fromCharCode(92);
@@ -60,16 +60,58 @@ describe('livePreviewUrl', () => {
   });
 });
 
-describe('sitePartPane', () => {
+describe('sitePartView', () => {
+  const DEV = 'http://localhost:4321/';
+
   it('待ち受けが立っていればそこへ向ける', () => {
-    expect(sitePartPane(`${BASE}index.html`, true)).toBe('live');
+    expect(
+      sitePartView({
+        liveUrl: `${BASE}index.html`,
+        devServer: null,
+        devAnswering: false,
+        declaredWeb: true,
+      }),
+    ).toEqual({ kind: 'live', url: `${BASE}index.html` });
   });
 
   it('立っていなければ立てる口を出す', () => {
-    expect(sitePartPane(null, true)).toBe('start');
+    expect(
+      sitePartView({ liveUrl: null, devServer: null, devAnswering: false, declaredWeb: true }),
+    ).toEqual({ kind: 'start' });
   });
 
   it('web モードを宣言していないフォルダでは立てる口も出さない', () => {
-    expect(sitePartPane(null, false)).toBe('declare');
+    expect(
+      sitePartView({ liveUrl: null, devServer: null, devAnswering: false, declaredWeb: false }),
+    ).toEqual({ kind: 'declare' });
+  });
+
+  it('宣言された待ち受けが応えていれば、そこを映す', () => {
+    expect(
+      sitePartView({ liveUrl: null, devServer: DEV, devAnswering: true, declaredWeb: true }),
+    ).toEqual({ kind: 'dev', url: DEV });
+  });
+
+  // 宣言した在り処と違うものを黙って映すと、どちらが本当かを確かめる先が 2 つになる。
+  it('応えていなければ、そう言う。手元の待ち受けへすり替えない', () => {
+    expect(
+      sitePartView({
+        liveUrl: `${BASE}index.html`,
+        devServer: DEV,
+        devAnswering: false,
+        declaredWeb: true,
+      }),
+    ).toEqual({ kind: 'dev-down', url: DEV });
+  });
+
+  it('宣言された待ち受けは、手元で立てたものより先に映す', () => {
+    expect(
+      sitePartView({
+        liveUrl: `${BASE}index.html`,
+        devServer: DEV,
+        devAnswering: true,
+        declaredWeb: true,
+      }),
+    ).toEqual({ kind: 'dev', url: DEV });
   });
 });

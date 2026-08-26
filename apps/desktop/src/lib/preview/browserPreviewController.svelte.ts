@@ -27,6 +27,17 @@ const NOTICE_MS = 8000;
 const PROJECT_CONFIG_FILENAME = 'md-business.yml';
 
 /**
+ * 宣言された待ち受けが応えているかを見に行く間隔。
+ *
+ * 立ち上げるのはこちらではないので、いつ立つかは分からない。この PC の中への往復なので、
+ * 短く繰り返しても待たされない。落ちたことにも同じ間隔で気づける。
+ */
+const DEV_PROBE_MS = 2000;
+
+/** 1 回の見に行きを諦めるまで。応えないものを待ち続けない。 */
+const DEV_PROBE_TIMEOUT_MS = 1500;
+
+/**
  * どのブラウザで開くか。**名前だけを渡す。**
  *
  * 起動するものの在り処は Rust 側の表から引く。ここから渡すと、ページを開く口が
@@ -106,6 +117,18 @@ class BrowserPreviewController {
    * 立てるときに引き直す。
    */
   trusted = $state<boolean>(false);
+  /**
+   * 開いているフォルダが宣言している、自前の待ち受けの在り処。宣言していなければ null。
+   *
+   * **ここから何かを起動することはない。**Astro や Vite を動かすのは向こう側で、
+   * こちらは宣言された在り処へ面を向けるだけ。宣言はプロジェクト側から書けるので、
+   * どこを指してよいか（この PC の中だけ）は読む側で切ってある。
+   */
+  declaredDev = $state<string | null>(null);
+  /** その在り処が応えているか。立ち上がるのを待つので、繰り返し見に行く。 */
+  devAnswering = $state<boolean>(false);
+  /** 次に見に行くまでの待ち。宣言が消えたら止める。 */
+  #devTimer: ReturnType<typeof setTimeout> | null = null;
   /** どのフォルダを出しているか。フォルダが替わったら畳むために持つ。 */
   #servingRoot: string | null = null;
   /** いま開いているフォルダ。宣言を読み直すために持つ（出していない間も要る）。 */
@@ -403,17 +426,20 @@ class BrowserPreviewController {
       this.declaredWeb = false;
       this.canDeclareWeb = false;
       this.trusted = false;
+      this.#watchDev(null);
       return;
     }
     try {
       const declaration = await invoke<string>('read_project_config', { root });
-      const { sitePolicyFrom, webModeToggle } = await import('./sitePolicy');
+      const { devServerFrom, sitePolicyFrom, webModeToggle } = await import('./sitePolicy');
       this.declaredWeb = sitePolicyFrom(declaration).scripts;
       this.canDeclareWeb = webModeToggle(declaration) !== 'locked';
+      this.#watchDev(devServerFrom(declaration));
     } catch {
       this.declaredWeb = false;
       this.canDeclareWeb = false;
       this.trusted = false;
+      this.#watchDev(null);
       return;
     }
     await this.#autoLive(root, trigger);
@@ -445,6 +471,52 @@ class BrowserPreviewController {
       await this.start(root, 'default', false);
     } catch {
       // 調べられなければ立てない。ボタンは出ているので、押せば今までどおり立つ。
+    }
+  }
+
+  /**
+   * 宣言された待ち受けを見張る。
+   *
+   * 在り処が変わったら、前の答えを持ち越さない（別の待ち受けの様子を、新しい在り処の
+   * ものとして映してしまう）。宣言が消えたら見に行くのをやめる。
+   */
+  #watchDev(url: string | null): void {
+    if (url === this.declaredDev) return;
+    this.declaredDev = url;
+    this.devAnswering = false;
+    if (this.#devTimer !== null) clearTimeout(this.#devTimer);
+    this.#devTimer = null;
+    if (url === null || !browser) return;
+    void this.#pollDev(url);
+  }
+
+  /** 応えているかを見て、次の分を予約する。宣言が入れ替わっていたら、そこで終わる。 */
+  async #pollDev(url: string): Promise<void> {
+    const answering = await this.#askDev(url);
+    if (this.declaredDev !== url) return;
+    this.devAnswering = answering;
+    this.#devTimer = setTimeout(() => {
+      this.#devTimer = null;
+      void this.#pollDev(url);
+    }, DEV_PROBE_MS);
+  }
+
+  /**
+   * 1 回だけ叩いて、返事があったかだけを見る。
+   *
+   * 中身は読まない（読める形で返ってこないし、読む必要も無い）。立っていなければ
+   * 例外になるので、それを「まだ」として扱う。
+   */
+  async #askDev(url: string): Promise<boolean> {
+    try {
+      await fetch(url, {
+        mode: 'no-cors',
+        cache: 'no-store',
+        signal: AbortSignal.timeout(DEV_PROBE_TIMEOUT_MS),
+      });
+      return true;
+    } catch {
+      return false;
     }
   }
 
