@@ -140,9 +140,18 @@ fn site_asset_ext(path: &Path) -> Option<String> {
     lower_ext(path).filter(|e| is_site_asset_ext(e.as_str()))
 }
 
+/// そのフォルダのツリーに出す拡張子か。
+///
+/// web を名乗るフォルダでは、サイトへ出せるものを一覧にも出す。作っている当のファイルが
+/// 一覧に無いと、何が置かれたのかを画面から追えない。名乗っていないフォルダは業務文書だけの
+/// まま——既定を広げると、請求書だけのフォルダに `.js` が並ぶ。
+pub(crate) fn is_tree_ext_for(ext: &str, include_site: bool) -> bool {
+    is_tree_ext(ext) || (include_site && is_site_asset_ext(ext))
+}
+
 /// パスの拡張子がツリーの対象なら小文字化して返す。対象外・拡張子なしは None。
-fn tree_ext(path: &Path) -> Option<String> {
-    lower_ext(path).filter(|e| is_tree_ext(e.as_str()))
+fn tree_ext(path: &Path, include_site: bool) -> Option<String> {
+    lower_ext(path).filter(|e| is_tree_ext_for(e.as_str(), include_site))
 }
 
 /// ルート配下の既存**画像**を解決する（画像読み取りの入口ゲート）。
@@ -198,13 +207,14 @@ pub(crate) fn resolve_in_root(root: &Path, rel_path: &str) -> Result<PathBuf, St
 
 /// ルート配下を再帰走査し、対象拡張子（`ALLOWED_EXTS`）を収集する（Tauri 非依存の実体）。
 /// 除外ディレクトリはスキップし、深さ / 件数上限で打ち切って truncated=true を返す。
-pub fn scan_documents_impl(root: &Path) -> Result<ScanResult, String> {
-    scan_documents_with_limits(root, MAX_VISITED, Some(SCAN_TIME_LIMIT))
+pub fn scan_documents_impl(root: &Path, include_site: bool) -> Result<ScanResult, String> {
+    scan_documents_with_limits(root, include_site, MAX_VISITED, Some(SCAN_TIME_LIMIT))
 }
 
 /// 上限を指定して走査する（[`scan_documents_impl`] の実体）。上限は検査から差し替える。
 pub fn scan_documents_with_limits(
     root: &Path,
+    include_site: bool,
     max_visited: usize,
     time_limit: Option<Duration>,
 ) -> Result<ScanResult, String> {
@@ -224,7 +234,7 @@ pub fn scan_documents_with_limits(
         &mut entries,
         &mut truncated,
         &mut budget,
-        &tree_ext,
+        &|path: &Path| tree_ext(path, include_site),
     )?;
     // readdir 順は OS 依存のため rel_path で安定ソート（フロント buildTree でも再ソートするが決定化しておく）。
     entries.sort_by(|a, b| a.rel_path.cmp(&b.rel_path));
@@ -353,15 +363,26 @@ pub fn scan_site_assets_impl(root: &Path) -> Result<ScanResult, String> {
 
 /// ルートと相対パスを結合・正規化し、root 配下の対象拡張子のみ UTF-8 で読む（Tauri 非依存の実体）。
 /// `canonicalize` 後に root 配下判定（`../` / シンボリックリンク脱出を封じる・設計書 §8.1）。
-pub fn read_document_impl(root: &Path, rel_path: &str) -> Result<String, String> {
+pub fn read_document_impl(
+    root: &Path,
+    rel_path: &str,
+    include_site: bool,
+) -> Result<String, String> {
     let canon_root = std::fs::canonicalize(root).map_err(|e| format!("ルート解決失敗: {}", e))?;
     let canon = std::fs::canonicalize(root.join(rel_path))
         .map_err(|e| format!("ファイル解決失敗: {}", e))?;
     if !canon.starts_with(&canon_root) {
         return Err("ルート外へのアクセスは拒否されます".to_string());
     }
-    if allowed_ext(&canon).is_none() {
-        return Err("開けるのは .md / .tsv / .json / .xml のみです".to_string());
+    let openable = lower_ext(&canon).is_some_and(|e| {
+        ALLOWED_EXTS.contains(&e.as_str()) || (include_site && is_site_asset_ext(&e))
+    });
+    if !openable {
+        return Err(if include_site {
+            "この種類のファイルは開けません".to_string()
+        } else {
+            "開けるのは .md / .tsv / .json / .xml のみです".to_string()
+        });
     }
     let bytes = std::fs::read(&canon).map_err(|e| format!("読み取り失敗: {}", e))?;
     String::from_utf8(bytes).map_err(|_| "UTF-8 として不正なファイルです".to_string())
@@ -754,14 +775,19 @@ pub async fn export_site(
     spawn_fs(move || export_site_impl(Path::new(&root), &files, &assets)).await
 }
 
-/// フロントから `invoke("scan_documents", { root })` で呼ぶ薄いラッパ。
+/// フロントから `invoke("scan_documents", { root, includeSite })` で呼ぶ薄いラッパ。
 ///
 /// 走査は待たされる（ネットワーク越しのフォルダでは 1 件ごとに往復が入る）。同期コマンドは
 /// メインスレッドで動くので、そのまま呼ぶと待っている間そのウィンドウは操作できなくなる。
 /// 別スレッドへ出して返りだけ待つ。
 #[tauri::command]
-pub async fn scan_documents(root: String) -> Result<ScanResult, String> {
-    tauri::async_runtime::spawn_blocking(move || scan_documents_impl(Path::new(&root)))
+pub async fn scan_documents(
+    root: String,
+    include_site: Option<bool>,
+) -> Result<ScanResult, String> {
+    // 渡し忘れは業務文書だけへ倒す。範囲は、宣言を読んだ側が明示したときだけ広がる。
+    let include_site = include_site.unwrap_or(false);
+    tauri::async_runtime::spawn_blocking(move || scan_documents_impl(Path::new(&root), include_site))
         .await
         .map_err(|e| format!("走査を実行できませんでした: {}", e))?
 }
@@ -794,15 +820,20 @@ where
         .map_err(|e| format!("処理を実行できませんでした: {}", e))?
 }
 
-/// フロントから `invoke("read_document", { root, relPath })` で呼ぶ薄いラッパ。
+/// フロントから `invoke("read_document", { root, relPath, includeSite })` で呼ぶ薄いラッパ。
 /// Tauri が camelCase(`relPath`) → snake_case(`rel_path`) を自動変換する。
 ///
 /// 読み書きは相手が遠いフォルダ（共有フォルダなど）だと待たされる。同期コマンドは
 /// メインスレッドで動くので、そのまま呼ぶと待っている間ずっと画面が固まる。
 /// 別スレッドへ出して返りだけ待つ。
 #[tauri::command]
-pub async fn read_document(root: String, rel_path: String) -> Result<String, String> {
-    spawn_fs(move || read_document_impl(Path::new(&root), &rel_path)).await
+pub async fn read_document(
+    root: String,
+    rel_path: String,
+    include_site: Option<bool>,
+) -> Result<String, String> {
+    let include_site = include_site.unwrap_or(false);
+    spawn_fs(move || read_document_impl(Path::new(&root), &rel_path, include_site)).await
 }
 
 /// フロントから `invoke("read_project_config", { root })` で呼ぶ薄いラッパ。
@@ -919,7 +950,7 @@ mod tests {
         root.file("b.tsv", "x\ty");
         root.file("c.txt", "ignore");
         root.file("d.exe", "ignore");
-        let result = scan_documents_impl(&root.path).expect("走査成功");
+        let result = scan_documents_impl(&root.path, false).expect("走査成功");
         assert_eq!(rel_paths(&result), vec!["a.md", "b.tsv"]);
         assert!(!result.truncated);
     }
@@ -935,7 +966,7 @@ mod tests {
         root.file("receipts/d.gif", "x");
         root.file("receipts/e.webp", "x");
         root.file("receipts/f.svg", "x");
-        let result = scan_documents_impl(&root.path).expect("走査成功");
+        let result = scan_documents_impl(&root.path, false).expect("走査成功");
         assert_eq!(
             rel_paths(&result),
             vec![
@@ -1027,7 +1058,7 @@ mod tests {
         let root = TempRoot::new("scan_data_ext");
         root.file("a.json", "{}");
         root.file("b.xml", "<r/>");
-        let result = scan_documents_impl(&root.path).expect("走査成功");
+        let result = scan_documents_impl(&root.path, false).expect("走査成功");
         assert_eq!(rel_paths(&result), vec!["a.json", "b.xml"]);
     }
 
@@ -1035,7 +1066,7 @@ mod tests {
     fn scan_サブディレクトリを再帰しrel_pathはスラッシュ区切り() {
         let root = TempRoot::new("scan_rec");
         root.file("docs/sub/c.tsv", "x");
-        let result = scan_documents_impl(&root.path).expect("走査成功");
+        let result = scan_documents_impl(&root.path, false).expect("走査成功");
         assert_eq!(rel_paths(&result), vec!["docs/sub/c.tsv"]);
         let entry = &result.entries[0];
         assert_eq!(entry.name, "c.tsv");
@@ -1050,7 +1081,7 @@ mod tests {
         root.file("node_modules/pkg/readme.md", "dep");
         root.file("dist/out.md", "built");
         root.file("build/out.md", "built");
-        let result = scan_documents_impl(&root.path).expect("走査成功");
+        let result = scan_documents_impl(&root.path, false).expect("走査成功");
         assert_eq!(rel_paths(&result), vec!["keep.md"]);
     }
 
@@ -1058,7 +1089,7 @@ mod tests {
     fn scan_拡張子は小文字化して収集する() {
         let root = TempRoot::new("scan_lower");
         root.file("A.MD", "# a");
-        let result = scan_documents_impl(&root.path).expect("走査成功");
+        let result = scan_documents_impl(&root.path, false).expect("走査成功");
         assert_eq!(result.entries.len(), 1);
         assert_eq!(result.entries[0].ext, "md");
         assert_eq!(result.entries[0].name, "A.MD");
@@ -1067,7 +1098,7 @@ mod tests {
     #[test]
     fn scan_空フォルダはentries空truncated偽() {
         let root = TempRoot::new("scan_empty");
-        let result = scan_documents_impl(&root.path).expect("走査成功");
+        let result = scan_documents_impl(&root.path, false).expect("走査成功");
         assert!(result.entries.is_empty());
         assert!(!result.truncated);
     }
@@ -1076,7 +1107,7 @@ mod tests {
     fn scan_存在しないルートはエラー() {
         let missing = std::env::temp_dir().join("mdbiz_missing_root_zzz");
         let _ = std::fs::remove_dir_all(&missing);
-        assert!(scan_documents_impl(&missing).is_err());
+        assert!(scan_documents_impl(&missing, false).is_err());
     }
 
     #[test]
@@ -1089,7 +1120,7 @@ mod tests {
         }
         root.file(&format!("{}too_deep.md", deep), "deep");
         root.file("shallow.md", "ok");
-        let result = scan_documents_impl(&root.path).expect("走査成功");
+        let result = scan_documents_impl(&root.path, false).expect("走査成功");
         assert!(result.truncated, "深さ超過で truncated=true になる");
         assert!(
             rel_paths(&result).iter().all(|p| !p.contains("too_deep")),
@@ -1108,7 +1139,7 @@ mod tests {
             root.file(&format!("noise/{}.bin", i), "x");
         }
         root.file("noise/z.md", "ok");
-        let result = scan_documents_with_limits(&root.path, 10, None).expect("走査成功");
+        let result = scan_documents_with_limits(&root.path, false, 10, None).expect("走査成功");
         assert!(
             result.truncated,
             "見た数が上限に達したら truncated=true になる"
@@ -1126,7 +1157,7 @@ mod tests {
         let root = TempRoot::new("scan_deadline");
         root.file("a.md", "ok");
         root.file("b/c.md", "ok");
-        let result = scan_documents_with_limits(&root.path, MAX_VISITED, Some(Duration::ZERO))
+        let result = scan_documents_with_limits(&root.path, false, MAX_VISITED, Some(Duration::ZERO))
             .expect("走査成功");
         assert!(result.truncated, "時間切れなら truncated=true になる");
     }
@@ -1137,7 +1168,7 @@ mod tests {
         root.file("a.md", "ok");
         root.file("sub/b.tsv", "ok");
         let result =
-            scan_documents_with_limits(&root.path, MAX_VISITED, Some(Duration::from_secs(60)))
+            scan_documents_with_limits(&root.path, false, MAX_VISITED, Some(Duration::from_secs(60)))
                 .expect("走査成功");
         assert!(!result.truncated);
         assert_eq!(rel_paths(&result), vec!["a.md", "sub/b.tsv"]);
@@ -1150,7 +1181,7 @@ mod tests {
         let root = TempRoot::new("scan_ja");
         root.file("設計書/基本設計書.md", "# 設計");
         root.file("検証シート/受発注ワークフロー.tsv", "No.\t項目");
-        let result = scan_documents_impl(&root.path).expect("走査成功");
+        let result = scan_documents_impl(&root.path, false).expect("走査成功");
         assert_eq!(
             rel_paths(&result),
             vec!["検証シート/受発注ワークフロー.tsv", "設計書/基本設計書.md"]
@@ -1165,7 +1196,7 @@ mod tests {
         let root = TempRoot::new("scan_ko_zh");
         root.file("설계서/기본설계서.md", "# 설계");
         root.file("设计文档/概要设计.md", "# 设计");
-        let result = scan_documents_impl(&root.path).expect("走査成功");
+        let result = scan_documents_impl(&root.path, false).expect("走査成功");
         assert_eq!(
             rel_paths(&result),
             vec!["设计文档/概要设计.md", "설계서/기본설계서.md"]
@@ -1178,7 +1209,7 @@ mod tests {
         let root = TempRoot::new("scan_ja_sym");
         let name = "請求書（2026年6月分）　控え.md";
         root.file(name, "本文");
-        let result = scan_documents_impl(&root.path).expect("走査成功");
+        let result = scan_documents_impl(&root.path, false).expect("走査成功");
         assert_eq!(rel_paths(&result), vec![name]);
     }
 
@@ -1188,7 +1219,7 @@ mod tests {
     fn read_md本文をutf8で読む() {
         let root = TempRoot::new("read_md");
         root.file("a.md", "# タイトル\n本文");
-        let body = read_document_impl(&root.path, "a.md").expect("読込成功");
+        let body = read_document_impl(&root.path, "a.md", false).expect("読込成功");
         assert_eq!(body, "# タイトル\n本文");
     }
 
@@ -1196,7 +1227,7 @@ mod tests {
     fn read_サブディレクトリのtsvを読む() {
         let root = TempRoot::new("read_tsv");
         root.file("docs/x.tsv", "col1\tcol2");
-        let body = read_document_impl(&root.path, "docs/x.tsv").expect("読込成功");
+        let body = read_document_impl(&root.path, "docs/x.tsv", false).expect("読込成功");
         assert_eq!(body, "col1\tcol2");
     }
 
@@ -1207,7 +1238,7 @@ mod tests {
         // ルートの親に秘密ファイルを置き、../ で脱出を試みる。
         let outside = root.path.parent().unwrap().join("mdbiz_secret_outside.md");
         std::fs::write(&outside, "secret").expect("外部ファイル作成");
-        let result = read_document_impl(&root.path, "../mdbiz_secret_outside.md");
+        let result = read_document_impl(&root.path, "../mdbiz_secret_outside.md", false);
         let _ = std::fs::remove_file(&outside);
         assert!(result.is_err(), "root 外は Err");
     }
@@ -1216,13 +1247,13 @@ mod tests {
     fn read_md_tsv以外の拡張子は拒否する() {
         let root = TempRoot::new("read_ext");
         root.file("c.txt", "text");
-        assert!(read_document_impl(&root.path, "c.txt").is_err());
+        assert!(read_document_impl(&root.path, "c.txt", false).is_err());
     }
 
     #[test]
     fn read_存在しないファイルはエラー() {
         let root = TempRoot::new("read_missing");
-        assert!(read_document_impl(&root.path, "nope.md").is_err());
+        assert!(read_document_impl(&root.path, "nope.md", false).is_err());
     }
 
     #[test]
@@ -1233,8 +1264,53 @@ mod tests {
             "No.:number\t項目\t結果",
         );
         let body =
-            read_document_impl(&root.path, "検証シート/受発注ワークフロー.tsv").expect("読込成功");
+            read_document_impl(&root.path, "検証シート/受発注ワークフロー.tsv", false).expect("読込成功");
         assert_eq!(body, "No.:number\t項目\t結果");
+    }
+
+    // ── web を名乗るフォルダの範囲 ───────────────────────────────────────
+
+    #[test]
+    fn web宣言のフォルダではサイトの部品も一覧に出る() {
+        let root = TempRoot::new("scan_site_on");
+        root.file("index.html", "<h1>x</h1>");
+        root.file("assets/style.css", "body{}");
+        root.file("assets/app.js", "1");
+        root.file("見積書.md", "本文");
+        let result = scan_documents_impl(&root.path, true).expect("走査成功");
+        assert_eq!(
+            rel_paths(&result),
+            vec![
+                "assets/app.js",
+                "assets/style.css",
+                "index.html",
+                "見積書.md"
+            ]
+        );
+    }
+
+    #[test]
+    fn 名乗っていないフォルダでは業務文書だけが一覧に出る() {
+        let root = TempRoot::new("scan_site_off");
+        root.file("index.html", "<h1>x</h1>");
+        root.file("assets/style.css", "body{}");
+        root.file("見積書.md", "本文");
+        let result = scan_documents_impl(&root.path, false).expect("走査成功");
+        assert_eq!(rel_paths(&result), vec!["見積書.md"]);
+    }
+
+    #[test]
+    fn 一覧に出るサイトの部品は開ける() {
+        let root = TempRoot::new("read_site");
+        root.file("index.html", "<h1>x</h1>");
+        assert_eq!(
+            read_document_impl(&root.path, "index.html", true).expect("読込成功"),
+            "<h1>x</h1>"
+        );
+        assert!(
+            read_document_impl(&root.path, "index.html", false).is_err(),
+            "名乗っていないフォルダでは開けない"
+        );
     }
 
     // ── read_project_config_impl ─────────────────────────────────────────
@@ -1327,7 +1403,7 @@ mod tests {
         let root = TempRoot::new("write_md");
         root.file("a.md", "旧本文");
         write_document_impl(&root.path, "a.md", "# 新タイトル\n新本文").expect("書込成功");
-        let body = read_document_impl(&root.path, "a.md").expect("読込成功");
+        let body = read_document_impl(&root.path, "a.md", false).expect("読込成功");
         assert_eq!(body, "# 新タイトル\n新本文");
     }
 
@@ -1336,7 +1412,7 @@ mod tests {
         let root = TempRoot::new("write_tsv");
         root.file("docs/x.tsv", "old");
         write_document_impl(&root.path, "docs/x.tsv", "col1\tcol2").expect("書込成功");
-        let body = read_document_impl(&root.path, "docs/x.tsv").expect("読込成功");
+        let body = read_document_impl(&root.path, "docs/x.tsv", false).expect("読込成功");
         assert_eq!(body, "col1\tcol2");
     }
 
@@ -1388,7 +1464,7 @@ mod tests {
         write_document_impl(&root.path, "検証シート/受発注ワークフロー.tsv", "新\t内容")
             .expect("書込成功");
         let body =
-            read_document_impl(&root.path, "検証シート/受発注ワークフロー.tsv").expect("読込成功");
+            read_document_impl(&root.path, "検証シート/受発注ワークフロー.tsv", false).expect("読込成功");
         assert_eq!(body, "新\t内容");
     }
 
@@ -1398,7 +1474,7 @@ mod tests {
     fn create_新規mdをルート直下に作成できる() {
         let root = TempRoot::new("create_md");
         create_document_impl(&root.path, "新規.md", "# 見出し\n本文").expect("作成成功");
-        let body = read_document_impl(&root.path, "新規.md").expect("読込成功");
+        let body = read_document_impl(&root.path, "新規.md", false).expect("読込成功");
         assert_eq!(body, "# 見出し\n本文");
     }
 
@@ -1408,7 +1484,7 @@ mod tests {
         // 親ディレクトリは既存とする（MVP は親を自動生成しない）。
         std::fs::create_dir_all(root.path.join("docs")).expect("親作成");
         create_document_impl(&root.path, "docs/検証.tsv", "No.:number\t項目").expect("作成成功");
-        let body = read_document_impl(&root.path, "docs/検証.tsv").expect("読込成功");
+        let body = read_document_impl(&root.path, "docs/検証.tsv", false).expect("読込成功");
         assert_eq!(body, "No.:number\t項目");
     }
 
@@ -1419,7 +1495,7 @@ mod tests {
         let result = create_document_impl(&root.path, "a.tsv", "上書き試行");
         assert!(result.is_err(), "同名既存は Err");
         assert_eq!(
-            read_document_impl(&root.path, "a.tsv").expect("読込成功"),
+            read_document_impl(&root.path, "a.tsv", false).expect("読込成功"),
             "既存内容",
             "既存ファイルは書き換えられない"
         );
