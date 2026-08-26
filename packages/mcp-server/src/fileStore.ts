@@ -21,6 +21,11 @@ import { randomBytes } from 'node:crypto';
 import { join, resolve, dirname, basename, relative, sep } from 'node:path';
 import type { DocumentStore } from './store.js';
 
+/** 覗かないフォルダ。ドット始まり（`.git` 等）と、既知のビルド生成物。 */
+function isGeneratedDir(name: string): boolean {
+  return name.startsWith('.') || name === 'node_modules' || name === 'dist' || name === 'build';
+}
+
 export class FileDocumentStore implements DocumentStore {
   private root: string;
 
@@ -150,16 +155,31 @@ export class FileDocumentStore implements DocumentStore {
     return this.collect('.tsv');
   }
 
-  /** 指定拡張子のファイルを再帰収集する。 */
-  private async collect(extension: string): Promise<string[]> {
+  /**
+   * root 配下の、文書でも検証シートでもないファイルを同じ形で集める。
+   *
+   * 拡張子で絞れないぶん、覗く先を絞る。生成物と隠しフォルダまで並べると、
+   * 書いた覚えのないファイルで一覧が埋まり、自分の部品が見つけられなくなる。
+   */
+  async listSite(): Promise<string[]> {
+    return this.collect((name) => !name.endsWith('.md') && !name.endsWith('.tsv'), true);
+  }
+
+  /** 条件に合うファイルを再帰収集する。 */
+  private async collect(
+    accept: string | ((name: string) => boolean),
+    skipGenerated = false,
+  ): Promise<string[]> {
+    const matches = typeof accept === 'string' ? (name: string) => name.endsWith(accept) : accept;
     const found: string[] = [];
     const walk = async (dir: string): Promise<void> => {
       const entries = await readdir(dir, { withFileTypes: true });
       for (const entry of entries) {
         const abs = join(dir, entry.name);
         if (entry.isDirectory()) {
+          if (skipGenerated && isGeneratedDir(entry.name)) continue;
           await walk(abs);
-        } else if (entry.isFile() && entry.name.endsWith(extension)) {
+        } else if (entry.isFile() && matches(entry.name)) {
           found.push(relative(this.root, abs).split(sep).join('/'));
         }
       }

@@ -43,6 +43,17 @@ describe('MemoryDocumentStore', () => {
     expect(await store.listSheets()).toEqual(['sheets/s.tsv', 'z.tsv']);
   });
 
+  it('listSite は文書でも検証シートでもないものをソートして返す', async () => {
+    // サイトの部品には形（スキーマ）が無いので、拡張子ごとの走査では拾えない。
+    const store = new MemoryDocumentStore({
+      'index.html': '',
+      'a.md': '',
+      'sheets/s.tsv': '',
+      'assets/app.js': '',
+    });
+    expect(await store.listSite()).toEqual(['assets/app.js', 'index.html']);
+  });
+
   /**
    * lines は調査ツールの読み口。fs 実装ではストリームで流すので、インメモリ側も
    * 同じ切り方（改行を含まない / 末尾の改行で空行を増やさない）に揃えておかないと、

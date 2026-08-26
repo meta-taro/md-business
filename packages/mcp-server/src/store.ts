@@ -36,6 +36,13 @@ export interface DocumentStore extends LineSource {
   list(): Promise<string[]>;
   /** 検証シート（`.tsv`）の全相対パス（ソート済み）。 */
   listSheets(): Promise<string[]>;
+  /**
+   * 文書でも検証シートでもないファイルの全相対パス（ソート済み）。
+   *
+   * サイトの部品には形（スキーマ）が無く、拡張子も決め打ちできないので、
+   * 「残り」として集める。どれを部品として扱うかの判断は呼ぶ側が持つ。
+   */
+  listSite(): Promise<string[]>;
 }
 
 /**
@@ -79,6 +86,12 @@ export class MemoryDocumentStore implements DocumentStore {
 
   async listSheets(): Promise<string[]> {
     return [...this.files.keys()].filter((p) => p.endsWith(SHEET_EXT)).sort();
+  }
+
+  async listSite(): Promise<string[]> {
+    return [...this.files.keys()]
+      .filter((p) => !p.endsWith(DOCUMENT_EXT) && !p.endsWith(SHEET_EXT))
+      .sort();
   }
 
   async *lines(relativePath: string): AsyncIterable<string> {

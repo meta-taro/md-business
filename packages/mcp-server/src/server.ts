@@ -42,7 +42,7 @@ import {
   declareSummary,
   WEB_MODE_DECLARATION_TEXT,
 } from './webMode.js';
-import { readSiteFile, writeSiteFile } from './siteFiles.js';
+import { listSiteFiles, readSiteFile, writeSiteFile } from './siteFiles.js';
 import { buildToolLogEntry, type ToolLogEntry, type ToolResultLike } from './toolLog.js';
 
 /** MCP クライアントへ提示するサーバー名 / バージョン（プロトコル上の識別子）。 */
@@ -911,6 +911,22 @@ export function createServer(store: DocumentStore, options: CreateServerOptions 
     async ({ path }) => {
       const r = await readSiteFile(store, { path });
       emit('read_site_file', r.ok ? r.path : path, r);
+      return jsonResult(r, !r.ok);
+    },
+  );
+
+  server.registerTool(
+    'list_site_files',
+    {
+      description:
+        'web モードを名乗っているフォルダにあるサイトの部品（HTML / CSS / JS など）の一覧を返す。' +
+        '何が既にあるかを掴んでから read_site_file / write_site_file を撃つ。' +
+        '業務文書と検証シートは search_documents 側に出る。',
+      inputSchema: {},
+    },
+    async () => {
+      const r = await listSiteFiles(store);
+      emit('list_site_files', undefined, r);
       return jsonResult(r, !r.ok);
     },
   );

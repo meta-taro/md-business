@@ -192,3 +192,30 @@ export async function readSiteFile(
   }
   return { ok: true, path: plan.relative, content: await store.read(plan.relative) };
 }
+
+export interface ListSiteFilesOk {
+  ok: true;
+  /** 触れる部品の相対パス（ソート済み）。 */
+  files: string[];
+}
+
+/**
+ * web を名乗るフォルダにあるサイトの部品を並べる。
+ *
+ * 並べるのは、この口で読み書きできるものだけ。別の口が持つもの（業務文書・検証シート）や
+ * 文字として扱えないもの（画像・フォント）を混ぜると、そのまま read_site_file へ渡して
+ * 断られることになる。まだ何も無いフォルダは空で返す——ここで断ると、これから作る場面と
+ * 名乗っていない場面の区別が付かなくなる。
+ */
+export async function listSiteFiles(store: DocumentStore): Promise<ListSiteFilesOk | ToolError> {
+  const declaration = await readDeclaration(store);
+  // 1 件も無いフォルダでも名乗りだけは確かめる。パスに依らない断り方をここで作るため、
+  // 実在しない名前を通して判定する。
+  const gate = planSiteAccess('index.html', declaration, 'read');
+  if (!gate.ok) return gate;
+
+  const files = (await store.listSite()).filter(
+    (path) => planSiteAccess(path, declaration, 'read').ok,
+  );
+  return { ok: true, files };
+}

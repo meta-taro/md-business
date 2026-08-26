@@ -115,6 +115,7 @@ describe('createServer / MCP 配線', () => {
       'filter_records',
       'get_schema',
       'list_schemas',
+      'list_site_files',
       'read_data',
       'read_document',
       'read_har',
@@ -1111,6 +1112,18 @@ describe('createServer / write_site_file', () => {
       arguments: { path: 'index.html' },
     })) as CallToolResult;
     expect(parse(res).isError).toBe(true);
+  });
+
+  it('触れる部品だけを一覧に出す', async () => {
+    const store = new MemoryDocumentStore({ ...WEB, 'index.html': '', 'spec.md': '' });
+    const client = await connect(store);
+    const res = (await client.callTool({
+      name: 'list_site_files',
+      arguments: {},
+    })) as CallToolResult;
+    const { text, isError } = parse(res);
+    expect(isError).toBe(false);
+    expect(text).toMatchObject({ ok: true, files: ['index.html'] });
   });
 });
 

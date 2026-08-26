@@ -84,6 +84,22 @@ describe('FileDocumentStore', () => {
     expect(await store.list()).toEqual(['sheets/note.md']);
   });
 
+  it('listSite は文書・検証シート以外を集め、生成物と隠しフォルダは覗かない', async () => {
+    // node_modules や dist まで並べると、書いた覚えのないファイルで一覧が埋まる。
+    await mkdir(join(root, 'assets'), { recursive: true });
+    await mkdir(join(root, 'node_modules', 'pkg'), { recursive: true });
+    await mkdir(join(root, 'dist'), { recursive: true });
+    await mkdir(join(root, '.git'), { recursive: true });
+    await writeFile(join(root, 'index.html'), '');
+    await writeFile(join(root, 'assets', 'app.js'), '');
+    await writeFile(join(root, 'note.md'), '');
+    await writeFile(join(root, 'node_modules', 'pkg', 'lib.js'), '');
+    await writeFile(join(root, 'dist', 'index.html'), '');
+    await writeFile(join(root, '.git', 'config'), '');
+    const store = new FileDocumentStore(root);
+    expect(await store.listSite()).toEqual(['assets/app.js', 'index.html']);
+  });
+
   it('root 外へ逃げる相対パスは拒否する（多重防御）', async () => {
     const store = new FileDocumentStore(root);
     await expect(store.read('../escape.md')).rejects.toThrow();

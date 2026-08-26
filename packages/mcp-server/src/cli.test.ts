@@ -59,6 +59,9 @@ class UnreadableStore implements DocumentStore {
   async listSheets(): Promise<string[]> {
     throw new Error('ENOENT: no such file or directory');
   }
+  async listSite(): Promise<string[]> {
+    throw new Error('ENOENT: no such file or directory');
+  }
   async *lines(): AsyncIterable<string> {
     throw new Error('読めません');
   }

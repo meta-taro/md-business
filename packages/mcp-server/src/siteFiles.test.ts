@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { PROJECT_CONFIG_FILENAME, WEB_MODE_DECLARATION } from '@md-business/core';
 import { MemoryDocumentStore } from './store.js';
-import { writeSiteFile, readSiteFile } from './siteFiles.js';
+import { writeSiteFile, readSiteFile, listSiteFiles } from './siteFiles.js';
 
 /** web を名乗っているフォルダ。 */
 function webStore(seed: Record<string, string> = {}): MemoryDocumentStore {
@@ -132,5 +132,38 @@ describe('readSiteFile', () => {
     expect(r.ok).toBe(false);
     if (r.ok) return;
     expect(r.error).toContain('index.html');
+  });
+});
+
+describe('listSiteFiles', () => {
+  it('触れる部品だけを並べる（業務文書・宣言・画像は入らない）', async () => {
+    // 一覧に別の口が持つものを混ぜると、そのまま read_site_file へ渡して断られる。
+    const store = webStore({
+      'index.html': '',
+      'assets/app.js': '',
+      'img/hero.png': '',
+      'docs/spec.md': '',
+      'Makefile': '',
+    });
+    const r = await listSiteFiles(store);
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.files).toEqual(['assets/app.js', 'index.html']);
+  });
+
+  it('宣言の無いフォルダでは並べず、宣言の口を案内する', async () => {
+    const store = new MemoryDocumentStore({ 'index.html': '' });
+    const r = await listSiteFiles(store);
+    expect(r.ok).toBe(false);
+    if (r.ok) return;
+    expect(r.error).toContain('declare_web_mode');
+  });
+
+  it('まだ何も無いフォルダは空で返す（断らない）', async () => {
+    // ここで断ると、これから作る場面と、名乗っていない場面の区別が付かなくなる。
+    const r = await listSiteFiles(webStore());
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.files).toEqual([]);
   });
 });
