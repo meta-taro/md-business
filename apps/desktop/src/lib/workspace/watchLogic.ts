@@ -45,7 +45,8 @@ export type FileChangeAction = 'reload' | 'rescan' | 'conflict' | 'ignore';
 /**
  * 監視イベントと画面状態から反応を決める。
  *
- * - 一覧に出ないものは無視する（宣言、および web を名乗っていないフォルダのサイトの部品）。
+ * - 宣言が変わったら走査し直す（一覧に出るものが入れ替わる）。
+ * - 一覧に出ないものは無視する（web を名乗っていないフォルダのサイトの部品）。
  * - `rescan`（構造変更）は開いているファイル状態に依らず最優先で再走査。
  * - `modified` は「開いているファイルそのもの」の変更だけを扱い、それ以外は無視する。
  *   未編集なら読み直し（reload）、編集中なら編集を守るため competing 表示（conflict）。
@@ -54,8 +55,10 @@ export function decideFileChangeAction(
   event: FileChangeEvent,
   view: WatchViewState,
 ): FileChangeAction {
-  // 宣言はこのフォルダの扱いを決める紙で、一覧にも画面にも出ない。
-  if (event.scope === 'config') return 'ignore';
+  // 宣言そのものは一覧にも画面にも出ないが、名乗り方が変わると一覧に出るものが入れ替わる
+  // （サイトの部品が出る／出なくなる）。走査し直さないと、名乗りを置いた後に書かれた
+  // ファイルがフォルダを開き直すまで出てこない。
+  if (event.scope === 'config') return 'rescan';
   // サイトの部品は、web を名乗っていないフォルダでは一覧に出ない＝読み直す先も走査し直す先も無い。
   // 見ているのはブラウザの側なので、そちらの担当（browserPreview）へ回る。
   // 名乗っているフォルダでは一覧に出るので、業務文書と同じように追いかける。ここで無視すると、

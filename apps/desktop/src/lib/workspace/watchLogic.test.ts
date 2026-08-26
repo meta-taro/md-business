@@ -16,11 +16,14 @@ function view(partial: Partial<WatchViewState> = {}): WatchViewState {
 }
 
 describe('decideFileChangeAction', () => {
-  it('宣言そのものの変更は無視する（一覧にも画面にも出ない）', () => {
+  it('宣言が変わったら走査し直す（一覧に出るものが入れ替わるため）', () => {
+    // 宣言そのものは一覧にも画面にも出ないが、名乗り方が変わるとサイトの部品が
+    // 一覧に出る／出なくなる。ここで無視すると、AI が名乗りを置いた後に書いた
+    // ファイルが一覧に出ないまま残り、フォルダを開き直すまで気づけない。
     expect(decideFileChangeAction(ev('modified', 'md-business.yml', 'config'), view())).toBe(
-      'ignore',
+      'rescan',
     );
-    expect(decideFileChangeAction(ev('rescan', 'md-business.yml', 'config'), view())).toBe('ignore');
+    expect(decideFileChangeAction(ev('rescan', 'md-business.yml', 'config'), view())).toBe('rescan');
   });
 
   it('web を名乗っていないフォルダでは、サイトの部品は無視する', () => {
