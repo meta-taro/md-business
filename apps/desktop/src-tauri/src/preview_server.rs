@@ -231,7 +231,9 @@ fn replace_site(
     files: Vec<SiteFile>,
     assets: Vec<SiteAsset>,
 ) -> Result<(), String> {
-    if files.is_empty() {
+    // 立てるときと同じ線で断る。ここだけ厳しくすると、書いた HTML だけのサイトは
+    // 開いた最初の 1 回しか見られない（保存のたびに組み直しへ来るため）。
+    if files.is_empty() && assets.is_empty() {
         return Err("見せるページがありません".to_string());
     }
     let mut site = running
@@ -582,6 +584,45 @@ mod tests {
 
         let got = request(running.port, &format!("/{}/", running.token)).expect("返る");
         assert!(got.contains("作り直し"));
+        stop_server(&running);
+    }
+
+    // `.md` が 1 枚も無いフォルダ（書いた HTML だけ）でも立てられる。立てられるのに
+    // 組み直せないと、開いた最初の 1 回しか見られない。立てる側と揃える。
+    #[test]
+    fn 本文から作るページが無くても組み直せる() {
+        let root = ImageRoot::new("html_only");
+        std::fs::write(root.path.join("index.html"), "<h1>相談</h1>").expect("置く");
+        let running = start_server(
+            &root.path,
+            vec![],
+            vec![asset("index.html", "index.html")],
+            SitePolicy::default(),
+        )
+        .expect("立つ");
+
+        std::fs::write(root.path.join("style.css"), "body{color:#000}").expect("置く");
+        replace_site(
+            &running,
+            &root.path,
+            vec![],
+            vec![
+                asset("index.html", "index.html"),
+                asset("style.css", "style.css"),
+            ],
+        )
+        .expect("組み直せる");
+
+        let got = request(running.port, &format!("/{}/style.css", running.token)).expect("返る");
+        assert!(got.starts_with("HTTP/1.1 200 "));
+        stop_server(&running);
+    }
+
+    // 出すものが何も無いのに版だけ進むと、ブラウザは空の待ち受けを読みに行く。
+    #[test]
+    fn 出すものが何も無ければ組み直さない() {
+        let running = start(pages()).expect("立つ");
+        assert!(replace_site(&running, Path::new("."), vec![], vec![]).is_err());
         stop_server(&running);
     }
 
