@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { PROJECT_CONFIG_FILENAME, WEB_MODE_DECLARATION } from '@md-business/core';
 import { MemoryDocumentStore } from './store.js';
-import { writeSiteFile } from './siteFiles.js';
+import { writeSiteFile, readSiteFile } from './siteFiles.js';
 
 /** web を名乗っているフォルダ。 */
 function webStore(seed: Record<string, string> = {}): MemoryDocumentStore {
@@ -86,5 +86,51 @@ describe('writeSiteFile', () => {
     expect(json.ok).toBe(true);
     const svg = await writeSiteFile(store, { path: 'img/logo.svg', content: '<svg/>' });
     expect(svg.ok).toBe(true);
+  });
+});
+
+describe('readSiteFile', () => {
+  it('中身をそのまま返す（書き戻しても元と同じになるように）', async () => {
+    // 伏せ字や行の切り詰めが入ると、読んで直して書き戻したときに
+    // 触っていないはずの箇所（連絡先など）まで書き換わってしまう。
+    const body = '<footer>contact@example.com</footer>\n';
+    const store = webStore({ 'index.html': body });
+    const r = await readSiteFile(store, { path: 'index.html' });
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.path).toBe('index.html');
+    expect(r.content).toBe(body);
+  });
+
+  it('宣言の無いフォルダでは読まず、宣言の口を案内する', async () => {
+    const store = new MemoryDocumentStore({ 'index.html': '<h1>やあ</h1>' });
+    const r = await readSiteFile(store, { path: 'index.html' });
+    expect(r.ok).toBe(false);
+    if (r.ok) return;
+    expect(r.error).toContain('declare_web_mode');
+  });
+
+  it('業務文書（.md / .tsv）は専用の口へ回す', async () => {
+    const store = webStore({ 'docs/spec.md': '# 仕様', 'docs/test-specs/001-x.tsv': 'a	b' });
+    const md = await readSiteFile(store, { path: 'docs/spec.md' });
+    expect(md.ok).toBe(false);
+    if (!md.ok) expect(md.error).toContain('read_document');
+    const tsv = await readSiteFile(store, { path: 'docs/test-specs/001-x.tsv' });
+    expect(tsv.ok).toBe(false);
+    if (!tsv.ok) expect(tsv.error).toContain('read_tsv');
+  });
+
+  it('文字にならないもの・フォルダの外は断る', async () => {
+    const store = webStore({ 'img/hero.png': 'PNG...' });
+    expect((await readSiteFile(store, { path: 'img/hero.png' })).ok).toBe(false);
+    expect((await readSiteFile(store, { path: '../evil.html' })).ok).toBe(false);
+  });
+
+  it('無いファイルは、無いと分かる形で返す', async () => {
+    const store = webStore();
+    const r = await readSiteFile(store, { path: 'index.html' });
+    expect(r.ok).toBe(false);
+    if (r.ok) return;
+    expect(r.error).toContain('index.html');
   });
 });

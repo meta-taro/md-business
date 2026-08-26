@@ -42,7 +42,7 @@ import {
   declareSummary,
   WEB_MODE_DECLARATION_TEXT,
 } from './webMode.js';
-import { writeSiteFile } from './siteFiles.js';
+import { readSiteFile, writeSiteFile } from './siteFiles.js';
 import { buildToolLogEntry, type ToolLogEntry, type ToolResultLike } from './toolLog.js';
 
 /** MCP クライアントへ提示するサーバー名 / バージョン（プロトコル上の識別子）。 */
@@ -893,6 +893,24 @@ export function createServer(store: DocumentStore, options: CreateServerOptions 
     async ({ path, content }) => {
       const r = await writeSiteFile(store, { path, content });
       emit('write_site_file', r.ok ? r.path : path, r);
+      return jsonResult(r, !r.ok);
+    },
+  );
+
+  server.registerTool(
+    'read_site_file',
+    {
+      description:
+        'サイトの部品（HTML / CSS / JS など）を 1 ファイル読む。置いてあるままを返す。' +
+        '既にあるファイルを直すときは、まずここで読んでから write_site_file で書き戻す。' +
+        '業務文書（.md）は read_document、検証シート（.tsv）は read_tsv で読む。',
+      inputSchema: {
+        path: z.string().describe('ワークスペース相対パス（例 index.html / assets/app.js）'),
+      },
+    },
+    async ({ path }) => {
+      const r = await readSiteFile(store, { path });
+      emit('read_site_file', r.ok ? r.path : path, r);
       return jsonResult(r, !r.ok);
     },
   );

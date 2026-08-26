@@ -119,6 +119,7 @@ describe('createServer / MCP 配線', () => {
       'read_document',
       'read_har',
       'read_lines',
+      'read_site_file',
       'read_tsv',
       'save_evidence',
       'search_documents',
@@ -1084,6 +1085,32 @@ describe('createServer / write_site_file', () => {
     })) as CallToolResult;
     expect(parse(res).isError).toBe(true);
     expect(await store.exists('spec.md')).toBe(false);
+  });
+
+  // 直すには読めないと始まらない。読んだものが元と違うと、書き戻した時点で
+  // 触っていないはずの箇所（連絡先など）まで書き換わる。
+  it('書いたものをそのまま読み返せる', async () => {
+    const body = '<footer>contact@example.com</footer>';
+    const store = new MemoryDocumentStore({ ...WEB, 'index.html': body });
+    const { client, logs } = await connectWithLog(store);
+    const res = (await client.callTool({
+      name: 'read_site_file',
+      arguments: { path: 'index.html' },
+    })) as CallToolResult;
+    const { text, isError } = parse(res);
+    expect(isError).toBe(false);
+    expect(text).toMatchObject({ ok: true, path: 'index.html', content: body });
+    expect(logs.at(-1)).toMatchObject({ tool: 'read_site_file', path: 'index.html', ok: true });
+  });
+
+  it('名乗っていないフォルダでは読まない', async () => {
+    const store = new MemoryDocumentStore({ 'index.html': '<h1>やあ</h1>' });
+    const client = await connect(store);
+    const res = (await client.callTool({
+      name: 'read_site_file',
+      arguments: { path: 'index.html' },
+    })) as CallToolResult;
+    expect(parse(res).isError).toBe(true);
   });
 });
 
