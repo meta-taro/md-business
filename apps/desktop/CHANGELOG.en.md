@@ -4,6 +4,25 @@ Changes to this app. Versions follow [Semantic Versioning](https://semver.org/).
 
 Japanese is the source of truth for this file; see [CHANGELOG.md](./CHANGELOG.md).
 
+## 0.29.0
+
+### Added
+
+- **A folder can now call itself a site.** Write `mode: web` in `md-business.yml` and that folder lists HTML, CSS and JavaScript alongside Markdown, and its preview runs as a real page. **What is written in the file is a declaration, not permission to run it.** Whether it runs is decided once, by a person, on this machine. That permission does not travel with the folder (if it did, whoever received the folder would have its scripts running before they had looked inside). The declaration can be written and withdrawn from the app; the permission can be revoked afterwards. **The two are cleared separately** — withdrawing the declaration leaves the permission, and revoking the permission leaves the declaration. If one erased the other, you would always end up with either a folder you fixed for others that still runs here, or a folder you refused here that still declares itself to everyone else. The dialog also says plainly not to allow a folder whose contents you do not know.
+
+- **Whether the preview runs scripts is now a per-folder decision.** A page that is allowed to run carries a statement of where it may load from — nothing that is not in the declaration. **The same statement is baked into the folder you export.** Being strict only in your own preview protects only your own screen; what you handed out is what other people open.
+
+- **A dev server running outside the app can now be shown in the same pane.** Write `devServer: http://localhost:4321` under `web:` and the preview pane shows it. **The app never starts that server.** If it did, opening a folder would run the project's own commands, which would make the consent above meaningless. Starting and stopping stay in your terminal, as before; the app only shows the result. Only an address on this machine (`localhost`) is accepted.
+
+- **Site files can now be handled by an agent** (MCP): writing, reading back, listing, and a way to write only the declaration. What is written arrives in the open window as it is (the preview changes without reopening). The app opens these **read-only** — the place to fix them is the file itself, and fixing a copy changes nothing.
+
+- **A ```` ```data ```` block in the body now draws a table from another file in place.** Write where the table is in `source:`. Copying numbers into the body means the body is left stale the moment the table is corrected. When the block cannot be read, it does not quietly go blank: it says which line of the block failed and why.
+
+### Fixed
+
+- **Rewriting the declaration left the old file list in place.** Fixed.
+- **Site files are no longer rebuilt when only their contents changed.** Every live update had been rebuilding all of them.
+
 ## 0.28.0
 
 ### Added
