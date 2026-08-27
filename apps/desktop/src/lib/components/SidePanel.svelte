@@ -158,9 +158,20 @@
               <!-- 何が置かれるか（トークンが入る）を押す前に見せる。 -->
               <p class="note">{t('mcp.writeConfigNote')}</p>
               {#if wrote !== null}
-                <p class="wrote" class:failed={!wrote.ok} title={wrote.detail}>
-                  {wrote.ok ? t('mcp.wroteConfig') : t('mcp.writeConfigFailed')}
+                <!--
+                  置いた場所を本文に出す。「置きました」だけだと、押した本人には何も
+                  起きていないように見えて、同じボタンをもう一度押すことになる。
+                -->
+                <p class="wrote" class:failed={!wrote.ok}>
+                  {wrote.ok
+                    ? t('mcp.wroteConfig', { path: wrote.detail })
+                    : t('mcp.writeConfigFailed')}
                 </p>
+                {#if wrote.ok}
+                  <p class="note">{t('mcp.wroteConfigNext')}</p>
+                {:else}
+                  <pre class="conn-detail">{wrote.detail}</pre>
+                {/if}
               {/if}
             {/if}
             <button class="token" type="button" onclick={copyConfig}>
@@ -174,9 +185,10 @@
           <!--
             使い方が分からないと機能ごと気付かれないので、画面の中に置く。ただし手順は
             接続できている前提の文（上のボタンを押す）なので、出ていない間は畳んだままにしない。
+            置く前は開いておく。畳んでおくと、押す理由が分からないままボタンだけが見える。
           -->
           {#if mcp.isReady}
-          <details class="howto">
+          <details class="howto" open={wrote === null}>
             <summary>{t('mcp.howto')}</summary>
             <ol>
               <li>{t('mcp.howtoStep1')}</li>

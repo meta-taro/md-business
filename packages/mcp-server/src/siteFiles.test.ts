@@ -19,6 +19,16 @@ describe('writeSiteFile', () => {
     expect(await store.read('index.html')).toBe('<h1>やあ</h1>\n');
   });
 
+  // 書いた結果は利用者が開いている面にそのまま映る。別の窓を開けと返すと、
+  // 書くたびに窓を行き来することになる。
+  it('見る先を別の窓にしない', async () => {
+    const store = webStore();
+    const r = await writeSiteFile(store, { path: 'index.html', content: '<h1>やあ</h1>' });
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.summary).not.toContain('ブラウザ');
+  });
+
   it('既にあるファイルは置き換えて created:false', async () => {
     const store = webStore({ 'assets/style.css': 'body{}' });
     const r = await writeSiteFile(store, { path: 'assets/style.css', content: 'body{color:red}' });

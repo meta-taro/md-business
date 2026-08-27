@@ -8,7 +8,9 @@ use serde::Serialize;
 use std::path::{Component, Path, PathBuf};
 use std::time::{Duration, Instant};
 
-use crate::workspace::{is_excluded_dir, is_site_asset_ext, is_tree_ext, PROJECT_CONFIG_FILENAME};
+use crate::workspace::{
+    is_excluded_dir, is_site_asset_ext, is_site_source_ext, is_tree_ext, PROJECT_CONFIG_FILENAME,
+};
 
 /// notify のイベント種別を、判断に必要な粒度へ畳んだもの。
 /// 配線層（lib.rs）が `notify::EventKind` からこの値へ写像して渡す。
@@ -113,7 +115,7 @@ fn rel_under_root(path: &Path, root: &Path) -> Option<(String, FileChangeScope)>
         .map(|e| e.to_ascii_lowercase())?;
     // 両方の表に載っている種類（`.json` / `.tsv` など）は一覧の側を先に取る。一覧に
     // 出るはずのものが出ないと、増えたファイルがどこからも見えなくなる。
-    if is_tree_ext(ext.as_str()) {
+    if is_tree_ext(ext.as_str()) || is_site_source_ext(ext.as_str()) {
         return Some((rel_path, FileChangeScope::Tree));
     }
     if is_site_asset_ext(ext.as_str()) {
@@ -265,6 +267,17 @@ mod tests {
             assert_eq!(changes.len(), 1, "rel={}", rel);
             assert_eq!(changes[0].rel_path, rel);
             assert_eq!(changes[0].scope, FileChangeScope::Site, "rel={}", rel);
+        }
+    }
+
+    #[test]
+    fn 組み上げの元になる種類は一覧の側で通知する() {
+        // 待ち受けは向こう側が持っているので、こちらから出し直すものは無い。
+        // 一覧へ通さないと、置かれた `.astro` がツリーに現れない。
+        for rel in ["src/pages/index.astro", "src/lib/util.ts", "src/styles/main.scss"] {
+            let changes = classify_event(RawEvent::Modified, &[join(rel)], &root());
+            assert_eq!(changes.len(), 1, "rel={}", rel);
+            assert_eq!(changes[0].scope, FileChangeScope::Tree, "rel={}", rel);
         }
     }
 

@@ -97,7 +97,12 @@ export const SERVER_INSTRUCTIONS = `md-business は Markdown / TSV の業務文�
   （読まずに書くと、触っていないところごと差し替わる）。名乗っていないフォルダは
   **declare_web_mode** で宣言を置く。宣言は「そう作る」という表明であって動かしてよいという
   許可ではないので、この PC で許すかどうかは利用者が決める。出来上がりは利用者が
-  **ブラウザ**で見て確かめる。
+  開いている面にそのまま映る（まだ映していなければ、その面の「ライブ」から出せる）。
+  **別の窓を開くように頒まない**——書くたび行き来させることになる。
+  Astro / Vite のように組み上げてから出す作りのときは、素のファイルを映しても出来上がりにならない。
+  自分で \`astro dev\` などを動かしたなら、その待ち受けの在り処（\`http://localhost:4321\` など）を
+  \`${PROJECT_CONFIG_FILENAME}\` の \`web.devServer\` に書く。書けば利用者の面がそこを映す。
+  **アプリがその処理を起動しない**ので、止めたら宣言も外す。この PC の中の在り処だけを受け付ける。
 - 外部から届いた JSON / XML（請求書の交換形式・口座明細・会計サービスの書き出しなど）は
   **read_data** で木構造として読む。これらは正本ではないので **書き戻す口は無い**。
   中身を業務文書にするなら、読んだ内容をもとに create_document / append_tsv_row で作る。
@@ -892,7 +897,7 @@ export function createServer(store: DocumentStore, options: CreateServerOptions 
         'サイトの部品（HTML / CSS / JS など）を 1 ファイル書く。中身は渡されたまま置く。' +
         `web モードを名乗っているフォルダでしか書けない（先に declare_web_mode）。` +
         '業務文書（.md）と検証シート（.tsv）はここでは書かない——それぞれ専用の口がある。' +
-        '書いた結果が意図どおりかは、ブラウザで見て確かめる。',
+        '書いた結果は利用者が開いている面にそのまま映る。別の窓を開くように頒まない。',
       inputSchema: {
         path: z.string().describe('ワークスペース相対パス（例 index.html / assets/app.js）'),
         content: z.string().describe('ファイルの中身そのもの。既にあれば置き換える'),

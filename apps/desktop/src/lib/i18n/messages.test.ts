@@ -114,6 +114,22 @@ describe('接続設定の書き出しの説明', () => {
   });
 });
 
+// 「置きました」だけでは、どこへ何のために置いたのかが残らない。押した本人には
+// 何も起きていないように見えて、同じボタンをもう一度押すことになる。
+describe('接続設定を置いた後の知らせ', () => {
+  it('どの言語でも置いた場所を差し込める', () => {
+    for (const locale of LOCALES) {
+      expect(messages[locale]['mcp.wroteConfig'], locale).toContain('{path}');
+    }
+  });
+
+  it('どの言語でも次にすることが分かる', () => {
+    for (const locale of LOCALES) {
+      expect(messages[locale]['mcp.wroteConfigNext'], locale).not.toBe('');
+    }
+  });
+});
+
 // この文はそのまま AI に渡される。読んだ AI が版を選べないと、18 系を入れられて
 // 直らないまま「入れました」で終わる。要求する版が文に入っている必要がある。
 describe('AI に頼む文', () => {
@@ -128,6 +144,32 @@ describe('AI に頼む文', () => {
     for (const locale of LOCALES) {
       const text = messages[locale]['mcp.askAiText'];
       expect(text, locale).toContain(messages[locale]['mcp.retry']);
+    }
+  });
+});
+
+// 手で書いた HTML を開いた面に断り書きだけを出すと、見る手立てが別の窓しか無いように
+// 読める。まだ映していないときこそ、この面に出せることを書いておく。
+describe('サイトの部品の面', () => {
+  it('どの言語でも、押すボタンの名前で立て方を書いている', () => {
+    for (const locale of LOCALES) {
+      expect(messages[locale]['site.startNote'], locale).toContain(
+        messages[locale]['action.liveLabel'],
+      );
+    }
+  });
+
+  it('どの言語でも、宣言が要ることが書いてある', () => {
+    for (const locale of LOCALES) {
+      expect(messages[locale]['site.declareNote'], locale).not.toBe('');
+    }
+  });
+
+  // 応えていない待ち受けは、宣言した在り処を出さないと何を直せばいいか分からない。
+  // 立ち上げるのは向こう側なので、こちらの操作を書いても押す先が無い。
+  it('どの言語でも、応えていない待ち受けの在り処を差し込める', () => {
+    for (const locale of LOCALES) {
+      expect(messages[locale]['site.devDownNote'], locale).toContain('{url}');
     }
   });
 });

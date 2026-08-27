@@ -127,3 +127,18 @@ export function fileLabel(relPath: string): string {
   const cut = relPath.lastIndexOf('/');
   return cut < 0 ? relPath : relPath.slice(cut + 1);
 }
+
+/**
+ * 何も並んでいないときに出す文言を選ぶ。
+ *
+ * web を名乗るフォルダでは HTML / CSS もツリーに出る。そこで `.md / .tsv` だけを
+ * 挙げると「置いたのに出ない」と読めて、置いた側が拡張子を疑い始める。
+ * 絞り込みが効いているときは、無いのではなく絞った結果なので、そちらを先に見る。
+ */
+export function emptyTreeMessage(
+  filtering: boolean,
+  siteVisible: boolean,
+): 'tree.filterNoMatch' | 'tree.noFiles' | 'tree.noFilesWeb' {
+  if (filtering) return 'tree.filterNoMatch';
+  return siteVisible ? 'tree.noFilesWeb' : 'tree.noFiles';
+}

@@ -607,7 +607,18 @@ describe('createServer / instructions', () => {
     expect(text).toContain('write_site_file');
     // 宣言を置いただけで動かしてよいことにはならない、が抜けると許可の話とすり替わる。
     expect(text).toMatch(/宣言/);
-    expect(text).toContain('ブラウザ');
+    // 見る先を別の窓にすると、書くたび利用者が行き来することになる。
+    // 出来上がりは開いている面にそのまま映るので、そこを指す。
+    expect(text).not.toContain('ブラウザ');
+  });
+
+  it('自分で待ち受けを動かしたときは、その在り処を宣言に書くことを書く', async () => {
+    const text = await instructions();
+    // Astro / Vite のような組み上げが要るものは、こちらの待ち受けでは出ない。
+    // 在り処を宣言に書けば同じ面に映るが、書かなければ利用者は別の窓へ追いやられる。
+    expect(text).toContain('devServer');
+    // 起こすのは向こう側。ここが抜けると、宣言を書けばアプリが立ち上げてくれると読まれる。
+    expect(text).toMatch(/起動しない|起こさない|立ち上げない/);
   });
 });
 

@@ -55,6 +55,14 @@ pub(crate) const SITE_ASSET_EXTS: [&str; 25] = [
     "html", "htm", "css", "js", "mjs", "map", "json", "webmanifest", "xml", "tsv", "csv", "txt",
     "wasm", "woff", "woff2", "ttf", "otf", "pdf", "mp4", "webm", "mp3", "wav", "ico", "vtt", "toml",
 ];
+/// 組み上げてから出す作りで、書いている当のファイルになる種類（小文字比較）。
+///
+/// **待ち受けからは出さない。**`.astro` や `.ts` をそのまま返すと、組む前の中身が
+/// 出来上がりとして出る。ここに載せるのは「一覧に出す・開いて読める」までで、
+/// 出す先はプロジェクトが自分で動かしている待ち受けのほう。
+pub(crate) const SITE_SOURCE_EXTS: [&str; 12] = [
+    "ts", "tsx", "jsx", "mts", "cts", "cjs", "astro", "svelte", "vue", "scss", "sass", "less",
+];
 /// ディレクトリのネスト上限（設計書 §3.2）。超過分は打ち切り truncated=true。
 const MAX_DEPTH: usize = 12;
 /// 収集ファイル数の上限（設計書 §3.2）。超過分は打ち切り truncated=true。
@@ -130,6 +138,11 @@ pub(crate) fn is_tree_ext(ext: &str) -> bool {
     ALLOWED_EXTS.contains(&ext) || IMAGE_EXTS.contains(&ext)
 }
 
+/// 組み上げの元になる種類か。一覧と読み取りで同じ範囲を使う（出す側には渡さない）。
+pub(crate) fn is_site_source_ext(ext: &str) -> bool {
+    SITE_SOURCE_EXTS.contains(&ext)
+}
+
 /// サイトへ出せる種類か。走査・監視で同じ範囲を使う。
 pub(crate) fn is_site_asset_ext(ext: &str) -> bool {
     SITE_ASSET_EXTS.contains(&ext) || IMAGE_EXTS.contains(&ext)
@@ -146,7 +159,7 @@ fn site_asset_ext(path: &Path) -> Option<String> {
 /// 一覧に無いと、何が置かれたのかを画面から追えない。名乗っていないフォルダは業務文書だけの
 /// まま——既定を広げると、請求書だけのフォルダに `.js` が並ぶ。
 pub(crate) fn is_tree_ext_for(ext: &str, include_site: bool) -> bool {
-    is_tree_ext(ext) || (include_site && is_site_asset_ext(ext))
+    is_tree_ext(ext) || (include_site && (is_site_asset_ext(ext) || is_site_source_ext(ext)))
 }
 
 /// パスの拡張子がツリーの対象なら小文字化して返す。対象外・拡張子なしは None。
@@ -375,7 +388,8 @@ pub fn read_document_impl(
         return Err("ルート外へのアクセスは拒否されます".to_string());
     }
     let openable = lower_ext(&canon).is_some_and(|e| {
-        ALLOWED_EXTS.contains(&e.as_str()) || (include_site && is_site_asset_ext(&e))
+        ALLOWED_EXTS.contains(&e.as_str())
+            || (include_site && (is_site_asset_ext(&e) || is_site_source_ext(&e)))
     });
     if !openable {
         return Err(if include_site {
@@ -1051,6 +1065,59 @@ mod tests {
             rel_paths(&result),
             vec!["about.html", "img/logo.png", "js/app.js", "style.css"]
         );
+    }
+
+    #[test]
+    fn scan_組み上げの元になるファイルもwebのフォルダなら一覧に出る() {
+        // Astro / Vite のような作りでは、書いている当のファイルが `.astro` や `.ts` になる。
+        // 一覧に出ないと、エージェントが置いたものを画面から開けない。
+        let root = TempRoot::new("scan_site_source");
+        root.file("src/pages/index.astro", "<h1>a</h1>");
+        root.file("src/lib/util.ts", "export {};");
+        root.file("src/App.svelte", "<p>a</p>");
+        root.file("src/styles/main.scss", "body{}");
+        let result = scan_documents_impl(&root.path, true).expect("走査成功");
+        assert_eq!(
+            rel_paths(&result),
+            vec![
+                "src/App.svelte",
+                "src/lib/util.ts",
+                "src/pages/index.astro",
+                "src/styles/main.scss",
+            ]
+        );
+    }
+
+    #[test]
+    fn scan_組み上げの元になるファイルは文書だけのフォルダには出ない() {
+        // 既定を広げると、請求書だけのフォルダに `.ts` が並ぶ。
+        let root = TempRoot::new("scan_site_source_doc");
+        root.file("src/pages/index.astro", "<h1>a</h1>");
+        root.file("a.md", "# a");
+        let result = scan_documents_impl(&root.path, false).expect("走査成功");
+        assert_eq!(rel_paths(&result), vec!["a.md"]);
+    }
+
+    #[test]
+    fn 組み上げの元になるファイルは待ち受けから出さない() {
+        // 出せば組み上げる前の中身が「出来上がり」として出る。出すのは組んだ結果だけ。
+        assert!(!is_site_asset_ext("astro"));
+        assert!(!is_site_asset_ext("ts"));
+        assert!(!is_site_asset_ext("svelte"));
+        let root = TempRoot::new("serve_site_source");
+        root.file("index.astro", "<h1>a</h1>");
+        assert!(resolve_site_asset_in_root(&root.path, "index.astro").is_err());
+    }
+
+    #[test]
+    fn 組み上げの元になるファイルはwebのフォルダなら開ける() {
+        let root = TempRoot::new("read_site_source");
+        root.file("src/pages/index.astro", "<h1>a</h1>");
+        assert_eq!(
+            read_document_impl(&root.path, "src/pages/index.astro", true).expect("読める"),
+            "<h1>a</h1>"
+        );
+        assert!(read_document_impl(&root.path, "src/pages/index.astro", false).is_err());
     }
 
     #[test]

@@ -166,6 +166,74 @@ describe('parseProjectConfig — where scripts may come from', () => {
   });
 });
 
+describe('parseProjectConfig - a dev server the project runs itself', () => {
+  it('answers with no dev server unless one is declared', () => {
+    const result = parseProjectConfig('mode: web\n');
+    expect(result.config.devServer).toBe(null);
+    expect(result.problems).toEqual([]);
+  });
+
+  it('reads a loopback address, ending it at the root', () => {
+    const result = parseProjectConfig('mode: web\nweb:\n  devServer: http://localhost:4321\n');
+    expect(result.config.devServer).toBe('http://localhost:4321/');
+    expect(result.problems).toEqual([]);
+  });
+
+  it('keeps a path, because a site may be served under one', () => {
+    const result = parseProjectConfig(
+      'mode: web\nweb:\n  devServer: http://127.0.0.1:5173/lp/\n',
+    );
+    expect(result.config.devServer).toBe('http://127.0.0.1:5173/lp/');
+  });
+
+  it('refuses an address that is not on this machine', () => {
+    // The app points its own window at this, so an address elsewhere would let
+    // a file that ships with the project decide what the app displays.
+    const result = parseProjectConfig('mode: web\nweb:\n  devServer: https://example.com\n');
+    expect(result.config.devServer).toBe(null);
+    expect(kinds(result)).toEqual(['bad-dev-server']);
+    expect(result.problems[0]?.message).toContain('localhost');
+  });
+
+  it('refuses an address on the local network', () => {
+    const result = parseProjectConfig(
+      'mode: web\nweb:\n  devServer: http://192.168.1.10:4321\n',
+    );
+    expect(result.config.devServer).toBe(null);
+    expect(kinds(result)).toEqual(['bad-dev-server']);
+  });
+
+  it('refuses a scheme that is not http', () => {
+    const result = parseProjectConfig(
+      'mode: web\nweb:\n  devServer: file:///C:/site/index.html\n',
+    );
+    expect(result.config.devServer).toBe(null);
+    expect(kinds(result)).toEqual(['bad-dev-server']);
+  });
+
+  it('refuses credentials rather than carrying them into the window', () => {
+    const result = parseProjectConfig(
+      'mode: web\nweb:\n  devServer: http://user:pw@localhost:4321\n',
+    );
+    expect(result.config.devServer).toBe(null);
+    expect(kinds(result)).toEqual(['bad-dev-server']);
+  });
+
+  it('refuses something that is not an address at all', () => {
+    const result = parseProjectConfig('mode: web\nweb:\n  devServer: 4321\n');
+    expect(result.config.devServer).toBe(null);
+    expect(kinds(result)).toEqual(['bad-dev-server']);
+  });
+
+  it('ignores a dev server declared by a document-mode project', () => {
+    const result = parseProjectConfig(
+      'mode: document\nweb:\n  devServer: http://localhost:4321\n',
+    );
+    expect(result.config.devServer).toBe(null);
+    expect(result.problems).toEqual([]);
+  });
+});
+
 describe('WEB_MODE_DECLARATION', () => {
   it('reads back as web mode through the one reader', () => {
     const result = parseProjectConfig(WEB_MODE_DECLARATION);

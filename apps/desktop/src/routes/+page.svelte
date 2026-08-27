@@ -3,7 +3,7 @@
   import { themeController } from '$lib/theme.svelte';
   import BrowserOpenButtons from '$lib/components/BrowserOpenButtons.svelte';
   import { browserPreview } from '$lib/preview/browserPreviewController.svelte';
-  import { livePreviewUrl } from '$lib/preview/livePreview';
+  import { livePreviewUrl, sitePartView } from '$lib/preview/livePreview';
   import { previewRenderer } from '$lib/preview/previewRenderer.svelte';
   import type { PreviewResult } from '$lib/preview/previewFactory';
   import { frontmatterMessage } from '$lib/preview/frontmatterMessage';
@@ -1117,6 +1117,16 @@
       relPath: workspace.activePath,
     }),
   );
+  const sitePane = $derived(
+    sitePartView({
+      liveUrl,
+      devServer: browserPreview.declaredDev,
+      devAnswering: browserPreview.devAnswering,
+      declaredWeb: browserPreview.declaredWeb,
+    }),
+  );
+  /** 映しているか。映していれば、面の広さを変える口を出す。 */
+  const siteShowing = $derived(sitePane.kind === 'dev' || sitePane.kind === 'live');
 
   // 待ち受けを映している間はエージェントの手元を見ている時間が長い。分割を畳んで
   // 見る面だけにできるようにする（指示は別の窓から出すので、こちらは見えていればよい）。
@@ -1341,13 +1351,64 @@
         onMeasure={(size) => (imageNatural = size)}
       />
     {:else if sitePart}
-      <!-- サイトの部品。ここで組み立てても、ブラウザが出すものとは別物になる。
-           確かめる先を 1 つに保つため、この面では中身に手を加えない。 -->
+      <!-- サイトの部品。ここで組み直すと、ブラウザが出すものと別物になるので、
+           出している待ち受けをそのまま映す。立っていなければ、立てる口をこの面に出す。
+           断り書きだけを出すと、見る手立てが別の窓しか無いように読める。
+           プロジェクトが自分で待ち受けを持っているなら、そちらを映す。組み上げ方が
+           こちらには分からないので、手元で組み直したものを代わりに出さない。 -->
       <div class="pane-head site-head">
-        <span>{t('site.head')}</span>
-        <span class="chip">{t('site.readOnly')}</span>
+        <span>{sitePane.kind === 'dev' || sitePane.kind === 'dev-down'
+            ? t('site.devHead')
+            : t('site.head')}</span>
+        {#if !siteShowing}
+          <span class="chip">{t('site.readOnly')}</span>
+        {/if}
+        {#if sitePane.kind === 'dev'}
+          <span class="site-url">{sitePane.url}</span>
+        {:else if sitePane.kind !== 'dev-down'}
+          <!-- 自前の待ち受けがあるフォルダでは、こちらから別の待ち受けを立てない。
+               同じフォルダから中身の違うものが 2 つ出ると、どちらが本当か分からなくなる。 -->
+          <BrowserOpenButtons root={workspace.root} />
+        {/if}
+        {#if siteShowing}
+          <button
+            type="button"
+            class="head-btn"
+            onclick={() => (viewport = nextViewport(viewport))}
+            aria-pressed={viewport === 'phone'}
+            title={viewport === 'pc' ? t('page.viewportPhoneTitle') : t('page.viewportPcTitle')}
+          >
+            {viewport === 'pc' ? t('page.viewportPhoneBtn') : t('page.viewportPcBtn')}
+          </button>
+          <button
+            type="button"
+            class="head-btn"
+            onclick={() => (previewFullscreen = !previewFullscreen)}
+            aria-pressed={previewFullscreen}
+            title={previewFullscreen
+              ? t('page.previewRestoreTitle')
+              : t('page.previewFullscreenTitle')}
+          >
+            {previewFullscreen ? t('page.previewRestoreBtn') : t('page.previewFullscreenBtn')}
+          </button>
+        {/if}
       </div>
-      <p class="site-note">{t('site.note')}</p>
+      {#if sitePane.kind === 'dev' || sitePane.kind === 'live'}
+        <div class="viewer-wrap" class:narrow={viewport === 'phone'}>
+          <iframe
+            class="viewer"
+            style:width={frameWidth(viewport)}
+            src={sitePane.url}
+            title={t('page.livePreviewTitle')}
+          ></iframe>
+        </div>
+      {:else if sitePane.kind === 'dev-down'}
+        <p class="site-note">{t('site.devDownNote', { url: sitePane.url })}</p>
+      {:else if sitePane.kind === 'start'}
+        <p class="site-note">{t('site.startNote')}</p>
+      {:else}
+        <p class="site-note">{t('site.declareNote')}</p>
+      {/if}
     {:else if isTsv && tsvDoc}
       <div class="pane-head grid-head">
         <span>{t('page.gridHead')}</span>
@@ -1717,9 +1778,20 @@
     gap: var(--space-2);
   }
 
-  /* サイトの部品のペインヘッダは、見出しの右に「読み取り専用」を置くだけ。 */
+  /* サイトの部品のペインヘッダは、映しているかどうかで中身が変わる。 */
   .site-head {
     gap: var(--space-2);
+  }
+
+  /* 待ち受けの在り処は長くなりうるので、縮む側にして右の切り替えを押し出さない。 */
+  .site-url {
+    min-width: 0;
+    overflow: hidden;
+    color: var(--text-tertiary);
+    font-family: var(--font-mono);
+    font-size: var(--text-sm-size);
+    white-space: nowrap;
+    text-overflow: ellipsis;
   }
 
   .site-note {

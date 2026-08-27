@@ -158,8 +158,8 @@ export async function writeSiteFile(
     path: plan.relative,
     created,
     summary: created
-      ? `${plan.relative} を作りました。ブラウザで開いて確かめてください。`
-      : `${plan.relative} を書き換えました。ブラウザで開いて確かめてください。`,
+      ? `${plan.relative} を作りました。開いている面にそのまま映ります。`
+      : `${plan.relative} を書き換えました。開いている面にそのまま映ります。`,
   };
 }
 
