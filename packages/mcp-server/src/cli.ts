@@ -95,9 +95,11 @@ export async function checkHealth(input: {
   // 一番多い間違いは、設定ファイルへ書いた場所が実在しないこと。
   let documents: string[] | null = null;
   let sheets: string[] | null = null;
+  let excluded = 0;
   try {
     documents = await store.list();
     sheets = await store.listSheets();
+    excluded = await store.excludedCount();
     checks.push({ name: 'ワークスペース', ok: true, detail: root });
   } catch (error: unknown) {
     checks.push({
@@ -121,10 +123,12 @@ export async function checkHealth(input: {
 
   // 0 件は間違いとは限らない（これから置く場合もある）ので、数を見せるだけに留める。
   if (documents !== null && sheets !== null) {
+    // 除外した分は、あるときだけ添える。0 件のときに「除外 0 件」と出しても読み手が増えない。
+    const note = excluded === 0 ? '' : `（生成物フォルダの中の 除外 ${excluded} 件）`;
     checks.push({
       name: '文書',
       ok: true,
-      detail: `文書 ${documents.length} 件 / 検証シート ${sheets.length} 件`,
+      detail: `文書 ${documents.length} 件 / 検証シート ${sheets.length} 件${note}`,
     });
   }
 

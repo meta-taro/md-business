@@ -62,6 +62,9 @@ class UnreadableStore implements DocumentStore {
   async listSite(): Promise<string[]> {
     throw new Error('ENOENT: no such file or directory');
   }
+  async excludedCount(): Promise<number> {
+    throw new Error('ENOENT: no such file or directory');
+  }
   async *lines(): AsyncIterable<string> {
     throw new Error('読めません');
   }
@@ -87,6 +90,23 @@ describe('checkHealth — 点検', () => {
     const empty = await checkHealth({ store: new MemoryDocumentStore(), root: '/空' });
     expect(empty.ok).toBe(true);
     expect(empty.checks.find((c) => c.name === '文書')?.ok).toBe(true);
+  });
+
+  it('除外した分があれば件数に添える（無ければ添えない）', async () => {
+    // 「置いたはずの数と合わない」ときに、除外のせいなのかをここで見分けられるようにする。
+    class WithExcluded extends MemoryDocumentStore {
+      override async excludedCount(): Promise<number> {
+        return 1014;
+      }
+    }
+    const excluded = await checkHealth({
+      store: new WithExcluded({ 'docs/請求書.md': '' }),
+      root: '/仕事',
+    });
+    expect(excluded.checks.find((c) => c.name === '文書')?.detail).toContain('除外 1014 件');
+
+    const clean = await checkHealth({ store, root: '/仕事' });
+    expect(clean.checks.find((c) => c.name === '文書')?.detail).not.toContain('除外');
   });
 
   it('読めない場所を指していたら、落ちずに理由を返す', async () => {

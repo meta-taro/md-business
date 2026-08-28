@@ -43,6 +43,13 @@ export interface DocumentStore extends LineSource {
    * 「残り」として集める。どれを部品として扱うかの判断は呼ぶ側が持つ。
    */
   listSite(): Promise<string[]>;
+  /**
+   * 一覧から外したファイルの件数。
+   *
+   * 一覧は生成物フォルダ（`node_modules` / `dist` 等）を覗かないので、置いてある数と
+   * 並ぶ数は一致しない。件数が合わないときに、除外のせいなのかを見分けるために出す。
+   */
+  excludedCount(): Promise<number>;
 }
 
 /**
@@ -92,6 +99,11 @@ export class MemoryDocumentStore implements DocumentStore {
     return [...this.files.keys()]
       .filter((p) => !p.endsWith(DOCUMENT_EXT) && !p.endsWith(SHEET_EXT))
       .sort();
+  }
+
+  /** 中身は明示的に置かれたものだけで、走査するフォルダが無いので常に 0。 */
+  async excludedCount(): Promise<number> {
+    return 0;
   }
 
   async *lines(relativePath: string): AsyncIterable<string> {

@@ -21,9 +21,22 @@ import { randomBytes } from 'node:crypto';
 import { join, resolve, dirname, basename, relative, sep } from 'node:path';
 import type { DocumentStore } from './store.js';
 
-/** 覗かないフォルダ。ドット始まり（`.git` 等）と、既知のビルド生成物。 */
+/**
+ * 覗かないフォルダ。ドット始まり（`.git` 等）と、既知のビルド生成物。
+ *
+ * 文書・検証シート・サイトの部品で**同じ判定を使う**。一覧ごとに違う答えを出すと、
+ * 「デスクトップアプリのツリーには出ないのに一覧には出る」ファイルが生まれ、
+ * どちらが正しいかを利用者が切り分けることになる。
+ * デスクトップ側（`apps/desktop/src-tauri/src/workspace.rs` の `is_excluded_dir`）と
+ * 同じ 4 規則。片方だけ足すと同じずれが起きるので、増やすときは両方に足す。
+ */
 function isGeneratedDir(name: string): boolean {
   return name.startsWith('.') || name === 'node_modules' || name === 'dist' || name === 'build';
+}
+
+/** 一覧・件数の対象になる拡張子（文書 / 検証シート）。 */
+function isDocumentOrSheet(name: string): boolean {
+  return name.endsWith('.md') || name.endsWith('.tsv');
 }
 
 export class FileDocumentStore implements DocumentStore {
@@ -145,7 +158,12 @@ export class FileDocumentStore implements DocumentStore {
     }
   }
 
-  /** root 配下の `.md` を再帰収集し、`/` 区切りの相対パスでソートして返す。 */
+  /**
+   * root 配下の `.md` を再帰収集し、`/` 区切りの相対パスでソートして返す。
+   *
+   * 生成物と隠しフォルダは覗かない。依存パッケージの README まで並べると、
+   * 業務文書がその中に埋もれて、一覧として使えなくなる。
+   */
   async list(): Promise<string[]> {
     return this.collect('.md');
   }
@@ -158,18 +176,36 @@ export class FileDocumentStore implements DocumentStore {
   /**
    * root 配下の、文書でも検証シートでもないファイルを同じ形で集める。
    *
-   * 拡張子で絞れないぶん、覗く先を絞る。生成物と隠しフォルダまで並べると、
-   * 書いた覚えのないファイルで一覧が埋まり、自分の部品が見つけられなくなる。
+   * 拡張子で絞れないぶん、目に入る量は他の 2 つより大きくなるが、覗く先の判定は同じ。
    */
   async listSite(): Promise<string[]> {
-    return this.collect((name) => !name.endsWith('.md') && !name.endsWith('.tsv'), true);
+    return this.collect((name) => !isDocumentOrSheet(name));
   }
 
-  /** 条件に合うファイルを再帰収集する。 */
-  private async collect(
-    accept: string | ((name: string) => boolean),
-    skipGenerated = false,
-  ): Promise<string[]> {
+  /**
+   * 一覧から外した `.md` / `.tsv` の件数。
+   *
+   * 件数が思ったより少ないときに、除外のせいなのか、そもそも置いていないのかを
+   * 見分けるために出す。数えるときだけ生成物の中へ入るので、一覧の速さには効かない。
+   */
+  async excludedCount(): Promise<number> {
+    let count = 0;
+    const walk = async (dir: string, excluded: boolean): Promise<void> => {
+      const entries = await readdir(dir, { withFileTypes: true });
+      for (const entry of entries) {
+        if (entry.isDirectory()) {
+          await walk(join(dir, entry.name), excluded || isGeneratedDir(entry.name));
+        } else if (excluded && entry.isFile() && isDocumentOrSheet(entry.name)) {
+          count += 1;
+        }
+      }
+    };
+    await walk(this.root, false);
+    return count;
+  }
+
+  /** 条件に合うファイルを再帰収集する。覗かないフォルダは 3 つの一覧で共通。 */
+  private async collect(accept: string | ((name: string) => boolean)): Promise<string[]> {
     const matches = typeof accept === 'string' ? (name: string) => name.endsWith(accept) : accept;
     const found: string[] = [];
     const walk = async (dir: string): Promise<void> => {
@@ -177,7 +213,7 @@ export class FileDocumentStore implements DocumentStore {
       for (const entry of entries) {
         const abs = join(dir, entry.name);
         if (entry.isDirectory()) {
-          if (skipGenerated && isGeneratedDir(entry.name)) continue;
+          if (isGeneratedDir(entry.name)) continue;
           await walk(abs);
         } else if (entry.isFile() && matches(entry.name)) {
           found.push(relative(this.root, abs).split(sep).join('/'));
