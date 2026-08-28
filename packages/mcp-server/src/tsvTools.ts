@@ -439,6 +439,48 @@ async function choicesOf(
 }
 
 /**
+ * 読み込んだ後に、外から同じファイルが書き換わっていないかを見る。
+ *
+ * 行の書き込みは「全文を読む → 1 行足す / 差し替える → 全文を書き戻す」なので、
+ * 読んでから書くまでの間に他所が書いていると、その内容ごと踏み潰す。しかも書き込み自体は
+ * 成功で返るため、消えたことが誰にも見えない。
+ *
+ * 同じプロセスの中は `pathLock` が順番に並ばせるが、**別プロセスまでは並ばない**。
+ * 1 台の PC で複数のエージェントが同時に動けば、同じフォルダを別々のプロセスが指すので、
+ * これは例外ではなく普通に起きる。ファイルロックで防ぐ手は採らない——落ちたプロセスが
+ * 錠を握ったまま消えると、以後だれも書けなくなるため。踏み潰す代わりに
+ * **失敗させて、読み直しを促す**。
+ *
+ * 確かめてから書くまでの隙間はまだ残る。そこへ入られれば従来どおり踏み潰すが、
+ * 窓は「読んで組み立てている間ずっと」から「この 2 行の間」まで縮む。
+ */
+async function detectOutsideWrite(
+  store: DocumentStore,
+  loaded: LoadedTsv,
+): Promise<ToolError | undefined> {
+  let current: string;
+  try {
+    current = await store.read(loaded.relative);
+  } catch {
+    // 読めなくなっている＝消されたか移された。書き戻して勝手に作り直さない。
+    return {
+      ok: false,
+      error:
+        `シートが読めなくなっています: ${loaded.relative}` +
+        '（読み込んだ後に消されたか移された可能性があります。確かめてからやり直してください）',
+    };
+  }
+  if (current === loaded.source) return undefined;
+  return {
+    ok: false,
+    error:
+      `シートが読み込んだ時点から変わっています: ${loaded.relative}` +
+      '（読み直してからやり直してください。同じフォルダを別のプロセス——' +
+      '別のエージェントやエディタ——が開いている可能性があります）',
+  };
+}
+
+/**
  * 更新後の文書を書き出し、対象行の検証結果を添えて返す。
  *
  * 計算列はここで算出値へ揃える。**触った行だけでなく列ごと**直すのは、行の追加・削除で
@@ -450,10 +492,12 @@ async function persist(
   loaded: LoadedTsv,
   doc: IdentifiedTsv,
   rowIndex: number,
-): Promise<TsvRowOk> {
+): Promise<TsvRowOk | ToolError> {
   const computed = computedOf(doc);
   const healed = applyComputed(doc, computed, await countsOf(store, loaded.relative, doc, computed));
   const next = serializeTsv(toWritable(loaded, healed));
+  const conflict = await detectOutsideWrite(store, loaded);
+  if (conflict !== undefined) return conflict;
   await store.write(loaded.relative, preserveTrailingEol(next, loaded.source));
   // 検証は ID 列を抜いた形で行う。列 index が read_tsv の columns と揃う。
   const issues = validateTsv(healed, await choicesOf(store, loaded.relative, healed));
