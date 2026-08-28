@@ -14,6 +14,8 @@ import {
   rename,
   rm,
   realpath,
+  open,
+  stat,
 } from 'node:fs/promises';
 import { createReadStream } from 'node:fs';
 import { createInterface } from 'node:readline';
@@ -38,6 +40,21 @@ function isGeneratedDir(name: string): boolean {
 function isDocumentOrSheet(name: string): boolean {
   return name.endsWith('.md') || name.endsWith('.tsv');
 }
+
+/**
+ * 錠を置き去りにされたと見なすまでの時間。
+ *
+ * 錠を握ったままプロセスが消えると、その錠は誰も外さない。短すぎると、まだ動いている
+ * 相手から錠を奪って元の木阿弥になる。長すぎると、落ちた 1 回のあと誰も書けなくなる。
+ * 1 回の読み書きは数ミリ秒なので、桁を大きく離した 10 秒にしてある。
+ */
+const LOCK_STALE_MS = 10_000;
+
+/** 錠が取れるまで待つ上限。これを過ぎたら、待たせ続けるより理由を返して諦める。 */
+const LOCK_TIMEOUT_MS = 5_000;
+
+/** 取れなかったときに待つ間隔。 */
+const LOCK_RETRY_MS = 15;
 
 export class FileDocumentStore implements DocumentStore {
   private root: string;
@@ -146,6 +163,65 @@ export class FileDocumentStore implements DocumentStore {
     } catch (error) {
       await rm(temp, { force: true }).catch(() => undefined);
       throw error;
+    }
+  }
+
+  /**
+   * 同じファイルを触る別プロセスと順番を取り合う。
+   *
+   * 行の書き込みは「全文を読む → 1 行差し替える → 全文を書き戻す」なので、読んでから
+   * 書くまでの間に他所が書くと、その内容ごと踏み潰す。プロセスの中は待ち行列で並ぶが、
+   * 隣のプロセスは並ばない。1 台の PC で複数のエージェントが同時に動けば、同じフォルダを
+   * 別々のプロセスが指すので、これは普通に起きる。
+   *
+   * ファイルを 1 つ「作れたら勝ち」（既にあれば失敗する作り方）で取り合う。取れなければ
+   * 少し待って試し直す。取れないまま上限を過ぎたら、黙って書きにいかず理由を返す。
+   *
+   * これで並ぶのはこのサーバー同士だけで、エディタや別のアプリまでは並ばない。
+   * そちらは書く直前の突き合わせで見つける。
+   */
+  async lockPath<T>(relativePath: string, run: () => Promise<T>): Promise<T> {
+    const abs = this.absolute(relativePath);
+    const dir = await this.realPathWithin(dirname(abs));
+    await mkdir(dir, { recursive: true });
+    const lockFile = join(dir, `.${basename(abs)}.lock`);
+
+    const 期限 = Date.now() + LOCK_TIMEOUT_MS;
+    for (;;) {
+      try {
+        // 既にあれば失敗する開き方。作れた側だけが先へ進む。
+        await (await open(lockFile, 'wx')).close();
+        break;
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error;
+        if (await this.isStaleLock(lockFile)) {
+          await rm(lockFile, { force: true }).catch(() => undefined);
+          continue;
+        }
+        if (Date.now() >= 期限) {
+          throw new Error(
+            `ほかのプロセスが同じファイルを書いています: ${relativePath}` +
+              '（しばらく待ってからやり直してください）',
+          );
+        }
+        await new Promise((resolveWait) => setTimeout(resolveWait, LOCK_RETRY_MS));
+      }
+    }
+
+    try {
+      return await run();
+    } finally {
+      await rm(lockFile, { force: true }).catch(() => undefined);
+    }
+  }
+
+  /** 錠が置き去りかどうか。読めなくなっていれば、既に外れたものとして扱う。 */
+  private async isStaleLock(lockFile: string): Promise<boolean> {
+    try {
+      const info = await stat(lockFile);
+      return Date.now() - info.mtimeMs > LOCK_STALE_MS;
+    } catch {
+      return true;
     }
   }
 

@@ -195,6 +195,10 @@ interface LoadedTsv {
  * 読み込みから書き戻しまでを 1 つの錠前の中で行うことで、同じシートへの並行呼び出しが
  * 互いの結果を踏み潰さないようにする（`pathLock` 参照）。読み取りだけの `read_tsv` も
  * 同じ列に並べて、書き込み途中の中間状態を返さないようにする。
+ *
+ * 錠前は二重になっている。`pathLock` はこのプロセスの中の順番、`store.lockPath` は
+ * 同じフォルダを指した**別プロセス**との順番。1 台の PC で複数のエージェントが動けば
+ * 後者が要る。取り合う相手を持たない store（インメモリ）では前者だけになる。
  */
 async function withLoaded<T>(
   store: DocumentStore,
@@ -204,9 +208,12 @@ async function withLoaded<T>(
   const safe = safeRelativePath(requestedPath);
   if (!safe.ok) return { ok: false, error: safe.reason };
   return withPathLock(safe.relative, async () => {
-    const loaded = await load(store, safe.relative);
-    if ('ok' in loaded) return loaded;
-    return run(loaded);
+    const body = async (): Promise<T | ToolError> => {
+      const loaded = await load(store, safe.relative);
+      if ('ok' in loaded) return loaded;
+      return run(loaded);
+    };
+    return store.lockPath ? store.lockPath(safe.relative, body) : body();
   });
 }
 
