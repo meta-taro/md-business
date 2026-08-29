@@ -12,9 +12,8 @@
 use serde::{Deserialize, Serialize};
 use std::path::{Component, Path, PathBuf};
 use std::time::{Duration, Instant};
-use tauri::{AppHandle, Manager};
 
-use crate::watch::{record_self_write, WatchState};
+use crate::watch::record_self_write;
 
 /// 走査で得た 1 ファイル。`rel_path` はルートからの相対パスで区切りは "/" に正規化済み。
 /// serde は camelCase 化してフロント（`{ relPath, name, ext }`）と一致させる。
@@ -867,16 +866,17 @@ pub async fn set_web_mode(root: String, on: bool) -> Result<(), String> {
 /// watcher で跳ね返って再読込・再走査される）を抑制する。
 #[tauri::command]
 pub async fn write_document(
-    app: AppHandle,
+    window: tauri::Window,
     root: String,
     rel_path: String,
     content: String,
 ) -> Result<(), String> {
+    let runtime = crate::window_state::of(&window);
     spawn_fs(move || {
         let root_path = Path::new(&root);
         write_document_impl(root_path, &rel_path, &content)?;
         if let Ok(canon) = std::fs::canonicalize(root_path.join(&rel_path)) {
-            record_self_write(&app.state::<WatchState>(), canon);
+            record_self_write(&runtime.watch, canon);
         }
         Ok(())
     })
@@ -888,16 +888,17 @@ pub async fn write_document(
 /// 作成成功後は自己書き込みとして記録し、監視のエコーを抑制する。
 #[tauri::command]
 pub async fn create_document(
-    app: AppHandle,
+    window: tauri::Window,
     root: String,
     rel_path: String,
     content: String,
 ) -> Result<(), String> {
+    let runtime = crate::window_state::of(&window);
     spawn_fs(move || {
         let root_path = Path::new(&root);
         create_document_impl(root_path, &rel_path, &content)?;
         if let Ok(canon) = std::fs::canonicalize(root_path.join(&rel_path)) {
-            record_self_write(&app.state::<WatchState>(), canon);
+            record_self_write(&runtime.watch, canon);
         }
         Ok(())
     })

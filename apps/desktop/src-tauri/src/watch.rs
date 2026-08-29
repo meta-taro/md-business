@@ -12,7 +12,7 @@ use std::time::{Duration, Instant};
 use notify::event::ModifyKind;
 use notify::{EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 use notify_debouncer_full::{new_debouncer, DebounceEventResult, Debouncer, FileIdMap};
-use tauri::{AppHandle, Emitter, Manager, State};
+use tauri::{AppHandle, Emitter};
 
 use crate::watch_logic::{
     classify_event, is_recent_self_write, locality_from_spelling, map_changes_dedup,
@@ -78,13 +78,14 @@ pub fn map_event_kind(kind: &EventKind) -> RawEvent {
 ///
 /// panic は `panic = "abort"`（release）で即プロセス終了に直結するため、この経路では
 /// unwrap を使わず、ロック失敗・ルート未設定は「何もしない」で優雅に抜ける。
-fn handle_debounced(app: &AppHandle, res: DebounceEventResult) {
+fn handle_debounced(app: &AppHandle, label: &str, res: DebounceEventResult) {
     // 監視エラー（束）は起動をブロックしない方針で握りつぶす（劣化＝通知が来ないだけ）。
     let events = match res {
         Ok(events) => events,
         Err(_errors) => return,
     };
-    let state = app.state::<WatchState>();
+    let runtime = crate::window_state::for_label(app, label);
+    let state = &runtime.watch;
 
     let root = match state.root.lock() {
         Ok(guard) => match guard.as_ref() {
@@ -126,7 +127,9 @@ fn handle_debounced(app: &AppHandle, res: DebounceEventResult) {
 
     // 同一 relPath+kind の重複を畳んでから発行（束内に重複が出やすい）。
     for change in map_changes_dedup(changes) {
-        let _ = app.emit("workspace-file-changed", &change);
+        // 変えたのは 1 つの窓のフォルダなので、届け先もその窓だけにする。
+        // 全体へ流すと、別のフォルダを開いている窓が自分と無関係な変更で走査し直す。
+        let _ = app.emit_to(label, "workspace-file-changed", &change);
     }
 }
 
@@ -171,10 +174,15 @@ fn drive_locality(_path: &Path) -> RootLocality {
 /// 相手が遠いフォルダだと 1 件ごとに往復する）。同期コマンドはメインスレッドで動くので、
 /// そのまま呼ぶと画面ごと止まる。別スレッドへ出して返りだけ待つ。
 #[tauri::command]
-pub async fn watch_workspace(app: AppHandle, root: String) -> Result<(), String> {
+pub async fn watch_workspace(
+    app: AppHandle,
+    window: tauri::Window,
+    root: String,
+) -> Result<(), String> {
+    let label = window.label().to_string();
     tauri::async_runtime::spawn_blocking(move || {
-        let state = app.state::<WatchState>();
-        watch_workspace_blocking(&app, &state, root)
+        let runtime = crate::window_state::for_label(&app, &label);
+        watch_workspace_blocking(&app, &label, &runtime.watch, root)
     })
     .await
     .map_err(|e| format!("監視を開始できませんでした: {}", e))?
@@ -182,6 +190,7 @@ pub async fn watch_workspace(app: AppHandle, root: String) -> Result<(), String>
 
 fn watch_workspace_blocking(
     app: &AppHandle,
+    label: &str,
     state: &WatchState,
     root: String,
 ) -> Result<(), String> {
@@ -205,10 +214,11 @@ fn watch_workspace_blocking(
     }
 
     let app_for_cb = app.clone();
+    let label_for_cb = label.to_string();
     let mut debouncer = new_debouncer(
         Duration::from_millis(DEBOUNCE_MS),
         None,
-        move |res: DebounceEventResult| handle_debounced(&app_for_cb, res),
+        move |res: DebounceEventResult| handle_debounced(&app_for_cb, &label_for_cb, res),
     )
     .map_err(|e| format!("監視の初期化失敗: {}", e))?;
     debouncer
@@ -235,7 +245,8 @@ fn watch_workspace_blocking(
 
 /// 監視を停止する（フォルダを閉じた時など）。多重呼び出し・未監視でも安全。
 #[tauri::command]
-pub fn unwatch_workspace(state: State<WatchState>) -> Result<(), String> {
+pub fn unwatch_workspace(window: tauri::Window) -> Result<(), String> {
+    let state = &crate::window_state::of(&window).watch;
     let mut deb = state
         .debouncer
         .lock()
@@ -245,6 +256,18 @@ pub fn unwatch_workspace(state: State<WatchState>) -> Result<(), String> {
         *r = None;
     }
     Ok(())
+}
+
+/// 窓を閉じるときに監視を落とす。理由を返す相手がいないので、ロックが取れなければ諦める。
+///
+/// watcher を Drop すれば見張りのスレッドも止まる。
+pub fn stop(state: &WatchState) {
+    if let Ok(mut deb) = state.debouncer.lock() {
+        *deb = None;
+    }
+    if let Ok(mut r) = state.root.lock() {
+        *r = None;
+    }
 }
 
 #[cfg(test)]

@@ -12,7 +12,7 @@ use std::path::{Path, PathBuf};
 use std::process::{Child, ChildStdin, Command, Stdio};
 use std::sync::{Arc, Mutex};
 
-use tauri::{AppHandle, Emitter, Manager, State};
+use tauri::{AppHandle, Emitter, Manager};
 
 use crate::mcp_logic::{
     append_detail, can_retry, connection_parts, ensure_ignored, merge_client_config,
@@ -28,7 +28,7 @@ const LOG_EVENT: &str = "mcp-log";
 /// 画面でしかできない操作の依頼を送るイベント名。
 const REQUEST_EVENT: &str = "mcp-request";
 
-/// サイドカーの実行時状態。アプリ全体で 1 つを `manage` する。
+/// サイドカーの実行時状態。窓ごとに 1 つ持つ。
 ///
 /// `stdin` を保持するのは root 差し替えを送るため。プロセス終了時にこれを落とすと
 /// サイドカーは自分で降りるので、孤児プロセスが残らない。
@@ -48,12 +48,12 @@ impl Default for McpRuntime {
     }
 }
 
-/// 状態を更新し、フロントへ通知する。ロック失敗時は通知だけ行う（画面を止めない）。
-fn set_status(app: &AppHandle, status: McpStatus) {
-    if let Ok(mut guard) = app.state::<McpRuntime>().status.lock() {
+/// 状態を更新し、その窓へ通知する。ロック失敗時は通知だけ行う（画面を止めない）。
+fn set_status(app: &AppHandle, label: &str, status: McpStatus) {
+    if let Ok(mut guard) = crate::window_state::for_label(app, label).mcp.status.lock() {
         *guard = status.clone();
     }
-    let _ = app.emit(STATUS_EVENT, &status);
+    let _ = app.emit_to(label, STATUS_EVENT, &status);
 }
 
 /// サイドカー本体のパスを解決する。配布ビルドは同梱リソース、開発中はリポジトリの
@@ -170,11 +170,11 @@ fn build_command(node: &Path, sidecar: &Path, root: &Path, state: Option<&Path>)
 }
 
 /// サイドカーを起動する。失敗しても Err を返さず、劣化状態として記録する。
-pub fn start(app: &AppHandle) {
+pub fn start(app: &AppHandle, label: &str) {
     let sidecar = match resolve_sidecar(app) {
         Some(path) => path,
         None => {
-            set_status(app, McpStatus::unavailable(McpReason::SidecarMissing));
+            set_status(app, label, McpStatus::unavailable(McpReason::SidecarMissing));
             return;
         }
     };
@@ -194,6 +194,7 @@ pub fn start(app: &AppHandle) {
             Err(err) => {
                 set_status(
                     app,
+                    label,
                     McpStatus::unavailable_with(McpReason::SpawnFailed, err.to_string()),
                 );
                 return;
@@ -204,7 +205,7 @@ pub fn start(app: &AppHandle) {
         Some(child) => child,
         None => {
             // どこにも Node が無い。利用者の対処は「Node を入れる」の一択。
-            set_status(app, McpStatus::unavailable(McpReason::NodeMissing));
+            set_status(app, label, McpStatus::unavailable(McpReason::NodeMissing));
             return;
         }
     };
@@ -217,20 +218,30 @@ pub fn start(app: &AppHandle) {
         let sink = Arc::clone(&stderr_tail);
         std::thread::spawn(move || drain_stderr(stderr, &sink))
     });
-    if let Ok(mut guard) = app.state::<McpRuntime>().stdin.lock() {
+    let runtime = crate::window_state::for_label(app, label);
+    if let Ok(mut guard) = runtime.mcp.stdin.lock() {
         *guard = child.stdin.take();
     }
-    if let Ok(mut guard) = app.state::<McpRuntime>().child.lock() {
+    if let Ok(mut guard) = runtime.mcp.child.lock() {
         *guard = Some(child);
     }
 
     let Some(stdout) = stdout else {
-        set_status(app, McpStatus::unavailable(McpReason::NoOutput));
+        set_status(app, label, McpStatus::unavailable(McpReason::NoOutput));
         return;
     };
 
     let app_for_thread = app.clone();
-    std::thread::spawn(move || read_events(&app_for_thread, stdout, stderr_tail, stderr_thread));
+    let label_for_thread = label.to_string();
+    std::thread::spawn(move || {
+        read_events(
+            &app_for_thread,
+            &label_for_thread,
+            stdout,
+            stderr_tail,
+            stderr_thread,
+        )
+    });
 }
 
 /// 標準エラー出力を最後まで読み、末尾だけを診断用に残す。
@@ -251,15 +262,16 @@ fn drain_stderr(stderr: impl Read, sink: &Mutex<String>) {
 /// 起動しきれなかった子プロセスの終了コードを取る。
 ///
 /// stdout が閉じた時点で子はほぼ終わっているので、ここで待っても止まらない。
-fn exit_code(app: &AppHandle) -> Option<i32> {
-    let runtime = app.state::<McpRuntime>();
-    let mut guard = runtime.child.lock().ok()?;
+fn exit_code(app: &AppHandle, label: &str) -> Option<i32> {
+    let runtime = crate::window_state::for_label(app, label);
+    let mut guard = runtime.mcp.child.lock().ok()?;
     guard.as_mut()?.wait().ok()?.code()
 }
 
 /// stdout を行単位で読み、イベントとしてフロントへ流す。EOF で終了する。
 fn read_events(
     app: &AppHandle,
+    label: &str,
     stdout: impl Read,
     stderr_tail: Arc<Mutex<String>>,
     stderr_thread: Option<std::thread::JoinHandle<()>>,
@@ -283,10 +295,10 @@ fn read_events(
                     url, port, token, ..
                 }) => {
                     ready_seen = true;
-                    set_status(app, McpStatus::ready(url, port, token));
+                    set_status(app, label, McpStatus::ready(url, port, token));
                 }
                 Some(SidecarEvent::Log(value)) => {
-                    let _ = app.emit(LOG_EVENT, &value);
+                    let _ = app.emit_to(label, LOG_EVENT, &value);
                 }
                 Some(SidecarEvent::Request { id, action, path }) => {
                     // 実際に処理できるのは画面側だけ。応答は mcp_respond で返ってくる。
@@ -294,7 +306,7 @@ fn read_events(
                     if let (Some(target), Some(map)) = (path, payload.as_object_mut()) {
                         map.insert("path".to_string(), serde_json::json!(target));
                     }
-                    let _ = app.emit(REQUEST_EVENT, payload);
+                    let _ = app.emit_to(label, REQUEST_EVENT, payload);
                 }
                 Some(SidecarEvent::Error { message }) => {
                     // 起動前の異常は劣化として扱う。起動後は制御チャネル上の
@@ -302,6 +314,7 @@ fn read_events(
                     if !ready_seen {
                         set_status(
                             app,
+                            label,
                             McpStatus::unavailable_with(McpReason::ServerError, message),
                         );
                     }
@@ -322,17 +335,19 @@ fn read_events(
             .lock()
             .map(|guard| guard.clone())
             .unwrap_or_default();
-        let status = match startup_detail(&stderr, exit_code(app)) {
+        let status = match startup_detail(&stderr, exit_code(app, label)) {
             Some(detail) => McpStatus::unavailable_with(McpReason::ExitedEarly, detail),
             None => McpStatus::unavailable(McpReason::ExitedEarly),
         };
-        set_status(app, status);
+        set_status(app, label, status);
     }
 }
 
-/// サイドカーを止める。stdin を落として自主終了を促し、残っていれば kill する。
-pub fn shutdown(app: &AppHandle) {
-    let runtime = app.state::<McpRuntime>();
+/// その窓のサイドカーを止める。stdin を落として自主終了を促し、残っていれば kill する。
+///
+/// 窓を閉じたときと、アプリを終えるときの両方から呼ぶ。呼び忘れるとサイドカーだけが
+/// 残るので、窓の後片付けは必ずここを通す。
+pub fn shutdown(runtime: &McpRuntime) {
     if let Ok(mut guard) = runtime.stdin.lock() {
         *guard = None;
     }
@@ -346,8 +361,13 @@ pub fn shutdown(app: &AppHandle) {
 
 /// 現在の状態を返す。フロントは起動直後にこれを読んで初期表示を決める。
 #[tauri::command]
-pub fn mcp_status(state: State<McpRuntime>) -> McpStatus {
-    match state.status.lock() {
+pub fn mcp_status(window: tauri::Window) -> McpStatus {
+    status_of(&crate::window_state::of(&window).mcp)
+}
+
+/// 状態を読む本体。窓を引数に取れない経路（起動し直しの可否判定）からも使う。
+fn status_of(runtime: &McpRuntime) -> McpStatus {
+    match runtime.status.lock() {
         Ok(guard) => guard.clone(),
         Err(_) => McpStatus::unavailable(McpReason::StatusUnreadable),
     }
@@ -357,7 +377,7 @@ pub fn mcp_status(state: State<McpRuntime>) -> McpStatus {
 ///
 /// 未起動・劣化中は「何もしないで成功」とする。MCP が無い環境でも、呼び出し元の
 /// 操作（フォルダ切り替えなど）そのものは成功させたいため。
-fn write_control_line(state: &State<McpRuntime>, line: String, what: &str) -> Result<(), String> {
+fn write_control_line(state: &McpRuntime, line: String, what: &str) -> Result<(), String> {
     let ready = matches!(
         state.status.lock().map(|s| s.state),
         Ok(McpState::Ready) | Ok(McpState::Starting)
@@ -382,8 +402,12 @@ fn write_control_line(state: &State<McpRuntime>, line: String, what: &str) -> Re
 
 /// ワークスペース root をサイドカーへ反映する。フォルダ切り替えのたびに呼ぶ。
 #[tauri::command]
-pub fn mcp_set_root(state: State<McpRuntime>, root: String) -> Result<(), String> {
-    write_control_line(&state, set_root_line(&root), "root")
+pub fn mcp_set_root(window: tauri::Window, root: String) -> Result<(), String> {
+    write_control_line(
+        &crate::window_state::of(&window).mcp,
+        set_root_line(&root),
+        "root",
+    )
 }
 
 /// 画面で処理した依頼の結果をサイドカーへ返す。
@@ -391,14 +415,14 @@ pub fn mcp_set_root(state: State<McpRuntime>, root: String) -> Result<(), String
 /// 応答が返らないとツール側が時間切れになるので、失敗したときも必ず理由を添えて返す。
 #[tauri::command]
 pub fn mcp_respond(
-    state: State<McpRuntime>,
+    window: tauri::Window,
     id: String,
     ok: bool,
     error: Option<String>,
     data: Option<serde_json::Value>,
 ) -> Result<(), String> {
     write_control_line(
-        &state,
+        &crate::window_state::of(&window).mcp,
         response_line(&id, ok, error.as_deref(), data.as_ref()),
         "応答",
     )
@@ -419,8 +443,8 @@ fn read_if_exists(path: &Path) -> Result<Option<String>, String> {
 /// そこで動く AI クライアントが自分で読む。設定にはトークンが入るので、git 管理下では
 /// 追跡対象から外してから書く。
 #[tauri::command]
-pub fn mcp_write_client_config(state: State<McpRuntime>, root: String) -> Result<String, String> {
-    let status = mcp_status(state);
+pub fn mcp_write_client_config(window: tauri::Window, root: String) -> Result<String, String> {
+    let status = status_of(&crate::window_state::of(&window).mcp);
     let (url, token) = connection_parts(&status)?;
     write_client_config_impl(Path::new(&root), url, token)
 }
@@ -430,8 +454,8 @@ pub fn mcp_write_client_config(state: State<McpRuntime>, root: String) -> Result
 /// 書き出す側と同じ組み立てを使う。別々に組むと、片方だけ直したときに写した設定が
 /// 繋がらなくなる（繋がらない理由が利用者からは見えない）。
 #[tauri::command]
-pub fn mcp_client_config(state: State<McpRuntime>) -> Result<String, String> {
-    let status = mcp_status(state);
+pub fn mcp_client_config(window: tauri::Window) -> Result<String, String> {
+    let status = status_of(&crate::window_state::of(&window).mcp);
     let (url, token) = connection_parts(&status)?;
     merge_client_config(None, url, token)
 }
@@ -443,13 +467,15 @@ pub fn mcp_client_config(state: State<McpRuntime>) -> Result<String, String> {
 /// やり直した結果は戻り値で返す。状態変化のイベントとコマンドの応答は別経路で届くため、
 /// 呼び出し側が応答の直後に状態を読むと、まだ古い値が入っている。
 #[tauri::command]
-pub fn mcp_retry(app: AppHandle) -> Result<McpStatus, String> {
-    if !can_retry(&mcp_status(app.state::<McpRuntime>())) {
+pub fn mcp_retry(app: AppHandle, window: tauri::Window) -> Result<McpStatus, String> {
+    let label = window.label().to_string();
+    let runtime = crate::window_state::for_label(&app, &label);
+    if !can_retry(&status_of(&runtime.mcp)) {
         return Err("MCP サーバーは起動処理中か、すでに動いています".to_string());
     }
-    set_status(&app, McpStatus::starting());
-    start(&app);
-    Ok(mcp_status(app.state::<McpRuntime>()))
+    set_status(&app, &label, McpStatus::starting());
+    start(&app, &label);
+    Ok(status_of(&runtime.mcp))
 }
 
 /// 設定ファイルと、必要なら除外指定を書く。書いた設定ファイルのパスを返す。
