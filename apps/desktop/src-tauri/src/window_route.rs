@@ -153,6 +153,24 @@ pub fn next_label(existing: &[String]) -> String {
     (2..).map(|n| format!("w{n}")).find(|c| !existing.contains(c)).unwrap_or_default()
 }
 
+/// 同時に開ける窓の数。
+///
+/// 窓ごとにサイドカー・ファイル監視・下見の待ち受けを 1 本ずつ持つので、際限なく開けると
+/// PC が持たない。ここで止めずに開かせると、重くなった原因が窓の数だと気づけない。
+/// 権限は窓の名前を並べて許してあるので、この数を増やすときはそちらも一緒に増やす。
+pub const MAX_WINDOWS: usize = 8;
+
+/// もう 1 つ開けるか。
+pub fn can_open_more(existing: usize) -> bool {
+    existing < MAX_WINDOWS
+}
+
+/// もう 1 つ窓を開けるか。押せない項目を灰色で見せるために画面から引く。
+#[tauri::command]
+pub fn can_open_new_window(app: AppHandle) -> bool {
+    can_open_more(app.webview_windows().len())
+}
+
 /// 新しい窓を開く。
 ///
 /// 開く先のフォルダは選ばない。窓ができてから、その窓の中で選ぶ（最初の窓と同じ手順）。
@@ -160,6 +178,9 @@ pub fn next_label(existing: &[String]) -> String {
 #[tauri::command]
 pub fn open_new_window(app: AppHandle, window: tauri::Window) -> Result<String, String> {
     let existing: Vec<String> = app.webview_windows().keys().cloned().collect();
+    if !can_open_more(existing.len()) {
+        return Err("これ以上は窓を開けません".to_string());
+    }
     let label = next_label(&existing);
 
     // 最初の窓と同じ寸法・体裁で開く。設定を写して名前だけ差し替えるので、
@@ -194,6 +215,56 @@ mod tests {
             .iter()
             .map(|(label, root)| (label.to_string(), root.map(PathBuf::from)))
             .collect()
+    }
+
+    #[test]
+    fn 上限まではもう一つ開ける() {
+        assert!(can_open_more(1));
+        assert!(can_open_more(MAX_WINDOWS - 1));
+    }
+
+    #[test]
+    fn 上限に達したら開けない() {
+        // 窓ごとにサイドカーと監視を 1 本ずつ持つので、際限なく開けると PC が持たない。
+        assert!(!can_open_more(MAX_WINDOWS));
+        assert!(!can_open_more(MAX_WINDOWS + 1));
+    }
+
+    #[test]
+    fn 名前は上限の数だけ用意できる() {
+        // 権限は名前を並べて許してあるので、上限までの名前がその並びに収まっている必要がある。
+        let mut existing = vec!["main".to_string()];
+        while existing.len() < MAX_WINDOWS {
+            let next = next_label(&existing);
+            assert!(!next.is_empty(), "上限までは名前が尽きてはならない");
+            existing.push(next);
+        }
+        assert_eq!(existing.last().map(String::as_str), Some("w8"));
+    }
+
+    #[test]
+    fn 権限は開ける窓の名前をひとつずつ並べてある() {
+        // `w*` のような広い書き方にすると、こちらが出すつもりのない名前まで許してしまう。
+        // 上限までの名前を並べ、それ以外を含めない。
+        let caps = include_str!("../capabilities/default.json");
+        let value: serde_json::Value = serde_json::from_str(caps).expect("権限の定義が読める");
+        let listed: Vec<String> = value["windows"]
+            .as_array()
+            .expect("windows がある")
+            .iter()
+            .map(|v| v.as_str().unwrap_or_default().to_string())
+            .collect();
+
+        let mut expected = vec!["main".to_string()];
+        while expected.len() < MAX_WINDOWS {
+            let next = next_label(&expected);
+            expected.push(next);
+        }
+        assert_eq!(listed, expected);
+        assert!(
+            !listed.iter().any(|l| l.contains('*')),
+            "広い書き方が残っていてはならない"
+        );
     }
 
     #[test]

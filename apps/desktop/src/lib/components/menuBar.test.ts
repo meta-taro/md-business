@@ -26,6 +26,7 @@ const idle: MenuCaps = {
   trusted: false,
   declaredWeb: false,
   canDeclareWeb: false,
+  canNewWindow: true,
 };
 
 describe('メニューの並び', () => {
@@ -66,6 +67,11 @@ describe('メニューの並び', () => {
 
   it('別の窓は、読み込み中は押せない', () => {
     expect(isItemEnabled('newWindow', { ...idle, loading: true })).toBe(false);
+  });
+
+  it('別の窓は、これ以上開けないときは押せない', () => {
+    // 押しても何も起きない項目にしない。開けない理由を灰色で見せる。
+    expect(isItemEnabled('newWindow', { ...idle, canNewWindow: false })).toBe(false);
   });
 
   it('どの項目もちょうど 1 つのメニューに属する（重複も迷子も作らない）', () => {

@@ -54,6 +54,8 @@ export interface MenuCaps {
 	canPublish: boolean;
 	browserBusy: boolean;
 	timelineOpen: boolean;
+	/** もう 1 つ窓を開けるか（同時に開ける数には上限がある）。 */
+	canNewWindow: boolean;
 }
 
 export function itemsOf(menu: MenuId): readonly MenuItemId[] {
@@ -63,9 +65,12 @@ export function itemsOf(menu: MenuId): readonly MenuItemId[] {
 export function isItemEnabled(item: MenuItemId, caps: MenuCaps): boolean {
 	switch (item) {
 		case 'openFolder':
-		case 'newWindow':
 			// 開く先はその窓で選ぶので、こちらで何か開いている必要は無い。
 			return !caps.loading;
+		case 'newWindow':
+			// 上限に達していたら灰色にする。押しても何も起きない項目を残すと、
+			// 開かなかったのが不具合なのか上限なのか区別が付かない。
+			return !caps.loading && caps.canNewWindow;
 		case 'save':
 			return caps.canSave;
 		case 'autosave':
