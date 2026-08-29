@@ -53,6 +53,15 @@ fn accept(raw: &str) -> Option<String> {
     Some(trimmed.to_string())
 }
 
+/// 窓が閉じたときに、その窓宛の預かりを捨てる。
+///
+/// 窓の名前は使い回されるので、残すとあとから開いた窓が前の窓宛のリンクを受け取る。
+pub fn forget(app: &AppHandle, label: &str) {
+    if let Some(state) = tauri::Manager::try_state::<PendingLink>(app) {
+        state.0.clear(label);
+    }
+}
+
 /// リンクを預けて、画面へ知らせる。画面がまだ無ければ預けるだけで終わる。
 ///
 /// 窓を前へ出すところまで行うのは、押した側から見て「開いた」と分かる必要があるため。

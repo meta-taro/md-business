@@ -122,6 +122,11 @@ pub fn for_label(app: &AppHandle, label: &str) -> Arc<WindowRuntime> {
 /// 順序が逆だと、畳んでいる最中に同じラベルで引いた側が「もう死んでいる状態」を掴む。
 /// 知らないラベル（状態を持たないまま閉じた窓）なら何もしない。
 pub fn close(app: &AppHandle, label: &str) {
+    // 窓宛の預かりも一緒に捨てる。窓の名前は使い回されるので、残しておくと
+    // あとから開いた窓が前の窓宛の依頼を受け取る。実行時状態を持たないまま閉じた窓でも
+    // 預かりだけは在りうるので、状態を引く前に行う。
+    crate::open_arg::forget(app, label);
+    crate::deep_link::forget(app, label);
     let Some(runtime) = app.state::<WindowStates>().remove(label) else {
         return;
     };

@@ -32,6 +32,17 @@ impl PendingByWindow {
     pub fn take(&self, label: &str) -> Option<String> {
         self.0.lock().ok().and_then(|mut map| map.remove(label))
     }
+
+    /// 窓が閉じたときに捨てる。
+    ///
+    /// 取りに来ないまま残ると、[`next_label`] が空いた番号をまた使うので、**前の窓宛の
+    /// 依頼があとから開いた窓で開く**。頼んだ側から見ると、押した覚えのないものが
+    /// 知らない窓に出る。
+    pub fn clear(&self, label: &str) {
+        if let Ok(mut map) = self.0.lock() {
+            map.remove(label);
+        }
+    }
 }
 
 /// 依頼されたファイルを含むフォルダを開いている窓を選ぶ。
@@ -183,6 +194,24 @@ mod tests {
             .iter()
             .map(|(label, root)| (label.to_string(), root.map(PathBuf::from)))
             .collect()
+    }
+
+    #[test]
+    fn 閉じた窓宛の預かりは捨てる() {
+        // 番号は使い回されるので、残しておくと前の窓宛の依頼があとの窓で開く。
+        let pending = PendingByWindow::default();
+        pending.put("w2", "/work/a.md".to_string());
+        pending.clear("w2");
+        assert_eq!(pending.take("w2"), None);
+    }
+
+    #[test]
+    fn 捨てるのはその窓の分だけ() {
+        let pending = PendingByWindow::default();
+        pending.put("main", "/work/a.md".to_string());
+        pending.put("w2", "/work/b.md".to_string());
+        pending.clear("w2");
+        assert_eq!(pending.take("main"), Some("/work/a.md".to_string()));
     }
 
     #[test]

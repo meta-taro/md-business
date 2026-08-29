@@ -53,6 +53,15 @@ fn accept(raw: &str) -> Option<String> {
     Some(path.to_string_lossy().into_owned())
 }
 
+/// 窓が閉じたときに、その窓宛の預かりを捨てる。
+///
+/// 窓の名前は使い回されるので、残すとあとから開いた窓が前の窓宛の依頼を受け取る。
+pub fn forget(app: &AppHandle, label: &str) {
+    if let Some(state) = app.try_state::<PendingOpen>() {
+        state.0.clear(label);
+    }
+}
+
 /// 依頼を預けて、画面へ知らせる。画面がまだ無ければ預けるだけで終わる。
 ///
 /// 窓が複数あるので、まず行き先を決める。頼まれたファイルを含むフォルダを開いている窓が
