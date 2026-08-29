@@ -57,6 +57,14 @@ export interface DocumentStore extends LineSource {
    * 置き場を持たない実装は取り合う相手がいないので任意にしてある。
    */
   lockPath?<T>(relativePath: string, run: () => Promise<T>): Promise<T>;
+  /**
+   * 接続先フォルダの実パス（分かるときだけ）。
+   *
+   * 同じ PC で別のプロダクトを扱うと、同じ名前・同じツール一式のサーバーが 2 本以上並ぶ。
+   * どちらに繋がっているかを呼ぶ側へ伝えられるよう、実体を持つ store は自分の場所を名乗る。
+   * インメモリのように置き場を持たない実装があるので任意にしてある。
+   */
+  getRoot?(): string;
 }
 
 /**

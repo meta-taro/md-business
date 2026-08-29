@@ -81,6 +81,16 @@ async function connect(store: MemoryDocumentStore): Promise<Client> {
   return client;
 }
 
+/** 接続先を名乗れる store（実ファイル版と同じく `getRoot` を持つ）。 */
+class Rooted extends MemoryDocumentStore {
+  constructor(private readonly rootPath: string) {
+    super();
+  }
+  getRoot(): string {
+    return this.rootPath;
+  }
+}
+
 /** onLog をスパイしつつ繋いだ Client と、蓄積した操作ログ配列を返す（時刻は固定）。 */
 async function connectWithLog(
   store: MemoryDocumentStore,
@@ -252,6 +262,25 @@ describe('createServer / MCP 配線', () => {
     const matches = (text as { matches: Array<{ path: string }> }).matches;
     expect(matches).toHaveLength(1);
     expect(matches[0]?.path).toBe('invoices/ok.md');
+  });
+
+  it('search_documents は接続先のフォルダを添えて返す', async () => {
+    // 返るのは相対パスだけなので、2 本繋がっているとき応答だけでは行き先が見分けられない。
+    // 案内文は接続のときに 1 度しか渡らず、会話が長くなるほど遠ざかる。入口のツールが自分で名乗る。
+    const client = await connect(new Rooted('C:\仕事A'));
+    const res = (await client.callTool({
+      name: 'search_documents',
+      arguments: {},
+    })) as CallToolResult;
+    expect((parse(res).text as { workspace?: string }).workspace).toBe('C:\仕事A');
+  });
+
+  it('接続先が分からない store では、その欄ごと出さない', async () => {
+    const res = (await (await connect(new MemoryDocumentStore())).callTool({
+      name: 'search_documents',
+      arguments: {},
+    })) as CallToolResult;
+    expect(parse(res).text).not.toHaveProperty('workspace');
   });
 
   // 検証シートは Markdown ではなくカスタム TSV なので、read_document 系では触れない。
@@ -619,6 +648,28 @@ describe('createServer / instructions', () => {
     expect(text).toContain('devServer');
     // 起こすのは向こう側。ここが抜けると、宣言を書けばアプリが立ち上げてくれると読まれる。
     expect(text).toMatch(/起動しない|起こさない|立ち上げない/);
+  });
+
+  it('接続先のフォルダを名乗る', async () => {
+    // 同じ PC で別のプロダクトを扱うと、同じ名前・同じ案内文・同じツール一式が 2 セット並ぶ。
+    // 行き先を登録名だけに頼ると取り違えるが、取り違えても書き込みは成功するので気づけない。
+    const a = await connect(new Rooted('C:\仕事A'));
+    const b = await connect(new Rooted('C:\仕事B'));
+    expect(a.getInstructions()).toContain('C:\仕事A');
+    expect(b.getInstructions()).toContain('C:\仕事B');
+    expect(a.getInstructions()).not.toContain('C:\仕事B');
+  });
+
+  it('2 本以上繋がっていることがある、と断っておく', async () => {
+    // パスを出しただけでは「1 本しか無い」前提のまま読まれる。
+    const text = (await connect(new Rooted('C:\仕事A'))).getInstructions() ?? '';
+    expect(text).toMatch(/2 本以上|複数/);
+  });
+
+  it('接続先が分からない store では、パスの行を出さない', async () => {
+    // 空欄や仮のパスを出すと、名乗っていないことと名乗り間違いが区別できなくなる。
+    const text = await instructions();
+    expect(text).not.toContain('接続先:');
   });
 });
 
