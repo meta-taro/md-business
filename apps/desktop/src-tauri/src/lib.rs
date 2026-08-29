@@ -131,6 +131,7 @@ pub fn run() {
             window_route::open_new_window,
             window_route::claim_root,
             update_gate::claim_update_check,
+            update_gate::finish_update_check,
             open_arg::take_open_request,
             deep_link::take_link_request,
             preview_server::start_preview_server,

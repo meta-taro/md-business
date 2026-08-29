@@ -361,7 +361,14 @@
     // 先に言い出した窓だけが受け持つ。
     const t = setTimeout(() => {
       void invoke<boolean>('claim_update_check')
-        .then((mine) => (mine ? updater.autoCheck() : undefined))
+        .then((mine) => {
+          if (!mine) return;
+          // 見終わるまで受け持ちを離さない。途中でこの窓を閉じても、
+          // 残った窓が受け持ち直せるように Rust 側が手放す。
+          return updater
+            .autoCheck()
+            .finally(() => void invoke('finish_update_check').catch(() => undefined));
+        })
         .catch(() => undefined);
     }, 3000);
     return () => {

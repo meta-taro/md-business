@@ -127,6 +127,8 @@ pub fn close(app: &AppHandle, label: &str) {
     // 預かりだけは在りうるので、状態を引く前に行う。
     crate::open_arg::forget(app, label);
     crate::deep_link::forget(app, label);
+    // 更新確認を受け持ったまま閉じられると、誰も見に行かないまま起動中ずっと塞がる。
+    crate::update_gate::forget(app, label);
     let Some(runtime) = app.state::<WindowStates>().remove(label) else {
         return;
     };
