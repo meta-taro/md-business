@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { mkdtemp, rm, mkdir, writeFile, readdir, symlink } from 'node:fs/promises';
+import { mkdtemp, rm, mkdir, writeFile, readdir, symlink, utimes } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { FileDocumentStore } from './fileStore.js';
@@ -412,5 +412,79 @@ describe('FileDocumentStore — root の差し替え', () => {
     const store = new FileDocumentStore(first);
     store.setRoot(second);
     await expect(store.read('../outside.md')).rejects.toThrow(/ワークスペース外/);
+  });
+});
+
+/**
+ * 別プロセスとの取り合い。
+ *
+ * 1 台の PC で複数のエージェントが動くと、同じフォルダを別々のプロセスが指す。
+ * プロセス内の待ち行列では隣まで並ばせられないので、ファイルそのもので順番を取る。
+ */
+describe('FileDocumentStore — 別プロセスとの順番取り', () => {
+  let root: string;
+
+  beforeEach(async () => {
+    root = await mkdtemp(join(tmpdir(), 'mdb-lock-'));
+    await mkdir(join(root, 'docs'), { recursive: true });
+  });
+
+  afterEach(async () => {
+    await rm(root, { recursive: true, force: true });
+  });
+
+  it('同じパスの処理は重ならない', async () => {
+    const store = new FileDocumentStore(root);
+    const 順 : string[] = [];
+    const 遅い = store.lockPath('docs/a.tsv', async () => {
+      順.push('1 開始');
+      await new Promise((r) => setTimeout(r, 60));
+      順.push('1 終了');
+    });
+    // 先の処理が錠を取ってから重ねる。
+    await new Promise((r) => setTimeout(r, 10));
+    const 後 = store.lockPath('docs/a.tsv', async () => {
+      順.push('2 開始');
+    });
+    await Promise.all([遅い, 後]);
+    expect(順).toEqual(['1 開始', '1 終了', '2 開始']);
+  });
+
+  it('別のパスとは待ち合わせない', async () => {
+    const store = new FileDocumentStore(root);
+    const 順 : string[] = [];
+    const a = store.lockPath('docs/a.tsv', async () => {
+      await new Promise((r) => setTimeout(r, 60));
+      順.push('a');
+    });
+    await new Promise((r) => setTimeout(r, 10));
+    const b = store.lockPath('docs/b.tsv', async () => {
+      順.push('b');
+    });
+    await Promise.all([a, b]);
+    expect(順).toEqual(['b', 'a']);
+  });
+
+  it('終われば錠を残さない（失敗しても残さない）', async () => {
+    const store = new FileDocumentStore(root);
+    await store.lockPath('docs/a.tsv', async () => undefined);
+    await expect(
+      store.lockPath('docs/a.tsv', async () => {
+        throw new Error('中で失敗');
+      }),
+    ).rejects.toThrow('中で失敗');
+    // 落ちたプロセスの錠が残ると、以後だれも書けなくなる。
+    const 残り = (await readdir(join(root, 'docs'))).filter((n) => n.endsWith('.lock'));
+    expect(残り).toEqual([]);
+  });
+
+  it('置き去りにされた古い錠は奪う', async () => {
+    // 錠を握ったままプロセスが消えた状況（ここでは手で置いて古く見せる）。
+    const 錠 = join(root, 'docs', '.a.tsv.lock');
+    await writeFile(錠, '', 'utf8');
+    const 昔 = new Date(Date.now() - 60_000);
+    await utimes(錠, 昔, 昔);
+    const store = new FileDocumentStore(root);
+    await expect(store.lockPath('docs/a.tsv', async () => 'とれた')).resolves.toBe('とれた');
   });
 });

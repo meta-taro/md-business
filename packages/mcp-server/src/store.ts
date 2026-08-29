@@ -50,6 +50,13 @@ export interface DocumentStore extends LineSource {
    * 並ぶ数は一致しない。件数が合わないときに、除外のせいなのかを見分けるために出す。
    */
   excludedCount(): Promise<number>;
+  /**
+   * 同じファイルを触る別プロセスと順番を取り合う（取り合えるときだけ）。
+   *
+   * 読み込みから書き戻しまでを渡すと、その間ほかのプロセスを待たせる。
+   * 置き場を持たない実装は取り合う相手がいないので任意にしてある。
+   */
+  lockPath?<T>(relativePath: string, run: () => Promise<T>): Promise<T>;
 }
 
 /**

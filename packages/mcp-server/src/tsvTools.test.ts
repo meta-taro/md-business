@@ -73,6 +73,66 @@ describe('readTsv', () => {
   });
 });
 
+/**
+ * 読み込みと書き戻しの間に、外から同じファイルが書き換わる状況を作る store。
+ *
+ * 1 台の PC で複数のエージェントが同時に動くと、同じフォルダを別々のプロセスが指す。
+ * プロセス内の待ち行列（`pathLock`）は隣のプロセスまでは並ばせられないので、
+ * ここが実際に起きる。
+ */
+class 横入りStore extends MemoryDocumentStore {
+  private 済み = false;
+
+  constructor(
+    seed: Record<string, string>,
+    private readonly 横入り: (store: MemoryDocumentStore) => Promise<void>,
+  ) {
+    super(seed);
+  }
+
+  override async read(relativePath: string): Promise<string> {
+    const text = await super.read(relativePath);
+    if (!this.済み) {
+      this.済み = true;
+      await this.横入り(this);
+    }
+    return text;
+  }
+}
+
+describe('別のプロセスが同じシートを書いていたとき', () => {
+  /** 読み込んだ後に、隣のプロセスが 1 行足した状況。 */
+  function 割り込まれた(): 横入りStore {
+    return new 横入りStore({ 'sheets/受注.tsv': SHEET }, async (s) => {
+      await s.write('sheets/受注.tsv', SHEET + '3\t隣が足した行\tOK\t2026-07-30\t\n');
+    });
+  }
+
+  it('追加は、黙って上書きせずに失敗する', async () => {
+    const s = 割り込まれた();
+    const r = await appendTsvRow(s, { path: 'sheets/受注.tsv', values: { 'No.': '4' } });
+    expect(r.ok).toBe(false);
+    if (r.ok) return;
+    // 何が起きたかと、次に何をすればよいかが字面で分かること。
+    expect(r.error).toContain('sheets/受注.tsv');
+    expect(r.error).toMatch(/読み直/);
+  });
+
+  it('更新も同じく失敗する', async () => {
+    const s = 割り込まれた();
+    const r = await updateTsvRow(s, { path: 'sheets/受注.tsv', row: 0, values: { 結果: 'NG' } });
+    expect(r.ok).toBe(false);
+  });
+
+  it('隣の書き込みは残る（こちらの書き戻しで消えない）', async () => {
+    const s = 割り込まれた();
+    await appendTsvRow(s, { path: 'sheets/受注.tsv', values: { 'No.': '4' } });
+    const text = await s.read('sheets/受注.tsv');
+    expect(text).toContain('隣が足した行');
+    expect(text).not.toContain('\n4\t');
+  });
+});
+
 describe('appendTsvRow', () => {
   it('列名指定の値で 1 行追加し、指定の無い列は空のままにする', async () => {
     const s = store();
