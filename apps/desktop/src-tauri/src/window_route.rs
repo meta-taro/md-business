@@ -94,6 +94,48 @@ pub fn target_for_path(app: &AppHandle, path: &Path) -> String {
     pick_by_root(&open_roots(app), &canon).unwrap_or_else(|| focused_or_main(app))
 }
 
+/// 新しい窓に付ける名前。使われていない番号のうち、いちばん小さいものを取る。
+///
+/// 閉じた窓の番号は空くので、また使う。使い捨てにすると、開け閉めを繰り返した末に
+/// 名前だけが伸び続ける。名前は保存された設定（開いていたフォルダなど）の鍵にもなるので、
+/// 短いまま安定しているほうが読みやすい。
+pub fn next_label(existing: &[String]) -> String {
+    // 1 番は最初の窓（`tauri.conf.json` の定義）が名乗っているので 2 から探す。
+    (2..).map(|n| format!("w{n}")).find(|c| !existing.contains(c)).unwrap_or_default()
+}
+
+/// 新しい窓を開く。
+///
+/// 開く先のフォルダは選ばない。窓ができてから、その窓の中で選ぶ（最初の窓と同じ手順）。
+/// 位置を少しずらすのは、同じ場所に重なると 2 枚あることが見て分からないため。
+#[tauri::command]
+pub fn open_new_window(app: AppHandle, window: tauri::Window) -> Result<String, String> {
+    let existing: Vec<String> = app.webview_windows().keys().cloned().collect();
+    let label = next_label(&existing);
+
+    // 最初の窓と同じ寸法・体裁で開く。設定を写して名前だけ差し替えるので、
+    // 大きさや飾りの有無を 2 か所に書かずに済む。
+    let mut config = app
+        .config()
+        .app
+        .windows
+        .first()
+        .cloned()
+        .ok_or_else(|| "窓の設定が見つかりません".to_string())?;
+    config.label = label.clone();
+
+    let mut builder =
+        tauri::WebviewWindowBuilder::from_config(&app, &config).map_err(|e| e.to_string())?;
+    if let Ok(pos) = window.outer_position() {
+        builder = builder.position(f64::from(pos.x) + 32.0, f64::from(pos.y) + 32.0);
+    }
+    builder.build().map_err(|e| e.to_string())?;
+
+    // 窓ごとに 1 本。付加機能なので、立ち上がらなくても窓は開いたままにする。
+    crate::mcp::start(&app, &label);
+    Ok(label)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -103,6 +145,23 @@ mod tests {
             .iter()
             .map(|(label, root)| (label.to_string(), root.map(PathBuf::from)))
             .collect()
+    }
+
+    #[test]
+    fn 二つ目の窓は二番から始まる() {
+        assert_eq!(next_label(&["main".to_string()]), "w2");
+    }
+
+    #[test]
+    fn 使われている番号は飛ばす() {
+        let used = ["main", "w2", "w3"].map(String::from).to_vec();
+        assert_eq!(next_label(&used), "w4");
+    }
+
+    #[test]
+    fn 閉じて空いた番号はまた使う() {
+        let used = ["main", "w3"].map(String::from).to_vec();
+        assert_eq!(next_label(&used), "w2");
     }
 
     #[test]

@@ -19,6 +19,7 @@
   } from '$lib/preview/siteExportController.svelte';
   import { publish } from '$lib/preview/publishController.svelte';
   import { openUrl } from '@tauri-apps/plugin-opener';
+  import { invoke } from '@tauri-apps/api/core';
   import {
     browserPreview,
     type BrowserPreviewNotice,
@@ -81,6 +82,8 @@
     switch (item) {
       case 'openFolder':
         return t('tree.openFolder');
+      case 'newWindow':
+        return t('action.newWindow');
       case 'save':
         return workspace.saving ? t('action.saving') : t('action.save');
       case 'autosave':
@@ -122,6 +125,11 @@
     switch (item) {
       case 'openFolder':
         void workspace.openFolder();
+        return;
+      case 'newWindow':
+        // 開く先はできた窓の中で選ぶ。ここで選ばせると、こちらの窓のフォルダが
+        // 一瞬入れ替わったように見える。
+        void invoke('open_new_window').catch(() => undefined);
         return;
       case 'save':
         void workspace.save();

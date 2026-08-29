@@ -47,11 +47,25 @@ describe('メニューの並び', () => {
   it('宣言と許可の口は、フォルダを扱うメニューに置く', () => {
     expect(itemsOf('file')).toEqual([
       'openFolder',
+      'newWindow',
       'save',
       'autosave',
       'webMode',
       'revokeTrust',
     ]);
+  });
+
+  it('別の窓は、フォルダを開くのすぐ隣に置く', () => {
+    const file = itemsOf('file');
+    expect(file.indexOf('newWindow')).toBe(file.indexOf('openFolder') + 1);
+  });
+
+  it('別の窓は、何も開いていなくても押せる（開く先をそこで選ぶ）', () => {
+    expect(isItemEnabled('newWindow', idle)).toBe(true);
+  });
+
+  it('別の窓は、読み込み中は押せない', () => {
+    expect(isItemEnabled('newWindow', { ...idle, loading: true })).toBe(false);
   });
 
   it('どの項目もちょうど 1 つのメニューに属する（重複も迷子も作らない）', () => {
@@ -61,11 +75,11 @@ describe('メニューの並び', () => {
 });
 
 describe('押せるかどうか', () => {
-  it('起動直後でも、フォルダを開く・自動保存・明暗・言語は押せる', () => {
+  it('起動直後でも、フォルダを開く・別の窓・自動保存・明暗・言語は押せる', () => {
     const enabled = MENU_IDS.flatMap((id) => itemsOf(id)).filter((item) =>
       isItemEnabled(item, idle),
     );
-    expect(enabled).toEqual(['openFolder', 'autosave', 'theme', 'language']);
+    expect(enabled).toEqual(['openFolder', 'newWindow', 'autosave', 'theme', 'language']);
   });
 
   it('読み込み中はフォルダを開く操作を受け付けない', () => {

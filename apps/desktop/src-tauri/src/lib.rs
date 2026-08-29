@@ -125,6 +125,7 @@ pub fn run() {
             mcp::mcp_write_client_config,
             mcp::mcp_client_config,
             mcp::mcp_retry,
+            window_route::open_new_window,
             open_arg::take_open_request,
             deep_link::take_link_request,
             preview_server::start_preview_server,

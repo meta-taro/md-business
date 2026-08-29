@@ -10,6 +10,7 @@ export type MenuId = 'file' | 'export' | 'view';
 
 export type MenuItemId =
 	| 'openFolder'
+	| 'newWindow'
 	| 'save'
 	| 'autosave'
 	| 'webMode'
@@ -28,7 +29,7 @@ export type MenuItemId =
 export const MENU_IDS: readonly MenuId[] = ['file', 'export', 'view'];
 
 export const MENU_ITEMS: Record<MenuId, readonly MenuItemId[]> = {
-	file: ['openFolder', 'save', 'autosave', 'webMode', 'revokeTrust'],
+	file: ['openFolder', 'newWindow', 'save', 'autosave', 'webMode', 'revokeTrust'],
 	export: ['pdf', 'html', 'image', 'site', 'browser', 'publish'],
 	view: ['theme', 'timeline', 'language'],
 };
@@ -62,6 +63,8 @@ export function itemsOf(menu: MenuId): readonly MenuItemId[] {
 export function isItemEnabled(item: MenuItemId, caps: MenuCaps): boolean {
 	switch (item) {
 		case 'openFolder':
+		case 'newWindow':
+			// 開く先はその窓で選ぶので、こちらで何か開いている必要は無い。
 			return !caps.loading;
 		case 'save':
 			return caps.canSave;
