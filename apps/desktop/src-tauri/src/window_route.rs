@@ -48,26 +48,6 @@ pub fn pick_by_root(roots: &[(String, Option<PathBuf>)], target: &Path) -> Optio
         .map(|(label, _)| label.clone())
 }
 
-/// **同じフォルダ**を既に開いている、自分以外の窓。
-///
-/// 同じフォルダを 2 つの窓で開くと、窓ごとに 1 本ずつ持つものが同じ場所を取り合う。
-/// とくに `.mcp.json` は窓ごとに違う待ち受け先を書くので、後から開いた窓が先の窓の分を
-/// 上書きし、**先の窓につないだつもりのエージェントが黙って別の窓へ行く**。
-/// 監視と編集も二重になる。開く前にここで気づいて、既にある窓を使ってもらう。
-///
-/// 入れ子（親と子）は取り合いにならないので、**同じフォルダのときだけ**返す。
-pub fn holder_of_root(
-    roots: &[(String, Option<PathBuf>)],
-    target: &Path,
-    self_label: &str,
-) -> Option<String> {
-    roots
-        .iter()
-        .filter(|(label, _)| label != self_label)
-        .find(|(_, root)| root.as_deref() == Some(target))
-        .map(|(label, _)| label.clone())
-}
-
 /// いま窓が開いているフォルダの一覧（ラベルと組で返す）。
 pub fn open_roots(app: &AppHandle) -> Vec<(String, Option<PathBuf>)> {
     app.state::<crate::window_state::WindowStates>().labels()
@@ -79,19 +59,36 @@ pub fn open_roots(app: &AppHandle) -> Vec<(String, Option<PathBuf>)> {
         .collect()
 }
 
-/// 手前にある窓。どれも手前に無ければ最初の窓。
+/// フォルダで決められない依頼の行き先。手前の窓 → 最初の窓 → 残っている窓、の順。
 ///
-/// フォルダで決められない依頼（共有リンクのように、開く先を画面側が決めるもの）の行き先。
-/// 利用者が今見ている窓に出るのが、いちばん驚きが少ない。
+/// 利用者が今見ている窓に出るのが、いちばん驚きが少ない。アプリ全体が裏にあるとき
+/// （ブラウザからリンクを押した直後など）はどの窓も手前ではないので、決まった場所に出す。
 ///
-/// アプリ全体が裏にあるとき（ブラウザからリンクを押した直後など）はどの窓も手前ではない。
-/// そのときは最初の窓に出す。どこにも出さないより、決まった場所に出るほうが探しやすい。
+/// **最初の窓は閉じられる。** 2 つ開いてから 1 つ目を閉じた状態で決め打ちすると、
+/// 届け先の無いところへ預けたまま誰も取りに来ない（外から見ると、押しても何も起きない）。
+/// 残っている窓のうち名前の順で最初のものへ出す（順序が決まらないと、同じ操作で
+/// 行き先が変わって見える）。
+fn fallback_label(focused: Option<&str>, existing: &[String]) -> String {
+    if let Some(label) = focused {
+        return label.to_string();
+    }
+    if existing.iter().any(|label| label == crate::MAIN_WINDOW) || existing.is_empty() {
+        return crate::MAIN_WINDOW.to_string();
+    }
+    let mut sorted: Vec<&String> = existing.iter().collect();
+    sorted.sort();
+    sorted[0].clone()
+}
+
+/// 手前にある窓。どれも手前に無ければ [`fallback_label`] の順で決める。
 pub fn focused_or_main(app: &AppHandle) -> String {
-    app.webview_windows()
+    let windows = app.webview_windows();
+    let focused = windows
         .iter()
         .find(|(_, w)| w.is_focused().unwrap_or(false))
-        .map(|(label, _)| label.clone())
-        .unwrap_or_else(|| crate::MAIN_WINDOW.to_string())
+        .map(|(label, _)| label.clone());
+    let existing: Vec<String> = windows.keys().cloned().collect();
+    fallback_label(focused.as_deref(), &existing)
 }
 
 /// 窓を前へ出す。
@@ -119,12 +116,18 @@ pub fn target_for_path(app: &AppHandle, path: &Path) -> String {
 /// 既に別の窓が開いていれば、**その窓を前に出して**名前を返す。開けるなら `None`。
 /// 前に出すところまでここでやるのは、断られた側の画面に「あちらで開いています」とだけ
 /// 出しても、その窓が畳まれていたり裏にあると探しに行けないため。
+///
+/// 取り合いの判断は予約台帳（[`crate::window_state::WindowStates::claim`]）で行う。
+/// 窓を名乗るのは Tauri であって呼び出し側ではないので、他人の窓の名前で予約は取れない。
 #[tauri::command]
 pub fn claim_root(app: AppHandle, window: tauri::Window, root: String) -> Option<String> {
-    // 監視ルートは実体のパスで持っている。綴りが違うだけの同じ場所を別物と見ないよう揃える。
+    // 綴りが違うだけの同じ場所を別物と見ないよう揃える。辿れないときは渡された綴りのまま
+    // predicate に使う（確かめられないことを理由に開けなくするほうが困る）。
     let path = PathBuf::from(&root);
     let canon = std::fs::canonicalize(&path).unwrap_or(path);
-    let holder = holder_of_root(&open_roots(&app), &canon, window.label())?;
+    let holder = app
+        .state::<crate::window_state::WindowStates>()
+        .claim(window.label(), &canon)?;
     focus(&app, &holder);
     Some(holder)
 }
@@ -233,34 +236,32 @@ mod tests {
         assert_eq!(pick_by_root(&roots(&[("main", None)]), Path::new("/work/a.md")), None);
     }
 
+
+
+
+
     #[test]
-    fn 同じフォルダを別の窓が開いていればその窓を返す() {
-        let list = roots(&[("main", Some("/work/lp")), ("w2", Some("/work/sheets"))]);
-        assert_eq!(
-            holder_of_root(&list, Path::new("/work/sheets"), "main"),
-            Some("w2".to_string())
-        );
+    fn 手前の窓があればそこへ出す() {
+        let existing = ["main", "w2"].map(String::from).to_vec();
+        assert_eq!(fallback_label(Some("w2"), &existing), "w2");
     }
 
     #[test]
-    fn 自分の窓は数えない() {
-        // 保存・改名・ブランチ切替では同じフォルダを開き直す。ここで塞ぐと何もできなくなる。
-        let list = roots(&[("main", Some("/work/lp"))]);
-        assert_eq!(holder_of_root(&list, Path::new("/work/lp"), "main"), None);
+    fn どれも手前でなければ最初の窓へ出す() {
+        let existing = ["main", "w2"].map(String::from).to_vec();
+        assert_eq!(fallback_label(None, &existing), crate::MAIN_WINDOW);
     }
 
     #[test]
-    fn 入れ子は別のフォルダとして扱う() {
-        // 親を開いている窓があっても、子を開くのは取り合いにならない
-        // （監視も MCP もフォルダ単位なので、指しているところが違えば別物）。
-        let list = roots(&[("main", Some("/work"))]);
-        assert_eq!(holder_of_root(&list, Path::new("/work/lp"), "w2"), None);
+    fn 最初の窓が閉じていれば残っている窓へ出す() {
+        // 最初の窓は閉じられる。決め打ちで投げると、届け先が無いまま消える。
+        let existing = ["w3", "w2"].map(String::from).to_vec();
+        assert_eq!(fallback_label(None, &existing), "w2");
     }
 
     #[test]
-    fn どの窓も開いていなければ空く() {
-        let list = roots(&[("main", None), ("w2", Some("/work/lp"))]);
-        assert_eq!(holder_of_root(&list, Path::new("/work/sheets"), "w3"), None);
+    fn 窓が一つも無ければ最初の窓の名前を返す() {
+        assert_eq!(fallback_label(None, &[]), crate::MAIN_WINDOW);
     }
 
     #[test]

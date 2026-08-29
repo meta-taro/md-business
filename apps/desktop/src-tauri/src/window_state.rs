@@ -12,6 +12,7 @@
 //! 表から外したあとに行う）。
 
 use std::collections::HashMap;
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
 use tauri::{AppHandle, Manager};
@@ -32,6 +33,13 @@ pub struct WindowRuntime {
 #[derive(Default)]
 pub struct WindowStates {
     inner: Mutex<HashMap<String, Arc<WindowRuntime>>>,
+    /// 窓ラベル → その窓が開いているフォルダ（予約台帳）。
+    ///
+    /// 「どの窓がどこを開いているか」は監視の登録先からも辿れるが、それは**開き終えてから**
+    /// 登録される。開く前に取り合いを止めたいので、判断の材料を別に持つ。監視が張れない
+    /// 場所（権限・ネットワーク越し）では監視が登録されないままになるので、そちらを
+    /// 材料にすると取り合いを止める仕組みごと効かなくなる。
+    claims: Mutex<HashMap<String, PathBuf>>,
 }
 
 impl WindowStates {
@@ -52,7 +60,34 @@ impl WindowStates {
     /// 返した実体は呼び出し側が畳む。表から外すのと後片付けを 1 つの錠の中でやると、
     /// 子プロセスの停止を待つ間ほかの窓のコマンドが止まる。
     pub fn remove(&self, label: &str) -> Option<Arc<WindowRuntime>> {
+        // 予約も一緒に返す。閉じた窓の予約が残ると、そのフォルダを二度と開けなくなる。
+        self.claims().remove(label);
         self.lock().remove(label)
+    }
+
+    /// このフォルダをこの窓のものとして予約する。取れたら `None`、
+    /// 既に**別の窓**が開いていればその窓のラベルを返す。
+    ///
+    /// 同じフォルダを 2 つの窓で開くと、窓ごとに 1 本ずつ持つもの（監視・MCP サーバー）が
+    /// 同じ場所を取り合う。とくに接続情報のファイルは窓ごとに違う待ち受け先を書くので、
+    /// 後から開いた窓が先の窓の分を上書きし、**先の窓につないだつもりのエージェントが
+    /// 黙って別の窓へ行く**。
+    ///
+    /// 見てから書くまでを 1 つの錠の中で済ませる。分けると、2 つの窓が同時に開こうとした
+    /// ときに両方とも「空いている」と見て、両方が開く。
+    ///
+    /// 入れ子（親と子）は指しているところが違うので取り合いにならない。同じフォルダのときだけ断る。
+    pub fn claim(&self, label: &str, root: &Path) -> Option<String> {
+        let mut claims = self.claims();
+        if let Some((holder, _)) = claims
+            .iter()
+            .find(|(other, held)| other.as_str() != label && held.as_path() == root)
+        {
+            return Some(holder.clone());
+        }
+        // 1 つの窓が持つのは 1 フォルダ。開き先を移したら前のところは空ける。
+        claims.insert(label.to_string(), root.to_path_buf());
+        None
     }
 
     /// いま状態を持っている窓のラベル（順序は決まらない）。
@@ -65,6 +100,10 @@ impl WindowStates {
     /// 以後すべての窓が状態を引けなくなるので、中身を取って続ける。
     fn lock(&self) -> std::sync::MutexGuard<'_, HashMap<String, Arc<WindowRuntime>>> {
         self.inner.lock().unwrap_or_else(|e| e.into_inner())
+    }
+
+    fn claims(&self) -> std::sync::MutexGuard<'_, HashMap<String, PathBuf>> {
+        self.claims.lock().unwrap_or_else(|e| e.into_inner())
     }
 }
 
@@ -101,6 +140,7 @@ pub fn close_all(app: &AppHandle) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::path::Path;
 
     #[test]
     fn 同じラベルは同じ実体を返す() {
@@ -138,6 +178,55 @@ mod tests {
         states.get("main");
         assert!(states.remove("w9").is_none());
         assert_eq!(states.labels().len(), 1);
+    }
+
+    #[test]
+    fn 空いているフォルダは予約できる() {
+        let states = WindowStates::default();
+        assert_eq!(states.claim("main", Path::new("/work/lp")), None);
+    }
+
+    #[test]
+    fn 別の窓が持っているフォルダは断る() {
+        let states = WindowStates::default();
+        states.claim("main", Path::new("/work/lp"));
+        assert_eq!(
+            states.claim("w2", Path::new("/work/lp")),
+            Some("main".to_string())
+        );
+    }
+
+    #[test]
+    fn 同じ窓が同じフォルダを開き直すのは通る() {
+        // 保存・改名・ブランチ切替では同じフォルダを開き直す。ここで塞ぐと何もできなくなる。
+        let states = WindowStates::default();
+        states.claim("main", Path::new("/work/lp"));
+        assert_eq!(states.claim("main", Path::new("/work/lp")), None);
+    }
+
+    #[test]
+    fn 窓が別のフォルダへ移ると前のフォルダは空く() {
+        let states = WindowStates::default();
+        states.claim("main", Path::new("/work/lp"));
+        states.claim("main", Path::new("/work/sheets"));
+        assert_eq!(states.claim("w2", Path::new("/work/lp")), None);
+    }
+
+    #[test]
+    fn 窓を外すと予約も空く() {
+        let states = WindowStates::default();
+        states.get("main");
+        states.claim("main", Path::new("/work/lp"));
+        states.remove("main");
+        assert_eq!(states.claim("w2", Path::new("/work/lp")), None);
+    }
+
+    #[test]
+    fn 入れ子は別のフォルダとして扱う() {
+        // 監視も MCP もフォルダ単位なので、指しているところが違えば取り合いにならない。
+        let states = WindowStates::default();
+        states.claim("main", Path::new("/work"));
+        assert_eq!(states.claim("w2", Path::new("/work/lp")), None);
     }
 
     #[test]
