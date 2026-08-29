@@ -100,6 +100,48 @@ describe('FileDocumentStore', () => {
     expect(await store.listSite()).toEqual(['assets/app.js', 'index.html']);
   });
 
+  it('list は生成物フォルダと隠しフォルダの .md を覗かない', async () => {
+    // 依存パッケージの README が業務文書として並ぶと、一覧が読み物として使えなくなる。
+    // 除外の考え方は listSite と同じものを使う（同じフォルダに 2 通りの答えを作らない）。
+    await mkdir(join(root, 'docs'), { recursive: true });
+    await mkdir(join(root, 'node_modules', 'pkg'), { recursive: true });
+    await mkdir(join(root, 'dist'), { recursive: true });
+    await mkdir(join(root, 'build'), { recursive: true });
+    await mkdir(join(root, '.git'), { recursive: true });
+    await writeFile(join(root, 'docs', 'spec.md'), '');
+    await writeFile(join(root, 'node_modules', 'pkg', 'README.md'), '');
+    await writeFile(join(root, 'dist', 'out.md'), '');
+    await writeFile(join(root, 'build', 'out.md'), '');
+    await writeFile(join(root, '.git', 'note.md'), '');
+    const store = new FileDocumentStore(root);
+    expect(await store.list()).toEqual(['docs/spec.md']);
+  });
+
+  it('listSheets は生成物フォルダと隠しフォルダの .tsv を覗かない', async () => {
+    await mkdir(join(root, 'docs', 'test-specs'), { recursive: true });
+    await mkdir(join(root, 'node_modules', 'pkg', 'fixtures'), { recursive: true });
+    await mkdir(join(root, '.cache'), { recursive: true });
+    await writeFile(join(root, 'docs', 'test-specs', '001-login.tsv'), '');
+    await writeFile(join(root, 'node_modules', 'pkg', 'fixtures', 'sample.tsv'), '');
+    await writeFile(join(root, '.cache', 'x.tsv'), '');
+    const store = new FileDocumentStore(root);
+    expect(await store.listSheets()).toEqual(['docs/test-specs/001-login.tsv']);
+  });
+
+  it('excludedCount は一覧から外した .md / .tsv を数える', async () => {
+    // 件数が思ったより少ないときに、除外のせいなのかを見分けられるようにする。
+    await mkdir(join(root, 'node_modules', 'pkg'), { recursive: true });
+    await mkdir(join(root, '.git'), { recursive: true });
+    await writeFile(join(root, 'spec.md'), '');
+    await writeFile(join(root, 'node_modules', 'pkg', 'README.md'), '');
+    await writeFile(join(root, 'node_modules', 'pkg', 'CHANGELOG.md'), '');
+    await writeFile(join(root, 'node_modules', 'pkg', 'data.tsv'), '');
+    await writeFile(join(root, 'node_modules', 'pkg', 'lib.js'), ''); // 文書ではないので数えない
+    await writeFile(join(root, '.git', 'note.md'), '');
+    const store = new FileDocumentStore(root);
+    expect(await store.excludedCount()).toBe(4);
+  });
+
   it('root 外へ逃げる相対パスは拒否する（多重防御）', async () => {
     const store = new FileDocumentStore(root);
     await expect(store.read('../escape.md')).rejects.toThrow();
