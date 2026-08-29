@@ -15,7 +15,7 @@ use std::sync::{Arc, Mutex};
 use tauri::{AppHandle, Emitter, Manager};
 
 use crate::mcp_logic::{
-    append_detail, can_retry, connection_parts, ensure_ignored, merge_client_config,
+    append_detail, can_retry, connection_parts, ensure_ignored, ignore_entry, merge_client_config,
     node_candidates, node_programs, node_version_roots, parse_sidecar_line, pick_existing,
     response_line, set_root_line, sidecar_args, sidecar_candidates, sort_node_versions,
     startup_detail, McpReason, McpState, McpStatus, NodeEnv, SidecarEvent, CONFIG_FILE_NAME,
@@ -82,15 +82,32 @@ fn initial_root(app: &AppHandle) -> PathBuf {
     }
 }
 
+/// 接続情報（トークン / ポート）を入れるファイルの名前。
+///
+/// **窓ごとに分ける。** 名前を分けずに 2 本のサイドカーへ同じファイルを渡すと、後から
+/// 起動した側が保存済みの合鍵をそのまま名乗る。合鍵が同じなら、片方のフォルダ用に配った
+/// 接続情報でもう片方のフォルダのサーバーへ入れてしまう（待ち受け口の番号が違うだけで、
+/// 番号は総当たりできる）。窓ごとに 1 フォルダと決めた以上、合鍵も窓ごとに別にする。
+///
+/// 最初の窓だけは今までと同じ名前のままにしてある。分けた名前へ移すと、これまで配って
+/// きた接続情報が 1 度だけ通らなくなる。
+fn state_file_name(label: &str) -> String {
+    if label == crate::MAIN_WINDOW {
+        "mcp.json".to_string()
+    } else {
+        format!("mcp-{label}.json")
+    }
+}
+
 /// 接続情報（トークン / ポート）の保存先。
 ///
 /// 起動のたびに接続先が変わると、AI クライアント側の設定を毎回書き直すことになる。
 /// 確定した値をアプリの設定領域へ残し、次回も同じ接続先で立ち上げられるようにする。
 /// 取得できない環境では None（サイドカーが毎回発行する従来どおりの動きになる）。
-fn state_path(app: &AppHandle) -> Option<PathBuf> {
+fn state_path(app: &AppHandle, label: &str) -> Option<PathBuf> {
     let dir = app.path().app_config_dir().ok()?;
     let _ = std::fs::create_dir_all(&dir);
-    Some(dir.join("mcp.json"))
+    Some(dir.join(state_file_name(label)))
 }
 
 /// 環境変数から Node の探索位置を集める。取れないものは None のまま渡す。
@@ -180,7 +197,7 @@ pub fn start(app: &AppHandle, label: &str) {
     };
 
     let root = initial_root(app);
-    let state = state_path(app);
+    let state = state_path(app, label);
     // 見つかった順に起動を試す。NotFound はその Node が無いだけなので次へ進み、
     // それ以外の失敗（権限など）は対処が違うのでその時点で止めて理由を出す。
     let mut spawned: Option<Child> = None;
@@ -478,6 +495,17 @@ pub fn mcp_retry(app: AppHandle, window: tauri::Window) -> Result<McpStatus, Str
     Ok(status_of(&runtime.mcp))
 }
 
+/// このフォルダを含むリポジトリの根。どこにも無ければ None。
+///
+/// 開いたフォルダ自身に `.git` があるとは限らない。リポジトリの中のフォルダを開いた場合、
+/// そこに置いたファイルも追跡対象になる。設定ファイルにはトークンが入るので、
+/// **上へ辿って**根を探し、根の除外ファイルへ書く。
+///
+/// `.git` はワークツリーではファイル（本体への参照）なので、種別は問わず存在だけを見る。
+fn repo_root_of(root: &Path) -> Option<PathBuf> {
+    root.ancestors().find(|dir| dir.join(".git").exists()).map(Path::to_path_buf)
+}
+
 /// 設定ファイルと、必要なら除外指定を書く。書いた設定ファイルのパスを返す。
 fn write_client_config_impl(root: &Path, url: &str, token: &str) -> Result<String, String> {
     if !root.is_dir() {
@@ -486,10 +514,10 @@ fn write_client_config_impl(root: &Path, url: &str, token: &str) -> Result<Strin
 
     // 除外指定を先に済ませる。設定を書いてからここで失敗すると、トークンの入った
     // ファイルが追跡対象のまま残る。
-    if root.join(".git").exists() {
-        let ignore_path = root.join(".gitignore");
+    if let Some(repo_root) = repo_root_of(root) {
+        let ignore_path = repo_root.join(".gitignore");
         let current = read_if_exists(&ignore_path)?;
-        if let Some(next) = ensure_ignored(current.as_deref(), CONFIG_FILE_NAME) {
+        if let Some(next) = ensure_ignored(current.as_deref(), &ignore_entry(&repo_root, root)) {
             std::fs::write(&ignore_path, next)
                 .map_err(|err| format!("{} を書けません: {}", ignore_path.display(), err))?;
         }
@@ -506,6 +534,17 @@ fn write_client_config_impl(root: &Path, url: &str, token: &str) -> Result<Strin
 mod tests {
     use super::*;
     use std::sync::atomic::{AtomicU32, Ordering};
+
+    #[test]
+    fn 最初の窓の接続情報は今までの名前のまま() {
+        assert_eq!(state_file_name(crate::MAIN_WINDOW), "mcp.json");
+    }
+
+    #[test]
+    fn 窓ごとに接続情報の保存先を分ける() {
+        assert_eq!(state_file_name("w2"), "mcp-w2.json");
+        assert_ne!(state_file_name("w2"), state_file_name("w3"));
+    }
 
     struct TempRoot {
         path: PathBuf,
@@ -558,6 +597,19 @@ mod tests {
         root.file(".git/HEAD", "ref: refs/heads/main\n");
         write(&root).expect("書き出し成功");
         assert!(root.read(".gitignore").contains(".mcp.json"));
+    }
+
+    #[test]
+    fn リポジトリの中のフォルダを開いても除外指定は根に置く() {
+        // 開いたフォルダに `.git` が無くても、上にリポジトリがあれば追跡対象になる。
+        // 開いた側へ除外ファイルを作ると、それ自体が差分に出る。
+        let root = TempRoot::new("mcpcfg_sub");
+        root.file(".git/HEAD", "ref: refs/heads/main\n");
+        root.file("apps/lp/.keep", "");
+        let inner = root.path.join("apps").join("lp");
+        write_client_config_impl(&inner, "http://127.0.0.1:1/mcp", "tok").expect("書き出し成功");
+        assert!(root.read(".gitignore").contains("/apps/lp/.mcp.json"));
+        assert!(!inner.join(".gitignore").exists());
     }
 
     #[test]
