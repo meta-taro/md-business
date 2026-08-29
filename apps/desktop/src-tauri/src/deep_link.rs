@@ -11,14 +11,15 @@
 //! 素性の分かる文字列か」だけを見て預かる。何を開くかの判断は画面側が持つ
 //! （手元に開いたことのあるフォルダの中にしか辿り着けないようにしてある）。
 
-use std::sync::Mutex;
 use tauri::{AppHandle, Emitter, State};
 
-/// 画面がまだ受け取れる状態でないときに、リンクを 1 件だけ預かる場所。
+use crate::window_route::PendingByWindow;
+
+/// 画面がまだ受け取れる状態でないときに、リンクを預かる場所。
 ///
-/// 溜めずに 1 件で上書きするのは、最後に押されたものだけが利用者の意図だから。
+/// 窓ごとに 1 件で上書きする。最後に押されたものだけが利用者の意図だから。
 #[derive(Default)]
-pub struct PendingLink(Mutex<Option<String>>);
+pub struct PendingLink(PendingByWindow);
 
 /// 画面へ通知するイベント名（起動済みのアプリへ後からリンクが届いたとき）。
 const LINK_REQUEST_EVENT: &str = "link-request";
@@ -60,13 +61,14 @@ pub fn remember(app: &AppHandle, raw: &str) {
     let Some(url) = accept(raw) else {
         return;
     };
-    crate::open_arg::focus_main(app);
+    // リンクが指す先は文字列のままではフォルダに結びつかない（どのリポジトリの何を開くかを
+    // 決めるのは画面側）。行き先は手前の窓にする。
+    let label = crate::window_route::focused_or_main(app);
+    crate::window_route::focus(app, &label);
     if let Some(state) = tauri::Manager::try_state::<PendingLink>(app) {
-        if let Ok(mut slot) = state.0.lock() {
-            *slot = Some(url.clone());
-        }
+        state.0.put(&label, url.clone());
     }
-    let _ = app.emit(LINK_REQUEST_EVENT, url);
+    let _ = app.emit_to(&label, LINK_REQUEST_EVENT, url);
 }
 
 /// 起動のきっかけがリンクだった場合に、それを預ける。
@@ -82,12 +84,12 @@ pub fn remember_startup_link(app: &AppHandle) {
     }
 }
 
-/// 預かっているリンクを 1 件取り出す（取り出したら消える）。
+/// その窓が預かっているリンクを取り出す（取り出したら消える）。
 ///
 /// 消すのは、画面を作り直すたびに同じリンクが開き直るのを避けるため。
 #[tauri::command]
-pub fn take_link_request(state: State<PendingLink>) -> Option<String> {
-    state.0.lock().ok().and_then(|mut slot| slot.take())
+pub fn take_link_request(window: tauri::Window, state: State<PendingLink>) -> Option<String> {
+    state.0.take(window.label())
 }
 
 #[cfg(test)]

@@ -8,15 +8,15 @@
 //! - 動いているとき: 二重起動は single-instance が止め、引数だけがこちらへ回ってくる。
 //!   窓を前へ出し、画面へ知らせる。
 
-use std::sync::Mutex;
 use tauri::{AppHandle, Emitter, Manager, State};
 
-/// 画面がまだ受け取れる状態でないときに、依頼を 1 件だけ預かる場所。
+use crate::window_route::PendingByWindow;
+
+/// 画面がまだ受け取れる状態でないときに、依頼を預かる場所。
 ///
-/// 溜めずに 1 件で上書きするのは、最後に頼まれたものだけが利用者の意図だから。
-/// 起動直後に何度も頼まれても、開くのは最後の 1 つでよい。
+/// 窓ごとに 1 件で上書きする。起動直後に何度も頼まれても、その窓で開くのは最後の 1 つでよい。
 #[derive(Default)]
-pub struct PendingOpen(Mutex<Option<String>>);
+pub struct PendingOpen(PendingByWindow);
 
 /// 画面へ通知するイベント名（起動済みのアプリへ後から依頼が届いたとき）。
 const OPEN_REQUEST_EVENT: &str = "open-request";
@@ -54,16 +54,20 @@ fn accept(raw: &str) -> Option<String> {
 }
 
 /// 依頼を預けて、画面へ知らせる。画面がまだ無ければ預けるだけで終わる。
+///
+/// 窓が複数あるので、まず行き先を決める。頼まれたファイルを含むフォルダを開いている窓が
+/// あればそこへ、無ければ手前の窓へ。全部の窓へ配ると、頼んでいない側のフォルダまで
+/// 切り替わる。
 pub fn remember(app: &AppHandle, raw: &str) {
     let Some(path) = accept(raw) else {
         return;
     };
+    let label = crate::window_route::target_for_path(app, std::path::Path::new(&path));
+    crate::window_route::focus(app, &label);
     if let Some(state) = app.try_state::<PendingOpen>() {
-        if let Ok(mut slot) = state.0.lock() {
-            *slot = Some(path.clone());
-        }
+        state.0.put(&label, path.clone());
     }
-    let _ = app.emit(OPEN_REQUEST_EVENT, path);
+    let _ = app.emit_to(&label, OPEN_REQUEST_EVENT, path);
 }
 
 /// 起動時の引数を預ける（画面ができてから `take_open_request` で取りに来る）。
@@ -79,30 +83,20 @@ pub fn remember_startup_args(app: &AppHandle) {
 /// 窓を前へ出すところまでを行う。頼んだ側から見て「開いた」と分かる必要があるが、
 /// 裏に隠れたままでは開いたことに気づけない。
 pub fn handle_second_instance(app: &AppHandle, argv: &[String]) {
-    focus_main(app);
-    if let Some(raw) = parse_open_arg(argv) {
-        remember(app, &raw);
+    // 前へ出すのは `remember` が行き先を決めてから。先に決め打ちで出すと、
+    // 別の窓が受け取るファイルなのに手前だけが入れ替わる。
+    match parse_open_arg(argv) {
+        Some(raw) => remember(app, &raw),
+        None => crate::window_route::focus(app, &crate::window_route::focused_or_main(app)),
     }
 }
 
-/// 主窓を前へ出す。
-///
-/// 外から頼まれたときは、頼んだ側から見て「開いた」と分かる必要がある。畳んだままでも
-/// 裏に隠れたままでも、押しても何も起きなかったように映る。
-pub fn focus_main(app: &AppHandle) {
-    if let Some(window) = app.get_webview_window("main") {
-        let _ = window.unminimize();
-        let _ = window.show();
-        let _ = window.set_focus();
-    }
-}
-
-/// 預かっている依頼を 1 件取り出す（取り出したら消える）。
+/// その窓が預かっている依頼を取り出す（取り出したら消える）。
 ///
 /// 消すのは、画面を作り直すたびに同じファイルが開き直るのを避けるため。
 #[tauri::command]
-pub fn take_open_request(state: State<PendingOpen>) -> Option<String> {
-    state.0.lock().ok().and_then(|mut slot| slot.take())
+pub fn take_open_request(window: tauri::Window, state: State<PendingOpen>) -> Option<String> {
+    state.0.take(window.label())
 }
 
 #[cfg(test)]

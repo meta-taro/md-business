@@ -258,6 +258,14 @@ pub fn unwatch_workspace(window: tauri::Window) -> Result<(), String> {
     Ok(())
 }
 
+/// その窓がいま見ているフォルダ。開いていなければ `None`。
+///
+/// 外から届いた依頼の行き先を決めるのに使う。窓が「どのフォルダを開いているか」は
+/// 画面側にもあるが、Rust から見えるのはここだけ。
+pub fn current_root(state: &WatchState) -> Option<PathBuf> {
+    state.root.lock().ok().and_then(|r| r.clone())
+}
+
 /// 窓を閉じるときに監視を落とす。理由を返す相手がいないので、ロックが取れなければ諦める。
 ///
 /// watcher を Drop すれば見張りのスレッドも止まる。
