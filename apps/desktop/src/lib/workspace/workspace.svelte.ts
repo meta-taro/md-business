@@ -687,8 +687,29 @@ class WorkspaceStore {
     return out;
   }
 
+  /**
+   * このフォルダを別の窓が開いていないか尋ねる。開いていればその窓の名前（前に出される）。
+   *
+   * 尋ねられないとき（Tauri の外・古い版）は開かせる。確かめられないことを理由に
+   * 開けなくするほうが困る。
+   */
+  private async claimRoot(root: string): Promise<string | null> {
+    try {
+      return await invoke<string | null>('claim_root', { root });
+    } catch {
+      return null;
+    }
+  }
+
   /** ルート配下を走査し、ツリー・展開状態を更新する。 */
   private async scan(root: string): Promise<void> {
+    // 同じフォルダを 2 つの窓で開くと、窓ごとに 1 本ずつ持つもの（監視・MCP サーバー）が
+    // 同じ場所を取り合う。とくに `.mcp.json` は後から開いた窓が先の窓の分を上書きするので、
+    // 先の窓につないだつもりのエージェントが黙って別の窓へ行く。開く前に断る。
+    if ((await this.claimRoot(root)) !== null) {
+      this.error = 'このフォルダは別の窓で開いています（その窓を前に出しました）。';
+      return;
+    }
     this.loading = true;
     // 前のフォルダで出した知らせを持ち越さない（失敗して開けなかった場合も含む）。
     this.noticeRestored(false);

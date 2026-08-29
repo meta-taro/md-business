@@ -48,6 +48,26 @@ pub fn pick_by_root(roots: &[(String, Option<PathBuf>)], target: &Path) -> Optio
         .map(|(label, _)| label.clone())
 }
 
+/// **同じフォルダ**を既に開いている、自分以外の窓。
+///
+/// 同じフォルダを 2 つの窓で開くと、窓ごとに 1 本ずつ持つものが同じ場所を取り合う。
+/// とくに `.mcp.json` は窓ごとに違う待ち受け先を書くので、後から開いた窓が先の窓の分を
+/// 上書きし、**先の窓につないだつもりのエージェントが黙って別の窓へ行く**。
+/// 監視と編集も二重になる。開く前にここで気づいて、既にある窓を使ってもらう。
+///
+/// 入れ子（親と子）は取り合いにならないので、**同じフォルダのときだけ**返す。
+pub fn holder_of_root(
+    roots: &[(String, Option<PathBuf>)],
+    target: &Path,
+    self_label: &str,
+) -> Option<String> {
+    roots
+        .iter()
+        .filter(|(label, _)| label != self_label)
+        .find(|(_, root)| root.as_deref() == Some(target))
+        .map(|(label, _)| label.clone())
+}
+
 /// いま窓が開いているフォルダの一覧（ラベルと組で返す）。
 pub fn open_roots(app: &AppHandle) -> Vec<(String, Option<PathBuf>)> {
     app.state::<crate::window_state::WindowStates>().labels()
@@ -92,6 +112,21 @@ pub fn target_for_path(app: &AppHandle, path: &Path) -> String {
     // 同じ場所を指していても前後関係が取れない（別名・相対・短縮名）。
     let canon = std::fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf());
     pick_by_root(&open_roots(app), &canon).unwrap_or_else(|| focused_or_main(app))
+}
+
+/// このフォルダをこの窓で開いてよいか。
+///
+/// 既に別の窓が開いていれば、**その窓を前に出して**名前を返す。開けるなら `None`。
+/// 前に出すところまでここでやるのは、断られた側の画面に「あちらで開いています」とだけ
+/// 出しても、その窓が畳まれていたり裏にあると探しに行けないため。
+#[tauri::command]
+pub fn claim_root(app: AppHandle, window: tauri::Window, root: String) -> Option<String> {
+    // 監視ルートは実体のパスで持っている。綴りが違うだけの同じ場所を別物と見ないよう揃える。
+    let path = PathBuf::from(&root);
+    let canon = std::fs::canonicalize(&path).unwrap_or(path);
+    let holder = holder_of_root(&open_roots(&app), &canon, window.label())?;
+    focus(&app, &holder);
+    Some(holder)
 }
 
 /// 新しい窓に付ける名前。使われていない番号のうち、いちばん小さいものを取る。
@@ -196,6 +231,36 @@ mod tests {
             Some("w2".to_string())
         );
         assert_eq!(pick_by_root(&roots(&[("main", None)]), Path::new("/work/a.md")), None);
+    }
+
+    #[test]
+    fn 同じフォルダを別の窓が開いていればその窓を返す() {
+        let list = roots(&[("main", Some("/work/lp")), ("w2", Some("/work/sheets"))]);
+        assert_eq!(
+            holder_of_root(&list, Path::new("/work/sheets"), "main"),
+            Some("w2".to_string())
+        );
+    }
+
+    #[test]
+    fn 自分の窓は数えない() {
+        // 保存・改名・ブランチ切替では同じフォルダを開き直す。ここで塞ぐと何もできなくなる。
+        let list = roots(&[("main", Some("/work/lp"))]);
+        assert_eq!(holder_of_root(&list, Path::new("/work/lp"), "main"), None);
+    }
+
+    #[test]
+    fn 入れ子は別のフォルダとして扱う() {
+        // 親を開いている窓があっても、子を開くのは取り合いにならない
+        // （監視も MCP もフォルダ単位なので、指しているところが違えば別物）。
+        let list = roots(&[("main", Some("/work"))]);
+        assert_eq!(holder_of_root(&list, Path::new("/work/lp"), "w2"), None);
+    }
+
+    #[test]
+    fn どの窓も開いていなければ空く() {
+        let list = roots(&[("main", None), ("w2", Some("/work/lp"))]);
+        assert_eq!(holder_of_root(&list, Path::new("/work/sheets"), "w3"), None);
     }
 
     #[test]

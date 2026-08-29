@@ -129,6 +129,7 @@ pub fn run() {
             mcp::mcp_client_config,
             mcp::mcp_retry,
             window_route::open_new_window,
+            window_route::claim_root,
             update_gate::claim_update_check,
             open_arg::take_open_request,
             deep_link::take_link_request,
