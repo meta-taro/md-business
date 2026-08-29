@@ -59,6 +59,7 @@ import {
 } from './tabs';
 import { ancestorFolders, chooseOpenRoot, resolveOpenTarget } from './openTarget';
 import { parseShareLink, resolveShareFolder, type ShareCandidate } from './shareLink';
+import { windowKey } from '$lib/window/scopedKey';
 
 /** Rust `git_identity` の戻り（serde camelCase）。 */
 interface GitIdentity {
@@ -67,11 +68,16 @@ interface GitIdentity {
   prefix: string;
 }
 
-/** 最後に開いたフォルダの localStorage キー（左レール幅等と同じ名前空間）。 */
-const LAST_FOLDER_KEY = 'md-business:desktop:last-folder';
+/**
+ * 最後に開いたフォルダの localStorage キー（左レール幅等と同じ名前空間）。
+ *
+ * 窓ごとに分ける。2 つの窓で別のフォルダを開いているとき、同じ名前で書くと後から
+ * 保存した側が上書きし、次の起動で両方が同じフォルダを開く。
+ */
+const LAST_FOLDER_KEY = windowKey('md-business:desktop:last-folder');
 
 /** 復元の読み込み中に立てる印の localStorage キー。終わったら消す。 */
-const RESTORE_ATTEMPT_KEY = 'md-business:desktop:restore-attempt';
+const RESTORE_ATTEMPT_KEY = windowKey('md-business:desktop:restore-attempt');
 
 /** 過去に開いたフォルダ一覧の localStorage キー。 */
 const RECENT_FOLDERS_KEY = 'md-business:desktop:recent-folders';

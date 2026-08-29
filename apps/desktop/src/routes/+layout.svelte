@@ -357,7 +357,13 @@
     });
     // 起動時の自動アップデート確認。起動直後の復元処理と競合させないよう少し遅らせ、
     // 更新があるときだけダイアログを出す（最新 / 失敗時は沈黙）。
-    const t = setTimeout(() => void updater.autoCheck(), 3000);
+    // 窓が 2 つあっても確認は 1 回。同じ知らせが 2 枚重なって出ないように、
+    // 先に言い出した窓だけが受け持つ。
+    const t = setTimeout(() => {
+      void invoke<boolean>('claim_update_check')
+        .then((mine) => (mine ? updater.autoCheck() : undefined))
+        .catch(() => undefined);
+    }, 3000);
     return () => {
       clearTimeout(t);
       unlisten?.();

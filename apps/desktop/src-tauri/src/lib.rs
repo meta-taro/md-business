@@ -14,6 +14,7 @@ mod open_arg;
 mod preview_server;
 mod preview_server_logic;
 mod trust;
+mod update_gate;
 mod trust_logic;
 mod watch;
 mod watch_logic;
@@ -49,6 +50,8 @@ pub fn run() {
         // 窓ごとの実行時状態（ファイル監視 / 組み込み MCP サーバー / ブラウザ表示の待ち受け）。
         // どれも「開いているフォルダ 1 つ」に紐づくので、窓が増えたら実体も増える。
         .manage(window_state::WindowStates::default())
+        // 更新確認の受け持ち（窓の数に関わらずプロセスに 1 回）。
+        .manage(update_gate::UpdateCheckOnce::default())
         // 起動引数で頼まれたファイル（画面が受け取りに来るまでの預かり）。
         .manage(open_arg::PendingOpen::default())
         // 共有リンクで頼まれた文書（同上）。
@@ -126,6 +129,7 @@ pub fn run() {
             mcp::mcp_client_config,
             mcp::mcp_retry,
             window_route::open_new_window,
+            update_gate::claim_update_check,
             open_arg::take_open_request,
             deep_link::take_link_request,
             preview_server::start_preview_server,
