@@ -38,7 +38,18 @@ describe('parseCliArgs — 引数の読み取り', () => {
 
   it('知らない指定は、黙って待ち受けに入らず使い方を出す', () => {
     // 待ち受けに入ってしまうと、綴り違いに気づけないまま「動かない」だけが残る。
-    expect(parseCliArgs(['--helth'])).toEqual({ mode: 'help', error: '--helth' });
+    expect(parseCliArgs(['--helth'])).toEqual({ mode: 'help', error: '知らない指定です: --helth' });
+  });
+
+  it('ワークスペースを 2 つ以上渡されたら、黙って捨てずに理由を出す', () => {
+    // 捨てたことが分からないと、渡した側は「両方見た」と思ったまま結果を読む。
+    const two = parseCliArgs(['/仕事', '/別の仕事']);
+    expect(two.mode).toBe('help');
+    expect(two.error).toContain('/別の仕事');
+    expect(two.root).toBeUndefined();
+
+    // 点検と組み合わせても同じ（--health だけ効いて 2 つ目が消えるのが一番危ない）。
+    expect(parseCliArgs(['--health', '/仕事', '/別の仕事']).mode).toBe('help');
   });
 });
 

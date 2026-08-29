@@ -19,7 +19,7 @@ import type { DocumentStore } from './store.js';
 export interface CliCommand {
   mode: 'serve' | 'version' | 'health' | 'help';
   root?: string;
-  /** 知らない指定を受け取ったときの、その字面。 */
+  /** 受け付けられなかった理由（そのまま利用者へ出す）。 */
   error?: string;
 }
 
@@ -39,6 +39,10 @@ export const USAGE = `md-business MCP サーバー
  * 指定と場所の前後は問わない（設定ファイルの `args` へ後ろから足す書き方があるため）。
  * 知らない指定は待ち受けに入らず使い方を出す。黙って起動すると、綴り違いに気づけない
  * まま「動かない」だけが残る。
+ *
+ * ワークスペースが 2 つ以上あるときも同じで、捨てずに理由を出す。1 プロセスが見るのは
+ * 1 フォルダなので 2 つ目は使えないが、黙って捨てると、渡した側は「両方見た」と思ったまま
+ * 結果を読むことになる。複数のフォルダを扱うときは、フォルダごとに登録を分ける。
  */
 export function parseCliArgs(argv: readonly string[]): CliCommand {
   let mode: CliCommand['mode'] = 'serve';
@@ -46,7 +50,15 @@ export function parseCliArgs(argv: readonly string[]): CliCommand {
 
   for (const arg of argv) {
     if (!arg.startsWith('-')) {
-      root ??= arg;
+      if (root !== undefined) {
+        return {
+          mode: 'help',
+          error:
+            `ワークスペースは 1 つだけ指定できます（2 つ目: ${arg}）。\n` +
+            '複数のフォルダを扱うときは、フォルダごとに別の名前でサーバーを登録してください。',
+        };
+      }
+      root = arg;
       continue;
     }
     switch (arg) {
@@ -60,7 +72,7 @@ export function parseCliArgs(argv: readonly string[]): CliCommand {
         mode = 'health';
         break;
       default:
-        return { mode: 'help', error: arg };
+        return { mode: 'help', error: `知らない指定です: ${arg}` };
     }
   }
 
@@ -168,7 +180,7 @@ export async function runInfoCommand(
 
   deps.out(`${USAGE}\n`);
   if (command.error === undefined) return 0;
-  deps.err(`知らない指定です: ${command.error}\n`);
+  deps.err(`${command.error}\n`);
   return 1;
 }
 
