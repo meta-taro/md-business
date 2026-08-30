@@ -100,8 +100,30 @@ pub fn png_size(bytes: &[u8]) -> Option<(u32, u32)> {
     Some((read(16), read(20)))
 }
 
+/// 撮った返り（DevTools Protocol の JSON）から PNG の中身を取り出す。
+///
+/// 返りは base64 の文字列で来る。**画像になっていない返りを黙って通さない**のは、
+/// 壊れたバイト列でも「撮れた」と言えてしまい、受け取った側が空の画像を貼るため。
+pub fn decode_screenshot(answer: &str) -> Result<Vec<u8>, String> {
+    let parsed: serde_json::Value =
+        serde_json::from_str(answer).map_err(|error| format!("撮った返りを読めません: {error}"))?;
+    let encoded = parsed
+        .get("data")
+        .and_then(|value| value.as_str())
+        .ok_or("撮った返りに中身がありません")?;
+    let bytes = base64::Engine::decode(&base64::engine::general_purpose::STANDARD, encoded)
+        .map_err(|error| format!("撮った中身を戻せません: {error}"))?;
+    if png_size(&bytes).is_none() {
+        return Err("撮れたものが画像になっていません".to_string());
+    }
+    Ok(bytes)
+}
+
 #[cfg(test)]
 mod tests {
+    use base64::engine::general_purpose::STANDARD;
+    use base64::Engine;
+
     use super::*;
 
     fn png_header(width: u32, height: u32) -> Vec<u8> {
@@ -193,6 +215,26 @@ mod tests {
     #[test]
     fn 撮れた画像の寸法をヘッダから読む() {
         assert_eq!(png_size(&png_header(1400, 800)), Some((1400, 800)));
+    }
+
+    #[test]
+    fn 返りから画像の中身を取り出す() {
+        let png = png_header(20, 10);
+        let answer = serde_json::json!({ "data": STANDARD.encode(&png) }).to_string();
+        assert_eq!(decode_screenshot(&answer).expect("読めるはず"), png);
+    }
+
+    #[test]
+    fn 画像になっていない返りは通さない() {
+        // JSON ですらない
+        assert!(decode_screenshot("＜壊れた返り＞").is_err());
+        // data が無い
+        assert!(decode_screenshot(r#"{"ok":true}"#).is_err());
+        // base64 として読めない
+        assert!(decode_screenshot(r#"{"data":"!!!!"}"#).is_err());
+        // 読めるが PNG ではない
+        let junk = serde_json::json!({ "data": STANDARD.encode(b"just text") }).to_string();
+        assert!(decode_screenshot(&junk).is_err());
     }
 
     #[test]

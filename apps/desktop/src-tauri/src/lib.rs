@@ -2,7 +2,10 @@ mod capture;
 pub mod capture_logic;
 #[cfg(windows)]
 mod capture_win;
+mod capture_window;
 pub mod capture_window_logic;
+#[cfg(windows)]
+mod capture_window_win;
 mod deep_link;
 mod fileinfo;
 mod git;
@@ -99,6 +102,7 @@ pub fn run() {
             workspace::export_html,
             workspace::export_site,
             capture::export_image,
+            capture_window::capture_window,
             image::read_image,
             watch::watch_workspace,
             watch::unwatch_workspace,
