@@ -2,6 +2,7 @@ mod capture;
 pub mod capture_logic;
 #[cfg(windows)]
 mod capture_win;
+pub mod capture_window_logic;
 mod deep_link;
 mod fileinfo;
 mod git;
