@@ -317,11 +317,19 @@ fn read_events(
                 Some(SidecarEvent::Log(value)) => {
                     let _ = app.emit_to(label, LOG_EVENT, &value);
                 }
-                Some(SidecarEvent::Request { id, action, path }) => {
+                Some(SidecarEvent::Request {
+                    id,
+                    action,
+                    path,
+                    max_edge,
+                }) => {
                     // 実際に処理できるのは画面側だけ。応答は mcp_respond で返ってくる。
                     let mut payload = serde_json::json!({ "id": id, "action": action });
                     if let (Some(target), Some(map)) = (path, payload.as_object_mut()) {
                         map.insert("path".to_string(), serde_json::json!(target));
+                    }
+                    if let (Some(edge), Some(map)) = (max_edge, payload.as_object_mut()) {
+                        map.insert("maxEdge".to_string(), serde_json::json!(edge));
                     }
                     let _ = app.emit_to(label, REQUEST_EVENT, payload);
                 }

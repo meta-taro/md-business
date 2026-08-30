@@ -31,6 +31,29 @@ describe('parseRequestEvent', () => {
     });
   });
 
+  it('窓を撮る依頼は対象を伴わない', () => {
+    // 撮るのは窓そのもので、中のどの文書かは関係ない。
+    expect(parseRequestEvent({ id: 'req-6', action: 'capture-window' })).toEqual({
+      id: 'req-6',
+      action: 'capture-window',
+    });
+  });
+
+  it('撮る大きさの指定は数のときだけ受け取る', () => {
+    // どれだけの大きさなら扱えるかを知っているのは依頼元。指定があれば通す。
+    expect(parseRequestEvent({ id: 'req-7', action: 'capture-window', maxEdge: 800 })).toEqual({
+      id: 'req-7',
+      action: 'capture-window',
+      maxEdge: 800,
+    });
+    // 数でない指定は無かったことにする。ここで断ると、撮れるはずの依頼が
+    // 画面へ届かないまま時間切れになる。
+    expect(parseRequestEvent({ id: 'req-7', action: 'capture-window', maxEdge: '800' })).toEqual({
+      id: 'req-7',
+      action: 'capture-window',
+    });
+  });
+
   it('閉じる依頼は対象を伴う', () => {
     expect(parseRequestEvent({ id: 'req-4', action: 'close-document', path: 'a.md' })).toEqual({
       id: 'req-4',

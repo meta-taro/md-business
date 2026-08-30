@@ -42,6 +42,7 @@ import {
   declareSummary,
   WEB_MODE_DECLARATION_TEXT,
 } from './webMode.js';
+import { parseWindowShot } from './windowShot.js';
 import { listSiteFiles, readSiteFile, writeSiteFile } from './siteFiles.js';
 import { buildToolLogEntry, type ToolLogEntry, type ToolResultLike } from './toolLog.js';
 
@@ -1131,6 +1132,49 @@ export function createServer(store: DocumentStore, options: CreateServerOptions 
         const r = { ok: true as const, ...describeWebMode(declaration, trust) };
         emit('web_mode_status', undefined, r);
         return jsonResult(r, false);
+      },
+    );
+
+    server.registerTool(
+      'capture_window',
+      {
+        description:
+          'デスクトップアプリの窓を撮って画像で返す。アプリが実際に何を描いているかを確かめる口で、開いているフォルダや文書の中身を読むためのものではない。写るのはこのアプリの窓だけで、手前に重なっている他のアプリは写らない。撮った画像は利用者が今見ている画面そのものなので、外部へ出す前に本人へ確認する。',
+        inputSchema: {
+          maxEdge: z
+            .number()
+            .int()
+            .min(200)
+            .max(4000)
+            .optional()
+            .describe('画像の長辺の上限（既定 1400）。大きい窓は縮めるが、小さい窓は引き伸ばさない'),
+        },
+      },
+      async ({ maxEdge }) => {
+        const result = await app.request({
+          action: 'capture-window',
+          ...(maxEdge !== undefined ? { maxEdge } : {}),
+        });
+        if (!result.ok) {
+          emit('capture_window', undefined, result);
+          return jsonResult(result, true);
+        }
+        const shot = parseWindowShot(result.data);
+        if (shot === null) {
+          const unknown = { ok: false as const, error: 'アプリから画像を受け取れませんでした' };
+          emit('capture_window', undefined, unknown);
+          return jsonResult(unknown, true);
+        }
+        emit('capture_window', undefined, { ok: true });
+        return {
+          content: [
+            { type: 'image' as const, data: shot.data, mimeType: 'image/png' },
+            {
+              type: 'text' as const,
+              text: `窓 ${shot.windowWidth}x${shot.windowHeight} を ${shot.width}x${shot.height} で撮りました。`,
+            },
+          ],
+        };
       },
     );
 

@@ -12,9 +12,17 @@ import type { RequestEvent, ResponseCommand } from './control.js';
 
 /** アプリへ頼む操作。 */
 export interface AppRequest {
-  action: 'export-pdf' | 'open-document' | 'close-document' | 'list-documents' | 'trust-status';
+  action:
+    | 'export-pdf'
+    | 'open-document'
+    | 'close-document'
+    | 'list-documents'
+    | 'trust-status'
+    | 'capture-window';
   /** 対象のワークスペース相対パス。一覧のように対象を持たない依頼では省く。 */
   path?: string;
+  /** 撮る画像の長辺の上限。撮る依頼のときだけ載せる。 */
+  maxEdge?: number;
 }
 
 /** 依頼の結果。失敗理由はそのまま利用者へ見せられる日本語で返す。 */
@@ -65,6 +73,7 @@ export function createAppBridge(options: CreateAppBridgeOptions): AppBridge {
           id,
           action: req.action,
           ...(req.path !== undefined ? { path: req.path } : {}),
+          ...(req.maxEdge !== undefined ? { maxEdge: req.maxEdge } : {}),
         });
       });
     },

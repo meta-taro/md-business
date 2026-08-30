@@ -213,6 +213,17 @@
       }
       return;
     }
+    // 窓そのものを撮る依頼。フォルダを開いていなくても、開いていない画面が写るだけなので
+    // 撮れる（「何も開いていない」ことも見れば分かる情報になる）。
+    if (request.action === 'capture-window') {
+      try {
+        const shot = await invoke<unknown>('capture_window', { maxEdge: request.maxEdge ?? null });
+        await respond(true, null, shot);
+      } catch (error) {
+        await respond(false, typeof error === 'string' ? error : '窓を撮れませんでした');
+      }
+      return;
+    }
     // ここから先は対象を伴う依頼だけ（parseRequestEvent が保証している）。
     const target = request.path;
     if (target === undefined) return;

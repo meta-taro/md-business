@@ -28,6 +28,8 @@ pub enum SidecarEvent {
         action: String,
         /// 対象のワークスペース相対パス。一覧のように対象を持たない依頼では無い。
         path: Option<String>,
+        /// 撮る画像の長辺の上限。撮る依頼のときだけ入る。
+        max_edge: Option<u32>,
     },
     /// サイドカー側の異常。サーバー本体は動き続ける前提。
     Error { message: String },
@@ -75,6 +77,10 @@ pub fn parse_sidecar_line(line: &str) -> Option<SidecarEvent> {
                 .get("path")
                 .and_then(|v| v.as_str())
                 .map(|v| v.to_string()),
+            max_edge: value
+                .get("maxEdge")
+                .and_then(|v| v.as_u64())
+                .and_then(|v| u32::try_from(v).ok()),
         }),
         "error" => Some(SidecarEvent::Error {
             message: value.get("message")?.as_str()?.to_string(),
@@ -687,6 +693,22 @@ mod tests {
                 id: "req-1".to_string(),
                 action: "export-pdf".to_string(),
                 path: Some("invoices/INV-1.md".to_string()),
+                max_edge: None,
+            })
+        );
+    }
+
+    #[test]
+    fn 撮る大きさの指定を受け取る() {
+        // 受け取った画像をどれだけの大きさで扱えるかを知っているのは依頼元だけなので、
+        // 指定はそのまま画面まで通す。
+        assert_eq!(
+            parse_sidecar_line(r#"{"type":"request","id":"a","action":"capture-window","maxEdge":800}"#),
+            Some(SidecarEvent::Request {
+                id: "a".to_string(),
+                action: "capture-window".to_string(),
+                path: None,
+                max_edge: Some(800),
             })
         );
     }
@@ -724,6 +746,7 @@ mod tests {
                 id: "a".to_string(),
                 action: "list-documents".to_string(),
                 path: None,
+                max_edge: None,
             })
         );
     }
