@@ -32,10 +32,17 @@ const BUILD_DIR = resolve(REPO_ROOT, 'apps/desktop/build');
  *
  * This is not a target to optimise against — it is the line that separates
  * "the shell" from "the shell plus a document renderer". The shell (Svelte
- * runtime, router, UI, translations) sits well under it; any one of the schema
+ * runtime, router, UI, translations) sits under it; any one of the schema
  * validators or the PDF renderer re-entering the entry graph pushes it over.
+ *
+ * The line moves only when the shell itself grows. It was 400 KB while the app
+ * had a single window; opening more than one put the window API on the startup
+ * path, which the shell now needs before it can decide what to restore. It is
+ * never raised to let a renderer through — the headroom above the shell is kept
+ * smaller than the smallest schema validator (~15 KB), so one of those landing
+ * in the entry graph still trips the check.
  */
-const BUDGET_BYTES = 400 * 1024;
+const BUDGET_BYTES = 425 * 1024;
 
 const LINK_TAG = /<link\b[^>]*>/gi;
 const HREF_ATTR = /href=["']([^"']+)["']/i;

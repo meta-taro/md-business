@@ -45,6 +45,21 @@ describe('createAppBridge', () => {
     await promise;
   });
 
+  it('撮る大きさの指定は、あるときだけ載せる', async () => {
+    const { sent, bridge } = setup();
+    const promise = bridge.request({ action: 'capture-window', maxEdge: 800 });
+    expect(sent[0]).toMatchObject({ action: 'capture-window', maxEdge: 800 });
+    bridge.settle({ type: 'response', id: sent[0]?.id ?? '', ok: true });
+    await promise;
+
+    const plain = setup();
+    const second = plain.bridge.request({ action: 'capture-window' });
+    // 指定が無いときに鍵だけ置くと、アプリ側は 0 を指定されたのか未指定なのか読めない。
+    expect('maxEdge' in (plain.sent[0] ?? {})).toBe(false);
+    plain.bridge.settle({ type: 'response', id: plain.sent[0]?.id ?? '', ok: true });
+    await second;
+  });
+
   it('応答が持ち帰った中身を呼び出し側へ渡す', async () => {
     const { sent, bridge } = setup();
     const promise = bridge.request({ action: 'list-documents' });

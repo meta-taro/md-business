@@ -4,6 +4,16 @@ Changes to this app. Versions follow [Semantic Versioning](https://semver.org/).
 
 Japanese is the source of truth for this file; see [CHANGELOG.md](./CHANGELOG.md).
 
+## 0.30.0
+
+### Added
+
+- **Two folders can now be open side by side, in two windows.** Add one from "New window" in the File menu. Each window holds one folder, and keeps its own file watcher, its own preview and its own endpoint for agents. You can fix a site you are building in one window while filling in a test sheet in the next. Each window remembers its own last folder, so the same pair comes back the next time you start the app. **The taskbar and Alt+Tab now show the name of the open folder** — two identical entries tell you nothing about which is which. It is the folder name rather than the document name because an entry that renames itself every time you switch documents is impossible to follow. Up to eight windows can be open at once; past that, "New window" is greyed out. Each window keeps things running of its own, so an unbounded count is more than a machine can carry — and leaving a menu item that does nothing when pressed makes it impossible to tell a limit from a fault.
+
+- **Opening the same folder in a second window is now refused.** The things each window keeps one of would otherwise contend for the same place. In particular the connection details for agents are written into the folder itself, and each window writes a different endpoint there. If a later window overwrites an earlier one's, **an agent you believed was connected to the first window quietly works on the other window's folder instead.** Along with the refusal, the window that already has that folder is brought to the front — if it is minimised, there is no way to go looking for it. A parent folder and a folder inside it point at different places, so both still open.
+
+- **An agent can now take a picture of the app's window and get it back as an image** (`capture_window` over MCP). An agent can read what a document says, but **not what the app is actually drawing**. A column running off the edge, a row that never got its colour, a dialog sitting behind another — none of that shows up however many times the file is read. What is captured is the surface the app holds, not the screen, so **nothing stacked in front of it appears, and it works while the window is minimised** (capturing the screen would hand over whatever other app happened to be in front at the time). Only this app's windows can be captured — not other applications, not the desktop. The long edge is scaled down to 1400 by default (200–4000 can be asked for; small windows are not enlarged). What comes back is **exactly what the person is looking at**, so the tool's own description says to check with them before pasting it anywhere visible from outside, such as an issue or a pull request.
+
 ## 0.29.0
 
 ### Added

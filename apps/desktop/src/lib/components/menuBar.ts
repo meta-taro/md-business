@@ -10,6 +10,7 @@ export type MenuId = 'file' | 'export' | 'view';
 
 export type MenuItemId =
 	| 'openFolder'
+	| 'newWindow'
 	| 'save'
 	| 'autosave'
 	| 'webMode'
@@ -28,7 +29,7 @@ export type MenuItemId =
 export const MENU_IDS: readonly MenuId[] = ['file', 'export', 'view'];
 
 export const MENU_ITEMS: Record<MenuId, readonly MenuItemId[]> = {
-	file: ['openFolder', 'save', 'autosave', 'webMode', 'revokeTrust'],
+	file: ['openFolder', 'newWindow', 'save', 'autosave', 'webMode', 'revokeTrust'],
 	export: ['pdf', 'html', 'image', 'site', 'browser', 'publish'],
 	view: ['theme', 'timeline', 'language'],
 };
@@ -53,6 +54,8 @@ export interface MenuCaps {
 	canPublish: boolean;
 	browserBusy: boolean;
 	timelineOpen: boolean;
+	/** もう 1 つ窓を開けるか（同時に開ける数には上限がある）。 */
+	canNewWindow: boolean;
 }
 
 export function itemsOf(menu: MenuId): readonly MenuItemId[] {
@@ -62,7 +65,12 @@ export function itemsOf(menu: MenuId): readonly MenuItemId[] {
 export function isItemEnabled(item: MenuItemId, caps: MenuCaps): boolean {
 	switch (item) {
 		case 'openFolder':
+			// 開く先はその窓で選ぶので、こちらで何か開いている必要は無い。
 			return !caps.loading;
+		case 'newWindow':
+			// 上限に達していたら灰色にする。押しても何も起きない項目を残すと、
+			// 開かなかったのが不具合なのか上限なのか区別が付かない。
+			return !caps.loading && caps.canNewWindow;
 		case 'save':
 			return caps.canSave;
 		case 'autosave':

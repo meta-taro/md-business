@@ -19,7 +19,7 @@ use std::thread;
 use std::time::Duration;
 
 use serde::Serialize;
-use tauri::{AppHandle, Manager, State};
+use tauri::AppHandle;
 
 use tauri_plugin_opener::OpenerExt;
 
@@ -52,7 +52,7 @@ struct Running {
     stopping: Arc<AtomicBool>,
 }
 
-/// アプリが持つ実行時状態。立っているのは常に 0 個か 1 個。
+/// 窓が持つ実行時状態。1 つの窓で立っているのは常に 0 個か 1 個。
 #[derive(Default)]
 pub struct PreviewServerState {
     running: Mutex<Option<Running>>,
@@ -285,13 +285,15 @@ fn info(running: &Running) -> PreviewServerInfo {
 #[tauri::command]
 pub fn start_preview_server(
     app: AppHandle,
-    state: State<'_, PreviewServerState>,
+    window: tauri::Window,
     root: String,
     files: Vec<SiteFile>,
     assets: Vec<SiteAsset>,
     policy: SitePolicy,
 ) -> Result<PreviewServerInfo, String> {
+    let state = crate::window_state::of(&window);
     let mut slot = state
+        .preview
         .running
         .lock()
         .map_err(|_| "状態を読めません".to_string())?;
@@ -311,12 +313,14 @@ pub fn start_preview_server(
 
 #[tauri::command]
 pub fn update_preview_server(
-    state: State<'_, PreviewServerState>,
+    window: tauri::Window,
     root: String,
     files: Vec<SiteFile>,
     assets: Vec<SiteAsset>,
 ) -> Result<(), String> {
+    let state = crate::window_state::of(&window);
     let slot = state
+        .preview
         .running
         .lock()
         .map_err(|_| "状態を読めません".to_string())?;
@@ -329,11 +333,10 @@ pub fn update_preview_server(
 
 /// 書き換わったファイル 1 つを、組み直さずに映す。その場で済んだら true。
 #[tauri::command]
-pub fn refresh_preview_asset(
-    state: State<'_, PreviewServerState>,
-    rel_path: String,
-) -> Result<bool, String> {
+pub fn refresh_preview_asset(window: tauri::Window, rel_path: String) -> Result<bool, String> {
+    let state = crate::window_state::of(&window);
     let slot = state
+        .preview
         .running
         .lock()
         .map_err(|_| "状態を読めません".to_string())?;
@@ -345,8 +348,10 @@ pub fn refresh_preview_asset(
 }
 
 #[tauri::command]
-pub fn stop_preview_server(state: State<'_, PreviewServerState>) -> Result<(), String> {
+pub fn stop_preview_server(window: tauri::Window) -> Result<(), String> {
+    let state = crate::window_state::of(&window);
     let mut slot = state
+        .preview
         .running
         .lock()
         .map_err(|_| "状態を読めません".to_string())?;
@@ -383,12 +388,14 @@ pub fn installed_browsers() -> Vec<String> {
 #[tauri::command]
 pub fn open_preview_in_browser(
     app: AppHandle,
-    state: State<'_, PreviewServerState>,
+    window: tauri::Window,
     browser: String,
 ) -> Result<(), String> {
     let program = browser_program(&browser, std::env::consts::OS)?;
+    let state = crate::window_state::of(&window);
     let url = {
         let slot = state
+            .preview
             .running
             .lock()
             .map_err(|_| "状態を読めません".to_string())?;
@@ -404,10 +411,10 @@ pub fn open_preview_in_browser(
 }
 
 #[tauri::command]
-pub fn preview_server_status(
-    state: State<'_, PreviewServerState>,
-) -> Result<Option<PreviewServerInfo>, String> {
+pub fn preview_server_status(window: tauri::Window) -> Result<Option<PreviewServerInfo>, String> {
+    let state = crate::window_state::of(&window);
     let slot = state
+        .preview
         .running
         .lock()
         .map_err(|_| "状態を読めません".to_string())?;
@@ -425,9 +432,8 @@ pub fn exported_site_csp(policy: SitePolicy) -> String {
     exported_content_security_policy(&policy)
 }
 
-/// アプリ終了時に畳む。放置すると待ち受けたままプロセスが残りうる。
-pub fn shutdown(app: &AppHandle) {
-    let state = app.state::<PreviewServerState>();
+/// 窓を閉じたとき・アプリ終了時に畳む。放置すると待ち受けたままプロセスが残りうる。
+pub fn shutdown(state: &PreviewServerState) {
     let Ok(mut slot) = state.running.lock() else {
         return;
     };

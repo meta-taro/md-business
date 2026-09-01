@@ -2,6 +2,10 @@ mod capture;
 pub mod capture_logic;
 #[cfg(windows)]
 mod capture_win;
+mod capture_window;
+pub mod capture_window_logic;
+#[cfg(windows)]
+mod capture_window_win;
 mod deep_link;
 mod fileinfo;
 mod git;
@@ -15,9 +19,15 @@ mod preview_server;
 mod preview_server_logic;
 mod trust;
 mod trust_logic;
+mod update_gate;
 mod watch;
 mod watch_logic;
+mod window_route;
+mod window_state;
 mod workspace;
+
+/// 最初に開く窓のラベル。`tauri.conf.json` の窓定義と揃える。
+pub const MAIN_WINDOW: &str = "main";
 
 /// アプリのエントリポイント。main / モバイル entry から共有される。
 /// Git / フォージ / PDF / MCP の Tauri command はこの Builder に順次登録する（Phase 3-4）。
@@ -41,12 +51,11 @@ pub fn run() {
         .plugin(tauri_plugin_process::init())
         // 外部リンク（リポジトリ / 操作マニュアル）を既定ブラウザで開く。権限は open-url のみ。
         .plugin(tauri_plugin_opener::init())
-        // ファイル監視の実行時状態（watcher ハンドル / 自己書き込み記録 / 監視ルート）。
-        .manage(watch::WatchState::default())
-        // 組み込み MCP サーバー（サイドカー）の実行時状態。
-        .manage(mcp::McpRuntime::default())
-        // ブラウザ表示用ローカルサーバーの実行時状態（立っているのは 0 個か 1 個）。
-        .manage(preview_server::PreviewServerState::default())
+        // 窓ごとの実行時状態（ファイル監視 / 組み込み MCP サーバー / ブラウザ表示の待ち受け）。
+        // どれも「開いているフォルダ 1 つ」に紐づくので、窓が増えたら実体も増える。
+        .manage(window_state::WindowStates::default())
+        // 更新確認の受け持ち（窓の数に関わらずプロセスに 1 回）。
+        .manage(update_gate::UpdateCheckOnce::default())
         // 起動引数で頼まれたファイル（画面が受け取りに来るまでの預かり）。
         .manage(open_arg::PendingOpen::default())
         // 共有リンクで頼まれた文書（同上）。
@@ -57,7 +66,7 @@ pub fn run() {
             app.handle()
                 .plugin(tauri_plugin_updater::Builder::new().build())?;
             // MCP は付加機能。起動に失敗しても劣化表示に留め、setup は成功させる。
-            mcp::start(app.handle());
+            mcp::start(app.handle(), MAIN_WINDOW);
             // 起動引数で開くよう頼まれていれば預かる（画面ができてから取りに来る）。
             open_arg::remember_startup_args(app.handle());
             #[cfg(desktop)]
@@ -93,6 +102,7 @@ pub fn run() {
             workspace::export_html,
             workspace::export_site,
             capture::export_image,
+            capture_window::capture_window,
             image::read_image,
             watch::watch_workspace,
             watch::unwatch_workspace,
@@ -123,6 +133,11 @@ pub fn run() {
             mcp::mcp_write_client_config,
             mcp::mcp_client_config,
             mcp::mcp_retry,
+            window_route::open_new_window,
+            window_route::can_open_new_window,
+            window_route::claim_root,
+            update_gate::claim_update_check,
+            update_gate::finish_update_check,
             open_arg::take_open_request,
             deep_link::take_link_request,
             preview_server::start_preview_server,
@@ -137,14 +152,22 @@ pub fn run() {
             trust::grant_project_trust,
             trust::revoke_project_trust
         ])
+        // 窓が閉じたら、その窓が外へ出したもの（監視・サイドカー・待ち受け）を畳む。
+        // 終了時の一括処理だけに任せると、閉じた窓のサイドカーがアプリを終えるまで残る。
+        .on_window_event(|window, event| {
+            if let tauri::WindowEvent::Destroyed = event {
+                use tauri::Manager;
+                window_state::close(window.app_handle(), window.label());
+            }
+        })
         .build(tauri::generate_context!())
         .expect("error while running tauri application")
         .run(|app, event| {
             // 終了時に外へ出したものを畳む。放置すると子プロセスが孤児として残り、
             // ブラウザ表示の待ち受けもポートを掴んだままになりうる。
             if let tauri::RunEvent::Exit = event {
-                mcp::shutdown(app);
-                preview_server::shutdown(app);
+                // 窓ごとに 1 組ずつあるので、閉じ残しが出ないよう全部辿る。
+                window_state::close_all(app);
             }
         });
 }

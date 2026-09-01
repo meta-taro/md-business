@@ -28,6 +28,8 @@ pub enum SidecarEvent {
         action: String,
         /// 対象のワークスペース相対パス。一覧のように対象を持たない依頼では無い。
         path: Option<String>,
+        /// 撮る画像の長辺の上限。撮る依頼のときだけ入る。
+        max_edge: Option<u32>,
     },
     /// サイドカー側の異常。サーバー本体は動き続ける前提。
     Error { message: String },
@@ -75,6 +77,10 @@ pub fn parse_sidecar_line(line: &str) -> Option<SidecarEvent> {
                 .get("path")
                 .and_then(|v| v.as_str())
                 .map(|v| v.to_string()),
+            max_edge: value
+                .get("maxEdge")
+                .and_then(|v| v.as_u64())
+                .and_then(|v| u32::try_from(v).ok()),
         }),
         "error" => Some(SidecarEvent::Error {
             message: value.get("message")?.as_str()?.to_string(),
@@ -521,6 +527,31 @@ pub fn merge_client_config(
     Ok(text)
 }
 
+/// 除外ファイルへ書く 1 行。リポジトリの根から見た設定ファイルの位置。
+///
+/// 開いたフォルダがリポジトリの根とは限らない。中のフォルダを開いたときに除外ファイル名だけを
+/// 書くと、除外ファイルは根に置かれるので、そのリポジトリ内のすべての同名ファイルを除外する
+/// 指定になる。逆に開いたフォルダの側へ除外ファイルを作ると、リポジトリの一部として
+/// **その除外ファイル自体が追跡対象**になり、増やしたつもりのないものが差分に出る。
+/// どちらも避けたいので、根の除外ファイルへ位置を固定した 1 行を書く。
+///
+/// 根をそのまま開いているときは今までどおりファイル名だけにする（既にそう書かれた
+/// リポジトリで二重に書き足さないため）。
+pub fn ignore_entry(repo_root: &Path, root: &Path) -> String {
+    let Ok(rel) = root.strip_prefix(repo_root) else {
+        return CONFIG_FILE_NAME.to_string();
+    };
+    let segments: Vec<String> = rel
+        .components()
+        .map(|c| c.as_os_str().to_string_lossy().into_owned())
+        .collect();
+    if segments.is_empty() {
+        return CONFIG_FILE_NAME.to_string();
+    }
+    // 除外ファイルの書式は OS を問わずスラッシュ区切り。
+    format!("/{}/{}", segments.join("/"), CONFIG_FILE_NAME)
+}
+
 /// 除外ファイルへ 1 行足した全文を返す。既に除外されていれば `None`（書き換え不要）。
 ///
 /// 設定ファイルには接続トークンが入る。追跡対象のまま置くと、公開リポジトリへそのまま載る。
@@ -662,6 +693,22 @@ mod tests {
                 id: "req-1".to_string(),
                 action: "export-pdf".to_string(),
                 path: Some("invoices/INV-1.md".to_string()),
+                max_edge: None,
+            })
+        );
+    }
+
+    #[test]
+    fn 撮る大きさの指定を受け取る() {
+        // 受け取った画像をどれだけの大きさで扱えるかを知っているのは依頼元だけなので、
+        // 指定はそのまま画面まで通す。
+        assert_eq!(
+            parse_sidecar_line(r#"{"type":"request","id":"a","action":"capture-window","maxEdge":800}"#),
+            Some(SidecarEvent::Request {
+                id: "a".to_string(),
+                action: "capture-window".to_string(),
+                path: None,
+                max_edge: Some(800),
             })
         );
     }
@@ -699,6 +746,7 @@ mod tests {
                 id: "a".to_string(),
                 action: "list-documents".to_string(),
                 path: None,
+                max_edge: None,
             })
         );
     }
@@ -1140,6 +1188,30 @@ mod tests {
 
     // 設定ファイルには接続トークンが入る。git 管理下のフォルダなら、追跡対象に
     // 入らないようにしてから書く（公開リポジトリへそのまま載る事故を防ぐ）。
+
+    #[test]
+    fn リポジトリの根を開いていれば除外指定はファイル名だけ() {
+        let repo = PathBuf::from("/repo");
+        assert_eq!(ignore_entry(&repo, &repo), CONFIG_FILE_NAME);
+    }
+
+    #[test]
+    fn リポジトリの中のフォルダを開いたら根からの道順で除外する() {
+        // 開いたフォルダに `.git` が無くても、上にリポジトリがあれば追跡対象になる。
+        // ファイル名だけ書くとリポジトリ内のすべての `.mcp.json` を除外してしまうので、
+        // 位置を固定した書き方にする。
+        let repo = PathBuf::from("/repo");
+        let root = repo.join("apps").join("lp");
+        assert_eq!(ignore_entry(&repo, &root), "/apps/lp/.mcp.json");
+    }
+
+    #[test]
+    fn 除外指定の区切りはスラッシュにそろえる() {
+        // 除外ファイルの書式は OS を問わずスラッシュ区切り。
+        let repo = PathBuf::from("/repo");
+        let root = repo.join("a").join("b");
+        assert!(!ignore_entry(&repo, &root).contains('\\'));
+    }
 
     #[test]
     fn 除外指定が無ければ書き足す() {

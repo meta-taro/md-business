@@ -213,6 +213,7 @@ export interface Messages {
   'tree.emptyHint': string;
   'tree.loading': string;
   'tree.openFolder': string;
+  'action.newWindow': string;
   'tree.filterNoMatch': string;
   'tree.noFiles': string;
   'tree.noFilesWeb': string;
@@ -878,6 +879,7 @@ const en: Messages = {
   'tree.emptyHint': 'Open a folder to\nsee the document tree',
   'tree.loading': 'Loading…',
   'tree.openFolder': 'Open folder',
+  'action.newWindow': 'New window',
   'tree.filterNoMatch': 'No files match\n"{query}"',
   'tree.noFiles': 'No .md / .tsv\nfiles found',
   'tree.noFilesWeb': 'Nothing here yet\nHTML / CSS show up too',
@@ -1539,6 +1541,7 @@ const ja: Messages = {
   'tree.emptyHint': 'フォルダを開くと\n文書ツリーが表示されます',
   'tree.loading': '読み込み中…',
   'tree.openFolder': 'フォルダを開く',
+  'action.newWindow': '別の窓を開く',
   'tree.filterNoMatch': '「{query}」に\n一致するファイルがありません',
   'tree.noFiles': '.md / .tsv が\n見つかりませんでした',
   'tree.noFilesWeb': 'まだ何もありません\nHTML / CSS もここに並びます',
@@ -2192,6 +2195,7 @@ const zh: Messages = {
   'tree.emptyHint': '打开文件夹后\n将显示文档树',
   'tree.loading': '加载中…',
   'tree.openFolder': '打开文件夹',
+  'action.newWindow': '打开新窗口',
   'tree.filterNoMatch': '没有匹配\n“{query}”的文件',
   'tree.noFiles': '未找到\n.md / .tsv 文件',
   'tree.noFilesWeb': '这里还是空的\nHTML / CSS 也会出现在这里',
@@ -2842,6 +2846,7 @@ const ko: Messages = {
   'tree.emptyHint': '폴더를 열면\n문서 트리가 표시됩니다',
   'tree.loading': '불러오는 중…',
   'tree.openFolder': '폴더 열기',
+  'action.newWindow': '새 창 열기',
   'tree.filterNoMatch': '"{query}"과(와)\n일치하는 파일이 없습니다',
   'tree.noFiles': '.md / .tsv 파일을\n찾을 수 없습니다',
   'tree.noFilesWeb': '아직 아무것도 없습니다\nHTML / CSS도 여기에 표시됩니다',

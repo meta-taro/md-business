@@ -59,6 +59,7 @@ import {
 } from './tabs';
 import { ancestorFolders, chooseOpenRoot, resolveOpenTarget } from './openTarget';
 import { parseShareLink, resolveShareFolder, type ShareCandidate } from './shareLink';
+import { windowKey } from '$lib/window/scopedKey';
 
 /** Rust `git_identity` の戻り（serde camelCase）。 */
 interface GitIdentity {
@@ -67,11 +68,16 @@ interface GitIdentity {
   prefix: string;
 }
 
-/** 最後に開いたフォルダの localStorage キー（左レール幅等と同じ名前空間）。 */
-const LAST_FOLDER_KEY = 'md-business:desktop:last-folder';
+/**
+ * 最後に開いたフォルダの localStorage キー（左レール幅等と同じ名前空間）。
+ *
+ * 窓ごとに分ける。2 つの窓で別のフォルダを開いているとき、同じ名前で書くと後から
+ * 保存した側が上書きし、次の起動で両方が同じフォルダを開く。
+ */
+const LAST_FOLDER_KEY = windowKey('md-business:desktop:last-folder');
 
 /** 復元の読み込み中に立てる印の localStorage キー。終わったら消す。 */
-const RESTORE_ATTEMPT_KEY = 'md-business:desktop:restore-attempt';
+const RESTORE_ATTEMPT_KEY = windowKey('md-business:desktop:restore-attempt');
 
 /** 過去に開いたフォルダ一覧の localStorage キー。 */
 const RECENT_FOLDERS_KEY = 'md-business:desktop:recent-folders';
@@ -681,8 +687,29 @@ class WorkspaceStore {
     return out;
   }
 
+  /**
+   * このフォルダを別の窓が開いていないか尋ねる。開いていればその窓の名前（前に出される）。
+   *
+   * 尋ねられないとき（Tauri の外・古い版）は開かせる。確かめられないことを理由に
+   * 開けなくするほうが困る。
+   */
+  private async claimRoot(root: string): Promise<string | null> {
+    try {
+      return await invoke<string | null>('claim_root', { root });
+    } catch {
+      return null;
+    }
+  }
+
   /** ルート配下を走査し、ツリー・展開状態を更新する。 */
   private async scan(root: string): Promise<void> {
+    // 同じフォルダを 2 つの窓で開くと、窓ごとに 1 本ずつ持つもの（監視・MCP サーバー）が
+    // 同じ場所を取り合う。とくに `.mcp.json` は後から開いた窓が先の窓の分を上書きするので、
+    // 先の窓につないだつもりのエージェントが黙って別の窓へ行く。開く前に断る。
+    if ((await this.claimRoot(root)) !== null) {
+      this.error = 'このフォルダは別の窓で開いています（その窓を前に出しました）。';
+      return;
+    }
     this.loading = true;
     // 前のフォルダで出した知らせを持ち越さない（失敗して開けなかった場合も含む）。
     this.noticeRestored(false);

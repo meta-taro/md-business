@@ -19,6 +19,7 @@
   } from '$lib/preview/siteExportController.svelte';
   import { publish } from '$lib/preview/publishController.svelte';
   import { openUrl } from '@tauri-apps/plugin-opener';
+  import { invoke } from '@tauri-apps/api/core';
   import {
     browserPreview,
     type BrowserPreviewNotice,
@@ -51,6 +52,9 @@
   onMount(() => void browserPreview.detectBrowsers());
 
   let openMenu = $state<MenuId | null>(null);
+  // 同時に開ける窓には上限がある。メニューを開くたびに聞き直すのは、
+  // ほかの窓が閉じれば また開けるようになるため（開いたときの値では古くなる）。
+  let canNewWindow = $state(true);
   const buttons: Partial<Record<MenuId, HTMLButtonElement>> = {};
 
   const caps = $derived<MenuCaps>({
@@ -69,7 +73,15 @@
     declaredWeb: browserPreview.declaredWeb,
     canDeclareWeb: browserPreview.canDeclareWeb,
     timelineOpen: timelineView.active,
+    canNewWindow,
   });
+
+  /** 上限に達していないかを聞き直す。聞けなければ押せるままにする（開こうとして断られる）。 */
+  function refreshCanNewWindow(): void {
+    void invoke<boolean>('can_open_new_window')
+      .then((ok) => (canNewWindow = ok))
+      .catch(() => undefined);
+  }
 
   function menuLabel(menu: MenuId): string {
     if (menu === 'file') return t('menu.file');
@@ -81,6 +93,8 @@
     switch (item) {
       case 'openFolder':
         return t('tree.openFolder');
+      case 'newWindow':
+        return t('action.newWindow');
       case 'save':
         return workspace.saving ? t('action.saving') : t('action.save');
       case 'autosave':
@@ -122,6 +136,11 @@
     switch (item) {
       case 'openFolder':
         void workspace.openFolder();
+        return;
+      case 'newWindow':
+        // 開く先はできた窓の中で選ぶ。ここで選ばせると、こちらの窓のフォルダが
+        // 一瞬入れ替わったように見える。
+        void invoke('open_new_window').catch(() => undefined);
         return;
       case 'save':
         void workspace.save();
@@ -175,11 +194,13 @@
 
   function toggleMenu(menu: MenuId): void {
     openMenu = openMenu === menu ? null : menu;
+    if (openMenu === 'file') refreshCanNewWindow();
   }
 
   function moveMenu(from: MenuId, step: 1 | -1): void {
     const next = nextMenuId(from, step);
     openMenu = next;
+    if (next === 'file') refreshCanNewWindow();
     buttons[next]?.focus();
   }
 
@@ -253,7 +274,9 @@
           bind:this={buttons[menu]}
           onclick={() => toggleMenu(menu)}
           onmouseenter={() => {
-            if (openMenu !== null) openMenu = menu;
+            if (openMenu === null) return;
+            openMenu = menu;
+            if (menu === 'file') refreshCanNewWindow();
           }}
           onkeydown={(event) => onMenuKeydown(event, menu)}
           aria-haspopup="menu"

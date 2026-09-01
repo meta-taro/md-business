@@ -71,6 +71,21 @@ export const titlebarController = {
     }
   },
 
+  /**
+   * OS 側の窓の題名を差し替える。
+   *
+   * 窓を 2 つ以上並べられるので、タスクバー・Alt+Tab で見分けが付かないと
+   * 目的の窓へ戻れない。画面の中の題名（TopBar 中央）とは別物で、こちらは窓の外向き。
+   */
+  async setTitle(title: string): Promise<void> {
+    if (!inTauri()) return;
+    try {
+      await (await appWindow()).setTitle(title);
+    } catch {
+      // noop
+    }
+  },
+
   /** ウィンドウを閉じる。 */
   async close(): Promise<void> {
     if (!inTauri()) return;

@@ -3,6 +3,7 @@
   import { titlebarController } from '$lib/window/titlebar.svelte';
   import { workspace } from '$lib/workspace/workspace.svelte';
   import { documentDisplayName } from '$lib/window/docTitle';
+  import { osWindowTitle } from '$lib/window/osTitle';
   import { t } from '$lib/i18n/i18n.svelte';
 
   // フレームレス（decorations:false）のため、この TopBar 自体が OS タイトルバーを兼ねる。
@@ -11,6 +12,13 @@
   // pointer-events:none で地に貫通させ、どこを掴んでも窓を動かせる。
   onMount(() => {
     titlebarController.init();
+  });
+
+  // OS 側の窓の題名は開いているフォルダ名にする。窓ごとに 1 フォルダなので、
+  // これがタスクバー・Alt+Tab での唯一の見分けになる。文書名にすると、文書を
+  // 切り替えるたびにタスクバーの項目名が変わって目で追えなくなる。
+  $effect(() => {
+    titlebarController.setTitle(osWindowTitle(workspace.root));
   });
 
   // 中央の表示名。文書種別が判るときは frontmatter / TSV メタから意味のある名前を組み、

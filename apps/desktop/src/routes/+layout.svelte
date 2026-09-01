@@ -213,6 +213,17 @@
       }
       return;
     }
+    // 窓そのものを撮る依頼。フォルダを開いていなくても、開いていない画面が写るだけなので
+    // 撮れる（「何も開いていない」ことも見れば分かる情報になる）。
+    if (request.action === 'capture-window') {
+      try {
+        const shot = await invoke<unknown>('capture_window', { maxEdge: request.maxEdge ?? null });
+        await respond(true, null, shot);
+      } catch (error) {
+        await respond(false, typeof error === 'string' ? error : '窓を撮れませんでした');
+      }
+      return;
+    }
     // ここから先は対象を伴う依頼だけ（parseRequestEvent が保証している）。
     const target = request.path;
     if (target === undefined) return;
@@ -357,7 +368,20 @@
     });
     // 起動時の自動アップデート確認。起動直後の復元処理と競合させないよう少し遅らせ、
     // 更新があるときだけダイアログを出す（最新 / 失敗時は沈黙）。
-    const t = setTimeout(() => void updater.autoCheck(), 3000);
+    // 窓が 2 つあっても確認は 1 回。同じ知らせが 2 枚重なって出ないように、
+    // 先に言い出した窓だけが受け持つ。
+    const t = setTimeout(() => {
+      void invoke<boolean>('claim_update_check')
+        .then((mine) => {
+          if (!mine) return;
+          // 見終わるまで受け持ちを離さない。途中でこの窓を閉じても、
+          // 残った窓が受け持ち直せるように Rust 側が手放す。
+          return updater
+            .autoCheck()
+            .finally(() => void invoke('finish_update_check').catch(() => undefined));
+        })
+        .catch(() => undefined);
+    }, 3000);
     return () => {
       clearTimeout(t);
       unlisten?.();

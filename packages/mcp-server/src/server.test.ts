@@ -768,7 +768,7 @@ describe('createServer / git ツール', () => {
 describe('createServer / export_pdf ツール', () => {
   /** 依頼を控え、決まった結果を返すアプリ側の代役。 */
   function fakeApp(result: { ok: true; data?: unknown } | { ok: false; error: string }) {
-    const requests: { action: string; path?: string }[] = [];
+    const requests: { action: string; path?: string; maxEdge?: number }[] = [];
     return {
       requests,
       request: async (req: {
@@ -777,8 +777,10 @@ describe('createServer / export_pdf ツール', () => {
           | 'open-document'
           | 'close-document'
           | 'list-documents'
-          | 'trust-status';
+          | 'trust-status'
+          | 'capture-window';
         path?: string;
+        maxEdge?: number;
       }) => {
         requests.push(req);
         return result;
@@ -1319,5 +1321,90 @@ describe('createServer / onLog フック', () => {
     const client = await connect(new MemoryDocumentStore());
     const res = await client.callTool({ name: 'list_schemas', arguments: {} });
     expect((res as CallToolResult).isError).not.toBe(true);
+  });
+});
+
+describe('createServer / capture_window ツール', () => {
+  /** 撮れたことにするアプリ側の代役。 */
+  function fakeApp(result: { ok: true; data?: unknown } | { ok: false; error: string }) {
+    const requests: { action: string; maxEdge?: number }[] = [];
+    return {
+      requests,
+      request: async (req: { action: string; maxEdge?: number }) => {
+        requests.push(req);
+        return result;
+      },
+      settle: () => {},
+    };
+  }
+
+  async function connectWithApp(app: ReturnType<typeof fakeApp>): Promise<Client> {
+    const server = createServer(new MemoryDocumentStore(), {
+      app: app as unknown as Parameters<typeof createServer>[1] extends { app?: infer A }
+        ? NonNullable<A>
+        : never,
+    });
+    const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+    const client = new Client({ name: 'test-client', version: '0.0.0' });
+    await Promise.all([client.connect(clientTransport), server.connect(serverTransport)]);
+    return client;
+  }
+
+  const shot = {
+    data: 'iVBORw0KGgo=',
+    width: 1400,
+    height: 875,
+    windowWidth: 1920,
+    windowHeight: 1200,
+  };
+
+  it('アプリとの連絡手段が無ければ公開しない', async () => {
+    // 画面が無いところで「撮れます」と名乗ると、呼んだ側は時間切れまで待つ。
+    const client = await connect(new MemoryDocumentStore());
+    const { tools } = await client.listTools();
+    expect(tools.map((t) => t.name)).not.toContain('capture_window');
+  });
+
+  it('撮れた画像を画像として返す', async () => {
+    const app = fakeApp({ ok: true, data: shot });
+    const client = await connectWithApp(app);
+    const res = (await client.callTool({
+      name: 'capture_window',
+      arguments: {},
+    })) as CallToolResult;
+    expect(res.isError).not.toBe(true);
+    // 文字として返すと、受け取った側は画像を見られない。
+    expect(res.content[0]).toEqual({ type: 'image', data: shot.data, mimeType: 'image/png' });
+    expect(app.requests).toEqual([{ action: 'capture-window' }]);
+  });
+
+  it('大きさの指定はアプリまで渡す', async () => {
+    const app = fakeApp({ ok: true, data: shot });
+    const client = await connectWithApp(app);
+    await client.callTool({ name: 'capture_window', arguments: { maxEdge: 800 } });
+    expect(app.requests).toEqual([{ action: 'capture-window', maxEdge: 800 }]);
+  });
+
+  it('撮れなかった理由はそのまま返す', async () => {
+    const app = fakeApp({ ok: false, error: 'この環境では窓を撮れません' });
+    const client = await connectWithApp(app);
+    const res = (await client.callTool({
+      name: 'capture_window',
+      arguments: {},
+    })) as CallToolResult;
+    const { text, isError } = parse(res);
+    expect(isError).toBe(true);
+    expect(text).toMatchObject({ ok: false, error: 'この環境では窓を撮れません' });
+  });
+
+  it('画像になっていない答えを成功として返さない', async () => {
+    // 空の答えを通すと、受け取った側は真っ白な画面を見たことになる。
+    const app = fakeApp({ ok: true, data: { width: 10 } });
+    const client = await connectWithApp(app);
+    const res = (await client.callTool({
+      name: 'capture_window',
+      arguments: {},
+    })) as CallToolResult;
+    expect(parse(res).isError).toBe(true);
   });
 });

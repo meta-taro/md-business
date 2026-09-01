@@ -141,14 +141,24 @@ export interface RootEvent {
  *
  * `trust-status` は「このフォルダで script を動かしてよいか」の照会。許可はアプリだけが
  * 持っていて、この路からは尋ねられるだけで、与えることはできない。
+ *
+ * `capture-window` はアプリの窓を撮る依頼。画面はアプリにしかない。
  */
 export interface RequestEvent {
   type: 'request';
   /** 応答を突き合わせるための id。 */
   id: string;
-  action: 'export-pdf' | 'open-document' | 'close-document' | 'list-documents' | 'trust-status';
+  action:
+    | 'export-pdf'
+    | 'open-document'
+    | 'close-document'
+    | 'list-documents'
+    | 'trust-status'
+    | 'capture-window';
   /** 対象のワークスペース相対パス。一覧のように対象を持たない依頼では省く。 */
   path?: string;
+  /** 撮る画像の長辺の上限。撮る依頼のときだけ載せる。 */
+  maxEdge?: number;
 }
 
 /** 制御チャネル上の異常（コマンド解釈失敗など）。サーバー本体は動き続ける。 */

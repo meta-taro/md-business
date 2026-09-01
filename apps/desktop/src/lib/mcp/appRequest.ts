@@ -14,7 +14,8 @@ export type AppRequestAction =
   | 'open-document'
   | 'close-document'
   | 'list-documents'
-  | 'trust-status';
+  | 'trust-status'
+  | 'capture-window';
 
 const ACTIONS: readonly string[] = [
   'export-pdf',
@@ -22,13 +23,18 @@ const ACTIONS: readonly string[] = [
   'close-document',
   'list-documents',
   'trust-status',
+  'capture-window',
 ];
 
 /**
- * 対象を伴わない依頼。開いているものを尋ねる・このフォルダが許されているかを尋ねる、
- * どちらもフォルダそのものへの問いなので、中のどれかを指す必要が無い。
+ * 対象を伴わない依頼。開いているものを尋ねる・このフォルダが許されているかを尋ねる・
+ * 窓を撮る。いずれも窓やフォルダそのものへの用件で、中のどれかを指す必要が無い。
  */
-const ACTIONS_WITHOUT_TARGET: readonly string[] = ['list-documents', 'trust-status'];
+const ACTIONS_WITHOUT_TARGET: readonly string[] = [
+  'list-documents',
+  'trust-status',
+  'capture-window',
+];
 
 /** サーバーから届く依頼。 */
 export interface AppRequestPayload {
@@ -36,6 +42,8 @@ export interface AppRequestPayload {
   action: AppRequestAction;
   /** 対象のワークスペース相対パス。一覧のように対象を持たない依頼では無い。 */
   path?: string;
+  /** 撮る画像の長辺の上限。撮る依頼のときだけ入る。 */
+  maxEdge?: number;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -54,7 +62,12 @@ export function parseRequestEvent(payload: unknown): AppRequestPayload | null {
   const action = payload['action'];
   if (typeof action !== 'string' || !ACTIONS.includes(action)) return null;
   if (ACTIONS_WITHOUT_TARGET.includes(action)) {
-    return { id, action: action as AppRequestAction };
+    const maxEdge = payload['maxEdge'];
+    // 数でない指定は無かったことにする。ここで依頼ごと落とすと、撮れるはずの依頼が
+    // 画面へ届かないまま依頼元が時間切れになる。
+    return typeof maxEdge === 'number' && Number.isFinite(maxEdge)
+      ? { id, action: action as AppRequestAction, maxEdge }
+      : { id, action: action as AppRequestAction };
   }
   // 対象を要する依頼で path が無いと、どれを指しているのか決められない。
   const path = nonEmptyString(payload['path']);

@@ -244,6 +244,7 @@ The desktop app is where the source-of-truth layer becomes operable by an AI age
 - Test sheets are the tab-separated format, not Markdown, so the agent fills them in row by row: rows it did not touch stay out of the diff. `search_documents` lists them alongside the Markdown documents, so the agent can find a sheet without being told its path.
 - When the folder is a git repository, `git_status`, `git_diff` and `git_commit` let the agent review what it changed and record it — so a day of edits ends as readable history rather than an untracked pile.
 - `export_pdf` asks the app to open a document and bring up the print dialog, so the agent can hand you a finished A4 page to save — where it goes is still your choice.
+- `capture_window` photographs the app's own window, so the agent can see what it actually renders instead of guessing from the file. Only this window is in the picture — whatever else is on your desk stays off it — and the picture is still yours, so it goes nowhere public unless you say so.
 - Reach is limited to the folder currently open in the app, the server binds to loopback only, and requests without the matching token are rejected.
 - When the agent writes, the file list and preview follow along on their own — no reload, no manual refresh.
 
