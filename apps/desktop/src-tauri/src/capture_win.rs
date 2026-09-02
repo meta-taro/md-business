@@ -335,8 +335,17 @@ mod tests {
         Some((width, height, bytes[25]))
     }
 
-    fn work_dir() -> std::path::PathBuf {
-        std::env::temp_dir().join("md-business-capture-test")
+    /// WebView2 の作業場所は、テストごとに分ける。
+    ///
+    /// 同じフォルダを 2 つの WebView2 が同時に開くことはできない。断られるだけなら
+    /// 見送りとして扱えるが、実際には**プロセスごと落ちる**（テストは並列に走るので、
+    /// 撮るテストが 3 本重なると時々そうなる）。落ちた側は結果を報告しないまま消えるため、
+    /// 一覧には「まだ走っていないテスト」だけが残り、どれが原因かは出てこない。
+    fn work_dir(name: &str) -> std::path::PathBuf {
+        std::env::temp_dir().join(format!(
+            "md-business-capture-test-{}-{name}",
+            std::process::id()
+        ))
     }
 
     /// WebView2 そのものが無い環境（ランタイム未導入・画面の無いセッション）では
@@ -356,7 +365,7 @@ mod tests {
             scale: 2.0,
             format: ImageFormat::Png { transparent: false },
         };
-        match capture(html, &spec, &work_dir()) {
+        match capture(html, &spec, &work_dir("scale")) {
             // 撮る窓は 1200×630 より小さい。それでも 2 倍の 2400×1260 が出る。
             Ok(bytes) => assert_eq!(png_head(&bytes).map(|(w, h, _)| (w, h)), Some((2400, 1260))),
             Err(message) if skipped(&message) => eprintln!("見送り: {message}"),
@@ -374,7 +383,7 @@ mod tests {
             scale: 1.0,
             format: ImageFormat::Png { transparent: true },
         };
-        match capture(html, &spec, &work_dir()) {
+        match capture(html, &spec, &work_dir("alpha")) {
             // カラータイプ 6 = RGBA。背景を抜かないと 2（RGB）になる。
             Ok(bytes) => assert_eq!(png_head(&bytes).map(|(_, _, kind)| kind), Some(6)),
             Err(message) if skipped(&message) => eprintln!("見送り: {message}"),
@@ -391,7 +400,7 @@ mod tests {
             scale: 1.0,
             format: ImageFormat::Jpeg { quality: 85 },
         };
-        match capture(html, &spec, &work_dir()) {
+        match capture(html, &spec, &work_dir("jpeg")) {
             Ok(bytes) => {
                 assert_eq!(&bytes[0..2], &[0xff, 0xd8], "JPEG の先頭ではない");
                 assert!(png_head(&bytes).is_none(), "PNG が返っている");
@@ -409,7 +418,7 @@ mod tests {
             scale: 1.0,
             format: ImageFormat::Png { transparent: false },
         };
-        let message = capture("<p>x</p>", &spec, &work_dir()).expect_err("断るはず");
+        let message = capture("<p>x</p>", &spec, &work_dir("reject")).expect_err("断るはず");
         assert!(message.contains("1 以上"), "{message}");
     }
 }

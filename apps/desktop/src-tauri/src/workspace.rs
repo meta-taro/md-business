@@ -132,7 +132,10 @@ fn is_writable_ext(path: &Path) -> bool {
     lower_ext(path).is_some_and(|e| WRITABLE_EXTS.contains(&e.as_str()))
 }
 
-/// ツリーに出す拡張子か（文書 ＋ 画像）。走査・監視・外から開く口で同じ範囲を使う。
+/// ツリーに出す拡張子か（文書 ＋ 画像）。走査・監視で同じ範囲を使う。
+///
+/// web を名乗るフォルダではここに収まらない（[`is_tree_ext_for`] が広げる）。
+/// 外から開く口はどちらのフォルダにも来るので、広いほうの [`is_tree_ext_for`] を見る。
 pub(crate) fn is_tree_ext(ext: &str) -> bool {
     ALLOWED_EXTS.contains(&ext) || IMAGE_EXTS.contains(&ext)
 }

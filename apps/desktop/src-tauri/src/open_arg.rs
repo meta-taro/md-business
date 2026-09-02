@@ -38,16 +38,21 @@ pub fn parse_open_arg(argv: &[String]) -> Option<String> {
 /// 引数には関係のない文字列が混ざりうる。存在しないものを通すと、画面が今開いている
 /// フォルダを見当違いの場所へ切り替えてしまう（利用者から見ると勝手に閉じたように映る）。
 ///
-/// 種類を画面と同じ範囲（`workspace::is_tree_ext`）へ絞るのは、この経路が外から任意のパスで
+/// 種類を画面と同じ範囲（`workspace::is_tree_ext_for`）へ絞るのは、この経路が外から任意のパスで
 /// 叩けるため。今は関連付けを登録していないので実行ファイルを渡しても実行はされないが、
 /// 「開けないものを開こうとして画面が別の場所を向く」ところまでは起こせる。
+///
+/// web を名乗るフォルダかどうかを、ここでは見ない。宣言（`md-business.yml`）を読み解くのは
+/// 画面側の 1 か所だけと決めてあり、読み手を増やすと同じファイルに 2 つの答えが出る。
+/// だから受け取る側は広いほうに合わせ、出すかどうかは画面が決める。狭いほうに合わせると、
+/// 一覧に並んでいる `.astro` を頼んでも何も起きない——実際にそうなっていた。
 fn accept(raw: &str) -> Option<String> {
     let path = std::path::Path::new(raw);
     if !path.is_file() {
         return None;
     }
     let ext = path.extension()?.to_string_lossy().to_lowercase();
-    if !crate::workspace::is_tree_ext(ext.as_str()) {
+    if !crate::workspace::is_tree_ext_for(ext.as_str(), true) {
         return None;
     }
     Some(path.to_string_lossy().into_owned())
@@ -188,6 +193,17 @@ mod tests {
         let path = temp_file("UPPER.TSV");
         assert!(accept(&path.to_string_lossy()).is_some());
         let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
+    fn サイトの部品も受け取る() {
+        // web を名乗るフォルダでは、一覧に .astro / .ts / .css も並ぶ。
+        // 一覧に出るのに外から開く口だけが受け取らないと、開いたつもりで何も起きない。
+        for name in ["page.astro", "main.ts", "style.css", "index.html"] {
+            let path = temp_file(name);
+            assert!(accept(&path.to_string_lossy()).is_some(), "{name}");
+            let _ = std::fs::remove_file(&path);
+        }
     }
 
     #[test]
