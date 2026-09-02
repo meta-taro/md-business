@@ -2,6 +2,9 @@ import { describe, it, expect } from 'vitest';
 import changelog from '../../../CHANGELOG.md?raw';
 import changelogEn from '../../../CHANGELOG.en.md?raw';
 import tauriConf from '../../../src-tauri/tauri.conf.json?raw';
+import desktopPackageJson from '../../../package.json?raw';
+import cargoToml from '../../../src-tauri/Cargo.toml?raw';
+import cargoLock from '../../../src-tauri/Cargo.lock?raw';
 import { LOCALES } from '../i18n/locales';
 import {
   parseChangelog,
@@ -141,5 +144,31 @@ describe('recentReleases — 表示言語ごとの変更履歴', () => {
   it('英語側の先頭の版も、配布するアプリの版と一致する', () => {
     const version = (JSON.parse(tauriConf) as { version: string }).version;
     expect(recentReleases('en')[0]?.version).toBe(version);
+  });
+});
+
+describe('版を書いてある場所が揃っている', () => {
+  /**
+   * 版は 4 か所に書いてある。tauri.conf.json / package.json / Cargo.toml と、
+   * Cargo.toml の写しである Cargo.lock。上げるときは 4 つ同時に上げる必要があるが、
+   * lock は手で書き換える対象に見えないので落としやすい。
+   *
+   * 落とすと、ここではなく CI の `cargo clippy --locked` が
+   * 「lock を更新できない」という別の顔をしたエラーで落ちる。
+   * 版がずれているとは書いていないので、原因に辿り着くのに遠回りをする。
+   */
+  const version = (JSON.parse(tauriConf) as { version: string }).version;
+
+  it('package.json の版が一致する', () => {
+    expect((JSON.parse(desktopPackageJson) as { version: string }).version).toBe(version);
+  });
+
+  it('Cargo.toml の版が一致する', () => {
+    expect(/^version = "(.+)"$/m.exec(cargoToml)?.[1]).toBe(version);
+  });
+
+  it('Cargo.lock に写した版が一致する', () => {
+    const block = /name = "md-business-desktop"\s+version = "(.+)"/.exec(cargoLock);
+    expect(block?.[1]).toBe(version);
   });
 });

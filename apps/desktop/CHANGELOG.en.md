@@ -4,6 +4,12 @@ Changes to this app. Versions follow [Semantic Versioning](https://semver.org/).
 
 Japanese is the source of truth for this file; see [CHANGELOG.md](./CHANGELOG.md).
 
+## 0.30.1
+
+### Fixed
+
+- **Tabs could be picked up but not reordered — the cursor showed the "no drop" sign.** Reordering was added in 0.16.0 and has never worked on Windows since. The cause is not in the page but in the window: a window comes with a receiver for files dropped from the desktop, and while that is on, **WebView2 takes over every drag over the surface**. A reorder that never leaves the page is taken along with the rest, so a tab can be picked up and never put down. This app does not use drops from the desktop, so the receiver is now off. **It applies to every open window** — later windows are built from the first window's settings. A test fails if the setting comes back, since it would bring the same breakage with it.
+
 ## 0.30.0
 
 ### Added

@@ -268,6 +268,26 @@ mod tests {
     }
 
     #[test]
+    fn 窓はアプリの外からのドロップ受け取りを切ってある() {
+        // 受け取りを有効にすると、WebView2 が面へ OS のドロップ先を差し込み、
+        // 画面の中だけで完結するドラッグ（タブの並べ替え）まで横取りする。
+        // 掴んでも「禁止」の印が出て落とせない、という形で現れる。
+        // このアプリは OS からのドロップを使っていないので切る。
+        // 2 枚目以降の窓は最初の窓の設定を写して作るので、ここが false なら全部に効く。
+        let conf: serde_json::Value =
+            serde_json::from_str(include_str!("../tauri.conf.json")).expect("設定が読める");
+        let windows = conf["app"]["windows"].as_array().expect("窓の定義がある");
+        for window in windows {
+            assert_eq!(
+                window["dragDropEnabled"].as_bool(),
+                Some(false),
+                "窓 {:?} で OS のドロップ受け取りが切られていない",
+                window["label"]
+            );
+        }
+    }
+
+    #[test]
     fn 閉じた窓宛の預かりは捨てる() {
         // 番号は使い回されるので、残しておくと前の窓宛の依頼があとの窓で開く。
         let pending = PendingByWindow::default();
