@@ -3,7 +3,7 @@
   import { themeController } from '$lib/theme.svelte';
   import BrowserOpenButtons from '$lib/components/BrowserOpenButtons.svelte';
   import { browserPreview } from '$lib/preview/browserPreviewController.svelte';
-  import { livePreviewUrl, sitePartView } from '$lib/preview/livePreview';
+  import { livePreviewUrl, paneOrigin, sitePartView } from '$lib/preview/livePreview';
   import { previewRenderer } from '$lib/preview/previewRenderer.svelte';
   import type { PreviewResult } from '$lib/preview/previewFactory';
   import { frontmatterMessage } from '$lib/preview/frontmatterMessage';
@@ -1117,6 +1117,7 @@
       relPath: workspace.activePath,
     }),
   );
+  const previewOrigin = $derived(paneOrigin(liveUrl, browserPreview.declaredDev));
   const sitePane = $derived(
     sitePartView({
       liveUrl,
@@ -1528,7 +1529,25 @@
       </div>
     {:else}
     <div class="pane-head preview-head">
-      <span>{t('page.previewHead')}{#if preview?.ok} — {preview.label}{/if}</span>
+      <!-- 何をどこから出しているかを見出しに書く。web モードでは待ち受けが 2 つ立つことがあり、
+           どちらを映すかは開いている文書で変わる。面の中身だけでは見分けが付かない。 -->
+      <span class="preview-source">
+        <span
+          >{previewOrigin.kind === 'live'
+            ? t('page.previewLiveHead')
+            : `${t('page.previewHead')}${preview?.ok ? ` — ${preview.label}` : ''}`}</span
+        >
+        {#if previewOrigin.kind === 'live'}
+          <span class="site-url">{previewOrigin.url}</span>
+          {#if previewOrigin.elsewhere !== null}
+            <!-- 出ていないほうも書く。立っていないのか、別のところに出ているのかで
+                 次の手が変わる。 -->
+            <span class="preview-elsewhere"
+              >{t('page.previewElsewhere', { url: previewOrigin.elsewhere })}</span
+            >
+          {/if}
+        {/if}
+      </span>
       <!-- 別の窓でも見るためのボタン。見ている面の見出しに置く（作っている最中に
            何度も押すものなので、目を離した先に置かない）。 -->
       <BrowserOpenButtons root={workspace.root} />
@@ -1848,6 +1867,22 @@
     min-width: 0;
     white-space: nowrap;
     overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* 見出しの左側は「何を・どこから」の一組。右の切り替えと離れないよう 1 つに束ねる。 */
+  .preview-source {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-2);
+  }
+
+  .preview-elsewhere {
+    min-width: 0;
+    overflow: hidden;
+    color: var(--text-tertiary);
+    font-size: var(--text-sm-size);
+    white-space: nowrap;
     text-overflow: ellipsis;
   }
 
