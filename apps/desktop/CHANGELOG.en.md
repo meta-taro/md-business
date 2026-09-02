@@ -4,6 +4,12 @@ Changes to this app. Versions follow [Semantic Versioning](https://semver.org/).
 
 Japanese is the source of truth for this file; see [CHANGELOG.md](./CHANGELOG.md).
 
+## 0.30.2
+
+### Fixed
+
+- **The preview pane now says what it is showing and where it comes from.** In web mode two servers can be running — the one this app builds and serves, and the project's own, declared in `md-business.yml`. Which one a pane shows depends on the open document (business documents come from the former, site parts from the latter), so the pane alone gave you no way to tell them apart. The heading now names the source and its address. **The server that is not on this pane is named too** — with only one of them written down, you cannot tell whether the other is down or simply showing somewhere else, and that changes what you do next. **What each pane shows is unchanged**: business documents are still built inside the app.
+
 ## 0.30.1
 
 ### Fixed

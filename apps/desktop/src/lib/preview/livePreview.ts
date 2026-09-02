@@ -91,3 +91,30 @@ export function sitePartView(input: SitePartInput): SitePartView {
   if (liveUrl !== null) return { kind: 'live', url: liveUrl };
   return declaredWeb ? { kind: 'start' } : { kind: 'declare' };
 }
+
+/** 下見の面が、今どこから出しているか。 */
+export type PaneOrigin =
+  /** アプリの中で組んだものを出している。 */
+  | { kind: 'built' }
+  /** 立っている待ち受けをそのまま映している。 */
+  | {
+      kind: 'live';
+      /** 映している先。 */
+      url: string;
+      /** 同時に立っているが、この面には出ていない待ち受け。無ければ null。 */
+      elsewhere: string | null;
+    };
+
+/**
+ * 面の出どころ。見出しに書くために使う。
+ *
+ * web モードでは待ち受けが 2 つ立つことがある。アプリが立てたものと、プロジェクトが
+ * 宣言した自前のものと。**どちらを映すかは開いている文書で変わる**（本文は前者、
+ * サイトの部品は後者）。面の中身だけでは見分けが付かないので、在り処を見出しに出す。
+ * 出ていないほうも添えるのは、片方しか書かないと、もう一方がどこへ行ったのかが
+ * 読めないため——立っていないのか、別のところに出ているのかで、次の手が変わる。
+ */
+export function paneOrigin(liveUrl: string | null, devServer: string | null): PaneOrigin {
+  if (liveUrl === null) return { kind: 'built' };
+  return { kind: 'live', url: liveUrl, elsewhere: devServer };
+}

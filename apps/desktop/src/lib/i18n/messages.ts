@@ -526,6 +526,8 @@ export interface Messages {
   'imageView.actualTitle': string;
   'imageView.inlineFailed': string;
   // サイトの部品（.html / .css / .js など）を開いたとき
+  'page.previewLiveHead': string;
+  'page.previewElsewhere': string;
   'site.head': string;
   'site.readOnly': string;
   'site.startNote': string;
@@ -1189,6 +1191,9 @@ const en: Messages = {
   'imageView.fitTitle': 'Fit the whole image in the pane',
   'imageView.actualTitle': 'Show the image at its actual size',
   'imageView.inlineFailed': 'Cannot read the image: {ref} ({message})',
+  'page.previewLiveHead': 'Live',
+  'page.previewElsewhere':
+    'The declared {url} appears when a site file is open.',
   'site.head': 'Site file',
   'site.readOnly': 'Read-only',
   'site.startNote': 'Not showing yet. Press Live above and it appears here.',
@@ -1850,6 +1855,8 @@ const ja: Messages = {
   'imageView.fitTitle': '画面に合わせて全体を出す',
   'imageView.actualTitle': '原寸で出す',
   'imageView.inlineFailed': '画像を読めません: {ref}（{message}）',
+  'page.previewLiveHead': 'ライブ',
+  'page.previewElsewhere': '宣言された {url} は、サイトの部品を開くと出る。',
   'site.head': 'サイトの部品',
   'site.readOnly': '読み取り専用',
   'site.startNote': 'まだ映していない。上の「ライブ」を押すと、ここに出る。',
@@ -2501,6 +2508,8 @@ const zh: Messages = {
   'imageView.fitTitle': '缩放到窗口内显示整幅图片',
   'imageView.actualTitle': '按原始尺寸显示',
   'imageView.inlineFailed': '无法读取图片: {ref}（{message}）',
+  'page.previewLiveHead': '实时',
+  'page.previewElsewhere': '已声明的 {url} 会在打开站点文件时显示。',
   'site.head': '站点文件',
   'site.readOnly': '只读',
   'site.startNote': '尚未显示。点击上方的「实时」即可在此显示。',
@@ -3155,6 +3164,8 @@ const ko: Messages = {
   'imageView.fitTitle': '화면에 맞춰 전체를 표시',
   'imageView.actualTitle': '원본 크기로 표시',
   'imageView.inlineFailed': '이미지를 읽을 수 없습니다: {ref}({message})',
+  'page.previewLiveHead': '라이브',
+  'page.previewElsewhere': '선언된 {url} 은(는) 사이트 파일을 열면 나옵니다.',
   'site.head': '사이트 파일',
   'site.readOnly': '읽기 전용',
   'site.startNote': '아직 표시하지 않았습니다. 위의 「라이브」를 누르면 여기에 나옵니다.',

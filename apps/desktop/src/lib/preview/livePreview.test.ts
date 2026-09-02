@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { livePreviewUrl, sitePartView } from './livePreview';
+import { livePreviewUrl, paneOrigin, sitePartView } from './livePreview';
 
 /** この PC の区切り。文字として書くと読む側で消えるので、符号から作る。 */
 const SEP = String.fromCharCode(92);
@@ -113,5 +113,38 @@ describe('sitePartView', () => {
         declaredWeb: true,
       }),
     ).toEqual({ kind: 'dev', url: DEV });
+  });
+});
+
+describe('paneOrigin', () => {
+  const DEV = 'http://localhost:4321';
+
+  it('アプリの中で組んだものを出しているときは、在り処を持たない', () => {
+    expect(paneOrigin(null, null)).toEqual({ kind: 'built' });
+  });
+
+  // 出どころを書かないと、面に映っているものがアプリの中で組んだものなのか、
+  // 立っている待ち受けから来たものなのか、見ただけでは分からない。
+  it('待ち受けを映しているときは、その在り処を返す', () => {
+    expect(paneOrigin(`${BASE}index.html`, null)).toEqual({
+      kind: 'live',
+      url: `${BASE}index.html`,
+      elsewhere: null,
+    });
+  });
+
+  // 待ち受けが 2 つ立っていることがある（アプリが立てたものと、宣言された自前のもの）。
+  // 見出しに 1 つしか出さないと、もう一方がどこへ行ったのか読めない。
+  it('宣言された待ち受けがあるなら、映していなくても在り処を添える', () => {
+    expect(paneOrigin(`${BASE}index.html`, DEV)).toEqual({
+      kind: 'live',
+      url: `${BASE}index.html`,
+      elsewhere: DEV,
+    });
+  });
+
+  // 組んだものを出している面は、そもそも待ち受けの話をしていない。
+  it('組んだものを出しているなら、宣言があっても添えない', () => {
+    expect(paneOrigin(null, DEV)).toEqual({ kind: 'built' });
   });
 });
