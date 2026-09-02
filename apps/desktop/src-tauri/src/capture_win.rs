@@ -302,11 +302,28 @@ fn shoot_inner(html: &str, spec: &ShotSpec, user_data_dir: &Path) -> Result<Vec<
     Ok(bytes)
 }
 
+/// 撮るのは 1 度に 1 枚ずつ。
+///
+/// WebView2 を立てるところが同じプロセスの中で重なると、**断りが返るのではなくプロセスごと落ちる**
+/// （Chromium 側が自分で止める。返り値が無いので、呼んだ側は何も受け取れない）。窓は複数開けるし
+/// エージェントからの頼みも同時に来るので、重なりは普通に起こる。待たせるほうが、落ちて何も
+/// 返らないよりよい。
+static TURN: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+/// 順番を待ってから `job` を通す。
+///
+/// 前の撮影が途中で落ちて鍵が汚れていても、通す。汚れているのは前の 1 枚の話で、
+/// 次の 1 枚を撮れない理由にはならない（ここで断ると、一度失敗した後は撮れなくなる）。
+fn in_turn<T>(job: impl FnOnce() -> T) -> T {
+    let _turn = TURN.lock().unwrap_or_else(|poison| poison.into_inner());
+    job()
+}
+
 /// HTML を画像にする。
 ///
 /// `user_data_dir` は WebView2 が使う作業場所。アプリの持ち物の中を渡す。
 pub fn capture(html: &str, spec: &ShotSpec, user_data_dir: &Path) -> Result<Vec<u8>, String> {
-    // 通せない注文は、道具を立ち上げる前に断る。
+    // 通せない注文は、道具を立ち上げる前に断る（待つ前に断るので、順番も取らない）。
     validate(spec)?;
 
     // WebView2 は自分の筋（STA）とメッセージの回りを要る。アプリ本体の筋は別の回り方を
@@ -314,9 +331,11 @@ pub fn capture(html: &str, spec: &ShotSpec, user_data_dir: &Path) -> Result<Vec<
     let html = html.to_string();
     let spec = spec.clone();
     let user_data_dir = user_data_dir.to_path_buf();
-    std::thread::spawn(move || shoot(&html, &spec, &user_data_dir))
-        .join()
-        .map_err(|_| "画像を作れませんでした（撮影が異常終了しました）。".to_string())?
+    in_turn(move || {
+        std::thread::spawn(move || shoot(&html, &spec, &user_data_dir))
+            .join()
+            .map_err(|_| "画像を作れませんでした（撮影が異常終了しました）。".to_string())?
+    })
 }
 
 #[cfg(test)]
@@ -335,12 +354,42 @@ mod tests {
         Some((width, height, bytes[25]))
     }
 
+    /// 重なって撮ろうとしても、実際に撮っているのは常に 1 本であることを確かめる。
+    ///
+    /// 重なると落ちるのは WebView2 の中なので、落ちる側を書いて確かめることはできない
+    /// （落ちたテストは結果を報告せずに消える）。代わりに、重なり得ないことのほうを見る。
+    #[test]
+    fn 撮るのは一度に一本だけ() {
+        use std::sync::atomic::{AtomicUsize, Ordering};
+        use std::sync::Arc;
+
+        let live = Arc::new(AtomicUsize::new(0));
+        let most = Arc::new(AtomicUsize::new(0));
+        let hands: Vec<_> = (0..8)
+            .map(|_| {
+                let live = live.clone();
+                let most = most.clone();
+                std::thread::spawn(move || {
+                    in_turn(|| {
+                        let now = live.fetch_add(1, Ordering::SeqCst) + 1;
+                        most.fetch_max(now, Ordering::SeqCst);
+                        std::thread::sleep(std::time::Duration::from_millis(5));
+                        live.fetch_sub(1, Ordering::SeqCst);
+                    })
+                })
+            })
+            .collect();
+        for hand in hands {
+            hand.join().unwrap();
+        }
+        assert_eq!(most.load(Ordering::SeqCst), 1);
+    }
+
     /// WebView2 の作業場所は、テストごとに分ける。
     ///
-    /// 同じフォルダを 2 つの WebView2 が同時に開くことはできない。断られるだけなら
-    /// 見送りとして扱えるが、実際には**プロセスごと落ちる**（テストは並列に走るので、
-    /// 撮るテストが 3 本重なると時々そうなる）。落ちた側は結果を報告しないまま消えるため、
-    /// 一覧には「まだ走っていないテスト」だけが残り、どれが原因かは出てこない。
+    /// 同じフォルダを 2 つの WebView2 が同時に開くことはできない。重なり自体は
+    /// `in_turn` が止めているので、ここで分けるのは後始末を混ぜないためのもの
+    /// （前のテストの残りを次のテストが読まないようにする）。
     fn work_dir(name: &str) -> std::path::PathBuf {
         std::env::temp_dir().join(format!(
             "md-business-capture-test-{}-{name}",
