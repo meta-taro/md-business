@@ -8,6 +8,8 @@ Japanese is the source of truth for this file; see [CHANGELOG.md](./CHANGELOG.md
 
 ### Fixed
 
+- **Asking from outside to open a file did nothing for site parts.** The list shows `.astro` and `.ts`, but the entry point that opens a file from outside only accepted Markdown and images, and silently dropped everything else. The caller was told it had succeeded, so with the app still sitting on "Select a document" you would carry on believing it had opened. The entry point now accepts the same range the list does. Along with it, **a file that isn't there is refused before the app is started**: that entry point only starts the app and never hears back whether it accepted the path, so a typo used to come back as a success.
+
 - **Tabs could be picked up but not reordered — the cursor showed the "no drop" sign.** Reordering was added in 0.16.0 and has never worked on Windows since. The cause is not in the page but in the window: a window comes with a receiver for files dropped from the desktop, and while that is on, **WebView2 takes over every drag over the surface**. A reorder that never leaves the page is taken along with the rest, so a tab can be picked up and never put down. This app does not use drops from the desktop, so the receiver is now off. **It applies to every open window** — later windows are built from the first window's settings. A test fails if the setting comes back, since it would bring the same breakage with it.
 
 ## 0.30.0

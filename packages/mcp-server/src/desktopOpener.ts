@@ -111,8 +111,15 @@ export function createDesktopOpener(options: DesktopOpenerOptions): DesktopOpene
         };
       }
 
+      // 起こすだけの口なので、アプリが受け取ったかは返ってこない。ここで確かめずに通すと、
+      // 打ち間違いでも ok が返り、頼んだ側は「開いた」と思ったまま先へ進む。
+      const target = join(getRoot(), safe.relative);
+      if (!exists(target)) {
+        return { ok: false, error: `ワークスペースに ${safe.relative} がありません。` };
+      }
+
       try {
-        spawn(app, [join(getRoot(), safe.relative)]);
+        spawn(app, [target]);
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         return { ok: false, error: `アプリの起動に失敗しました: ${message}` };

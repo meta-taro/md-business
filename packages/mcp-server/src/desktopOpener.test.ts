@@ -93,6 +93,20 @@ describe('createDesktopOpener', () => {
     expect(spawn).not.toHaveBeenCalled();
   });
 
+  it('無いファイルを頼まれたら、起こす前に断る', async () => {
+    // 起こすだけの口なので、アプリが受け取ったかは返ってこない。ここで確かめずに通すと、
+    // 打ち間違いでも ok が返り、頼んだ側は「開いた」と思ったまま先へ進む。
+    const spawn = vi.fn();
+    const opener = createDesktopOpener({
+      ...base,
+      exists: (path: string) => path.endsWith('app.exe'),
+      spawn,
+    });
+    const result = await opener.open('docs/none.tsv');
+    expect(result.ok).toBe(false);
+    expect(spawn).not.toHaveBeenCalled();
+  });
+
   it('アプリが見つからなければ、探した場所が分かる理由を返す', async () => {
     const spawn = vi.fn();
     const opener = createDesktopOpener({ ...base, env: {}, exists: () => false, spawn });
