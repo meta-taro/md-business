@@ -666,6 +666,39 @@ describe('createServer / instructions', () => {
     expect(text).toMatch(/2 本以上|複数/);
   });
 
+  /** アプリを介してつないだときの案内文。 */
+  async function instructionsWithApp(): Promise<string> {
+    const server = createServer(new MemoryDocumentStore(), {
+      app: {
+        request: async () => ({ ok: true as const }),
+        settle: () => {},
+      } as unknown as Parameters<typeof createServer>[1] extends { app?: infer A } ? A : never,
+    });
+    const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+    const client = new Client({ name: 'test-client', version: '0.0.0' });
+    await Promise.all([client.connect(clientTransport), server.connect(serverTransport)]);
+    return client.getInstructions() ?? '';
+  }
+
+  it('アプリ越しなら、直したと言う前に画面を撮って確かめることを書く', async () => {
+    // 組み上げてから出す作り（Astro / Vite）では、部品を読んでも出来上がりは分からない。
+    // 同じ形の部品が 2 か所にあるとき、読んで在ることを確かめただけでは、直したのが
+    // 利用者の見ている側とは限らない。実際にそれで「直りました」と報告する事故が起きた。
+    const text = await instructionsWithApp();
+    expect(text).toContain('capture_window');
+    expect(text).toMatch(/直したと言う前|確かめてから/);
+  });
+
+  it('アプリを介していないときは、画面を見る口が無いことと、付ける道を書く', async () => {
+    // 案内文は「出来上がりは利用者の面に映る」と言う。見る口が無いことを言わないと、
+    // 映っているものを読めるつもりで答えることになる。
+    const text = await instructions();
+    expect(text).not.toContain('capture_window');
+    expect(text).toMatch(/画面を見る口が無い|画面は見えない/);
+    // 付け方まで言わないと、見えないという断りだけが残って手が止まる。
+    expect(text).toContain('開いているフォルダへ設定を置く');
+  });
+
   it('接続先が分からない store では、パスの行を出さない', async () => {
     // 空欄や仮のパスを出すと、名乗っていないことと名乗り間違いが区別できなくなる。
     const text = await instructions();

@@ -64,7 +64,8 @@ export const SERVER_VERSION = '0.1.0';
  *
  * 接続先のフォルダは `buildServerInstructions` が先頭へ足す（この本文には入れない）。
  */
-const INSTRUCTIONS_BODY = `md-business は Markdown / TSV の業務文書（請求書・基本設計書・API 仕様書・DB 設計書・検証シート）を扱うワークスペースに接続されている。
+function instructionsBody(screen: string): string {
+  return `md-business は Markdown / TSV の業務文書（請求書・基本設計書・API 仕様書・DB 設計書・検証シート）を扱うワークスペースに接続されている。
 
 ## このワークスペースの .md / .tsv は直接編集しない
 
@@ -131,11 +132,32 @@ const INSTRUCTIONS_BODY = `md-business は Markdown / TSV の業務文書（請�
   返ってきた参照（\`evidence/EV-001.md\`）を所見から指す。会話の中だけに残した抜粋は、
   後から確かめられないので根拠にならない。
 - 変更を確認して記録するのは **git_status** / **git_diff** / **git_commit**（利用可能な場合）。
+${screen}
 
 ## 書式の約束
 
 - 表のセル・YAML のデータ値の未入力は **空のまま**にする。\`—\` \`N/A\` \`TBD\` などで埋めない。
 - スキーマ宣言（frontmatter の \`schema\` / TSV 1 行目の \`#!\` 行）は書き換えない。`;
+}
+
+/**
+ * 画面についての一段落。アプリ越しにつないでいるかで中身が変わる。
+ *
+ * 案内文は「出来上がりは利用者が開いている面に映る」と言う。**映っているものを見る口が
+ * あるかどうか**まで言わないと、読んだ側は映っているものを読めるつもりで答える。
+ * 組み上げてから出す作り（Astro / Vite）では、部品を読んで在ることを確かめても、それが
+ * 利用者の見ている場所に出ているとは限らない。同じ形の部品が 2 か所にあるとき、片方だけ
+ * 直して「直った」と報告する事故が実際に起きた。
+ */
+const SCREEN_WITH_APP = `- **出来上がりは capture_window で見る**。部品を読んで在ることを確かめても、
+  それが利用者の見ている場所に出ているとは限らない。同じ形の部品が 2 か所にあれば、
+  直したのは見えていない側かもしれない。**直したと言う前に撮って確かめる**。`;
+
+/** アプリを介していないとき。見えないことと、見えるようにする道の両方を言う。 */
+const SCREEN_WITHOUT_APP = `- この接続はアプリを介していないので、**画面を見る口が無い**。部品を読んで在ることを
+  確かめても、それが利用者の見ている場所に出ているかは分からないので、直ったとは言い切らない。
+  アプリの MCP タブにある「開いているフォルダへ設定を置く」で置いた設定へつなぎ直すと、
+  画面を撮る口が付く。`;
 
 /**
  * 案内文を組み立てる。接続先が分かるときは、その実パスを先頭に置く。
@@ -148,14 +170,15 @@ const INSTRUCTIONS_BODY = `md-business は Markdown / TSV の業務文書（請�
  * 接続先が分からない store（インメモリ等）では、この段落ごと出さない。
  * 空欄や仮のパスを出すと、名乗っていないことと名乗り間違いが見分けられなくなる。
  */
-export function buildServerInstructions(root?: string): string {
-  if (root === undefined || root === '') return INSTRUCTIONS_BODY;
+export function buildServerInstructions(root?: string, hasApp = false): string {
+  const body = instructionsBody(hasApp ? SCREEN_WITH_APP : SCREEN_WITHOUT_APP);
+  if (root === undefined || root === '') return body;
   return `接続先: ${root}
 
 同じ PC に md-business のサーバーが 2 本以上繋がっていることがある。名前もツールも同じなので、
 書く前に、その文書があるのが上の接続先かを確かめる。別のフォルダのつもりで書いても成功する。
 
-${INSTRUCTIONS_BODY}`;
+${body}`;
 }
 
 /** createServer の任意設定。ツール実行のたびに操作ログを受け取れるようにする。 */
@@ -267,7 +290,7 @@ function parseOpenDocuments(data: unknown): OpenDocumentRow[] | null {
 export function createServer(store: DocumentStore, options: CreateServerOptions = {}): McpServer {
   const server = new McpServer(
     { name: SERVER_NAME, version: SERVER_VERSION },
-    { instructions: buildServerInstructions(store.getRoot?.()) },
+    { instructions: buildServerInstructions(store.getRoot?.(), options.app !== undefined) },
   );
   const { onLog, now = () => Date.now(), git, app, desktop } = options;
 
