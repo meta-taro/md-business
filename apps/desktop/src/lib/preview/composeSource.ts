@@ -21,6 +21,8 @@ import { loadDataBlocks } from '../dataBlock/loadData';
 import type { DataLoadProblem } from '../dataBlock/loadData';
 import { loadMermaidImages } from './mermaidBlocks';
 import type { LoadMermaidOptions } from './mermaidBlocks';
+import { loadZumenImages } from './zumenBlocks';
+import type { LoadZumenOptions } from './zumenBlocks';
 import { replaceFencedBlocks } from '../markdown/fencedBlocks';
 
 export interface ComposeSourceIo {
@@ -47,6 +49,8 @@ export interface ComposeSourceOptions {
   ink?: string;
   /** 作図（mermaid）の描画。渡さなければ囲みのまま残る。 */
   mermaid?: LoadMermaidOptions;
+  /** 構成図（zumen）の描画。渡さなければ囲みのまま残る。 */
+  zumen?: LoadZumenOptions;
 }
 
 export async function composeExportSource(
@@ -76,8 +80,14 @@ export async function composeExportSource(
     describe: options.describeData,
     rawHtml: options.rawHtml,
   });
-  const withData = replaceDataBlocks(withCharts, data);
+  let out = replaceDataBlocks(withCharts, data);
 
-  if (options.mermaid === undefined) return withData;
-  return replaceFencedBlocks(withData, await loadMermaidImages(withData, options.mermaid));
+  // 描き手は口ごとに渡す。渡らなかった囲みはそのまま残す（勝手に消さない）。
+  if (options.mermaid !== undefined) {
+    out = replaceFencedBlocks(out, await loadMermaidImages(out, options.mermaid));
+  }
+  if (options.zumen !== undefined) {
+    out = replaceFencedBlocks(out, await loadZumenImages(out, options.zumen));
+  }
+  return out;
 }
