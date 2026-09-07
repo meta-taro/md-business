@@ -47,6 +47,30 @@ ${FENCE}`;
     expect(out).not.toContain(`${FENCE}mermaid`);
   });
 
+  it('構成図も画像にする', async () => {
+    const diagram = [`${FENCE}zumen`, 'version: 1', FENCE].join('\n');
+    const out = await composeExportSource(diagram, {
+      docPath: 'docs/月報.md',
+      io: { readText: () => Promise.resolve(TSV) },
+      describe: (problem) => `[${problem.kind}]`,
+      describeData: (problem) => `[${problem.kind}]`,
+      zumen: {
+        theme: 'light',
+        render: () =>
+          Promise.resolve('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 180"></svg>'),
+        describe: (message) => `[${message}]`,
+      },
+    });
+    expect(out).toContain('](data:image/svg+xml;base64,');
+    expect(out).not.toContain(`${FENCE}zumen`);
+  });
+
+  it('描き手を渡さなければ構成図の囲みはそのまま残る', async () => {
+    const diagram = [`${FENCE}zumen`, 'version: 1', FENCE].join('\n');
+    const out = await compose(diagram);
+    expect(out).toBe(diagram);
+  });
+
   it('画像の読み取りを渡さなければ本文の画像はそのまま（サイトはファイルで運ぶ）', async () => {
     const out = await composeExportSource('![図](./a.png)', {
       docPath: 'docs/月報.md',
