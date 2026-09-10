@@ -8,6 +8,7 @@ md-business の **MCP（Model Context Protocol）サーバー**。Claude Desktop
 
 | ツール | 役割 |
 |---|---|
+| `about_md_business` | md-business 自体の概要と、配布物（デスクトップ / Chrome 拡張 / Workspace アドオン）ごとの版・変更履歴を返す |
 | `list_schemas` | 扱える業務文書スキーマの一覧（id + 日本語ラベル）を返す |
 | `get_schema` | スキーマ id を指定して JSON Schema 本体（必須項目・型・選択肢）を返す |
 | `read_document` | 相対パスの文書を読み、frontmatter / body / 検出スキーマを返す |
@@ -155,6 +156,20 @@ pnpm --filter @md-business/mcp-server bundle
 
 `dist-sidecar/sidecar.cjs` が生成される（依存を内包した 1 ファイル。配布物に
 node_modules を含めずに済ませるため）。
+
+## 変更履歴の焼き込み（about_md_business）
+
+`about_md_business` が返す版と履歴は、`src/generated/releases.ts` へビルド時に取り込んだもの。
+このサーバーは繋いだ先のフォルダで動くので、実行時に各アプリの `CHANGELOG.md` を読みに行けない。
+
+各アプリの版を上げたら（`package.json` と `CHANGELOG.md` を書いたら）、続けて焼き込み直す。
+
+```bash
+pnpm --filter @md-business/mcp-server generate:about
+```
+
+生成物は commit する。古いまま commit すると `src/releasesGenerated.test.ts` が落ちる
+（中で `node scripts/generate-about.mjs --check` を走らせている）。
 
 ## Claude Desktop への接続
 

@@ -11,6 +11,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import type { DocumentStore } from './store.js';
 import { listSchemas, getSchemaDefinition } from './registry.js';
+import { buildAbout, APP_IDS } from './about.js';
 import {
   readDocument,
   validateDocument,
@@ -300,6 +301,31 @@ export function createServer(store: DocumentStore, options: CreateServerOptions 
     if (onLog === undefined) return;
     onLog(buildToolLogEntry(tool, result, argPath, now()));
   };
+
+  server.registerTool(
+    'about_md_business',
+    {
+      description:
+        'このソフト（md-business）が何者かと、版ごとの変わりどころを返す。道具の一覧からは「何のためのソフトで、いま繋いでいるのはどの版か」が組み立てられないので、利用者に尋ねる前にここを読む。引数なしで概要 + 配布物 3 つの版 + デスクトップの直近。app / version / limit で履歴を絞る。',
+      inputSchema: {
+        app: z
+          .enum(APP_IDS)
+          .optional()
+          .describe('履歴を見る配布物（既定 desktop）'),
+        version: z.string().optional().describe('その 1 版だけを見る（例 0.30.2）'),
+        limit: z.number().int().optional().describe('返す版の数（既定 3・version 指定時は無視）'),
+      },
+    },
+    async ({ app: appId, version, limit }) => {
+      const r = buildAbout({
+        ...(appId === undefined ? {} : { app: appId }),
+        ...(version === undefined ? {} : { version }),
+        ...(limit === undefined ? {} : { limit }),
+      });
+      emit('about_md_business', undefined, r);
+      return jsonResult(r, !r.ok);
+    },
+  );
 
   server.registerTool(
     'list_schemas',
