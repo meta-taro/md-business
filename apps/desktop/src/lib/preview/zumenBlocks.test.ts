@@ -104,6 +104,43 @@ describe('loadZumenImages', () => {
     expect(render).toHaveBeenCalledWith('version: 1', 'dark');
   });
 
+  it('図の題名を説明にする', async () => {
+    // 説明は読み上げと、画像が出ないときの代わりに出る文字になる。構成図の 1 行目は
+    // `version: 1` で、どの図なのかを何も伝えない。
+    const source = ['```zumen', 'version: 1', 'title: 本番構成', '```'].join('\n');
+    const render = vi.fn().mockResolvedValue(SVG);
+
+    const out = await loadZumenImages(source, { theme: 'light', render, describe: describeFailure });
+
+    expect([...out.values()][0]).toMatch(/^!\[本番構成\]\(/);
+  });
+
+  it('題名が無ければ、いちばん上の行を説明にする', async () => {
+    const source = ['```zumen', 'version: 1', 'nodes: []', '```'].join('\n');
+    const render = vi.fn().mockResolvedValue(SVG);
+
+    const out = await loadZumenImages(source, { theme: 'light', render, describe: describeFailure });
+
+    expect([...out.values()][0]).toMatch(/^!\[version: 1\]\(/);
+  });
+
+  it('図の中の部品に付いた題名は拾わない', async () => {
+    // `title` は部品にも書ける。拾うのは図そのものの題名だけ。
+    const source = [
+      '```zumen',
+      'version: 1',
+      'nodes:',
+      '  - id: a',
+      '    title: 部品の名前',
+      '```',
+    ].join('\n');
+    const render = vi.fn().mockResolvedValue(SVG);
+
+    const out = await loadZumenImages(source, { theme: 'light', render, describe: describeFailure });
+
+    expect([...out.values()][0]).toMatch(/^!\[version: 1\]\(/);
+  });
+
   it('大きさが割合で書かれていたら、viewBox の値を実寸として入れる', async () => {
     // 画像として貼ると外側の幅が伝わらないので、割合では大きさが決まらない。
     const render = vi.fn().mockResolvedValue('<svg width="100%" viewBox="0 0 120 60"></svg>');

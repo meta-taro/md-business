@@ -29,6 +29,20 @@ export interface LoadZumenOptions {
   describe: (message: string) => string;
 }
 
+/**
+ * 画像の説明（alt）。読み上げに使われ、画像が出ないときはこれが代わりに出る。
+ *
+ * 共通の作法は「中身のいちばん上の行」だが、構成図のいちばん上は `version: 1` で、
+ * どの図なのかを何も伝えない。構成図には題名があるので、あればそちらを使う。
+ * 拾うのは行頭にある図そのものの題名だけ（`title` は図の中の部品にも書ける）。
+ */
+function altOf(body: string): string {
+  const title = /^title:[ \t]*(.+?)[ \t]*$/m.exec(body);
+  if (title === null) return toImageAlt(body);
+  // YAML は値を引用符で囲める。囲みは書式であって題名の一部ではない。
+  return toImageAlt(title[1].replace(/^(['"])([\s\S]*)\1$/, '$2'));
+}
+
 export async function loadZumenImages(
   source: string,
   options: LoadZumenOptions,
@@ -54,7 +68,7 @@ export async function loadZumenImages(
       }
       drawn.set(block.body, svg);
     }
-    out.set(block.raw, `![${toImageAlt(block.body)}](${toDataUri(svg)})`);
+    out.set(block.raw, `![${altOf(block.body)}](${toDataUri(svg)})`);
   }
   return out;
 }
