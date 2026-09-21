@@ -1,0 +1,249 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>md-business — AI が開ける業務文書</title>
+<meta name="description" content="請求書・基本設計書・検証シートを Markdown で持ち、JSON Schema で検証する OSS。人は PDF や Sheets で読み、AI は同じファイルを読んで直して差分を出す。MCP サーバー内蔵のデスクトップアプリ。MIT。">
+<link rel="canonical" href="https://meta-taro.github.io/md-business/ja/">
+<link rel="alternate" hreflang="en" href="https://meta-taro.github.io/md-business/">
+<link rel="alternate" hreflang="ja" href="https://meta-taro.github.io/md-business/ja/">
+<link rel="alternate" hreflang="x-default" href="https://meta-taro.github.io/md-business/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="md-business">
+<meta property="og:locale" content="ja_JP">
+<meta property="og:locale:alternate" content="en_US">
+<meta property="og:url" content="https://meta-taro.github.io/md-business/ja/">
+<meta property="og:title" content="md-business — AI が開ける業務文書">
+<meta property="og:description" content="請求書・基本設計書・検証シートを Markdown で持つ。人は PDF や Sheets で読み、AI は同じファイルを直す。">
+<meta property="og:image" content="https://meta-taro.github.io/md-business/screenshots/desktop-invoice.png">
+<meta property="og:image:alt" content="md-business デスクトップアプリで適格請求書を開いた画面。左にファイル一覧、右に請求書ビュー。">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="md-business — AI が開ける業務文書">
+<meta name="twitter:description" content="請求書・基本設計書・検証シートを Markdown で持つ。人は PDF や Sheets で読み、AI は同じファイルを直す。">
+<meta name="twitter:image" content="https://meta-taro.github.io/md-business/screenshots/desktop-invoice.png">
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="mark">
+    <b>md-business</b>
+    <nav class="lang" aria-label="言語">
+      <a href="../" hreflang="en" lang="en">English</a><span aria-current="true">日本語</span>
+    </nav>
+  </div>
+
+  <h1>AI はコードを書ける。<br><span class="quiet">仕様書は、開けない。</span></h1>
+
+  <p class="tagline">
+    請求書も設計書も検証シートも、<code>.docx</code> の中ではなく Markdown として置く。<br>
+    <strong>人は PDF と Sheets で読み、AI は同じファイルを読んで直す。</strong>
+  </p>
+
+  <div class="actions">
+    <a class="btn btn-primary" href="../download/">デスクトップアプリを落とす</a>
+    <a class="btn btn-outline" href="https://github.com/meta-taro/md-business">GitHub</a>
+    <a class="btn btn-outline" href="https://chromewebstore.google.com/detail/lmdplkkfmgapnhombimeohjliinifgjh">Chrome 拡張</a>
+    <span class="note">Windows / macOS · MIT</span>
+  </div>
+</header>
+
+<main>
+
+<figure class="shot hero-shot">
+  <img src="../screenshots/desktop-invoice.png"
+       alt="md-business デスクトップアプリの画面。左は請求書・設計書・検証シート・報告書に分かれた Markdown ファイルの一覧。中央は請求書の Markdown で、発行者・登録番号・明細・税率が frontmatter に並んでいる。右は同じファイルを適格請求書として描画したもので、税率ごとの内訳と合計 566,980 円が出ている。"
+       width="1600" height="1000">
+  <figcaption>
+    フォルダから開いたままの適格請求書。人が承認するための紙面に見えているが、
+    <strong>実体は Markdown ファイル 1 枚</strong>で、AI が開いて 1 行直し、差分を見せられる。
+  </figcaption>
+</figure>
+
+<section>
+  <h2>なぜ文書は嘘になるのか</h2>
+  <p class="callout">
+    設計が変わる → <strong>仕様書は共有ドライブの <code>.docx</code></strong> → AI が開けない →
+    コードから推測する → <strong>文書が実物と食い違う</strong> → 誰も開かなくなる。
+  </p>
+  <p>
+    仕事のほとんどは、AI が読めるテキストへ移った。残っているのは「その仕事がどうあるべきかを書いた文書」だけ。
+    Word・Excel・PDF や多くの文書 SaaS が AI に渡すのは、中身の見えないバイナリか、差分の取れない API になる。
+    だから AI はコードのほうを見て、文書はそこから離れていく。
+  </p>
+  <p>
+    <strong>md-business</strong> は、その正本を Markdown へ移す OSS（MIT）。請求書・検証シート・基本設計書・
+    API 仕様書・DB 設計書を、YAML frontmatter と JSON Schema 検証付きの Markdown で持つ。
+    人が読む形式を取り上げはしない。<strong>人は PDF・Google Sheets・専用ビューワーで読み、
+    AI は同じファイルを読み、直し、検証し、差分を出す。</strong>
+  </p>
+</section>
+
+<section>
+  <h2>どう繋がっているか</h2>
+<pre><code>Markdown                       ← 正本。1 文書 1 ファイル
+   ↓
+JSON Schema 検証               ← 壊れた請求書は、誰かが押印する前に落ちる
+   ↓
+AI が直す                      ← MCP 経由で、いま開いているフォルダの中を
+   ↓
+git diff でレビュー・承認      ← どの行が変わったかが見える
+   ↓
+PDF・Sheets・Chrome・デスクトップ ← 人が実際に読む形</code></pre>
+  <p>
+    要点は最後の行。<strong>文書は、人が信用できる形で読んで初めてレビューされたことになる</strong>
+    —— A4 の請求書、表になった検証シート。下が Markdown であることは、そこを変えない。
+  </p>
+</section>
+
+<section>
+  <h2>デスクトップアプリの中身</h2>
+  <p>入れる前に、何ができるのかを見る。</p>
+
+  <figure class="shot">
+    <img src="../screenshots/desktop-editor.png" loading="lazy"
+         alt="基本設計書を左右 2 画面で開いた状態。左は文書番号・版・作成者・レビュアー・関連文書を持つ Markdown、右は同じ内容を設計書として組んだ画面で、ドラフト表示と作成者表・レビュアー表が出ている。"
+         width="1600" height="1000">
+    <figcaption>
+      左で書くと、右がそのまま追いかける。見えているものが PDF になるので、
+      保存してから確かめ直す手順が要らない。
+    </figcaption>
+  </figure>
+
+  <figure class="shot">
+    <img src="../screenshots/desktop-test-spec-grid.png" loading="lazy"
+         alt="検証シートを表形式のグリッドで開いた状態。番号・手順・期待結果が行ごとに並び、結果列に応じて OK は緑、NG は赤、保留は橙、未実施は無色に塗り分けられている。グリッドの下に行の追加・複製・クリア・グループ化のボタンがある。"
+         width="1600" height="1000">
+    <figcaption>
+      検証シートは表として開くので、実施する人は表計算と同じ感覚で結果を埋められる。
+      下にあるのは素の TSV のままで、Git が 1 行ずつ差分を取れる。
+    </figcaption>
+  </figure>
+
+  <figure class="shot">
+    <img src="../screenshots/desktop-mcp.png" loading="lazy"
+         alt="同じ請求書を開いたまま、右のパネルを MCP タブへ切り替えた状態。ローカルのサーバーアドレス、開いているフォルダへ接続設定を書き出すボタン、そして AI が実行した search_documents・read_tsv・read_document・validate_document の履歴が、時刻と対象ファイル付きで並んでいる。"
+         width="1600" height="1000">
+    <figcaption>
+      接続設定を一度渡せば、Claude Code・Claude Desktop・Cursor・Cline から、いま開いているフォルダを触れる。
+      実行された操作はここに残るので、何を読んで何を書き換えたのかが後から見える。
+    </figcaption>
+  </figure>
+
+  <figure class="shot">
+    <img src="../screenshots/desktop-pdf.png" loading="lazy"
+         alt="請求書の上に開いた印刷ダイアログ。PDF として保存が選ばれ、右の A4 プレビューに発行者と宛先、明細、税率ごとの内訳、合計、振込先が並んだ完成状態が出ている。"
+         width="1600" height="1000">
+    <figcaption>
+      書き終えたら A4 で出す。画面で見えていたものがそのまま紙面になるので、
+      正本と別に保守するテンプレートを持たなくていい。
+    </figcaption>
+  </figure>
+
+  <p class="shot-note">
+    いずれもモックではなく、ダミーデータのフォルダ
+    （<a href="https://github.com/meta-taro/md-business/tree/main/scripts/demo-workspace">scripts/demo-workspace</a>）を
+    開いて撮ったアプリの実画面。実在の社名・登録番号・口座は写っていない。
+    画面は日本語表示だが、English・中文・한국어 も同梱している。
+  </p>
+</section>
+
+<section>
+  <h2>いま書ける文書</h2>
+  <div class="cards">
+    <div class="card">
+      <h3>invoice <span class="badge">実装済み</span></h3>
+      <p>適格請求書。登録番号・税率ごとの内訳・合計の自動計算まで含む。</p>
+    </div>
+    <div class="card">
+      <h3>spec <span class="badge">実装済み</span></h3>
+      <p>基本設計書。システム概要・画面・データフロー・受入条件を節として持つ。</p>
+    </div>
+    <div class="card">
+      <h3>test-spec <span class="badge">実装済み</span></h3>
+      <p>検証シート。ケースごとの OK / NG / 保留を表で埋め、Google Sheets と往復できる。</p>
+    </div>
+    <div class="card">
+      <h3>api-spec <span class="badge muted">未実装</span></h3>
+      <p>API 詳細設計書。エンドポイントのリクエスト / レスポンス定義と例。</p>
+    </div>
+    <div class="card">
+      <h3>db-spec / nosql-db-spec <span class="badge muted">未実装</span></h3>
+      <p>RDB / NoSQL の DB 設計書。項目単位の定義とリレーション。</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>読み方・直し方</h2>
+  <div class="cards">
+    <div class="card">
+      <h3>デスクトップアプリ <span class="badge">Windows / macOS</span></h3>
+      <p>
+        単体で動くビューワー兼エディタ（Tauri 2 + SvelteKit）。文書種別ごとの専用ビュー、
+        左右 2 画面のライブ編集、A4 PDF 出力、自動更新。MCP サーバーを内蔵しているので、
+        AI クライアント（Claude Code・Claude Desktop・Cursor・Cline …）が、いま開いているフォルダの文書を
+        読み書きできる —— MCP タブの接続設定を一度貼るだけ。
+        <br>
+        <a href="../download/">ダウンロード →</a> &nbsp; <a href="../manual/ja/#mcp">AI を繋ぐ →</a>
+        &nbsp; <a href="../manual/ja/">操作マニュアル →</a>
+      </p>
+    </div>
+    <div class="card">
+      <h3>Chrome 拡張 <span class="badge">公開中</span></h3>
+      <p>
+        ローカルの <code>.md</code> を Chrome で開き、業務文書として表示して A4 PDF に出す。
+        <br>
+        <a href="https://chromewebstore.google.com/detail/lmdplkkfmgapnhombimeohjliinifgjh">Chrome ウェブストア →</a>
+      </p>
+    </div>
+    <div class="card">
+      <h3>Google Workspace アドオン <span class="badge muted">審査中</span></h3>
+      <p>
+        検証シートなどを Google スプレッドシートとして編集し、結果を GitHub リポジトリへ
+        1 コミットで押し戻す —— <code>git push</code> と同じ考え方で。
+      </p>
+    </div>
+    <div class="card">
+      <h3>PWA ビューワー <span class="badge muted">開発中</span></h3>
+      <p>Astro 5 + Lit。インストールせずブラウザで見る。</p>
+    </div>
+    <div class="card">
+      <h3>レンダラー（Paged.js）</h3>
+      <p>Markdown から A4 印刷品質の PDF を生成する。</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>まだ出来ていないこと</h2>
+  <ul>
+    <li><strong>api-spec と db-spec は未実装。</strong>その 2 つが必要な文書なら、まだ使える状態ではない。</li>
+    <li><strong>Google Workspace アドオンは審査中。</strong>Sheets との往復は、まだ Marketplace から入れられない。</li>
+    <li><strong>スキーマは日本の様式が前提。</strong>請求書は適格請求書の規則に沿っており、他国の税制は想定していない。</li>
+    <li><strong>サーバーもアカウントも無い。</strong>ファイルは手元のディスクと Git リポジトリにだけ残る。
+      これは意図した設計だが、裏を返すと、文書を渡す手段がリポジトリ以外に無いということでもある。</li>
+  </ul>
+</section>
+
+<section>
+  <h2>そのほか</h2>
+  <ul>
+    <li><a href="../download/">デスクトップアプリのダウンロード</a></li>
+    <li><a href="../manual/ja/">操作マニュアル（日本語）</a> · <a href="../manual/">User guide (English)</a></li>
+    <li><a href="https://github.com/meta-taro/md-business">ソース・Issue・リリース</a></li>
+    <li><a href="https://github.com/meta-taro/md-business/blob/main/README.ja.md">README（日本語）</a> · <a href="https://github.com/meta-taro/md-business/blob/main/README.md">README (English)</a></li>
+    <li><a href="https://github.com/meta-taro/md-business/issues">不具合を知らせる</a></li>
+    <li><a href="../privacy/">プライバシーポリシー</a> · <a href="../license/">ライセンス（MIT）</a></li>
+  </ul>
+</section>
+
+</main>
+
+<footer>
+  &copy; meta-taro · MIT License · <a href="https://github.com/meta-taro/md-business">github.com/meta-taro/md-business</a>
+</footer>
+
+</body>
+</html>
