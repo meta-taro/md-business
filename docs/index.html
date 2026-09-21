@@ -10,7 +10,38 @@
 <meta property="og:description" content="AI-native business documents, powered by Markdown as the source of truth.">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://meta-taro.github.io/md-business/">
+<meta property="og:image" content="https://meta-taro.github.io/md-business/screenshots/desktop-invoice.png">
 <link rel="stylesheet" href="assets/style.css">
+<style>
+  /* 画面写真。このページだけで使うので共有の style.css には置かず、変数だけ借りる。 */
+  figure.shot { margin: 32px 0; }
+  figure.shot img {
+    display: block;
+    width: 100%;
+    height: auto;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--bg);
+  }
+  figure.shot figcaption {
+    margin-top: 10px;
+    font-size: 0.93rem;
+    color: var(--muted);
+  }
+  /* 1 枚目は説明文より前に出す。何を見せられているのか分からないまま
+     文章だけが続く状態を作らないため。 */
+  figure.hero-shot { margin: 0 0 40px; }
+  .shot-note { font-size: 0.9rem; color: var(--muted); }
+  /* 1600px で撮った画面を本文幅（832px）へ収めると、中の文字が読めない大きさになる。
+     横に余裕のある画面のときだけ本文の外へはみ出させる。 */
+  @media (min-width: 1200px) {
+    figure.shot {
+      width: 1120px;
+      margin-left: -144px;
+      margin-right: -144px;
+    }
+  }
+</style>
 </head>
 <body>
 
@@ -26,6 +57,17 @@
 
 <main>
 
+<figure class="shot hero-shot">
+  <img src="screenshots/desktop-invoice.png"
+       alt="The md-business desktop app. On the left, a tree of Markdown files grouped into invoices, design documents, test specifications and reports. In the middle, the Markdown source of an invoice with its YAML frontmatter: issuer, registration number, line items and tax rates. On the right, the same file rendered as a Japanese qualified invoice with a per-rate tax breakdown and a total of 566,980 yen."
+       width="1600" height="1000">
+  <figcaption>
+    A qualified invoice (適格請求書) opened straight out of a folder. The registration number, the
+    per-rate tax breakdown and the total are assembled from the frontmatter on the left — nothing in
+    the document is typed twice.
+  </figcaption>
+</figure>
+
 <section>
   <h2>What is md-business?</h2>
   <p>
@@ -38,6 +80,59 @@
     safely operate, md-business treats Markdown as the canonical source of truth. Humans review through
     familiar interfaces (PDF, Google Sheets, Chrome viewer, PWA); AI agents read, edit, validate, and diff
     directly on the underlying text.
+  </p>
+</section>
+
+<section>
+  <h2>A look around the desktop app</h2>
+  <p>What the app does, before you install anything.</p>
+
+  <figure class="shot">
+    <img src="screenshots/desktop-editor.png" loading="lazy"
+         alt="A basic design document open in a two-pane split view. The left pane holds Markdown with frontmatter — document number, version, authors, reviewers, related documents — and the right pane shows the same content laid out as a specification, with a draft badge, an author table and a reviewer table."
+         width="1600" height="1000">
+    <figcaption>
+      Write on the left; the right side keeps up as you type. What you see is what the PDF will be, so
+      you do not have to save to find out.
+    </figcaption>
+  </figure>
+
+  <figure class="shot">
+    <img src="screenshots/desktop-test-spec-grid.png" loading="lazy"
+         alt="A test specification open as a spreadsheet-like grid. Numbered cases with steps and expected results, each row tinted by its result column: green for pass, red for fail, amber for on hold, plain for not yet run. Buttons below the grid add, duplicate, clear and group rows."
+         width="1600" height="1000">
+    <figcaption>
+      Test specifications open as a grid, so whoever runs the tests fills in results the way they would
+      in a spreadsheet. The file underneath stays a plain TSV that Git can diff line by line.
+    </figcaption>
+  </figure>
+
+  <figure class="shot">
+    <img src="screenshots/desktop-mcp.png" loading="lazy"
+         alt="The same invoice with the right-hand panel switched to its MCP tab. It shows a local server address, a button that writes the connection settings into the folder that is open, and a log of the calls an AI client has just made — search_documents, read_tsv, read_document, validate_document — each with a timestamp and the file it touched."
+         width="1600" height="1000">
+    <figcaption>
+      Point an AI client at the folder you have open — Claude Code, Claude Desktop, Cursor, Cline — by
+      handing it the connection settings once. Every call it makes is listed here, so you can see what
+      it read and what it changed.
+    </figcaption>
+  </figure>
+
+  <figure class="shot">
+    <img src="screenshots/desktop-pdf.png" loading="lazy"
+         alt="The print dialog over the invoice, set to save as PDF, with the A4 page preview on the right showing the finished invoice: issuer and recipient blocks, line items, the per-rate tax breakdown, the total and the bank transfer details."
+         width="1600" height="1000">
+    <figcaption>
+      Print to A4 when the document is done. The page comes out as it looked on screen — there is no
+      separate template to keep in sync with the source.
+    </figcaption>
+  </figure>
+
+  <p class="shot-note">
+    These are captures of the app itself against a seeded, fictional workspace
+    (<a href="https://github.com/meta-taro/md-business/tree/main/scripts/demo-workspace">scripts/demo-workspace</a>),
+    not mockups — no real company, registration number or bank account appears in them. The interface is
+    shown in Japanese here; it also ships in English, 中文 and 한국어.
   </p>
 </section>
 
