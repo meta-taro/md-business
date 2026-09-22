@@ -62,6 +62,9 @@
   import { dataMessage } from '$lib/dataBlock/dataMessage';
   import { loadDataBlocks } from '$lib/dataBlock/loadData';
   import { inlineImages } from '$lib/image/inlineImages';
+  import { replaceFencedBlocks } from '$lib/markdown/fencedBlocks';
+  import { loadZumenImages } from '$lib/preview/zumenBlocks';
+  import { renderZumenSvg } from '$lib/preview/renderZumen';
   import { loadInlineImages, type InlineImageFailure } from '$lib/image/loadInlineImages';
   import { formatSize } from '$lib/components/fileInfo';
   import { isDataFile, readDataDocument } from '$lib/data/dataDocument';
@@ -415,11 +418,35 @@
     });
   });
 
+  // 構成図（`zumen`）の囲みも同じ段で図に替える。こちらは指す先が無く、囲みの中身だけで
+  // 描けるので、フォルダを開いていなくても描ける。
+  let zumenMarkup = $state<ReadonlyMap<string, string>>(new Map());
+  let zumenGeneration = 0;
+  $effect(() => {
+    const source = debouncedSource;
+    const theme = themeController.value;
+    if (!shouldRenderPreview(paneState)) {
+      zumenMarkup = new Map();
+      return;
+    }
+    const generation = ++zumenGeneration;
+    void loadZumenImages(source, {
+      theme,
+      render: renderZumenSvg,
+      describe: (message) => t('zumen.failed', { detail: message }),
+    }).then((result) => {
+      if (generation === zumenGeneration) zumenMarkup = result;
+    });
+  });
+
   // 描くのは画像と図と表を埋めた本文。読めたものが 1 つも無ければ元の本文がそのまま返る。
   const previewSource = $derived(
-    replaceDataBlocks(
-      replaceChartBlocks(inlineImages(debouncedSource, inlineUrls), chartMarkup),
-      dataMarkup,
+    replaceFencedBlocks(
+      replaceDataBlocks(
+        replaceChartBlocks(inlineImages(debouncedSource, inlineUrls), chartMarkup),
+        dataMarkup,
+      ),
+      zumenMarkup,
     ),
   );
 

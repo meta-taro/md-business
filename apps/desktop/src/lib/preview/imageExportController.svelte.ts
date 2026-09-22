@@ -111,6 +111,7 @@ class ImageExportController {
     const { CHART_INK } = await import('$lib/chart/chartInk');
     const { t } = await import('$lib/i18n/i18n.svelte');
     const { renderMermaidSvg } = await import('./renderMermaid');
+    const { renderZumenSvg } = await import('./renderZumen');
     const io = workspaceIo(root);
     return {
       readText: io.readText,
@@ -122,6 +123,7 @@ class ImageExportController {
           describe: (problem) => chartMessage(problem, t),
           describeData: (problem) => dataMessage(problem, t),
           mermaid: { theme: 'light', render: renderMermaidSvg },
+          zumen: { theme: 'light', render: renderZumenSvg, describe: (message) => t('zumen.failed', { detail: message }) },
           ink: CHART_INK.light,
         });
         return buildExportHtml(composed);

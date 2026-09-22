@@ -58,12 +58,14 @@ class HtmlExportController {
     const { CHART_INK } = await import('$lib/chart/chartInk');
     const { t } = await import('$lib/i18n/i18n.svelte');
     const { renderMermaidSvg } = await import('./renderMermaid');
+    const { renderZumenSvg } = await import('./renderZumen');
     const source = await composeExportSource(workspace.source, {
       docPath: relPath,
       io: workspaceIo(root),
       describe: (problem) => chartMessage(problem, t),
       describeData: (problem) => dataMessage(problem, t),
       mermaid: { theme: 'light', render: renderMermaidSvg },
+      zumen: { theme: 'light', render: renderZumenSvg, describe: (message) => t('zumen.failed', { detail: message }) },
       // 書き出す HTML は明るい配色で組む（buildExportHtml）。図の色もそちらに合わせる。
       ink: CHART_INK.light,
     });
