@@ -11,11 +11,20 @@
 export interface FencedBlock {
   /** 囲みごとの元の文字列。差し替えのときの目印になる。 */
   raw: string;
-  /** 囲みの中身。 */
+  /** 囲みの中身。改行は LF に揃えてある。 */
   body: string;
 }
 
-const FENCE = /^ {0,3}(`{3,}|~{3,})(.*)$/;
+// 行末の復帰文字も囲みの一部として読む。Windows で作った本文は改行が CRLF で、
+// 正規表現の `.` は復帰文字を拾わない。見込んでおかないと囲みが 1 つも見つからず、
+// 図も表も構成図も囲みのまま出る。
+const FENCE = /^ {0,3}(`{3,}|~{3,})(.*)\r?$/;
+
+const CR = '\r';
+
+function withoutCr(line: string): string {
+  return line.endsWith(CR) ? line.slice(0, -1) : line;
+}
 
 /**
  * 囲みの中の囲みは中身ではなく見本。外側の囲みを閉じるまで中は読まない。
@@ -53,8 +62,13 @@ export function collectFencedBlocks(source: string, lang: string): FencedBlock[]
 
     if (wanted) {
       const end = Math.min(index, lines.length - 1);
+      // 目印は本文のままでないと差し替えられないので触らない。中身のほうは読み手
+      // （YAML の読み取り・題名の取り出し）へ渡るので、こちらだけ改行を揃える。
       const raw = lines.slice(start, end + 1).join('\n');
-      const body = lines.slice(start + 1, index).join('\n');
+      const body = lines
+        .slice(start + 1, index)
+        .map(withoutCr)
+        .join('\n');
       if (!seen.has(raw)) {
         seen.add(raw);
         blocks.push({ raw, body });
