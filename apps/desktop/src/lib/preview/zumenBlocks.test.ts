@@ -3,7 +3,7 @@ import { loadZumenImages } from './zumenBlocks';
 
 /** SVG から data URL を戻して中身を見る。 */
 function decode(markup: string): string {
-  const found = /\(data:image\/svg\+xml;base64,([^)]+)\)/.exec(markup);
+  const found = /\(data:image\/svg\+xml;base64,([^)\s]+)/.exec(markup);
   if (found === null) throw new Error(`画像になっていない: ${markup}`);
   return atob(found[1]);
 }
@@ -139,6 +139,35 @@ describe('loadZumenImages', () => {
     const out = await loadZumenImages(source, { theme: 'light', render, describe: describeFailure });
 
     expect([...out.values()][0]).toMatch(/^!\[version: 1\]\(/);
+  });
+
+  it('図の題名を、図の下に出す説明としても渡す', async () => {
+    // 題名は説明（alt）にもなるが、それは画像が出ないときの代わり。図のそばで
+    // 「何の図か」を読めるように、本文の側でも題名として渡す。
+    const source = ['```zumen', 'version: 1', 'title: 本番構成', '```'].join('\n');
+    const render = vi.fn().mockResolvedValue(SVG);
+
+    const out = await loadZumenImages(source, { theme: 'light', render, describe: describeFailure });
+
+    expect([...out.values()][0]).toMatch(/ "本番構成"\)$/);
+  });
+
+  it('題名が無ければ説明は付けない', async () => {
+    const source = ['```zumen', 'version: 1', 'nodes: []', '```'].join('\n');
+    const render = vi.fn().mockResolvedValue(SVG);
+
+    const out = await loadZumenImages(source, { theme: 'light', render, describe: describeFailure });
+
+    expect([...out.values()][0]).not.toContain('"');
+  });
+
+  it('題名に引用符が入っていても記法が閉じない', async () => {
+    const source = ['```zumen', 'version: 1', 'title: A "B" C', '```'].join('\n');
+    const render = vi.fn().mockResolvedValue(SVG);
+
+    const out = await loadZumenImages(source, { theme: 'light', render, describe: describeFailure });
+
+    expect([...out.values()][0]).toMatch(/ "A \\"B\\" C"\)$/);
   });
 
   it('大きさが割合で書かれていたら、viewBox の値を実寸として入れる', async () => {

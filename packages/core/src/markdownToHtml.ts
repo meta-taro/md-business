@@ -82,6 +82,8 @@ const FOOTNOTE_BACK_LABEL: Record<string, string> = {
  */
 interface HastNode {
   type: string;
+  /** 要素の名前（`p` / `img` など）。文字だけの節には無い。 */
+  tagName?: string;
   value?: string;
   properties?: Record<string, unknown>;
   children?: HastNode[];
@@ -157,6 +159,68 @@ function rehypeFootnotePopovers() {
   };
 }
 
+/** 図とその説明の入れ物。体裁（寄せ・字の大きさ）は当てる側に任せる。 */
+const FIGURE_CLASS = 'mdb-figure';
+const FIGURE_CAPTION_CLASS = 'mdb-figure__caption';
+
+/** 段落が画像 1 つだけで出来ているなら、その画像を返す。 */
+function loneImageOf(node: HastNode): HastNode | null {
+  if (node.type !== 'element' || node.tagName !== 'p') return null;
+  // 改行はそのまま文字として残る。画像 1 つだけの段落でも前後に空白が入る。
+  const kept = (node.children ?? []).filter(
+    (child) => child.type !== 'text' || (child.value ?? '').trim() !== '',
+  );
+  if (kept.length !== 1) return null;
+  const only = kept[0]!;
+  return only.type === 'element' && only.tagName === 'img' ? only : null;
+}
+
+/**
+ * 画像に書かれた題名（`![説明](図.png "題名")`）を、図の下の説明文として出す。
+ *
+ * Markdown の題名は当たると吹き出し（tooltip）になるだけで、紙にも読み上げにも出ない。
+ * 図の下に置けば、本文を追っている人がその図が何かを図のそばで読める（構成図は
+ * 題名を図の中に描かないので、書いても今までどこにも出ていなかった）。
+ *
+ * 替えるのは**画像 1 つだけで出来た段落**に限る。文の途中の画像を入れ物へ移すと、
+ * 文が図の前後で切れる。
+ */
+function rehypeImageCaptions() {
+  return (tree: unknown): void => {
+    const walk = (node: HastNode): void => {
+      const children = node.children;
+      if (children === undefined) return;
+
+      children.forEach((child, index) => {
+        walk(child);
+
+        const image = loneImageOf(child);
+        if (image === null) return;
+        const title = image.properties?.['title'];
+        if (typeof title !== 'string' || title.trim() === '') return;
+
+        // 見えるところへ出したので、同じ文字を吹き出しにも出さない。
+        delete image.properties!['title'];
+        children[index] = {
+          type: 'element',
+          tagName: 'figure',
+          properties: { className: [FIGURE_CLASS] },
+          children: [
+            image,
+            {
+              type: 'element',
+              tagName: 'figcaption',
+              properties: { className: [FIGURE_CAPTION_CLASS] },
+              children: [{ type: 'text', value: title }],
+            },
+          ],
+        };
+      });
+    };
+    walk(tree as HastNode);
+  };
+}
+
 function buildProcessor(lang: string, rawHtml: boolean) {
   const backLabel = FOOTNOTE_BACK_LABEL[lang] ?? FOOTNOTE_BACK_LABEL['ja']!;
 
@@ -178,6 +242,7 @@ function buildProcessor(lang: string, rawHtml: boolean) {
       },
     })
     .use(rehypeFootnotePopovers)
+    .use(rehypeImageCaptions)
     .use(rehypeStringify, { allowDangerousHtml: rawHtml });
 }
 
