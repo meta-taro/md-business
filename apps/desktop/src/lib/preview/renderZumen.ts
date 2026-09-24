@@ -24,7 +24,7 @@ let drawPromise: Promise<ZumenDraw> | null = null;
 
 async function defaultDraw(source: string, options: { theme: PreviewTheme }): Promise<string> {
   if (!drawPromise) {
-    drawPromise = import('@meta-taro/zumen').then((m) => m.toSvg);
+    drawPromise = import('@metataro/zumen').then((m) => m.toSvg);
   }
   return (await drawPromise)(source, options);
 }
