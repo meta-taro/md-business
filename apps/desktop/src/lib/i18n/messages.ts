@@ -652,8 +652,22 @@ export interface Messages {
   'grid.filterByCellTitle': string;
   'grid.filterBySearch': string;
   'grid.filterBySearchTitle': string;
-  'grid.filterClear': string;
-  'grid.filterClearTitle': string;
+  'grid.columnMenu': string;
+  'grid.sortHead': string;
+  'grid.sortAsc': string;
+  'grid.sortDesc': string;
+  'grid.sortOff': string;
+  'grid.filterHead': string;
+  'grid.filterEmpty': string;
+  'grid.filterAll': string;
+  'grid.filterContains': string;
+  'grid.filterMin': string;
+  'grid.filterMax': string;
+  'grid.filterApply': string;
+  'grid.filterColumnClear': string;
+  'grid.rowCount': string;
+  'grid.clearAll': string;
+  'grid.clearAllTitle': string;
   'grid.menuClose': string;
   'grid.colMenuText': string;
   'grid.colMenuAlign': string;
@@ -1320,8 +1334,22 @@ const en: Messages = {
   'grid.filterByCellTitle': 'Keep only the rows whose selected column holds the current cell value (nothing is written to the file)',
   'grid.filterBySearch': 'Only matches',
   'grid.filterBySearchTitle': 'Keep only the rows the search matched (nothing is written to the file)',
-  'grid.filterClear': 'Clear filter ({count} rows)',
-  'grid.filterClearTitle': 'Put every row taken out of view back into the sheet',
+  'grid.columnMenu': 'Sort and filter {name}',
+  'grid.sortHead': 'Sort',
+  'grid.sortAsc': 'Ascending',
+  'grid.sortDesc': 'Descending',
+  'grid.sortOff': 'Stop sorting',
+  'grid.filterHead': 'Filter {name}',
+  'grid.filterEmpty': '(Blank)',
+  'grid.filterAll': 'Show all',
+  'grid.filterContains': 'Contains…',
+  'grid.filterMin': 'From',
+  'grid.filterMax': 'To',
+  'grid.filterApply': 'Apply',
+  'grid.filterColumnClear': 'Clear this column',
+  'grid.rowCount': '{shown} of {total} rows',
+  'grid.clearAll': 'Show all rows',
+  'grid.clearAllTitle': 'Stop every sort and filter and show the rows in file order',
   'grid.menuClose': 'Close the menu',
   'grid.colMenuText': 'Text display for the {name} column',
   'grid.colMenuAlign': 'Alignment',
@@ -1979,8 +2007,22 @@ const ja: Messages = {
   'grid.filterByCellTitle': 'いま選んでいるセルと同じ値の行だけを表に残す（ファイルには何も書かない）',
   'grid.filterBySearch': '当たった行だけ',
   'grid.filterBySearchTitle': '検索で当たった行だけを表に残す（ファイルには何も書かない）',
-  'grid.filterClear': '絞り込み解除（{count} 行）',
-  'grid.filterClearTitle': '外している行をすべて表に戻す',
+  'grid.columnMenu': '{name} の並べ替えと絞り込み',
+  'grid.sortHead': '並べ替え',
+  'grid.sortAsc': '昇順',
+  'grid.sortDesc': '降順',
+  'grid.sortOff': '並べ替えをやめる',
+  'grid.filterHead': '{name} で絞り込む',
+  'grid.filterEmpty': '（空欄）',
+  'grid.filterAll': 'すべて表示',
+  'grid.filterContains': '含む文字…',
+  'grid.filterMin': 'から',
+  'grid.filterMax': 'まで',
+  'grid.filterApply': '適用',
+  'grid.filterColumnClear': 'この列の条件を外す',
+  'grid.rowCount': '{shown} 件 / 全 {total} 件',
+  'grid.clearAll': 'すべて表示',
+  'grid.clearAllTitle': '並べ替えと絞り込みをすべてやめ、ファイルの並びで全行を出す',
   'grid.menuClose': 'メニューを閉じる',
   'grid.colMenuText': '{name} 列のテキスト表示',
   'grid.colMenuAlign': '寄せ',
@@ -2632,8 +2674,22 @@ const zh: Messages = {
   'grid.filterByCellTitle': '只把与当前单元格同值的行留在表格里（不会写入文件）',
   'grid.filterBySearch': '仅命中行',
   'grid.filterBySearchTitle': '只把搜索命中的行留在表格里（不会写入文件）',
-  'grid.filterClear': '取消筛选（{count} 行）',
-  'grid.filterClearTitle': '把移出视图的行全部放回表格',
+  'grid.columnMenu': '{name} 的排序与筛选',
+  'grid.sortHead': '排序',
+  'grid.sortAsc': '升序',
+  'grid.sortDesc': '降序',
+  'grid.sortOff': '取消排序',
+  'grid.filterHead': '按 {name} 筛选',
+  'grid.filterEmpty': '（空白）',
+  'grid.filterAll': '全部显示',
+  'grid.filterContains': '包含的文字…',
+  'grid.filterMin': '从',
+  'grid.filterMax': '到',
+  'grid.filterApply': '应用',
+  'grid.filterColumnClear': '清除此列条件',
+  'grid.rowCount': '{shown} 行 / 共 {total} 行',
+  'grid.clearAll': '全部显示',
+  'grid.clearAllTitle': '取消所有排序与筛选，按文件顺序显示全部行',
   'grid.menuClose': '关闭菜单',
   'grid.colMenuText': '{name} 列的文本显示',
   'grid.colMenuAlign': '对齐',
@@ -3289,8 +3345,22 @@ const ko: Messages = {
   'grid.filterByCellTitle': '선택한 셀과 같은 값의 행만 표에 남긴다(파일에는 아무것도 쓰지 않음)',
   'grid.filterBySearch': '검색된 행만',
   'grid.filterBySearchTitle': '검색에 걸린 행만 표에 남긴다(파일에는 아무것도 쓰지 않음)',
-  'grid.filterClear': '필터 해제({count}행)',
-  'grid.filterClearTitle': '표에서 빼놓은 행을 모두 되돌린다',
+  'grid.columnMenu': '{name} 정렬 및 필터',
+  'grid.sortHead': '정렬',
+  'grid.sortAsc': '오름차순',
+  'grid.sortDesc': '내림차순',
+  'grid.sortOff': '정렬 해제',
+  'grid.filterHead': '{name}(으)로 필터',
+  'grid.filterEmpty': '(빈칸)',
+  'grid.filterAll': '모두 표시',
+  'grid.filterContains': '포함할 문자…',
+  'grid.filterMin': '부터',
+  'grid.filterMax': '까지',
+  'grid.filterApply': '적용',
+  'grid.filterColumnClear': '이 열의 조건 해제',
+  'grid.rowCount': '{shown}행 / 전체 {total}행',
+  'grid.clearAll': '모두 표시',
+  'grid.clearAllTitle': '정렬과 필터를 모두 해제하고 파일 순서대로 모든 행을 표시',
   'grid.menuClose': '메뉴 닫기',
   'grid.colMenuText': '{name} 열의 텍스트 표시',
   'grid.colMenuAlign': '정렬',
