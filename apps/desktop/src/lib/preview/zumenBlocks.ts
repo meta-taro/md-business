@@ -29,6 +29,40 @@ export interface LoadZumenOptions {
   describe: (message: string) => string;
 }
 
+/**
+ * 図そのものの題名。行頭にあるものだけを拾う（`title` は図の中の部品にも書ける）。
+ */
+function titleOf(body: string): string | null {
+  const found = /^title:[ \t]*(.+?)[ \t]*$/m.exec(body);
+  if (found === null) return null;
+  // YAML は値を引用符で囲める。囲みは書式であって題名の一部ではない。
+  return found[1].replace(/^(['"])([\s\S]*)\1$/, '$2');
+}
+
+/**
+ * 画像の説明（alt）。読み上げに使われ、画像が出ないときはこれが代わりに出る。
+ *
+ * 共通の作法は「中身のいちばん上の行」だが、構成図のいちばん上は `version: 1` で、
+ * どの図なのかを何も伝えない。構成図には題名があるので、あればそちらを使う。
+ */
+function altOf(body: string): string {
+  return toImageAlt(titleOf(body) ?? body);
+}
+
+/**
+ * 図の下に出す説明。Markdown の画像に書ける題名として渡す。
+ *
+ * 題名は図の中に描かれないので、書いてもこれまでどこにも出ていなかった。下に出せば、
+ * 本文を追っている人がその図が何かを図のそばで読める。
+ * 題名が無いときは何も付けない（中身の無い説明欄が図の下に残る）。
+ */
+function captionOf(body: string): string {
+  const title = titleOf(body);
+  if (title === null) return '';
+  // 引用符で囲むので、中の引用符と逆斜線は逃がす。閉じが早まると記法ごと壊れる。
+  return ` "${title.replace(/[\\"]/g, '\\$&')}"`;
+}
+
 export async function loadZumenImages(
   source: string,
   options: LoadZumenOptions,
@@ -54,7 +88,7 @@ export async function loadZumenImages(
       }
       drawn.set(block.body, svg);
     }
-    out.set(block.raw, `![${toImageAlt(block.body)}](${toDataUri(svg)})`);
+    out.set(block.raw, `![${altOf(block.body)}](${toDataUri(svg)}${captionOf(block.body)})`);
   }
   return out;
 }

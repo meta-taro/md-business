@@ -91,6 +91,16 @@ table { border-collapse: collapse; display: block; max-width: 100%; overflow: au
 th, td { padding: 6px 13px; border: 1px solid var(--md-border); }
 th { font-weight: 600; }
 img { max-width: 100%; }
+/* 図と、その下に出す説明。説明が図のどれに付いているか分かるよう、幅の中央へ寄せる。 */
+.mdb-figure { margin: 1.5em 0; }
+.mdb-figure img { display: block; margin: 0 auto; }
+.mdb-figure__caption {
+  margin-top: 0.5em;
+  text-align: center;
+  font-size: 0.875em;
+  line-height: 1.6;
+  color: var(--md-muted);
+}
 hr { height: 1px; margin: 1.5em 0; border: 0; background: var(--md-border); }
 
 /* PDF 出力（DESIGN §6.4）。A4 縦・実務的な余白。WebView の印刷（→「PDF として保存」）で
@@ -119,7 +129,7 @@ hr { height: 1px; margin: 1.5em 0; border: 0; background: var(--md-border); }
     overflow-wrap: anywhere;
   }
   /* コードフェンス・見出し・表・画像はページ境界で不自然に割れないようにする。 */
-  pre, blockquote, table, img { break-inside: avoid; }
+  pre, blockquote, table, img, figure { break-inside: avoid; }
   h1, h2, h3, h4, h5, h6 { break-after: avoid; }
 }
 /* 注釈（Markdown の脚注）。本文には肩番号だけが残り、本文は末尾へ畳まれる。 */

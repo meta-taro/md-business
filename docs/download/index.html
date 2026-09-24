@@ -72,7 +72,7 @@
   </div>
 
   <!-- 画面キャプチャ。画像を置くまで hidden のままで、置いた時点で自動的に出る（HTML の再編集は不要）。
-       404 になった figure は個別に伏せるので、5 枚のうち一部だけ揃った状態でも壊れない。 -->
+       404 になった figure は個別に伏せるので、一部だけ揃った状態でも壊れない。 -->
   <section id="shots" class="shot-group" hidden>
     <h2>画面を見る</h2>
     <p>入れる前に、何ができるアプリなのかをご覧ください。</p>
@@ -80,6 +80,10 @@
       <figure>
         <img class="shot" src="../screenshots/desktop-editor.png" alt="Markdown を左右 2 画面でライブ編集している画面" loading="lazy" width="1600" height="1000">
         <figcaption>左で書くと右がすぐ追いつきます。保存の前から仕上がりが見えます</figcaption>
+      </figure>
+      <figure>
+        <img class="shot" src="../screenshots/desktop-zumen.png" alt="構成図。左の囲みに書いた YAML が、右で枠と矢印の図になっている" loading="lazy" width="1600" height="1000">
+        <figcaption>構成図も本文に書きます。並べ方は書かず、繋がりだけを書きます</figcaption>
       </figure>
       <figure>
         <img class="shot" src="../screenshots/desktop-test-spec-grid.png" alt="検証シートのグリッド。結果列が OK / NG / 保留 で色分けされている" loading="lazy" width="1600" height="1000">
@@ -94,6 +98,25 @@
         <figcaption>そのまま A4 の PDF に出せます。画面で見えているとおりに出ます</figcaption>
       </figure>
     </div>
+  </section>
+
+  <section>
+    <h2>図も表も、本文に書けます</h2>
+    <p>
+      基本設計書や API 仕様書は、文章だけでは伝わりません。<strong>表と図</strong>が要ります。
+      表は Markdown がもともと書けますが、図は作図ツールを別に開いて、出来た画像を貼る手順になりがちです。
+      貼った画像は中身が読めないので、Git は差分を取れませんし、直すたびに元ファイルを探すことになります。
+    </p>
+    <p>
+      そこで構成図は <a href="https://meta-taro.github.io/zumen/">zumen</a> に任せています。本文に
+      <code>zumen</code> の囲みを書き、何があって何と繋がるかを書くだけで図になります。箱の位置は書きません。
+      図はテキストのままなので、<strong>AI アシスタントがそのまま直せますし、Git が 1 行単位で差分を取れます</strong>。
+      PDF にもそのまま乗ります。
+    </p>
+    <p>
+      zumen も MIT の OSS で、md-business と<strong>互いに合わせながら開発しています</strong>。
+      図のために別のツールを用意したり、貼るために書き出したりする手順は要りません。
+    </p>
   </section>
 
   <section>

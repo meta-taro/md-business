@@ -62,20 +62,93 @@
 
 注文管理サブシステムは、API ゲートウェイ配下に Order Service を中核として配置し、外部システムとは非同期メッセージング（Cloud Pub/Sub）で疎結合に連携する。
 
-```mermaid
-graph LR
-  Client[顧客アプリ] --> Gateway[API Gateway]
-  Admin[管理画面] --> Gateway
-  Gateway --> OrderService[Order Service]
-  OrderService --> OrderDB[(Order DB)]
-  OrderService -->|引当要求| InventoryQ[Inventory Queue]
-  InventoryQ --> InventoryService[Inventory Service]
-  OrderService -->|オーソリ要求| PaymentPG[Payment Gateway]
-  OrderService -->|出荷指示| ShipmentQ[Shipment Queue]
-  ShipmentQ --> WMS[倉庫管理システム]
+構成図は `zumen` の囲みで書く。置き場（どこに何があるか）は `groups`、機器は `nodes`、
+つながりは `edges` に書き、並べ方は書かない。並びは書いた順ではなく、つながりから決まる。
+
+```zumen
+version: 1
+title: 注文管理サブシステムの構成
+groups:
+  - id: front
+    label: 利用者
+  - id: core
+    label: 注文管理サブシステム
+  - id: peer
+    label: 連携先
+nodes:
+  - id: client
+    type: internet
+    label: 顧客アプリ
+    group: front
+  - id: admin
+    type: generic
+    label: 管理画面
+    group: front
+  - id: gateway
+    type: load-balancer
+    label: API Gateway
+    group: core
+  - id: order
+    type: server
+    label: Order Service
+    technology: Cloud Run
+    group: core
+  - id: orderdb
+    type: database
+    label: Order DB
+    technology: Cloud SQL / PostgreSQL
+    group: core
+  - id: invq
+    type: queue
+    label: Inventory Queue
+    technology: Cloud Pub/Sub
+    group: core
+  - id: shipq
+    type: queue
+    label: Shipment Queue
+    technology: Cloud Pub/Sub
+    group: core
+  - id: inventory
+    type: server
+    label: Inventory Service
+    group: peer
+  - id: payment
+    type: generic
+    label: Payment Gateway
+    group: peer
+  - id: wms
+    type: server
+    label: 倉庫管理システム
+    group: peer
+edges:
+  - from: client
+    to: gateway
+    label: HTTPS
+  - from: admin
+    to: gateway
+    label: HTTPS
+  - from: gateway
+    to: order
+  - from: order
+    to: orderdb
+  - from: order
+    to: invq
+    label: 引当要求
+  - from: invq
+    to: inventory
+  - from: order
+    to: payment
+    label: オーソリ要求
+  - from: order
+    to: shipq
+    label: 出荷指示
+  - from: shipq
+    to: wms
 ```
 
 ## 2.2 注文確定シーケンス
+
+順番のある話は構成図にしない。誰がいつ誰を呼ぶかは `mermaid` の囲みで書く。
 
 ```mermaid
 sequenceDiagram

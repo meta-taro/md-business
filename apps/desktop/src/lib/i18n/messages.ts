@@ -560,6 +560,8 @@ export interface Messages {
   'chart.badPath': string;
   'chart.readFailed': string;
   'chart.unreadableCells': string;
+  // 構成図（zumen ブロック）
+  'zumen.failed': string;
 
   // 本文に置いたデータの囲み（```data）。開いた .json / .xml の画面（data.*）とは別。
   'dataBlock.failed': string;
@@ -1241,6 +1243,8 @@ const en: Messages = {
   'chart.badPath': 'this file is not inside the open folder ({raw}).',
   'chart.readFailed': 'could not read the table ({raw}).',
   'chart.unreadableCells': '{raw} cell(s) did not read as a number and were left blank in the chart.',
+  // 構成図（zumen ブロック）
+  'zumen.failed': 'Could not draw the diagram. {detail}',
 
   'dataBlock.failed': 'Could not build the table. {detail}',
   'dataBlock.atLine': 'Line {line}: {detail}',
@@ -1917,6 +1921,8 @@ const ja: Messages = {
   'chart.badPath': '開いているフォルダの中にありません（{raw}）。',
   'chart.readFailed': '表を読めません（{raw}）。',
   'chart.unreadableCells': '数として読めないセルが {raw} 個ありました。その分は図では空けてあります。',
+  // 構成図（zumen ブロック）
+  'zumen.failed': '構成図を描けません。{detail}',
 
   'dataBlock.failed': 'データを表にできません。{detail}',
   'dataBlock.atLine': '{line} 行目: {detail}',
@@ -2584,6 +2590,8 @@ const zh: Messages = {
   'chart.badPath': '该文件不在已打开的文件夹内（{raw}）。',
   'chart.readFailed': '无法读取表格（{raw}）。',
   'chart.unreadableCells': '有 {raw} 个单元格无法作为数字读取，图中相应位置留空。',
+  // 構成図（zumen ブロック）
+  'zumen.failed': '无法绘制结构图。{detail}',
 
   'dataBlock.failed': '无法将数据转成表格。{detail}',
   'dataBlock.atLine': '第 {line} 行：{detail}',
@@ -3254,6 +3262,8 @@ const ko: Messages = {
   'chart.badPath': '열려 있는 폴더 안에 없습니다({raw}).',
   'chart.readFailed': '표를 읽을 수 없습니다({raw}).',
   'chart.unreadableCells': '숫자로 읽지 못한 칸이 {raw}개 있어 차트에서는 비워 두었습니다.',
+  // 構成図（zumen ブロック）
+  'zumen.failed': '구성도를 그릴 수 없습니다. {detail}',
 
   'dataBlock.failed': '데이터를 표로 만들 수 없습니다. {detail}',
   'dataBlock.atLine': '{line}번째 줄: {detail}',
