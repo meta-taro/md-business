@@ -238,3 +238,22 @@ figure.hero-shot { margin: 0 0 40px; }
     margin-right: -144px;
   }
 }
+
+/* sibling product */
+.pair {
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 20px;
+  background: var(--bg-soft);
+}
+.pair-icon { width: 72px; height: 72px; flex: none; border-radius: 14px; }
+.pair-body { min-width: 0; }
+.pair h3 { margin: 0 0 8px; font-size: 1.1rem; }
+.pair h3 a { text-decoration: none; }
+.pair h3 a:hover { text-decoration: underline; }
+.pair p { margin: 0; color: var(--muted); font-size: 0.95rem; }
+@media (max-width: 34rem) { .pair { flex-direction: column; } }
+section p.note { color: var(--muted); font-size: 0.9rem; }

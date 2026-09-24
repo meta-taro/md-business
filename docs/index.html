@@ -220,6 +220,35 @@ PDF · Sheets · Chrome · desktop  ← how people actually read it</code></pre>
 </section>
 
 <section>
+  <h2>Better with zumen</h2>
+  <div class="pair">
+    <img class="pair-icon" src="assets/zumen-icon.svg" width="72" height="72"
+         alt="zumen icon: an architecture diagram shaped like a tree that splits from one into two, on dark grey.">
+    <div class="pair-body">
+      <h3><a href="https://meta-taro.github.io/zumen/">zumen</a> — diagrams the AI draws, you fix, and your fix survives</h3>
+      <p>
+        An architecture-diagram editor whose source of truth is text. Fix one spot in a diagram an AI drew,
+        and the next time the AI redraws it, your fix is still there. It has an MCP server, so an agent can draw directly.
+      </p>
+    </div>
+  </div>
+  <p>
+    <b>Same idea, so they fit together.</b> md-business keeps documents, zumen keeps diagrams — both as text
+    that people and AI edit in place. The design document lives in md-business, the architecture diagram inside it
+    in zumen, and neither ends up in a separate binary format: you diff both in the same repository.
+  </p>
+  <p>
+    <b>Write the diagram inside the design document, as text.</b> Put a <code>```zumen</code> fence in the body and it
+    renders as a diagram in the preview, the PDF, and the HTML and image exports. When the system changes, you edit
+    the fence — no redrawing and re-pasting. Connect an agent to both MCP servers and it can fix the diagram while
+    it fixes the document.
+  </p>
+  <p class="note">
+    <code>```zumen</code> fences arrive with the next desktop release.
+  </p>
+</section>
+
+<section>
   <h2>Not there yet</h2>
   <ul>
     <li><strong>api-spec and db-spec are not implemented.</strong> If those are the documents you need, this is not ready for you yet.</li>

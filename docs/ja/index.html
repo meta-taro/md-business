@@ -217,6 +217,34 @@ PDF・Sheets・Chrome・デスクトップ ← 人が実際に読む形</code></
 </section>
 
 <section>
+  <h2>zumen と組み合わせる</h2>
+  <div class="pair">
+    <img class="pair-icon" src="../assets/zumen-icon.svg" width="72" height="72"
+         alt="zumen のアイコン。ダークグレーの地に、1 つから 2 つへ分かれる木の形の構成図。">
+    <div class="pair-body">
+      <h3><a href="https://meta-taro.github.io/zumen/">zumen</a> — AI が描き、人が直し、その直しが壊れない構成図</h3>
+      <p>
+        構成図をテキストで持つエディタ。AI が描いた図を人が 1 か所だけ直しても、
+        次に AI が描き直したときにその直しが消えない。MCP の口を持つので、エージェントに直接描かせられる。
+      </p>
+    </div>
+  </div>
+  <p>
+    <b>考え方が同じなので、そのまま噛み合う。</b>md-business は文書を、zumen は図を、
+    どちらも人と AI が同じテキストを直す正本として持つ。設計書の本文は md-business、
+    その中の構成図は zumen —— 文書と図が別のファイル形式に分かれず、どちらも同じリポジトリで差分が取れる。
+  </p>
+  <p>
+    <b>基本設計書の中に、図をテキストのまま書ける。</b>本文に <code>```zumen</code> の囲みを置くと、
+    プレビュー・PDF・HTML / 画像の書き出しのすべてで構成図として描かれる。構成が変わったら囲みの中を直すだけで、
+    図を描き直して貼り替える手間が無い。AI には両方の MCP サーバーを繋いでおけば、設計書を直すついでに図も直せる。
+  </p>
+  <p class="note">
+    <code>```zumen</code> の囲みは、次のデスクトップ版から使える。
+  </p>
+</section>
+
+<section>
   <h2>まだ出来ていないこと</h2>
   <ul>
     <li><strong>api-spec と db-spec は未実装。</strong>その 2 つが必要な文書なら、まだ使える状態ではない。</li>
