@@ -35,6 +35,8 @@
   import { openUrl } from '@tauri-apps/plugin-opener';
   import { isTsvSource } from '$lib/tsv/detect';
   import { loadGridDoc, saveGridDoc } from '$lib/tsv/gridDoc';
+  import { excludedByConditions, type ColumnCondition } from '$lib/tsv/gridColumnFilter';
+  import { sortedRowIds, type SortSpec } from '$lib/tsv/gridSort';
   import { checkSheetLinks, type SheetLinkIssue, type SheetReader } from '$lib/tsv/linkCheck';
   import { createSheetCache } from '$lib/tsv/sheetCache';
   import { readSheetEnums } from '$lib/tsv/sheetEnums';
@@ -132,7 +134,7 @@
     debouncedSource = next;
     gridHistory = initHistory(next);
     revealHidden = false;
-    filteredIds = new Set();
+    clearArrangement();
     sheetPreview = false;
   });
 
@@ -492,6 +494,40 @@
   // 足した行と、直して当たらなくなった行が黙って消える）。ファイルには何も書かないので、
   // 控えと違い開き直しで戻る。
   let filteredIds = $state<ReadonlySet<string>>(new Set());
+  // 表から外した行の出どころ。検索・選択セルから外した分（列を持たない）と、列ごとの条件。
+  // 条件は置いた時点の値で外す行を決める。値を直すたびに当て直すと、直した行が目の前で消える。
+  let adhocIds = $state<ReadonlySet<string>>(new Set());
+  let columnConditions = $state<ReadonlyMap<number, ColumnCondition>>(new Map());
+  // 並べ替え。並びは押した時点の行 ID で持つ（同じ理由で、直すたびに並べ直さない）。
+  let sortSpec = $state<SortSpec | null>(null);
+  let sortOrder = $state<readonly string[] | undefined>(undefined);
+
+  // 絞り込みも並べ替えも掛けていない、表に出しうる全行。
+  function wholeGridDoc() {
+    return loadGridDoc(untrack(() => debouncedSource), { reveal: untrack(() => revealHidden) }).doc;
+  }
+  function applySort(spec: SortSpec | null): void {
+    sortSpec = spec;
+    sortOrder = spec === null ? undefined : sortedRowIds(wholeGridDoc(), spec);
+  }
+  function applyColumnCondition(col: number, condition: ColumnCondition | null): void {
+    const next = new Map(columnConditions);
+    if (condition === null) next.delete(col);
+    else next.set(col, condition);
+    columnConditions = next;
+    filteredIds = new Set([...adhocIds, ...excludedByConditions(wholeGridDoc(), next)]);
+  }
+  function addAdhocFilter(excluded: ReadonlySet<string>): void {
+    adhocIds = new Set([...adhocIds, ...excluded]);
+    filteredIds = new Set([...filteredIds, ...excluded]);
+  }
+  function clearArrangement(): void {
+    adhocIds = new Set();
+    columnConditions = new Map();
+    filteredIds = new Set();
+    sortSpec = null;
+    sortOrder = undefined;
+  }
   // 検証シートを紙の版面で見ているか。見ているだけでファイルには何も書かないので、
   // 開き直しで既定（表の編集）へ戻す。
   let sheetPreview = $state(false);
@@ -499,7 +535,7 @@
   // 1 セル確定するたびに本文を組み直し、それをまたここで読み直している。読み直しは
   // 画面へ反映する途中で走るので、測らないと「画面への反映」に紛れて見えない。
   const tsvGrid = $derived(
-    isTsv ? perf.measure('parse', () => loadGridDoc(debouncedSource, { reveal: revealHidden, without: filteredIds })) : null,
+    isTsv ? perf.measure('parse', () => loadGridDoc(debouncedSource, { reveal: revealHidden, without: filteredIds, order: sortOrder })) : null,
   );
   const tsvDoc = $derived(tsvGrid?.doc ?? null);
   // 検証シート以外へ移ったら下見を畳む。畳まないと、次にシートを開いたとき
@@ -1511,8 +1547,12 @@
           reveal={revealHidden}
           onToggleReveal={() => (revealHidden = !revealHidden)}
           filteredCount={tsvGrid?.filtered.length ?? 0}
-          onFilter={(excluded) => (filteredIds = new Set([...filteredIds, ...excluded]))}
-          onClearFilter={() => (filteredIds = new Set())}
+          onFilter={addAdhocFilter}
+          onClearFilter={clearArrangement}
+          sort={sortSpec}
+          onSort={applySort}
+          conditions={columnConditions}
+          onColumnFilter={applyColumnCondition}
           onFollowLink={handleFollowLink}
           jump={gridJump}
           {linkIssues}

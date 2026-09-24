@@ -67,6 +67,10 @@
   import { rowWindow, scrollToRow, tailSpace } from './gridWindow';
   import { NOTE_FOLD_MIN, noteFoldKey, noteFoldValue, resolveNoteFold } from './noteFold';
   import { clampView, type GridView } from './gridView';
+  import ColumnSortFilterMenu from './ColumnSortFilterMenu.svelte';
+  import type { ColumnCondition } from './gridColumnFilter';
+  import { filterModeOf, sortSpecFor, valueChoicesOf } from './gridColumnMenu';
+  import type { SortDirection, SortSpec } from './gridSort';
   import { effectiveRowHeights, mergeMeasuredHeights } from './gridRowMeasure';
   import type { MeasuredSample } from './gridRowMeasure';
   import {
@@ -232,8 +236,19 @@
      * 渡すのは**外す側**の集合。残す側で持つと、絞り込み中に足した行が次の絞り込みで消える。
      */
     onFilter?: (excluded: ReadonlySet<string>) => void;
-    /** 絞り込みをすべてやめて、外した行を表へ戻す。 */
+    /** 並べ替えと絞り込みをすべてやめて、ファイルの並びの全行へ戻す。 */
     onClearFilter?: () => void;
+    /**
+     * いまの並べ替え。並べていなければ null。並べた結果の行順は親が読み込みの時点で
+     * 当ててくるので、ここは見出しの印と計算列の扱いにだけ使う。
+     */
+    sort?: SortSpec | null;
+    /** 列を並べ替える（null で並べ替えをやめる）。 */
+    onSort?: (spec: SortSpec | null) => void;
+    /** 列ごとの絞り込み条件（列番号 → 条件）。見出しの印に使う。 */
+    conditions?: ReadonlyMap<number, ColumnCondition>;
+    /** 列の絞り込み条件を置く（null でその列の条件を外す）。 */
+    onColumnFilter?: (col: number, condition: ColumnCondition | null) => void;
   }
 
   let {
@@ -259,6 +274,10 @@
     filteredCount = 0,
     onFilter,
     onClearFilter,
+    sort = null,
+    onSort,
+    conditions = new Map(),
+    onColumnFilter,
   }: Props = $props();
 
   // 前に見ていた位置。組み立て時に 1 度だけ読み、今の表の大きさへ収める。
@@ -1049,21 +1068,22 @@
     noticeTimer = setTimeout(() => (notice = ''), 6000);
   }
 
-  // 絞り込み中は計算列を触らない。表に出ている行だけで採番すると、外している行を飛ばした
-  // 番号がそのままファイルへ焼かれる（外した行は保存時に元の位置へ戻るので、番号だけが
-  // 詰まった状態で残る）。絞り込みを解いた時点で下の $effect が採番し直す。
+  // 絞り込み中・並べ替え中は計算列を触らない。表に出ている並びで採番すると、外している行を
+  // 飛ばした番号や、並べ替えた順の番号がそのままファイルへ焼かれる（行は保存時にファイルの
+  // 並びへ戻るので、番号だけがずれて残る）。解いた時点で下の $effect が採番し直す。
   const filtering = $derived(filteredCount > 0);
+  const rearranged = $derived(filtering || sort !== null);
 
   // 親へ通知する唯一の出口。計算列をここで算出値へ揃える。書き込み経路ごとにガードを
   // 置くと、経路が増えたときに漏れる（行の複製・一括埋め・貼り付けは列を選ばない）。
   function emit(next: IdentifiedTsv, edit?: string): void {
-    onChange?.(filtering ? next : applyComputed(next, computed, counts), edit);
+    onChange?.(rearranged ? next : applyComputed(next, computed, counts), edit);
   }
 
   // 開いたファイルの計算列がずれていれば直す。算出値と一致していれば applyComputed が
   // 同じ参照を返すので、整ったファイルを開いただけでは変更扱いにならない。
   $effect(() => {
-    if (filtering) return;
+    if (rearranged) return;
     const healed = applyComputed(doc, computed, counts);
     if (healed !== doc) onChange?.(healed);
   });
@@ -1716,9 +1736,36 @@
   //    親が預かり、保存時に元の位置へ戻る。`#@ export` にも効かせない。 ──
   // 押した時点の「外す行」を親へ渡す。すでに外れている行はこの doc に居ないので、
   // 押すたびに絞り込みが深くなる（戻すのは解除だけ）。
+  // 列の条件を置ける親には条件として渡す。見出しに印が付き、その列だけ外せるようになる。
   function filterByActiveCell(): void {
     if (!activeIsData) return;
-    onFilter?.(unlikeRowIds(doc, activeCell.col, cellValue(activeCell.row, activeCell.col)));
+    const value = cellValue(activeCell.row, activeCell.col);
+    if (onColumnFilter) {
+      onColumnFilter(activeCell.col, { kind: 'values', values: [value.trim()] });
+      return;
+    }
+    onFilter?.(unlikeRowIds(doc, activeCell.col, value));
+  }
+
+  // ── 見出しの並べ替え・絞り込みメニュー。どちらも見せ方だけで、ファイルには残さない。 ──
+  let sortFilterMenu = $state<{ col: number; x: number; y: number } | null>(null);
+  function openSortFilterMenu(col: number, event: MouseEvent): void {
+    const box = (event.currentTarget as HTMLElement).getBoundingClientRect();
+    sortFilterMenu = { col, x: box.left, y: box.bottom + 2 };
+  }
+  function closeSortFilterMenu(): void {
+    sortFilterMenu = null;
+  }
+  function chooseSort(col: number, dir: SortDirection | null): void {
+    onSort?.(dir === null ? null : sortSpecFor(col, dir, widgets[col]));
+    sortFilterMenu = null;
+  }
+  // 一覧に並べる値。いま外れている行の値は表に居ないので、選んでいる値は条件から補う。
+  function menuChoices(col: number): string[] {
+    const condition = conditions.get(col);
+    const values = doc.rows.map((row) => row[col] ?? '');
+    if (condition?.kind === 'values') values.push(...condition.values);
+    return valueChoicesOf(widgets[col], values);
   }
   function filterBySearch(): void {
     if (searchRegex === null) return;
@@ -1740,6 +1787,7 @@
 <svelte:window
   onkeydown={(e) => {
     if (e.key === 'Escape' && colMenu) closeColMenu();
+    if (e.key === 'Escape' && sortFilterMenu) closeSortFilterMenu();
     if (e.key === 'Escape' && annotEdit) closeAnnotEdit();
     if (e.key === 'Escape' && rowMenu) closeRowMenu();
   }}
@@ -1981,6 +2029,30 @@
                   title={t('grid.multiline')}
                   aria-label={t('grid.multiline')}
                 >↵</span>{/if}
+              {#if onSort || onColumnFilter}
+                <!-- 並べ替え・絞り込みの口。条件の付いた列は色で、並べ替えは向きの矢印で見せる。
+                     見出しに出ていないと、行が減った・順が変わった理由が分からない。 -->
+                <button
+                  type="button"
+                  class="sf-toggle"
+                  class:on={sort?.col === col || conditions.has(col)}
+                  title={t('grid.columnMenu', { name: column.name })}
+                  aria-label={t('grid.columnMenu', { name: column.name })}
+                  aria-haspopup="dialog"
+                  onclick={(e) => openSortFilterMenu(col, e)}
+                >
+                  {#if sort?.col === col}<span aria-hidden="true"
+                      >{sort.dir === 'asc' ? '↑' : '↓'}</span
+                    >{/if}
+                  <svg viewBox="0 0 12 12" width="10" height="10" aria-hidden="true">
+                    {#if conditions.has(col)}
+                      <path d="M1 2h10L7 6.5V11L5 10V6.5z" fill="currentColor" />
+                    {:else}
+                      <path d="M3 4.5l3 3 3-3" fill="none" stroke="currentColor" stroke-width="1.4" />
+                    {/if}
+                  </svg>
+                </button>
+              {/if}
               <!-- 列幅リサイズのグリップ。掴んで左右ドラッグで列幅を変える（スプレ同様）。
                    ダブルクリックで内容に合わせた自動幅。キーボード列幅調整は未提供。 -->
               <!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -2355,14 +2427,14 @@
           </button>
         {/if}
       {/if}
-      {#if filtering && onClearFilter}
-        <button
-          type="button"
-          class="row-btn on"
-          onclick={onClearFilter}
-          title={t('grid.filterClearTitle')}
-        >
-          {t('grid.filterClear', { count: filteredCount })}
+      {#if filtering}
+        <span class="row-count" aria-live="polite">
+          {t('grid.rowCount', { shown: doc.rows.length, total: doc.rows.length + filteredCount })}
+        </span>
+      {/if}
+      {#if rearranged && onClearFilter}
+        <button type="button" class="row-btn on" onclick={onClearFilter} title={t('grid.clearAllTitle')}>
+          {t('grid.clearAll')}
         </button>
       {/if}
       <!-- 行の履歴。git を毎回叩くので、出すと決めたときだけ読む。 -->
@@ -2402,6 +2474,22 @@
       <!-- 落とした件数のように、黙っていると気づかれない結果だけをここへ出す。 -->
       <span class="notice" aria-live="polite">{notice}</span>
     </div>
+  {/if}
+
+  {#if sortFilterMenu}
+    {@const col = sortFilterMenu.col}
+    <ColumnSortFilterMenu
+      x={sortFilterMenu.x}
+      y={sortFilterMenu.y}
+      name={doc.columns[col]?.name ?? ''}
+      mode={filterModeOf(widgets[col])}
+      choices={menuChoices(col)}
+      sortDir={sort?.col === col ? sort.dir : null}
+      condition={conditions.get(col) ?? null}
+      onSort={(dir) => chooseSort(col, dir)}
+      onCondition={(condition) => onColumnFilter?.(col, condition)}
+      onClose={closeSortFilterMenu}
+    />
   {/if}
 
   {#if colMenu}
@@ -3124,6 +3212,40 @@
     margin-left: 3px;
     font-size: 0.85em;
     cursor: help;
+  }
+
+  /* 見出しの並べ替え・絞り込みの口。普段は控えめに、条件の付いた列だけ色で目立たせる。 */
+  .sf-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 1px;
+    margin-left: 4px;
+    padding: 0 3px;
+    height: 16px;
+    border: 1px solid transparent;
+    border-radius: var(--radius-sm, 4px);
+    background: transparent;
+    color: var(--text-tertiary);
+    font-size: 0.85em;
+    line-height: 1;
+    vertical-align: middle;
+    cursor: pointer;
+  }
+
+  .sf-toggle:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+  }
+
+  .sf-toggle.on {
+    color: var(--accent);
+    border-color: var(--accent);
+  }
+
+  .row-count {
+    color: var(--text-secondary);
+    font-size: var(--text-sm-size);
+    white-space: nowrap;
   }
 
   /* 計算列＝人が打たない列。地を沈めて「打つ場所ではない」ことを見た目で先に伝える。

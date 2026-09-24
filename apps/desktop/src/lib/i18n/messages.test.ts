@@ -60,9 +60,10 @@ describe('検証グリッドの文言', () => {
 
   // 絞り込みは外した行をファイルに残さない。件数が出ないと、表に出ていない行があること自体に
   // 気づけないまま「行が消えた」と受け取られる。
-  it('絞り込みの解除は件数を差し込める', () => {
+  it('絞り込み中の件数は、出ている行と全体の行を差し込める', () => {
     for (const locale of LOCALES) {
-      expect(messages[locale]['grid.filterClear'], locale).toContain('{count}');
+      expect(messages[locale]['grid.rowCount'], locale).toContain('{shown}');
+      expect(messages[locale]['grid.rowCount'], locale).toContain('{total}');
     }
   });
 
