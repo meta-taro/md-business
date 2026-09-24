@@ -45,6 +45,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "bundle": "node scripts/bundle-sidecar.mjs",
+    "generate:about": "node scripts/generate-about.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest",
     "test:run": "vitest run --coverage",
