@@ -88,6 +88,7 @@
     alignStyle,
   } from './gridColumnAlign';
   import { spillsRight } from './gridSpill';
+  import { dateInputMax } from './gridDateInput';
   import { keepsNativeContextMenu } from './gridContextMenu';
   import {
     readLayout,
@@ -2199,12 +2200,14 @@
                     {:else if widget.kind === 'date'}
                       <input
                         type="date"
+                        max={dateInputMax('date')}
                         value={value}
                         oninput={(e) => commit(r, c, e.currentTarget.value)}
                       />
                     {:else if widget.kind === 'datetime'}
                       <input
                         type="datetime-local"
+                        max={dateInputMax('datetime')}
                         value={toDatetimeInput(value)}
                         oninput={(e) => commit(r, c, e.currentTarget.value)}
                       />
