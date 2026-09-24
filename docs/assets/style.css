@@ -174,3 +174,67 @@ th { background: var(--bg-soft); font-weight: 600; }
   background: #e8f0fe;
   border-left-color: var(--brand);
 }
+
+/* --- 入口ページ（`/` と `/ja/`）専用 ---------------------------------------
+   ほかのページは名乗りの行も画面写真も持たない。入口だけの見た目だが、入口は
+   en / ja の 2 枚あるので共有シートへ置く（2 枚へ書き写すと、片方だけ直した
+   状態が必ず生まれる）。 */
+
+/* 製品名と言語の切り替え。名前はここ止まりで、h1 には置かない ——
+   読み手はまだその名前を知らないので、いちばん大きい行が情報ゼロになる。 */
+.hero .mark {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: 880px;
+  margin: 0 auto 36px;
+  text-align: left;
+  font-size: 0.95rem;
+  letter-spacing: 0.02em;
+}
+.hero .lang {
+  margin-left: auto;
+  display: flex;
+  gap: 12px;
+  font-size: 0.85rem;
+}
+/* いま見ているほうは押せない文字で出す（押してから気づく状態を作らない）。 */
+.hero .lang span { opacity: 0.65; }
+.hero .lang a { color: #fff; opacity: 0.95; }
+.hero h1 .quiet { opacity: 0.72; }
+/* 濃い面の上なので、共通の `code`（淡い地色 + 濃い字）のままだと字が消える。 */
+.hero code { background: rgba(255,255,255,0.18); color: #fff; }
+.hero .actions .note {
+  align-self: center;
+  font-size: 0.9rem;
+  opacity: 0.85;
+}
+
+/* 画面写真。 */
+figure.shot { margin: 32px 0; }
+figure.shot img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--bg);
+}
+figure.shot figcaption {
+  margin-top: 10px;
+  font-size: 0.93rem;
+  color: var(--muted);
+}
+/* 1 枚目は説明文より前に出す。何を見せられているのか分からないまま
+   文章だけが続く状態を作らないため。 */
+figure.hero-shot { margin: 0 0 40px; }
+.shot-note { font-size: 0.9rem; color: var(--muted); }
+/* 1600px で撮った画面を本文幅（832px）へ収めると、中の文字が読めない大きさになる。
+   横に余裕のある画面のときだけ本文の外へはみ出させる。 */
+@media (min-width: 1200px) {
+  figure.shot {
+    width: 1120px;
+    margin-left: -144px;
+    margin-right: -144px;
+  }
+}

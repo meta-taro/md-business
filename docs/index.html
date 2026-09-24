@@ -3,88 +3,198 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>md-business — AI-native business documents, powered by Markdown</title>
-<meta name="description" content="Open-source framework for managing business documents (invoices, test specs, design docs) as Markdown with JSON Schema validation, Git history, and viewers for Chrome, Google Workspace, and PWA.">
+<title>md-business — business documents your AI agent can actually open</title>
+<meta name="description" content="Invoices, specifications and test sheets as Markdown with JSON Schema validation. People read PDF and Sheets; AI agents read, edit, validate and diff the same file. Desktop app with a built-in MCP server. MIT.">
 <link rel="canonical" href="https://meta-taro.github.io/md-business/">
-<meta property="og:title" content="md-business">
-<meta property="og:description" content="AI-native business documents, powered by Markdown as the source of truth.">
+<link rel="alternate" hreflang="en" href="https://meta-taro.github.io/md-business/">
+<link rel="alternate" hreflang="ja" href="https://meta-taro.github.io/md-business/ja/">
+<link rel="alternate" hreflang="x-default" href="https://meta-taro.github.io/md-business/">
 <meta property="og:type" content="website">
+<meta property="og:site_name" content="md-business">
+<meta property="og:locale" content="en_US">
+<meta property="og:locale:alternate" content="ja_JP">
 <meta property="og:url" content="https://meta-taro.github.io/md-business/">
+<meta property="og:title" content="md-business — business documents your AI agent can actually open">
+<meta property="og:description" content="Invoices, specifications and test sheets as Markdown. People read PDF and Sheets; agents read and edit the same file.">
+<meta property="og:image" content="https://meta-taro.github.io/md-business/screenshots/desktop-invoice.png">
+<meta property="og:image:alt" content="A qualified invoice open in the md-business desktop app, with the file tree on the left and the rendered document on the right.">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="md-business — business documents your AI agent can actually open">
+<meta name="twitter:description" content="Invoices, specifications and test sheets as Markdown. People read PDF and Sheets; agents read and edit the same file.">
+<meta name="twitter:image" content="https://meta-taro.github.io/md-business/screenshots/desktop-invoice.png">
 <link rel="stylesheet" href="assets/style.css">
 </head>
 <body>
 
 <header class="hero">
-  <h1>md-business</h1>
-  <p class="tagline">AI-native business documents, powered by Markdown as the source of truth.</p>
+  <div class="mark">
+    <b>md-business</b>
+    <nav class="lang" aria-label="Language">
+      <span aria-current="true">English</span><a href="ja/" hreflang="ja" lang="ja">日本語</a>
+    </nav>
+  </div>
+
+  <h1>Your agent writes the code.<br><span class="quiet">It never sees the spec.</span></h1>
+
+  <p class="tagline">
+    Invoices, specifications and test sheets live as Markdown, not inside a <code>.docx</code>.<br>
+    <strong>People read PDF and Sheets. Agents read and edit the same file.</strong>
+  </p>
+
   <div class="actions">
-    <a class="btn btn-primary" href="download/">Download desktop app</a>
-    <a class="btn btn-outline" href="https://github.com/meta-taro/md-business">View on GitHub</a>
-    <a class="btn btn-outline" href="https://chromewebstore.google.com/detail/lmdplkkfmgapnhombimeohjliinifgjh">Chrome Extension</a>
+    <a class="btn btn-primary" href="download/">Download the desktop app</a>
+    <a class="btn btn-outline" href="https://github.com/meta-taro/md-business">GitHub</a>
+    <a class="btn btn-outline" href="https://chromewebstore.google.com/detail/lmdplkkfmgapnhombimeohjliinifgjh">Chrome extension</a>
+    <span class="note">Windows / macOS · MIT</span>
   </div>
 </header>
 
 <main>
 
+<figure class="shot hero-shot">
+  <img src="screenshots/desktop-invoice.png"
+       alt="The md-business desktop app. On the left, a tree of Markdown files grouped into invoices, design documents, test specifications and reports. In the middle, the Markdown source of an invoice with its YAML frontmatter: issuer, registration number, line items and tax rates. On the right, the same file rendered as a Japanese qualified invoice with a per-rate tax breakdown and a total of 566,980 yen."
+       width="1600" height="1000">
+  <figcaption>
+    A qualified invoice (適格請求書), rendered for a person to sign off on. It is
+    <strong>one Markdown file</strong> — your agent can open it, change a line, and show you the diff.
+  </figcaption>
+</figure>
+
 <section>
-  <h2>What is md-business?</h2>
-  <p>
-    <strong>md-business</strong> is an open-source framework (MIT) for managing operational business documents
-    — invoices, test specifications, design documents, API specifications, database design documents,
-    estimates, meeting notes — as Markdown files with structured YAML frontmatter and JSON Schema validation.
+  <h2>Why documents go stale</h2>
+  <p class="callout">
+    The design changes → <strong>the specification is a <code>.docx</code> on a shared drive</strong> →
+    the agent cannot open it → it guesses from the code → <strong>the document stops being true</strong> →
+    nobody opens it again.
   </p>
   <p>
-    Instead of locking documents inside Word, Excel, PDF, or proprietary SaaS tools that AI agents cannot
-    safely operate, md-business treats Markdown as the canonical source of truth. Humans review through
-    familiar interfaces (PDF, Google Sheets, Chrome viewer, PWA); AI agents read, edit, validate, and diff
-    directly on the underlying text.
+    Every part of the work has moved to text an agent can read — except the documents that say what the
+    work is supposed to be. Word, Excel, PDF and most document SaaS hand an agent a binary blob, or an API
+    with no diff. So the agent works from the code, and the document drifts away from it.
+  </p>
+  <p>
+    <strong>md-business</strong> is an open-source framework (MIT) that moves the source of truth to
+    Markdown — invoices, test specifications, design documents, API specifications, database design
+    documents — with structured YAML frontmatter and JSON Schema validation. It does not ask anyone to
+    give up the format they review in: people read a PDF, a Google Sheet or a purpose-built viewer, while
+    agents read, edit, validate and diff the same underlying file.
   </p>
 </section>
 
 <section>
-  <h2>Document schemas</h2>
+  <h2>How it fits together</h2>
+<pre><code>Markdown                         ← the source of truth. One file per document.
+   ↓
+JSON Schema validation           ← a broken invoice fails before anyone signs it
+   ↓
+An agent edits it                ← over MCP, in the folder you have open
+   ↓
+git diff / review / approval     ← you see exactly which line changed
+   ↓
+PDF · Sheets · Chrome · desktop  ← how people actually read it</code></pre>
+  <p>
+    The last row is the point. <strong>A document counts as reviewed only when a person reads it in a form
+    they trust</strong> — an A4 invoice, a spreadsheet of test cases. Markdown underneath does not change that.
+  </p>
+</section>
+
+<section>
+  <h2>A look around the desktop app</h2>
+  <p>What the app does, before you install anything.</p>
+
+  <figure class="shot">
+    <img src="screenshots/desktop-editor.png" loading="lazy"
+         alt="A basic design document open in a two-pane split view. The left pane holds Markdown with frontmatter — document number, version, authors, reviewers, related documents — and the right pane shows the same content laid out as a specification, with a draft badge, an author table and a reviewer table."
+         width="1600" height="1000">
+    <figcaption>
+      Write on the left; the right side keeps up as you type. What you see is what the PDF will be, so
+      you do not have to save to find out.
+    </figcaption>
+  </figure>
+
+  <figure class="shot">
+    <img src="screenshots/desktop-test-spec-grid.png" loading="lazy"
+         alt="A test specification open as a spreadsheet-like grid. Numbered cases with steps and expected results, each row tinted by its result column: green for pass, red for fail, amber for on hold, plain for not yet run. Buttons below the grid add, duplicate, clear and group rows."
+         width="1600" height="1000">
+    <figcaption>
+      Test specifications open as a grid, so whoever runs the tests fills in results the way they would
+      in a spreadsheet. The file underneath stays a plain TSV that Git can diff line by line.
+    </figcaption>
+  </figure>
+
+  <figure class="shot">
+    <img src="screenshots/desktop-mcp.png" loading="lazy"
+         alt="The same invoice with the right-hand panel switched to its MCP tab. It shows a local server address, a button that writes the connection settings into the folder that is open, and a log of the calls an AI client has just made — search_documents, read_tsv, read_document, validate_document — each with a timestamp and the file it touched."
+         width="1600" height="1000">
+    <figcaption>
+      Point an AI client at the folder you have open — Claude Code, Claude Desktop, Cursor, Cline — by
+      handing it the connection settings once. Every call it makes is listed here, so you can see what
+      it read and what it changed.
+    </figcaption>
+  </figure>
+
+  <figure class="shot">
+    <img src="screenshots/desktop-pdf.png" loading="lazy"
+         alt="The print dialog over the invoice, set to save as PDF, with the A4 page preview on the right showing the finished invoice: issuer and recipient blocks, line items, the per-rate tax breakdown, the total and the bank transfer details."
+         width="1600" height="1000">
+    <figcaption>
+      Print to A4 when the document is done. The page comes out as it looked on screen — there is no
+      separate template to keep in sync with the source.
+    </figcaption>
+  </figure>
+
+  <p class="shot-note">
+    These are captures of the app itself against a seeded, fictional workspace
+    (<a href="https://github.com/meta-taro/md-business/tree/main/scripts/demo-workspace">scripts/demo-workspace</a>),
+    not mockups — no real company, registration number or bank account appears in them. The interface is
+    shown in Japanese here; it also ships in English, 中文 and 한국어.
+  </p>
+</section>
+
+<section>
+  <h2>What you can write today</h2>
   <div class="cards">
     <div class="card">
-      <h3>invoice/v1 <span class="badge">GA</span></h3>
-      <p>Japan-compliant qualified invoice (適格請求書) with registration number, tax breakdown, and autofill totals.</p>
+      <h3>invoice <span class="badge">stable</span></h3>
+      <p>Japan-compliant qualified invoice (適格請求書) with registration number, per-rate tax breakdown, and totals filled in for you.</p>
     </div>
     <div class="card">
-      <h3>spec/v1 <span class="badge">GA</span></h3>
+      <h3>spec <span class="badge">stable</span></h3>
       <p>Basic design specifications with structured sections for system overview, screens, data flow, and acceptance criteria.</p>
     </div>
     <div class="card">
-      <h3>test-spec/v1 <span class="badge">GA</span></h3>
-      <p>Test specifications with case tables, execution status, and round-trip sync between Markdown and Google Sheets.</p>
+      <h3>test-spec <span class="badge">stable</span></h3>
+      <p>Test sheets as a grid, with pass / fail / on-hold per case and a round trip to Google Sheets.</p>
     </div>
     <div class="card">
-      <h3>api-spec <span class="badge muted">v0.4.0+ planned</span></h3>
+      <h3>api-spec <span class="badge muted">planned</span></h3>
       <p>API endpoint specifications with request / response shapes and example payloads.</p>
     </div>
     <div class="card">
-      <h3>db-spec / nosql-db-spec <span class="badge muted">v0.8.0 planned</span></h3>
+      <h3>db-spec / nosql-db-spec <span class="badge muted">planned</span></h3>
       <p>RDB and NoSQL schema design documents with field-level definitions and relationships.</p>
     </div>
   </div>
 </section>
 
 <section>
-  <h2>Viewers and tools</h2>
+  <h2>How you read and edit them</h2>
   <div class="cards">
     <div class="card">
       <h3>Desktop app <span class="badge">Windows / macOS</span></h3>
       <p>
-        Standalone desktop viewer and editor (Tauri 2 + SvelteKit). Open the six business-document types in
-        purpose-built viewers, edit Markdown in a live split view, export A4 PDF, and auto-update in place.
-        A built-in MCP server lets an AI client (Claude Code, Claude Desktop, Cursor, Cline, …) read and
-        write the documents in the folder you have open — copy the connection settings from the MCP tab and
-        paste them once.
+        Standalone viewer and editor (Tauri 2 + SvelteKit). Purpose-built viewers for each document type,
+        live split-view editing, A4 PDF export, self-updating. A built-in MCP server lets an AI client
+        (Claude Code, Claude Desktop, Cursor, Cline, …) read and write the documents in the folder you
+        have open — copy the connection settings from the MCP tab and paste them once.
         <br>
         <a href="download/">Download →</a> &nbsp; <a href="manual/#mcp">Connect an AI assistant →</a>
         &nbsp; <a href="manual/">User guide →</a>
       </p>
     </div>
     <div class="card">
-      <h3>Chrome extension <span class="badge">Published</span></h3>
+      <h3>Chrome extension <span class="badge">published</span></h3>
       <p>
         Open a local <code>.md</code> in Chrome, preview it as a rendered business document, and export to A4 PDF.
         <br>
@@ -92,14 +202,14 @@
       </p>
     </div>
     <div class="card">
-      <h3>Google Workspace Add-on <span class="badge muted">Under review</span></h3>
+      <h3>Google Workspace add-on <span class="badge muted">under review</span></h3>
       <p>
         Edit test specifications and other Markdown business documents as a Google Sheet, then push the result
         back to a GitHub repository as a single commit — same mental model as <code>git push</code>.
       </p>
     </div>
     <div class="card">
-      <h3>PWA viewer <span class="badge muted">In development</span></h3>
+      <h3>PWA viewer <span class="badge muted">in development</span></h3>
       <p>Astro 5 + Lit web components viewer for browser-based preview without installation.</p>
     </div>
     <div class="card">
@@ -110,29 +220,24 @@
 </section>
 
 <section>
-  <h2>Core idea</h2>
-<pre><code>Markdown source of truth
-        ↓
-Schema validation (JSON Schema + Ajv)
-        ↓
-AI agent editing (Claude, GPT, Gemini, ...)
-        ↓
-Git diff / review / approval
-        ↓
-PDF / Sheets / Docs / browser / desktop / SaaS integration</code></pre>
+  <h2>Not there yet</h2>
+  <ul>
+    <li><strong>api-spec and db-spec are not implemented.</strong> If those are the documents you need, this is not ready for you yet.</li>
+    <li><strong>The Google Workspace add-on is still under review</strong>, so the Sheets round trip cannot be installed from the Marketplace.</li>
+    <li><strong>The schemas are Japan-first.</strong> The invoice follows the Japanese qualified-invoice rules; other tax regimes are not modelled.</li>
+    <li><strong>There is no server and no account.</strong> Files stay on your disk and in your Git repository. That is deliberate — but it also means there is nothing to share a document from except the repository itself.</li>
+  </ul>
 </section>
 
 <section>
-  <h2>Links</h2>
+  <h2>More</h2>
   <ul>
     <li><a href="download/">Download the desktop app</a></li>
-    <li><a href="manual/">Desktop app user guide (English)</a> · <a href="manual/ja/">操作マニュアル (日本語)</a></li>
-    <li><a href="https://github.com/meta-taro/md-business">GitHub repository (source code, issues, releases)</a></li>
-    <li><a href="https://github.com/meta-taro/md-business/blob/main/README.md">README (English)</a></li>
-    <li><a href="https://github.com/meta-taro/md-business/blob/main/README.ja.md">README (日本語)</a></li>
-    <li><a href="privacy/">Privacy policy</a></li>
-    <li><a href="license/">License (MIT)</a></li>
-    <li><a href="https://github.com/meta-taro/md-business/issues">Issues / bug reports</a></li>
+    <li><a href="manual/">User guide (English)</a> · <a href="manual/ja/">操作マニュアル（日本語）</a></li>
+    <li><a href="https://github.com/meta-taro/md-business">Source, issues and releases</a></li>
+    <li><a href="https://github.com/meta-taro/md-business/blob/main/README.md">README (English)</a> · <a href="https://github.com/meta-taro/md-business/blob/main/README.ja.md">README (日本語)</a></li>
+    <li><a href="https://github.com/meta-taro/md-business/issues">Report a problem</a></li>
+    <li><a href="privacy/">Privacy policy</a> · <a href="license/">License (MIT)</a></li>
   </ul>
 </section>
 
