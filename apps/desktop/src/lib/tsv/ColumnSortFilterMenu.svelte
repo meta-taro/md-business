@@ -13,6 +13,7 @@
   import type { ColumnCondition } from './gridColumnFilter';
   import type { FilterMode } from './gridColumnMenu';
   import type { SortDirection } from './gridSort';
+  import { dateInputMax } from './gridDateInput';
 
   interface Props {
     x: number;
@@ -81,6 +82,7 @@
   }
 
   const inputType = $derived(mode === 'number' ? 'number' : mode === 'date' ? 'date' : 'text');
+  const inputMax = $derived(mode === 'date' ? dateInputMax('date') : undefined);
 </script>
 
 <button
@@ -137,6 +139,7 @@
         <input
           class="sf-input"
           type={inputType}
+          max={inputMax}
           aria-label={t('grid.filterMin')}
           placeholder={t('grid.filterMin')}
           bind:value={min}
@@ -147,6 +150,7 @@
         <input
           class="sf-input"
           type={inputType}
+          max={inputMax}
           aria-label={t('grid.filterMax')}
           placeholder={t('grid.filterMax')}
           bind:value={max}
