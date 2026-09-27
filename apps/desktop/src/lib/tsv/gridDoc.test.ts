@@ -180,3 +180,46 @@ describe('絞り込み', () => {
     ]);
   });
 });
+
+describe('並べ替え', () => {
+  it('指定した行 ID の並びで表に出す', () => {
+    const grid = loadGridDoc(withHidden, { order: [C, A] });
+
+    expect(grid.doc.rowIds).toEqual([C, A]);
+    expect(grid.doc.rows.map((row) => row[0])).toEqual(['ログアウト', 'ログイン（改訂）']);
+  });
+
+  it('並べ替えたまま保存しても、ファイルの行順は変わらない', () => {
+    const grid = loadGridDoc(withHidden, { order: [C, A] });
+
+    expect(saveGridDoc(grid.doc, grid, withHidden)).toBe(withHidden);
+  });
+
+  it('並べ替えと絞り込みを重ねて保存しても元のまま', () => {
+    const grid = loadGridDoc(withHidden, { reveal: true, without: new Set([A]), order: [C, B] });
+
+    expect(grid.doc.rowIds).toEqual([C, B]);
+    expect(saveGridDoc(grid.doc, grid, withHidden)).toBe(withHidden);
+  });
+
+  it('並べ替え中に足した行は、表で直前にあった行の後ろに入る', () => {
+    const grid = loadGridDoc(withHidden, { order: [C, A] });
+    const D = 'rdddddddddddd';
+    const edited = {
+      ...grid.doc,
+      rows: [grid.doc.rows[0]!, ['新しい行', ''], grid.doc.rows[1]!],
+      rowIds: [C, D, A],
+    };
+
+    expect(saveGridDoc(edited, grid, withHidden).split('\n').slice(5)).toEqual([
+      `ログイン（改訂）\tOK\t${A}`,
+      `ログイン（初版）\t\t${B}`,
+      `ログアウト\t\t${C}`,
+      `新しい行\t\t${D}`,
+    ]);
+  });
+
+  it('並べ替えていなければファイルの並びを持たない', () => {
+    expect(loadGridDoc(withHidden).fileOrder).toBeUndefined();
+  });
+});

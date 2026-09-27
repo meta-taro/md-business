@@ -49,6 +49,7 @@ export async function collectSitePlan(
   const { dataMessage } = await import('$lib/dataBlock/dataMessage');
   const { CHART_INK } = await import('$lib/chart/chartInk');
   const { renderMermaidSvg } = await import('./renderMermaid');
+  const { renderZumenSvg } = await import('./renderZumen');
   const { t } = await import('$lib/i18n/i18n.svelte');
 
   const docs: SiteSource[] = [];
@@ -64,6 +65,7 @@ export async function collectSitePlan(
         rawHtml,
         ink: CHART_INK.light,
         mermaid: { theme: 'light', render: renderMermaidSvg },
+        zumen: { theme: 'light', render: renderZumenSvg, describe: (message) => t('zumen.failed', { detail: message }) },
       }),
     });
   }

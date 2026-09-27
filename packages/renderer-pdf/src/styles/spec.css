@@ -498,3 +498,25 @@ body {
     display: none;
   }
 }
+
+/* 図と、その下に出す説明。説明が図のどれに付いているか分かるよう、幅の中央へ寄せる。 */
+.mdb-spec__body .mdb-figure {
+  margin: 3mm 0;
+  page-break-inside: avoid;
+  break-inside: avoid;
+}
+
+.mdb-spec__body .mdb-figure img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  margin: 0 auto;
+}
+
+.mdb-spec__body .mdb-figure__caption {
+  margin-top: 1.5mm;
+  text-align: center;
+  font-size: 9pt;
+  line-height: 1.5;
+  color: var(--mdb-color-muted);
+}

@@ -172,6 +172,15 @@ describe('sanitizeViewerHtml — normal markdown output passes through', () => {
     const out = sanitizeViewerHtml('<a href="#section-1">x</a>');
     expect(out).toContain('href="#section-1"');
   });
+
+  // 図とその説明。説明の寄せは class 当ての CSS で決まるので、class ごと残る必要がある。
+  it('keeps figures and their captions', () => {
+    const out = sanitizeViewerHtml(
+      '<figure class="mdb-figure"><img src="https://example.com/a.png" alt="x"><figcaption class="mdb-figure__caption">図 1</figcaption></figure>',
+    );
+    expect(out).toContain('<figure class="mdb-figure">');
+    expect(out).toContain('<figcaption class="mdb-figure__caption">図 1</figcaption>');
+  });
 });
 
 // 隣の文書を指すリンク（`[根拠](evidence/EV-001.md)` など）。これを落とすと、

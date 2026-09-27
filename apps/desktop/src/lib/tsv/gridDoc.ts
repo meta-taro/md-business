@@ -5,9 +5,9 @@
  * 「表として見せる分」だけを渡し、保存で元へ戻す。外してしまえば、選択・移動・貼り付け・
  * 検証は行インデックスのまま無改修で動く。
  *
- * ここに置いているのは **順序** のため。読み込みは ID 列 → 控え行 → 絞り込みの順に外す
- * （控えは行 ID で指すので、ID が出そろう前には引けない）。書き戻しは絞り込み → 控え行 →
- * ID 列の順に戻す。呼び出し側で都度組むと、取り違えたときに行が黙って消えたまま保存される。
+ * ここに置いているのは **順序** のため。読み込みは ID 列 → 控え行 → 絞り込みの順に外し、
+ * 最後に並べ替える（控えは行 ID で指すので、ID が出そろう前には引けない）。書き戻しは
+ * 並び → 絞り込み → 控え行 → ID 列の順に戻す。呼び出し側で都度組むと、取り違えたときに行が黙って消えたまま保存される。
  *
  * 控えと絞り込みを戻す順序が決まっているのは、控えの戻り先（直前の可視行）が絞り込みで外れた
  * 行を指していることがあるため。控えを先に戻すと戻り先が見つからず、末尾へ回ってしまう。
@@ -24,6 +24,7 @@ import {
   type IdentifiedTsv,
 } from '@md-business/schema-test-spec-tsv';
 import { preserveTrailingEol } from './gridEol';
+import { reorderRows } from './gridSort';
 
 /**
  * 表から外して預かっている行。書き戻しでそのまま {@link saveGridDoc} へ返す。
@@ -36,6 +37,13 @@ export interface DetachedRows {
   hidden: readonly HiddenRow[];
   /** 絞り込みで外した行。ファイルには何も残らない。 */
   filtered?: readonly HiddenRow[];
+  /**
+   * 並べ替える前の、表に見せる行の並び。並べ替えていなければ無い。
+   *
+   * 書き戻しでは最初にこの並びへ戻す。控えと絞り込みの戻り先はファイル上の直前の行なので、
+   * 並びを戻してからでないと見当違いの位置に入る。
+   */
+  fileOrder?: readonly string[];
 }
 
 /** グリッドへ渡す表と、表から外して預かる行。 */
@@ -62,6 +70,13 @@ export interface LoadGridDocOptions {
    * 目の前から消える。
    */
   without?: ReadonlySet<string>;
+  /**
+   * 表に見せる行の並び（行 ID）。並べ替えの結果で、ファイルの行順は書き換えない。
+   *
+   * 絞り込みと同じく押した時点の並びを渡し続ける。都度並べ直すと、値を直した行が
+   * 目の前から別の位置へ飛ぶ。
+   */
+  order?: readonly string[];
 }
 
 /** 検証シートのテキストを、グリッドの表と外して預かる行に分ける。 */
@@ -70,22 +85,30 @@ export function loadGridDoc(source: string, options: LoadGridDocOptions = {}): G
   const { doc, hidden } =
     options.reveal === true ? { doc: parsed, hidden: [] as HiddenRow[] } : splitHiddenRows(parsed);
 
-  if (options.without === undefined || options.without.size === 0) {
-    return { doc, hidden, filtered: [] };
-  }
+  const { doc: visible, taken: filtered } =
+    options.without === undefined || options.without.size === 0
+      ? { doc, taken: [] as HiddenRow[] }
+      : splitRowsById(doc, options.without);
 
-  const { doc: visible, taken } = splitRowsById(doc, options.without);
-  return { doc: visible, hidden, filtered: taken };
+  if (options.order === undefined) return { doc: visible, hidden, filtered };
+  return {
+    doc: reorderRows(visible, options.order),
+    hidden,
+    filtered,
+    fileOrder: [...visible.rowIds],
+  };
 }
 
 /**
- * 外して預かっていた行を表へ戻す。**絞り込みを先に**戻す（{@link DetachedRows}）。
+ * 外して預かっていた行を表へ戻す。並びをファイルの順へ戻してから、**絞り込みを先に**戻す
+ * （{@link DetachedRows}）。
  *
  * 保存と、前の版との突き合わせの両方から使う。突き合わせ側で戻し忘れると、外した行が
  * すべて「消えた行」として出る。
  */
 export function restoreRows(doc: IdentifiedTsv, detached: DetachedRows): IdentifiedTsv {
-  return mergeHiddenRows(mergeHiddenRows(doc, detached.filtered ?? []), detached.hidden);
+  const ordered = detached.fileOrder === undefined ? doc : reorderRows(doc, detached.fileOrder);
+  return mergeHiddenRows(mergeHiddenRows(ordered, detached.filtered ?? []), detached.hidden);
 }
 
 /**

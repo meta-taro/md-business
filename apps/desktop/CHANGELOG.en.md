@@ -4,6 +4,20 @@ Changes to this app. Versions follow [Semantic Versioning](https://semver.org/).
 
 Japanese is the source of truth for this file; see [CHANGELOG.md](./CHANGELOG.md).
 
+## 0.31.0
+
+### Added
+
+- **Test-spec grids can now be sorted and filtered from the column headers.** Sorting is ascending, descending or off; number columns compare as numbers, date and datetime columns as dates, and choice columns in the order the choices are listed. Filtering depends on the column: choice and checkbox columns pick from a list of values (blank cells, and values that are not among the choices, are listed too), text columns match on contained text, and number and date columns take a range. Conditions on several columns keep only the rows that meet all of them. **Both change only what you see.** The order of rows in the file is untouched and no condition is written to the file. The toolbar shows "N of M rows", headers with a condition carry a mark, and "Show all" clears everything at once.
+
+- **A ```` ```zumen ```` block in the body is now drawn as a diagram** — in the preview, in PDF output, and in HTML and image export. If the diagram has a title, it appears centred below the diagram and doubles as its alt text. The system diagram in the basic design template is now written this way.
+
+### Fixed
+
+- **Date cells in test-spec grids accepted a six-digit year.** Typing four digits did not move on to the month, so there was no telling when to stop. The year now stops at four digits in date and datetime cells, and in the range fields of a date column's filter.
+
+- **```` ```chart ```` and ```` ```data ```` blocks did nothing in bodies with CRLF line endings.** In a working copy checked out with CRLF on Windows, not a single block was picked up, so no table or chart appeared.
+
 ## 0.30.2
 
 ### Fixed

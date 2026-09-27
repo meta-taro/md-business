@@ -231,3 +231,50 @@ describe('renderMarkdownToHtml — rawHtml', () => {
     expect(raw).toBe(plain);
   });
 });
+
+describe('renderMarkdownToHtml — 図に添える説明', () => {
+  it('題名を付けた画像は、説明を図の下へ出す', () => {
+    const html = renderMarkdownToHtml('![構成図](./img.png "図 1 システム構成")', {
+      hasFrontmatter: false,
+    });
+    expect(html).toContain('<figure class="mdb-figure">');
+    expect(html).toContain('<figcaption class="mdb-figure__caption">図 1 システム構成</figcaption>');
+    // 下に出す。上に出すと、読む順が「説明 → 図」になって図を探しに戻ることになる。
+    expect(html.indexOf('<img')).toBeLessThan(html.indexOf('<figcaption'));
+  });
+
+  it('説明を出したら、同じ文字を吹き出しに残さない', () => {
+    // `title` は当たると吹き出しで出る。見えるところへ出した後は二重になる。
+    const html = renderMarkdownToHtml('![構成図](./img.png "図 1")', { hasFrontmatter: false });
+    expect(html).not.toContain('title=');
+  });
+
+  it('題名が無い画像はそのまま', () => {
+    const html = renderMarkdownToHtml('![構成図](./img.png)', { hasFrontmatter: false });
+    expect(html).not.toContain('<figure');
+    expect(html).toContain('<p><img src="./img.png" alt="構成図"></p>');
+  });
+
+  it('題名が空なら説明は出さない', () => {
+    const html = renderMarkdownToHtml('![構成図](./img.png "")', { hasFrontmatter: false });
+    expect(html).not.toContain('<figure');
+  });
+
+  it('文の中の画像は図にしない', () => {
+    // 段落の途中で figure にすると、文が図の前後で切れる。
+    const html = renderMarkdownToHtml('前 ![図](./img.png "説明") 後', { hasFrontmatter: false });
+    expect(html).not.toContain('<figure');
+  });
+
+  it('画像が並んだ段落は図にしない', () => {
+    const html = renderMarkdownToHtml('![a](./a.png "あ") ![b](./b.png "い")', {
+      hasFrontmatter: false,
+    });
+    expect(html).not.toContain('<figure');
+  });
+
+  it('説明の中の記号は文字として出す', () => {
+    const html = renderMarkdownToHtml('![図](./img.png "a < b & c")', { hasFrontmatter: false });
+    expect(html).toContain('a &#x3C; b &#x26; c');
+  });
+});
