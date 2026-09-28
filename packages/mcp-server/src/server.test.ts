@@ -115,6 +115,7 @@ describe('createServer / MCP 配線', () => {
     const client = await connect(new MemoryDocumentStore());
     const { tools } = await client.listTools();
     expect(tools.map((t) => t.name).sort()).toEqual([
+      'about_md_business',
       'aggregate',
       'append_tsv_row',
       'build_timeline',
@@ -140,6 +141,28 @@ describe('createServer / MCP 配線', () => {
       'validate_document',
       'write_site_file',
     ]);
+  });
+
+  it('about_md_business は概要と、配布物ごとの版・履歴を返す', async () => {
+    const client = await connect(new MemoryDocumentStore());
+    const res = await client.callTool({ name: 'about_md_business', arguments: {} });
+    const { text, isError } = parse(res as CallToolResult);
+    expect(isError).toBe(false);
+    const body = text as { name: string; apps: { id: string }[]; releases: { entries: unknown[] } };
+    expect(body.name).toBe('md-business');
+    expect(body.apps.map((a) => a.id)).toContain('desktop');
+    expect(body.releases.entries.length).toBeGreaterThan(0);
+  });
+
+  it('about_md_business は焼き込みに無い版を断る', async () => {
+    const client = await connect(new MemoryDocumentStore());
+    const res = await client.callTool({
+      name: 'about_md_business',
+      arguments: { app: 'desktop', version: '0.0.1' },
+    });
+    const { text, isError } = parse(res as CallToolResult);
+    expect(isError).toBe(true);
+    expect((text as { ok: boolean }).ok).toBe(false);
   });
 
   it('list_schemas は 7 スキーマを返す', async () => {
