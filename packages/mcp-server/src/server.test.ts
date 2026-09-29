@@ -154,6 +154,43 @@ describe('createServer / MCP 配線', () => {
     expect(body.releases.entries.length).toBeGreaterThan(0);
   });
 
+  it('instructions は「何ができるか」の入口として about_md_business を名指す', async () => {
+    const client = await connect(new MemoryDocumentStore());
+    expect(client.getInstructions()).toContain('about_md_business');
+  });
+
+  it('about_md_business の手順は、今の接続で使えるツールだけを載せる', async () => {
+    const client = await connect(new MemoryDocumentStore());
+    const { tools } = await client.listTools();
+    const names = new Set(tools.map((t) => t.name));
+    const res = await client.callTool({ name: 'about_md_business', arguments: {} });
+    const body = parse(res as CallToolResult).text as { useCases: { tools: string[] }[] };
+    const listed = body.useCases.flatMap((u) => u.tools);
+    expect(listed.length).toBeGreaterThan(0);
+    for (const t of listed) expect(names.has(t)).toBe(true);
+  });
+
+  it('全部入りで繋いだとき、公開しているツールはどれもいずれかの手順に載っている', async () => {
+    // 手順に載らないツールは、道具の一覧にあっても使いどころが伝わらない。足したら載せる。
+    const app = {
+      request: async () => ({ ok: true as const }),
+      settle: () => {},
+    };
+    const desktop = { open: async (path: string) => ({ ok: true as const, path }) };
+    const git = { run: async () => ({ ok: true, stdout: '', stderr: '' }) };
+    const server = createServer(new MemoryDocumentStore(), { app, desktop, git });
+    const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+    const client = new Client({ name: 'test-client', version: '0.0.0' });
+    await Promise.all([client.connect(clientTransport), server.connect(serverTransport)]);
+    const { tools } = await client.listTools();
+    const res = await client.callTool({ name: 'about_md_business', arguments: {} });
+    const body = parse(res as CallToolResult).text as { useCases: { tools: string[] }[] };
+    const listed = new Set(body.useCases.flatMap((u) => u.tools));
+    const missing = tools.map((t) => t.name).filter((n) => n !== 'about_md_business' && !listed.has(n));
+    expect(missing).toEqual([]);
+    for (const t of listed) expect(tools.map((x) => x.name)).toContain(t);
+  });
+
   it('about_md_business は焼き込みに無い版を断る', async () => {
     const client = await connect(new MemoryDocumentStore());
     const res = await client.callTool({
@@ -899,48 +936,6 @@ describe('createServer / export_pdf ツール', () => {
     expect(app.requests).toEqual([]);
   });
 
-  it('アプリとの連絡手段が無ければ open_document も公開しない', async () => {
-    const client = await connect(new MemoryDocumentStore());
-    const { tools } = await client.listTools();
-    expect(tools.map((t) => t.name)).not.toContain('open_document');
-  });
-
-  it('アプリへ対象文書を開くよう依頼する（印刷は伴わない）', async () => {
-    const app = fakeApp({ ok: true });
-    const client = await connectWithApp(app);
-    const res = (await client.callTool({
-      name: 'open_document',
-      arguments: { path: 'specs/design.md' },
-    })) as CallToolResult;
-    const { text, isError } = parse(res);
-    expect(isError).toBe(false);
-    expect(text).toMatchObject({ ok: true, path: 'specs/design.md' });
-    expect(app.requests).toEqual([{ action: 'open-document', path: 'specs/design.md' }]);
-  });
-
-  it('開けなかった理由はそのまま返す', async () => {
-    const app = fakeApp({ ok: false, error: '開いているフォルダに specs/design.md がありません' });
-    const client = await connectWithApp(app);
-    const res = (await client.callTool({
-      name: 'open_document',
-      arguments: { path: 'specs/design.md' },
-    })) as CallToolResult;
-    const { text, isError } = parse(res);
-    expect(isError).toBe(true);
-    expect(text).toMatchObject({ ok: false });
-  });
-
-  it('絶対パスはアプリへ渡さない', async () => {
-    const app = fakeApp({ ok: true });
-    const client = await connectWithApp(app);
-    const res = (await client.callTool({
-      name: 'open_document',
-      arguments: { path: 'C:\\Windows\\win.ini' },
-    })) as CallToolResult;
-    expect(parse(res).isError).toBe(true);
-    expect(app.requests).toEqual([]);
-  });
-
   it('画面で開いている文書の一覧をアプリから受け取る', async () => {
     // 画面に何が出ているかはアプリしか知らない。閉じる・切り替えるの前提になる。
     const app = fakeApp({
@@ -1260,6 +1255,13 @@ describe('createServer / write_site_file', () => {
   });
 });
 
+/**
+ * 書いた結果を利用者の画面へ出す口。
+ *
+ * AI が作った文書を利用者がファイルの木から探し直すのは、AI が道筋を知っているのに往復を
+ * 1 回増やしているだけになる。口が 2 本あると（切り替え用と起動用）どちらも見つけられず
+ * 「無い」と判断されたので、1 本にまとめ、案内文でも名指しする。
+ */
 describe('createServer / open_in_app', () => {
   function fakeOpener(result: { ok: true; path: string } | { ok: false; error: string }) {
     const opened: string[] = [];
@@ -1272,15 +1274,33 @@ describe('createServer / open_in_app', () => {
     };
   }
 
-  async function connectWithDesktop(desktop: ReturnType<typeof fakeOpener>): Promise<Client> {
-    const server = createServer(new MemoryDocumentStore(), { desktop });
+  function fakeApp(result: { ok: true } | { ok: false; error: string }) {
+    const requests: { action: string; path?: string }[] = [];
+    return {
+      requests,
+      request: async (req: { action: string; path?: string }) => {
+        requests.push(req);
+        return result;
+      },
+      settle: () => {},
+    };
+  }
+
+  async function connectWith(
+    options: {
+      desktop?: ReturnType<typeof fakeOpener>;
+      app?: ReturnType<typeof fakeApp>;
+    },
+    store: MemoryDocumentStore = new MemoryDocumentStore(),
+  ): Promise<Client> {
+    const server = createServer(store, options as Parameters<typeof createServer>[1]);
     const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
     const client = new Client({ name: 'test-client', version: '0.0.0' });
     await Promise.all([client.connect(clientTransport), server.connect(serverTransport)]);
     return client;
   }
 
-  it('起こす口が無ければ公開しない', async () => {
+  it('開く口が無ければ公開しない', async () => {
     const client = await connect(new MemoryDocumentStore());
     const { tools } = await client.listTools();
     expect(tools.map((t) => t.name)).not.toContain('open_in_app');
@@ -1288,7 +1308,7 @@ describe('createServer / open_in_app', () => {
 
   it('アプリを起こして対象を開く', async () => {
     const desktop = fakeOpener({ ok: true, path: 'docs/test-specs/001-login.tsv' });
-    const client = await connectWithDesktop(desktop);
+    const client = await connectWith({ desktop });
     const res = (await client.callTool({
       name: 'open_in_app',
       arguments: { path: 'docs/test-specs/001-login.tsv' },
@@ -1301,7 +1321,7 @@ describe('createServer / open_in_app', () => {
 
   it('起こせなかった理由はそのまま返す', async () => {
     const desktop = fakeOpener({ ok: false, error: '実行ファイルが見つかりませんでした' });
-    const client = await connectWithDesktop(desktop);
+    const client = await connectWith({ desktop });
     const res = (await client.callTool({
       name: 'open_in_app',
       arguments: { path: 'a.tsv' },
@@ -1309,6 +1329,89 @@ describe('createServer / open_in_app', () => {
     const { text, isError } = parse(res);
     expect(isError).toBe(true);
     expect(text).toMatchObject({ ok: false });
+  });
+
+  it('開く口は 1 本だけ（open_document は出さない）', async () => {
+    const client = await connectWith({ desktop: fakeOpener({ ok: true, path: 'a.md' }), app: fakeApp({ ok: true }) });
+    const names = (await client.listTools()).tools.map((t) => t.name);
+    expect(names).toContain('open_in_app');
+    expect(names).not.toContain('open_document');
+  });
+
+  it('アプリの中から繋いでいるときは、起こし直さずに今の窓で開く', async () => {
+    const desktop = fakeOpener({ ok: true, path: 'specs/design.md' });
+    const app = fakeApp({ ok: true });
+    const client = await connectWith({ desktop, app });
+    const res = (await client.callTool({
+      name: 'open_in_app',
+      arguments: { path: 'specs/design.md' },
+    })) as CallToolResult;
+    expect(parse(res)).toMatchObject({ isError: false, text: { ok: true, path: 'specs/design.md' } });
+    expect(app.requests).toEqual([{ action: 'open-document', path: 'specs/design.md' }]);
+    expect(desktop.opened).toEqual([]);
+  });
+
+  it('アプリの中からでも、開けなかった理由はそのまま返す', async () => {
+    const app = fakeApp({ ok: false, error: '開いているフォルダに specs/design.md がありません' });
+    const client = await connectWith({ app });
+    const res = (await client.callTool({
+      name: 'open_in_app',
+      arguments: { path: 'specs/design.md' },
+    })) as CallToolResult;
+    expect(parse(res)).toMatchObject({ isError: true, text: { ok: false } });
+  });
+
+  it('絶対パスはアプリへ渡さない', async () => {
+    const app = fakeApp({ ok: true });
+    const client = await connectWith({ app });
+    const res = (await client.callTool({
+      name: 'open_in_app',
+      arguments: { path: 'C:\Windows\win.ini' },
+    })) as CallToolResult;
+    expect(parse(res).isError).toBe(true);
+    expect(app.requests).toEqual([]);
+  });
+
+  it('書いたら画面に出すことを案内文で名指しする', async () => {
+    const client = await connectWith({ desktop: fakeOpener({ ok: true, path: 'a.md' }) });
+    expect(client.getInstructions()).toContain('open_in_app');
+  });
+
+  it('開く口が無い接続では案内文に出さない', async () => {
+    const client = await connect(new MemoryDocumentStore());
+    expect(client.getInstructions()).not.toContain('open_in_app');
+  });
+
+  const invoice = {
+    schema: 'invoice/v1',
+    frontmatter: { invoiceNumber: 'INV-9' },
+    body: '# 請求書',
+    path: 'invoices/INV-9.md',
+  };
+
+  it('アプリの中から新しく作った文書は、そのまま画面に出す', async () => {
+    // 作った直後の文書は利用者が必ず見に行くもの。AI が開き忘れても探させない。
+    const app = fakeApp({ ok: true });
+    const client = await connectWith({ app });
+    const res = (await client.callTool({ name: 'create_document', arguments: invoice })) as CallToolResult;
+    expect(parse(res).text).toMatchObject({ ok: true, shown: true });
+    expect(app.requests).toEqual([{ action: 'open-document', path: 'invoices/INV-9.md' }]);
+  });
+
+  it('画面に出せなくても、作ったこと自体は失敗にしない', async () => {
+    const app = fakeApp({ ok: false, error: 'アプリが応答しません' });
+    const client = await connectWith({ app });
+    const res = (await client.callTool({ name: 'create_document', arguments: invoice })) as CallToolResult;
+    expect(parse(res)).toMatchObject({ isError: false, text: { ok: true, shown: false } });
+  });
+
+  it('アプリの外から繋いでいるときは、勝手にアプリを起こさない', async () => {
+    // 別の作業中に窓が立ち上がると、利用者からは何が起きたか分からない。開くかは AI が決める。
+    const desktop = fakeOpener({ ok: true, path: 'invoices/INV-9.md' });
+    const client = await connectWith({ desktop });
+    const res = (await client.callTool({ name: 'create_document', arguments: invoice })) as CallToolResult;
+    expect(parse(res).text).toMatchObject({ ok: true, shown: false });
+    expect(desktop.opened).toEqual([]);
   });
 });
 

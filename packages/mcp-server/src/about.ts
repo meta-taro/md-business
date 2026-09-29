@@ -57,10 +57,18 @@ export interface AboutReleases {
   olderReleases?: string;
 }
 
+/** やりたいこと 1 つと、そのために呼ぶツール（呼ぶ順）。 */
+export interface UseCase {
+  want: string;
+  tools: string[];
+}
+
 export interface AboutOk {
   ok: true;
   name: 'md-business';
   summary: string;
+  /** 「何ができるか」の答え。道具の一覧はツール単位でしか語らないので、やりたいこと単位で束ねる。 */
+  useCases: UseCase[];
   schemas: { id: string; label: string }[];
   apps: AboutApp[];
   releases: AboutReleases;
@@ -77,6 +85,63 @@ export interface AboutInput {
   app?: string;
   version?: string;
   limit?: number;
+  /**
+   * 今の接続で公開しているツールか。git やアプリ連携は繋ぎ方によって無いので、
+   * 無いものを手順に載せると、呼べないツールを探させることになる。省略時は全部載せる。
+   */
+  isToolAvailable?: (name: string) => boolean;
+}
+
+/**
+ * やりたいこと別の手順。ツールは呼ぶ順に並べる。
+ * ツールを足したら、ここのどれかに載せる（載っていないツールがあると server.test.ts が落ちる）。
+ */
+const USE_CASES: readonly UseCase[] = [
+  {
+    want: '業務文書（請求書・設計書など）を新しく作り、利用者の画面に出す',
+    tools: ['list_schemas', 'get_schema', 'create_document', 'open_in_app'],
+  },
+  {
+    want: '既にある文書を探して読み、直す',
+    tools: ['search_documents', 'read_document', 'update_document', 'validate_document', 'open_in_app'],
+  },
+  {
+    want: '検証シート（.tsv）を読む・行を足す・直す・壊れていないか確かめる',
+    tools: ['search_documents', 'read_tsv', 'append_tsv_row', 'update_tsv_row', 'check_tsv'],
+  },
+  {
+    want: 'ログや外から届いたデータから事実を拾い、出典つきで報告書に残す',
+    tools: [
+      'search_lines',
+      'read_lines',
+      'filter_records',
+      'aggregate',
+      'build_timeline',
+      'read_har',
+      'read_data',
+      'data_to_table',
+      'save_evidence',
+    ],
+  },
+  {
+    want: 'Web サイトの部品（HTML / CSS / JS）を作る・直す',
+    tools: ['declare_web_mode', 'web_mode_status', 'list_site_files', 'read_site_file', 'write_site_file'],
+  },
+  {
+    want: '利用者の画面で何が開いているかを見て、確かめる・閉じる・PDF にする',
+    tools: ['list_open_documents', 'capture_window', 'close_document', 'export_pdf'],
+  },
+  {
+    want: '変更を確かめてコミットする（push は人がする）',
+    tools: ['git_status', 'git_diff', 'git_commit'],
+  },
+];
+
+function availableUseCases(isToolAvailable?: (name: string) => boolean): UseCase[] {
+  if (isToolAvailable === undefined) return USE_CASES.map((u) => ({ ...u, tools: [...u.tools] }));
+  return USE_CASES.map((u) => ({ want: u.want, tools: u.tools.filter(isToolAvailable) })).filter(
+    (u) => u.tools.length > 0,
+  );
 }
 
 /**
@@ -172,6 +237,7 @@ export function buildAbout(input: AboutInput, data: EmbeddedReleases = EMBEDDED_
     ok: true,
     name: 'md-business',
     summary: SUMMARY,
+    useCases: availableUseCases(input.isToolAvailable),
     schemas: listSchemas(),
     apps: APP_IDS.map((id) => ({ ...APP_META[id], version: data[id].version })),
     releases: {

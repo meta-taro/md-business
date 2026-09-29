@@ -133,3 +133,30 @@ describe('buildAbout', () => {
     expect(r.error).toContain(RELEASES_URL);
   });
 });
+
+describe('buildAbout / やりたいこと別の手順', () => {
+  it('「何ができるか」を、やりたいことと呼ぶ順のツールで返す', () => {
+    const r = buildAbout({}, FIXTURE);
+    if (!r.ok) throw new Error(r.error);
+    expect(r.useCases.length).toBeGreaterThan(0);
+    for (const u of r.useCases) {
+      expect(u.want.length).toBeGreaterThan(0);
+      expect(u.tools.length).toBeGreaterThan(0);
+    }
+    // 中心の流れ: 書式を確かめて作り、利用者の画面に出す。
+    const create = r.useCases.find((u) => u.tools.includes('create_document'));
+    expect(create?.tools).toEqual(['list_schemas', 'get_schema', 'create_document', 'open_in_app']);
+  });
+
+  it('今の接続で使えないツールは載せず、何も残らないやりたいことは落とす', () => {
+    const r = buildAbout(
+      { isToolAvailable: (name) => !name.startsWith('git_') && name !== 'open_in_app' },
+      FIXTURE,
+    );
+    if (!r.ok) throw new Error(r.error);
+    const all = r.useCases.flatMap((u) => u.tools);
+    expect(all).not.toContain('open_in_app');
+    expect(all.some((t) => t.startsWith('git_'))).toBe(false);
+    expect(r.useCases.every((u) => u.tools.length > 0)).toBe(true);
+  });
+});

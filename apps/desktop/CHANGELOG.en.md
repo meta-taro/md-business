@@ -4,6 +4,16 @@ Changes to this app. Versions follow [Semantic Versioning](https://semver.org/).
 
 Japanese is the source of truth for this file; see [CHANGELOG.md](./CHANGELOG.md).
 
+## 0.32.0
+
+### Changed
+
+- **Ask the MCP "what can you do?" and you get how to use it, by task.** `about_md_business` now returns, for each thing you might want to do (create a document and show it, fix a test sheet, pull evidence out of logs, and so on), the tools to call in order — only the ones available in the current connection. The guidance the AI reads first now says to read it when asked how to use md-business. Before, it returned only what the software is and its versions, and the guidance never named it, so the AI had to piece together usage from a list of more than 30 tools.
+
+- **Documents the AI creates now show up on screen right away.** When the AI creates a new document through the app's MCP, its tab opens and comes to the front. Until now the AI only reported that it had created the file, and you had to find it in the file tree. The AI's reply also says whether it could show it (`shown`). **When connected from outside the app, the app is not started on its own** — a window appearing in the middle of other work leaves you guessing what happened.
+
+- **Showing a document through MCP is now a single tool, `open_in_app`.** Connected from inside the app, it opens in the current window; from outside, it starts the app and opens it. There used to be two tools, `open_document` and `open_in_app`, and neither was mentioned in the guidance the AI reads first, so the AI concluded it had no way to open a document and just handed you a path. The guidance now says to show what it created or changed with `open_in_app`. **`open_document` is gone.**
+
 ## 0.31.0
 
 ### Added

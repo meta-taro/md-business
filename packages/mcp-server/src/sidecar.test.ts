@@ -222,11 +222,11 @@ describe('startSidecar', () => {
     });
   });
 
-  it('open_document も同じ経路を通り、応答がツールの結果になる', async () => {
+  it('open_in_app も同じ経路を通り、今の窓で開く', async () => {
     handle = await startSidecar({ root: workspace, token: 'tok', io: { input, write: out.write } });
     const client = await connectMcp(handle.url, 'tok');
 
-    const call = client.callTool({ name: 'open_document', arguments: { path: 'specs/design.md' } });
+    const call = client.callTool({ name: 'open_in_app', arguments: { path: 'specs/design.md' } });
     const request = await waitForRequest(out);
     expect(request).toMatchObject({ action: 'open-document', path: 'specs/design.md' });
 

@@ -33,7 +33,7 @@ import type { SearchQuery } from './search.js';
 import { gitStatus, gitDiff, gitCommit } from './gitTools.js';
 import type { GitCommitInput, GitRunner } from './gitTools.js';
 import type { AppBridge } from './appBridge.js';
-import type { DesktopOpener } from './desktopOpener.js';
+import type { DesktopOpenResult, DesktopOpener } from './desktopOpener.js';
 import { safeRelativePath } from './workspacePath.js';
 import { parseProjectConfig, PROJECT_CONFIG_FILENAME } from '@md-business/core';
 import {
@@ -65,7 +65,7 @@ export const SERVER_VERSION = '0.1.0';
  *
  * 接続先のフォルダは `buildServerInstructions` が先頭へ足す（この本文には入れない）。
  */
-function instructionsBody(screen: string): string {
+function instructionsBody(screen: string, canOpen: boolean): string {
   return `md-business は Markdown / TSV の業務文書（請求書・基本設計書・API 仕様書・DB 設計書・検証シート）を扱うワークスペースに接続されている。
 
 ## このワークスペースの .md / .tsv は直接編集しない
@@ -78,9 +78,11 @@ function instructionsBody(screen: string): string {
 
 ## どのツールを呼ぶか
 
+- 利用者に「何ができるの」「どう使うの」と聞かれたら、答える前に **about_md_business** を読む。
+  やりたいこと別に、呼ぶツールを順に並べて返す（今の接続で使えるものだけ）。道具の一覧を読み上げても使い方にはならない。
 - 最初に **search_documents** でワークスペースにある文書を把握する。**list_schemas** で扱える種別が分かる。
 - Markdown を読むのは **read_document**、書くのは **create_document** / **update_document**。**validate_document** で検証だけもできる。
-- 新規作成の前に **get_schema** で必須項目と型を確認する。
+- 新規作成の前に **get_schema** で必須項目と型を確認する。${canOpen ? OPEN_LINE : ''}
 - 検証シート（\`.tsv\`）は **read_tsv** で読み、**update_tsv_row** / **append_tsv_row** で **行単位**に触る。
   全文を書き直すと「1 レコード = 1 物理行」が崩れ、差分が読めなくなる。
   read_tsv の \`rowIds\` が空でなければ、更新する行は **行 ID** で指す。行 index は利用者が
@@ -141,6 +143,25 @@ ${screen}
 - スキーマ宣言（frontmatter の \`schema\` / TSV 1 行目の \`#!\` 行）は書き換えない。`;
 }
 
+/** アプリの中から繋いだときだけ公開するツール。 */
+const APP_ONLY_TOOLS: ReadonlySet<string> = new Set([
+  'list_open_documents',
+  'close_document',
+  'web_mode_status',
+  'capture_window',
+  'export_pdf',
+]);
+
+/**
+ * 書いたものを利用者に見せる一行。開く口があるときだけ出す（無い口を名指しすると探させる）。
+ *
+ * AI が道筋を知っているのに、利用者にパスを伝えてファイルの木から探させる往復が実際に起きた。
+ * 口はあったのに案内文に一度も出てこなかったので、呼ぶ側は「無い」と判断していた。
+ */
+const OPEN_LINE = `
+- 文書を作った・直したら **open_in_app** でその文書を利用者の画面に出す。
+  パスを伝えて利用者に探してもらうのは、道筋を知っている側が往復を 1 回増やすだけになる。`;
+
 /**
  * 画面についての一段落。アプリ越しにつないでいるかで中身が変わる。
  *
@@ -171,8 +192,8 @@ const SCREEN_WITHOUT_APP = `- この接続はアプリを介していないの�
  * 接続先が分からない store（インメモリ等）では、この段落ごと出さない。
  * 空欄や仮のパスを出すと、名乗っていないことと名乗り間違いが見分けられなくなる。
  */
-export function buildServerInstructions(root?: string, hasApp = false): string {
-  const body = instructionsBody(hasApp ? SCREEN_WITH_APP : SCREEN_WITHOUT_APP);
+export function buildServerInstructions(root?: string, hasApp = false, canOpen = false): string {
+  const body = instructionsBody(hasApp ? SCREEN_WITH_APP : SCREEN_WITHOUT_APP, canOpen);
   if (root === undefined || root === '') return body;
   return `接続先: ${root}
 
@@ -291,9 +312,39 @@ function parseOpenDocuments(data: unknown): OpenDocumentRow[] | null {
 export function createServer(store: DocumentStore, options: CreateServerOptions = {}): McpServer {
   const server = new McpServer(
     { name: SERVER_NAME, version: SERVER_VERSION },
-    { instructions: buildServerInstructions(store.getRoot?.(), options.app !== undefined) },
+    {
+      instructions: buildServerInstructions(
+        store.getRoot?.(),
+        options.app !== undefined,
+        options.app !== undefined || options.desktop !== undefined,
+      ),
+    },
   );
   const { onLog, now = () => Date.now(), git, app, desktop } = options;
+
+  /**
+   * 利用者の画面へ対象を出す。アプリの中から繋いでいれば今の窓へ頼み（起こし直すと窓が
+   * 前へ飛ぶだけで意味が無い）、外からならアプリを起こす。どちらも無ければ出す手段が無い。
+   */
+  const openInApp: ((path: string) => Promise<DesktopOpenResult>) | undefined =
+    app !== undefined
+      ? async (path) => {
+          const safe = safeRelativePath(path);
+          if (!safe.ok) return { ok: false, error: safe.reason };
+          const result = await app.request({ action: 'open-document', path: safe.relative });
+          return result.ok ? { ok: true, path: safe.relative } : { ok: false, error: result.error };
+        }
+      : desktop !== undefined
+        ? (path) => desktop.open(path)
+        : undefined;
+
+  // 繋ぎ方によって公開しないツールがある。about_md_business の手順に、呼べないものを載せないために使う。
+  const isToolAvailable = (name: string): boolean => {
+    if (name.startsWith('git_')) return git !== undefined;
+    if (APP_ONLY_TOOLS.has(name)) return app !== undefined;
+    if (name === 'open_in_app') return openInApp !== undefined;
+    return true;
+  };
 
   // ツール実行の直後に 1 件ログを流す。onLog 未指定なら完全に no-op（既存の挙動不変）。
   // argPath は失敗時にパスを拾うためのフォールバック（成功結果は自前の path を持つ）。
@@ -306,7 +357,7 @@ export function createServer(store: DocumentStore, options: CreateServerOptions 
     'about_md_business',
     {
       description:
-        'このソフト（md-business）が何者かと、版ごとの変わりどころを返す。道具の一覧からは「何のためのソフトで、いま繋いでいるのはどの版か」が組み立てられないので、利用者に尋ねる前にここを読む。引数なしで概要 + 配布物 3 つの版 + デスクトップの直近。app / version / limit で履歴を絞る。',
+        'このソフト（md-business）で何ができるか・どう使うかと、版ごとの変わりどころを返す。useCases に、やりたいこと別に呼ぶツールを順に並べてある（今の接続で使えるものだけ）。「何ができるの」「使い方は」と聞かれたとき、利用者に尋ね返す前にここを読む。引数なしで概要 + 手順 + 配布物 3 つの版 + デスクトップの直近。app / version / limit で履歴を絞る。',
       inputSchema: {
         app: z
           .enum(APP_IDS)
@@ -321,6 +372,7 @@ export function createServer(store: DocumentStore, options: CreateServerOptions 
         ...(appId === undefined ? {} : { app: appId }),
         ...(version === undefined ? {} : { version }),
         ...(limit === undefined ? {} : { limit }),
+        isToolAvailable,
       });
       emit('about_md_business', undefined, r);
       return jsonResult(r, !r.ok);
@@ -405,7 +457,13 @@ export function createServer(store: DocumentStore, options: CreateServerOptions 
       },
     },
     async ({ schema, frontmatter, body, path }) => {
-      const r = await createDocument(store, { schema, frontmatter, body, path });
+      const created = await createDocument(store, { schema, frontmatter, body, path });
+      // 作った直後の文書は利用者が必ず見に行く。アプリの中から繋いでいるときだけ今の窓へ出す。
+      // 外から繋いでいるときにアプリを起こすと、別の作業中に窓が立ち上がって何が起きたか分からない。
+      // 出せなくても作ったことは成功のままにし、出せたかを shown で返す（開き直すかは AI が決める）。
+      const r = created.ok
+        ? { ...created, shown: app !== undefined && openInApp !== undefined && (await openInApp(created.path)).ok }
+        : created;
       emit('create_document', path, r);
       return jsonResult(r, !r.ok);
     },
@@ -1082,29 +1140,6 @@ export function createServer(store: DocumentStore, options: CreateServerOptions 
   // どちらもサイドカーとして動いているときだけ公開する（素のサーバーには画面が無い）。
   if (app !== undefined) {
     server.registerTool(
-      'open_document',
-      {
-        description:
-          'デスクトップアプリの表示を対象文書に切り替える。開いているフォルダの中だけを指定でき、印刷は行わない。',
-        inputSchema: {
-          path: z.string().describe('画面に出すワークスペース相対パス'),
-        },
-      },
-      async ({ path }) => {
-        const safe = safeRelativePath(path);
-        if (!safe.ok) {
-          const r = { ok: false as const, error: safe.reason };
-          emit('open_document', path, r);
-          return jsonResult(r, true);
-        }
-        const result = await app.request({ action: 'open-document', path: safe.relative });
-        const r = result.ok ? { ok: true as const, path: safe.relative } : result;
-        emit('open_document', safe.relative, r);
-        return jsonResult(r, !r.ok);
-      },
-    );
-
-    server.registerTool(
       'list_open_documents',
       {
         description:
@@ -1251,21 +1286,22 @@ export function createServer(store: DocumentStore, options: CreateServerOptions 
     );
   }
 
-  // アプリが動いていなくても辿り着ける唯一の口。起動・フォルダの切り替え・表示を 1 手で行う。
-  // 二重起動の抑止と、動いている窓へパスを渡し直す判断はアプリ側が持つ。
-  if (desktop !== undefined) {
+  // 書いた結果を利用者の画面へ出す口。アプリの中から繋いでいれば今の窓で開き、
+  // 外から繋いでいればアプリを起こす（起動・フォルダの切り替えはアプリ側が持つ）。
+  // 口を用途別に 2 本置いたら、どちらも見つけられずに「無い」と判断されたので 1 本にしてある。
+  if (openInApp !== undefined) {
     server.registerTool(
       'open_in_app',
       {
         description:
-          'デスクトップアプリで対象ファイルを開く。アプリが起動していなければ起動し、開いているフォルダが違えばワークスペースのフォルダへ切り替えてから表示する。利用者に画面で見てもらうときに使う。',
+          '作った・直した文書をデスクトップアプリで開いて、利用者の画面に出す。利用者にパスを伝えて探してもらう代わりに、書いたらこれを呼ぶ。アプリが起動していなければ起動する。',
         inputSchema: {
           path: z.string().describe('画面に出すワークスペース相対パス'),
         },
       },
       async ({ path }) => {
-        const r = await desktop.open(path);
-        emit('open_in_app', path, r);
+        const r = await openInApp(path);
+        emit('open_in_app', r.ok ? r.path : path, r);
         return jsonResult(r, !r.ok);
       },
     );
