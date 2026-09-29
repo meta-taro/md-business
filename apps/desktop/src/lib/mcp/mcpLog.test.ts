@@ -8,6 +8,8 @@ import {
   indicatorText,
   fileChangeFromLog,
   reasonMessageKey,
+  recoveryKeys,
+  askAiParams,
   type McpLogEntry,
   type McpStatus,
 } from './mcpLog';
@@ -286,5 +288,61 @@ describe('fileChangeFromLog', () => {
     expect(fileChangeFromLog(log({ tool: 'search_documents' }))).toBeNull();
     expect(fileChangeFromLog(log({ tool: 'create_document', path: 'a.md', ok: false }))).toBeNull();
     expect(fileChangeFromLog(log({ tool: 'create_document' }))).toBeNull();
+  });
+});
+
+describe('recoveryKeys', () => {
+  it('Node が見つからないときだけ Node の導入を頼む文にする', () => {
+    expect(recoveryKeys('node-missing')).toEqual({
+      ask: 'mcp.askAiText',
+      note: 'mcp.askAiNote',
+      retry: 'mcp.retry',
+      retryFailed: 'mcp.retryFailed',
+    });
+  });
+
+  it('Node 以外の失敗では Node を持ち出さず、原因を調べてもらう文にする', () => {
+    for (const reason of ['exited-early', 'spawn-failed', 'no-output', 'sidecar-missing', null]) {
+      expect(recoveryKeys(reason)).toEqual({
+        ask: 'mcp.askAiFailedText',
+        note: 'mcp.askAiFailedNote',
+        retry: 'mcp.retryStart',
+        retryFailed: 'mcp.retryStartFailed',
+      });
+    }
+  });
+
+  it('使う文言キーは全ロケールに存在する', () => {
+    const keys = [recoveryKeys('node-missing'), recoveryKeys('exited-early')].flatMap((k) => [
+      k.ask,
+      k.note,
+      k.retry,
+      k.retryFailed,
+    ]);
+    for (const locale of LOCALES) {
+      for (const key of keys) expect(messages[locale][key]).toBeTruthy();
+    }
+  });
+
+  it('原因を調べてもらう文には理由と詳細の差し込み口がある', () => {
+    for (const locale of LOCALES) {
+      const text = messages[locale]['mcp.askAiFailedText'];
+      expect(text).toContain('{reason}');
+      expect(text).toContain('{detail}');
+      expect(text).not.toMatch(/Node 20/);
+    }
+  });
+});
+
+describe('askAiParams', () => {
+  it('理由の文と、サーバーが残した原文を渡す', () => {
+    expect(askAiParams('Stopped right after starting', 'exit code 1\nusage: ...')).toEqual({
+      reason: 'Stopped right after starting',
+      detail: 'exit code 1\nusage: ...',
+    });
+  });
+
+  it('原文が無ければ詳細は空にする', () => {
+    expect(askAiParams('x', null)).toEqual({ reason: 'x', detail: '' });
   });
 });

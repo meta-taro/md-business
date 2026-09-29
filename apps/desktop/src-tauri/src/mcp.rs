@@ -17,8 +17,9 @@ use tauri::{AppHandle, Emitter, Manager};
 use crate::mcp_logic::{
     append_detail, can_retry, connection_parts, ensure_ignored, ignore_entry, merge_client_config,
     node_candidates, node_programs, node_version_roots, parse_sidecar_line, pick_existing,
-    response_line, set_root_line, sidecar_args, sidecar_candidates, sort_node_versions,
-    startup_detail, McpReason, McpState, McpStatus, NodeEnv, SidecarEvent, CONFIG_FILE_NAME,
+    response_line, set_root_line, sidecar_args, sidecar_candidates, sidecar_state_env,
+    sort_node_versions, startup_detail, McpReason, McpState, McpStatus, NodeEnv, SidecarEvent,
+    CONFIG_FILE_NAME,
 };
 
 /// 状態変化をフロントへ知らせるイベント名。
@@ -167,11 +168,14 @@ fn resolve_nodes() -> Vec<PathBuf> {
 fn build_command(node: &Path, sidecar: &Path, root: &Path, state: Option<&Path>) -> Command {
     let mut command = Command::new(node);
     command
-        .args(sidecar_args(sidecar, root, state))
+        .args(sidecar_args(sidecar, root))
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         // 起動しきれなかったときに理由が残るのはここだけなので、捨てずに受け取る。
         .stderr(Stdio::piped());
+    if let Some((key, path)) = sidecar_state_env(state) {
+        command.env(key, path);
+    }
     // 「画面へ出して」の依頼で起こす実行ファイルを、いま動いているもの自身に固定する。
     // 探しにいかせると、開発ビルドや配布物を移動した環境で別のものを起こしうる。
     if let Ok(exe) = std::env::current_exe() {

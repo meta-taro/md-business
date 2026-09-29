@@ -574,17 +574,22 @@ pub fn ensure_ignored(existing: Option<&str>, entry: &str) -> Option<String> {
     Some(next)
 }
 
-/// サイドカーへ渡す引数を順に並べる。
+/// サイドカーへ渡す引数を順に並べる。スクリプトの次は作業対象フォルダだけ。
 ///
-/// 第 1 引数が作業対象フォルダ、第 2 引数が接続情報（トークン / ポート）の保存先。
-/// 保存先が取れない環境では省き、その場合サイドカーは毎回新しい接続情報を発行する。
-/// トークンそのものは引数に載せない（引数はプロセス一覧から見えるため）。
-pub fn sidecar_args(sidecar: &Path, root: &Path, state: Option<&Path>) -> Vec<PathBuf> {
-    let mut args = vec![plain_path(sidecar), plain_path(root)];
-    if let Some(path) = state {
-        args.push(plain_path(path));
-    }
-    args
+/// サイドカーは利用者が手で起動する CLI と同じ読み方をするので、位置引数は
+/// ワークスペース 1 つしか受け付けない。接続情報の保存先は [`sidecar_state_env`] で渡す。
+pub fn sidecar_args(sidecar: &Path, root: &Path) -> Vec<PathBuf> {
+    vec![plain_path(sidecar), plain_path(root)]
+}
+
+/// 接続情報（トークン / ポート）の保存先をサイドカーへ知らせる環境変数。
+pub const STATE_ENV: &str = "MD_BUSINESS_MCP_STATE";
+
+/// 接続情報の保存先を渡す環境変数。保存先が取れない環境では付けず、
+/// その場合サイドカーは毎回新しい接続情報を発行する。
+/// トークンそのものは載せない（保存先のパスだけを渡す）。
+pub fn sidecar_state_env(state: Option<&Path>) -> Option<(&'static str, PathBuf)> {
+    state.map(|path| (STATE_ENV, plain_path(path)))
 }
 
 /// Windows の verbatim 表記（`\\?\` 前置き）を、ふつうのパス表記へ戻す。
@@ -809,25 +814,9 @@ mod tests {
     }
 
     #[test]
-    fn 引数は作業対象フォルダの次に接続情報の保存先を並べる() {
-        let args = sidecar_args(
-            Path::new("/app/sidecar.cjs"),
-            Path::new("/work"),
-            Some(Path::new("/config/mcp.json")),
-        );
-        assert_eq!(
-            args,
-            vec![
-                PathBuf::from("/app/sidecar.cjs"),
-                PathBuf::from("/work"),
-                PathBuf::from("/config/mcp.json"),
-            ]
-        );
-    }
-
-    #[test]
-    fn 保存先が取れなければ引数から省く() {
-        let args = sidecar_args(Path::new("/app/sidecar.cjs"), Path::new("/work"), None);
+    fn 位置引数は作業対象フォルダの1つだけにする() {
+        // サイドカーは位置引数を 2 つ受けると「ワークスペースは 1 つだけ」で終了する。
+        let args = sidecar_args(Path::new("/app/sidecar.cjs"), Path::new("/work"));
         assert_eq!(
             args,
             vec![PathBuf::from("/app/sidecar.cjs"), PathBuf::from("/work")]
@@ -835,19 +824,32 @@ mod tests {
     }
 
     #[test]
-    fn 引数はすべてふつうのパス表記で渡す() {
+    fn 接続情報の保存先は環境変数で渡す() {
+        assert_eq!(
+            sidecar_state_env(Some(Path::new("/config/mcp.json"))),
+            Some((STATE_ENV, PathBuf::from("/config/mcp.json")))
+        );
+        assert_eq!(STATE_ENV, "MD_BUSINESS_MCP_STATE");
+    }
+
+    #[test]
+    fn 保存先が取れなければ環境変数を付けない() {
+        assert_eq!(sidecar_state_env(None), None);
+    }
+
+    #[test]
+    fn 引数と保存先はすべてふつうのパス表記で渡す() {
         let args = sidecar_args(
             Path::new(r"\\?\C:\app\sidecar.cjs"),
             Path::new(r"\\?\C:\work"),
-            Some(Path::new(r"\\?\C:\config\mcp.json")),
         );
         assert_eq!(
             args,
-            vec![
-                PathBuf::from(r"C:\app\sidecar.cjs"),
-                PathBuf::from(r"C:\work"),
-                PathBuf::from(r"C:\config\mcp.json"),
-            ]
+            vec![PathBuf::from(r"C:\app\sidecar.cjs"), PathBuf::from(r"C:\work")]
+        );
+        assert_eq!(
+            sidecar_state_env(Some(Path::new(r"\\?\C:\config\mcp.json"))),
+            Some((STATE_ENV, PathBuf::from(r"C:\config\mcp.json")))
         );
     }
 

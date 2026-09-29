@@ -71,9 +71,10 @@ async function main(): Promise<void> {
     return;
   }
 
-  const positional = process.argv.slice(2).filter((arg) => !arg.startsWith('-'));
-  const root = positional[0] ?? process.env['MD_BUSINESS_WORKSPACE'] ?? process.cwd();
-  const statePath = positional[1] ?? process.env['MD_BUSINESS_MCP_STATE'];
+  const root = command.root ?? process.env['MD_BUSINESS_WORKSPACE'] ?? process.cwd();
+  // 保存先は位置引数では受けない。位置引数はワークスペース 1 つだけと決めてあり、
+  // 2 つ目を足すと引数の読み取りが使い方の誤りとして止まる。
+  const statePath = process.env['MD_BUSINESS_MCP_STATE'];
   const saved = loadState(statePath);
   const identity = resolveSidecarIdentity(saved, () => randomBytes(32).toString('hex'));
 

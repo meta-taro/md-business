@@ -402,6 +402,10 @@ export interface Messages {
   'mcp.askAiNote': string;
   'mcp.retry': string;
   'mcp.retryFailed': string;
+  'mcp.askAiFailedText': string;
+  'mcp.askAiFailedNote': string;
+  'mcp.retryStart': string;
+  'mcp.retryStartFailed': string;
   'mcp.reason.sidecarMissing': string;
   'mcp.reason.nodeMissing': string;
   'mcp.reason.spawnFailed': string;
@@ -1088,6 +1092,15 @@ const en: Messages = {
     'Paste this to the AI you already have open. It can install Node for you.',
   'mcp.retry': 'Look again',
   'mcp.retryFailed': 'Node was still not found',
+  'mcp.askAiFailedText':
+    'The md-business desktop app cannot start its MCP server.\n' +
+    'Reason: {reason}\n' +
+    'What the server left behind:\n{detail}\n' +
+    'Please find the cause and fix it. Tell me when it is done — I will press “Start again” in the app’s MCP tab.',
+  'mcp.askAiFailedNote':
+    'Paste this to the AI you already have open. The server’s own message is included so it can look into the cause.',
+  'mcp.retryStart': 'Start again',
+  'mcp.retryStartFailed': 'Still could not start',
   'mcp.reason.sidecarMissing': 'MCP server files were not found',
   'mcp.reason.nodeMissing':
     'Node was not found. Install Node 20 or later, then restart this app to enable MCP',
@@ -1768,6 +1781,14 @@ const ja: Messages = {
   'mcp.askAiNote': '開いている AI に貼るだけで、Node の導入まで任せられます。',
   'mcp.retry': 'もう一度さがす',
   'mcp.retryFailed': 'まだ Node が見つかりません',
+  'mcp.askAiFailedText':
+    'md-business のデスクトップアプリが MCP サーバーを起動できていません。\n' +
+    '理由: {reason}\n' +
+    'サーバーが残した原文:\n{detail}\n' +
+    '原因を調べて直してください。直し終わったら教えてください。アプリの MCP タブで「もう一度起動する」を押します。',
+  'mcp.askAiFailedNote': '開いている AI に貼るだけで、サーバーの原文ごと原因の調査を任せられます。',
+  'mcp.retryStart': 'もう一度起動する',
+  'mcp.retryStartFailed': 'まだ起動できません',
   'mcp.reason.sidecarMissing': 'MCP サーバー本体が見つかりません',
   'mcp.reason.nodeMissing':
     'Node が見つかりません。Node 20 以上を入れてアプリを起動し直すと MCP 連携が使えます',
@@ -2438,6 +2459,14 @@ const zh: Messages = {
   'mcp.askAiNote': '粘贴给已经打开的 AI，它可以直接帮你安装 Node。',
   'mcp.retry': '重新查找',
   'mcp.retryFailed': '仍未找到 Node',
+  'mcp.askAiFailedText':
+    'md-business 桌面应用无法启动 MCP 服务器。\n' +
+    '原因：{reason}\n' +
+    '服务器留下的原文：\n{detail}\n' +
+    '请查明原因并修复。完成后请告诉我，我会在应用的 MCP 标签页点击「重新启动」。',
+  'mcp.askAiFailedNote': '粘贴给已经打开的 AI，连同服务器原文一起交给它排查原因。',
+  'mcp.retryStart': '重新启动',
+  'mcp.retryStartFailed': '仍无法启动',
   'mcp.reason.sidecarMissing': '未找到 MCP 服务器本体',
   'mcp.reason.nodeMissing': '未找到 Node。安装 Node 20 或更高版本并重新启动本应用后即可使用 MCP',
   'mcp.reason.spawnFailed': '无法启动 MCP 服务器',
@@ -3109,6 +3138,14 @@ const ko: Messages = {
   'mcp.askAiNote': '이미 열려 있는 AI에 붙여넣기만 하면 Node 설치까지 맡길 수 있습니다.',
   'mcp.retry': '다시 찾기',
   'mcp.retryFailed': '아직 Node를 찾지 못했습니다',
+  'mcp.askAiFailedText':
+    'md-business 데스크톱 앱이 MCP 서버를 시작하지 못했습니다.\n' +
+    '이유: {reason}\n' +
+    '서버가 남긴 원문:\n{detail}\n' +
+    '원인을 찾아 고쳐 주세요. 끝나면 알려 주세요. 앱의 MCP 탭에서 「다시 시작」을 누르겠습니다.',
+  'mcp.askAiFailedNote': '이미 열려 있는 AI에 붙여넣기만 하면 서버 원문과 함께 원인 조사를 맡길 수 있습니다.',
+  'mcp.retryStart': '다시 시작',
+  'mcp.retryStartFailed': '아직 시작하지 못했습니다',
   'mcp.reason.sidecarMissing': 'MCP 서버 본체를 찾을 수 없습니다',
   'mcp.reason.nodeMissing':
     'Node 를 찾을 수 없습니다. Node 20 이상을 설치한 뒤 앱을 다시 시작하면 MCP 를 사용할 수 있습니다',

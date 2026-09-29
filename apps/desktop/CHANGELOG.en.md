@@ -14,6 +14,14 @@ Japanese is the source of truth for this file; see [CHANGELOG.md](./CHANGELOG.md
 
 - **Showing a document through MCP is now a single tool, `open_in_app`.** Connected from inside the app, it opens in the current window; from outside, it starts the app and opens it. There used to be two tools, `open_document` and `open_in_app`, and neither was mentioned in the guidance the AI reads first, so the AI concluded it had no way to open a document and just handed you a path. The guidance now says to show what it created or changed with `open_in_app`. **`open_document` is gone.**
 
+## 0.31.1
+
+### Fixed
+
+- **The MCP server failed to start and the app said Node was not found.** Node was installed. The arguments the app passed to the server no longer matched how the server reads them, so it stopped at once on a usage error. The connection-details file is now passed in an environment variable rather than as an argument.
+
+- **Whatever stopped the MCP server, the app asked you to install Node.** The request to install Node now appears only when Node is missing. For any other failure, the text to paste to your AI includes the server's own message (exit code and standard error) and asks it to find the cause, and the button reads "Start again".
+
 ## 0.31.0
 
 ### Added

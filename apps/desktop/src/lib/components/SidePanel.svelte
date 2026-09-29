@@ -3,7 +3,7 @@
   // グリッド幅を制御する。MCP タブは組み込みサーバーの接続情報と操作ログを表示する。
   import { t } from '$lib/i18n/i18n.svelte';
   import { mcp } from '$lib/mcp/mcp.svelte';
-  import { formatLogTime } from '$lib/mcp/mcpLog';
+  import { askAiParams, formatLogTime, reasonMessageKey, recoveryKeys } from '$lib/mcp/mcpLog';
   import { workspace } from '$lib/workspace/workspace.svelte';
   import DiagnosticsPanel from './DiagnosticsPanel.svelte';
 
@@ -33,6 +33,12 @@
   // 接続先 URL は訳す対象ではないので、翻訳が要る場合とだけ描き分ける。
   const connText = $derived(
     mcp.connection.kind === 'url' ? mcp.connection.url : t(mcp.connection.key),
+  );
+
+  // Node の導入を頼むのは Node が見つからないときだけ。ほかの失敗はサーバーの原文ごと渡す。
+  const recovery = $derived(recoveryKeys(mcp.status.reason));
+  const askText = $derived(
+    t(recovery.ask, askAiParams(t(reasonMessageKey(mcp.status.reason)), mcp.status.detail)),
   );
 
   /** 文字列を写し、どのボタンで写したかをしばらく表示する。 */
@@ -138,14 +144,14 @@
               理由を出すだけでは利用者は進めない（Node が何かを知らない人が多数）。
               隣で動いている AI に渡せる形にして、導入まで任せられるようにする。
             -->
-            <button class="token primary" type="button" onclick={() => copy(t('mcp.askAiText'), 'ask')}>
+            <button class="token primary" type="button" onclick={() => copy(askText, 'ask')}>
               {copied === 'ask' ? t('mcp.askedAi') : t('mcp.askAi')}
             </button>
-            <p class="note">{t('mcp.askAiNote')}</p>
-            <!-- 入れた直後にアプリを起動し直させない。入れた本人には作業の続きに見える。 -->
-            <button class="token" type="button" onclick={retry}>{t('mcp.retry')}</button>
+            <p class="note">{t(recovery.note)}</p>
+            <!-- 直した直後にアプリを起動し直させない。直した本人には作業の続きに見える。 -->
+            <button class="token" type="button" onclick={retry}>{t(recovery.retry)}</button>
             {#if retried}
-              <p class="wrote failed">{t('mcp.retryFailed')}</p>
+              <p class="wrote failed">{t(recovery.retryFailed)}</p>
             {/if}
           {/if}
 
