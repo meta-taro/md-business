@@ -4,6 +4,14 @@ Changes to this app. Versions follow [Semantic Versioning](https://semver.org/).
 
 Japanese is the source of truth for this file; see [CHANGELOG.md](./CHANGELOG.md).
 
+## 0.31.1
+
+### Fixed
+
+- **The MCP server failed to start and the app said Node was not found.** Node was installed. The arguments the app passed to the server no longer matched how the server reads them, so it stopped at once on a usage error. The connection-details file is now passed in an environment variable rather than as an argument.
+
+- **Whatever stopped the MCP server, the app asked you to install Node.** The request to install Node now appears only when Node is missing. For any other failure, the text to paste to your AI includes the server's own message (exit code and standard error) and asks it to find the cause, and the button reads "Start again".
+
 ## 0.31.0
 
 ### Added

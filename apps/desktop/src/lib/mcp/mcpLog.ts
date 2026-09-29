@@ -108,6 +108,46 @@ export function reasonMessageKey(reason: string | null): MessageKey {
   return REASON_KEYS[reason] ?? 'mcp.reason.unknown';
 }
 
+/** 繋がらないときに出す、AI への依頼文・添え書き・やり直しボタンの文言キー。 */
+export interface RecoveryKeys {
+  ask: MessageKey;
+  note: MessageKey;
+  retry: MessageKey;
+  retryFailed: MessageKey;
+}
+
+/**
+ * 劣化理由に合った立て直しの文言を選ぶ。
+ *
+ * Node の導入を頼む文は Node が見つからないときだけに使う。Node はあるのに起動直後に
+ * 落ちた場合などにまで Node を入れさせると、AI も利用者も見当違いの作業を始める。
+ * それ以外はサーバーが残した原文を添えて、原因を調べてもらう文にする。
+ */
+export function recoveryKeys(reason: string | null): RecoveryKeys {
+  if (reason === 'node-missing') {
+    return {
+      ask: 'mcp.askAiText',
+      note: 'mcp.askAiNote',
+      retry: 'mcp.retry',
+      retryFailed: 'mcp.retryFailed',
+    };
+  }
+  return {
+    ask: 'mcp.askAiFailedText',
+    note: 'mcp.askAiFailedNote',
+    retry: 'mcp.retryStart',
+    retryFailed: 'mcp.retryStartFailed',
+  };
+}
+
+/** 原因を調べてもらう文へ差し込む値。原文が無ければ詳細は空にする。 */
+export function askAiParams(
+  reasonText: string,
+  detail: string | null,
+): { reason: string; detail: string } {
+  return { reason: reasonText, detail: detail ?? '' };
+}
+
 /**
  * 接続状態の表示内容。URL は訳す対象ではないので、翻訳が要る場合とは別物として返す
  * （画面側は kind で描き分ける）。
