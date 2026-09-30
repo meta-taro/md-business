@@ -16,7 +16,7 @@ const SAMPLE = [
   'title: ログイン機能 検証シート',
   'issueDate: 2026-06-19',
   'authors:',
-  '  - { name: 田中, role: PdM }',
+  '  - { name: 山田, role: PdM }',
   'columns:',
   '  - { name: 項目, type: text }',
   '  - { name: 結果, type: enum, values: [OK, NG] }',

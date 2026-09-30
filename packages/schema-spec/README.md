@@ -40,7 +40,7 @@ Authors write Japanese; `normalizeSpecFrontmatter` translates to the canonical E
 発行日: 2026-06-17
 ステータス: ドラフト
 作成者:
-  - 名前: 田中
+  - 名前: 山田
     役割: Tech Lead
 目次: 自動
 テーマ: 青

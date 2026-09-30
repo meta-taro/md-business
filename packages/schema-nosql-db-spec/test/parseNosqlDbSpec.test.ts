@@ -10,7 +10,7 @@ const JAPANESE_MD = `---
 エンジン: Firestore
 ステータス: 承認済
 作成者:
-  - 名前: 田中
+  - 名前: 山田
     役割: PdM
 コレクション:
   - パス: users/{userId}
@@ -86,7 +86,7 @@ describe('parseNosqlDbSpecMarkdown — success', () => {
 発行日: 2026-07-02
 エンジン: dynamodb
 作成者:
-  - 名前: 田中
+  - 名前: 山田
 コレクション:
   - パス: sessions
     ドキュメントID戦略: 複合
@@ -117,7 +117,7 @@ describe('parseNosqlDbSpecMarkdown — failure', () => {
 発行日: 2026-07-02
 エンジン: firestore
 作成者:
-  - 名前: 田中
+  - 名前: 山田
 ---
 `;
     const result = parseNosqlDbSpecMarkdown(md, validate);
@@ -168,7 +168,7 @@ describe('parseNosqlDbSpecObject', () => {
         タイトル: 'オブジェクト直渡し',
         発行日: '2026-07-02',
         エンジン: 'mongodb',
-        作成者: [{ 名前: '田中' }],
+        作成者: [{ 名前: '山田' }],
         コレクション: [
           {
             パス: 'logs',

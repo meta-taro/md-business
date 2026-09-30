@@ -38,7 +38,7 @@ describe('normalizeInvestigationFrontmatter', () => {
       使用ツール: [{ 名前: 'md-business', 版: '0.9.0' }],
       調査時間帯: { 開始: '2026-08-11T00:00:00+09:00', 終了: '2026-08-12T00:00:00+09:00' },
       所見: [{ 番号: 'F-01', 要約: '認証失敗が集中', 深刻度: '高', 根拠: ['evidence/EV-001.md'] }],
-      作成者: [{ 名前: '田中', 役割: '調査担当' }],
+      作成者: [{ 名前: '山田', 役割: '調査担当' }],
     });
     expect(data).toMatchObject({
       targets: [{ path: 'logs/app.jsonl', sha256: 'a'.repeat(64), note: '本番機' }],
@@ -47,7 +47,7 @@ describe('normalizeInvestigationFrontmatter', () => {
       findings: [
         { id: 'F-01', summary: '認証失敗が集中', severity: 'high', evidence: ['evidence/EV-001.md'] },
       ],
-      authors: [{ name: '田中', role: '調査担当' }],
+      authors: [{ name: '山田', role: '調査担当' }],
     });
   });
 
@@ -107,7 +107,7 @@ describe('normalizeInvestigationFrontmatter', () => {
   });
 
   it('leaves an implausibly deep value untranslated instead of recursing', () => {
-    let deep: unknown = { 名前: '田中' };
+    let deep: unknown = { 名前: '山田' };
     for (let i = 0; i < 120; i += 1) deep = [deep];
     const { warnings } = normalizeInvestigationFrontmatter({ 作成者: deep });
     expect(warnings.some((w) => w.message.includes('nested too deeply'))).toBe(true);

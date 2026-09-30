@@ -10,7 +10,7 @@ const SPEC: NosqlDbSpec = {
   issueDate: '2026-07-02',
   status: 'draft',
   engine: 'firestore',
-  authors: [{ name: '田中' }],
+  authors: [{ name: '山田' }],
   collections: [
     {
       path: 'users',

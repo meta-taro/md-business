@@ -66,15 +66,15 @@ describe('fillDown', () => {
 
   it('列は別々に埋める（範囲が複数列でも混ざらない）', () => {
     const before = doc([
-      ['1', 'OK', '田中'],
+      ['1', 'OK', '山田'],
       ['2', '', ''],
       ['3', '', ''],
     ]);
     const after = fillDown(before, { r0: 0, c0: 1, r1: 2, c1: 2 });
     expect(after.rows).toEqual([
-      ['1', 'OK', '田中'],
-      ['2', 'OK', '田中'],
-      ['3', 'OK', '田中'],
+      ['1', 'OK', '山田'],
+      ['2', 'OK', '山田'],
+      ['3', 'OK', '山田'],
     ]);
   });
 
@@ -120,9 +120,9 @@ describe('fillDown', () => {
   });
 
   it('末尾セルが省略された短い行にも書ける（空で埋めてから設定）', () => {
-    const before = doc([['1', 'OK', '田中'], ['2']]);
+    const before = doc([['1', 'OK', '山田'], ['2']]);
     const after = fillDown(before, { r0: 0, c0: 2, r1: 1, c1: 2 });
-    expect(after.rows[1]).toEqual(['2', '', '田中']);
+    expect(after.rows[1]).toEqual(['2', '', '山田']);
   });
 
   it('短い行へ空を配っても列を増やさない（中身の変わらない差分を出さない）', () => {

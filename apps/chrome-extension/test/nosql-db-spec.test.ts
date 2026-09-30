@@ -12,7 +12,7 @@ status: "draft"
 engine: "firestore"
 multiRegion: "nam5"
 authors:
-  - name: "田中"
+  - name: "山田"
     role: "PdM"
 collections:
   - path: "users"
@@ -98,7 +98,7 @@ describe('nosqlDbSpecPlugin — validate path', () => {
       タイトル: '最小',
       発行日: '2026-06-17',
       エンジン: 'Firestore',
-      作成者: [{ 名前: '田中' }],
+      作成者: [{ 名前: '山田' }],
       コレクション: [
         {
           パス: 'sessions',
@@ -191,7 +191,7 @@ describe('nosqlDbSpecPlugin — previewRender', () => {
       issueDate: '2026-06-17',
       status: 'approved',
       engine: 'mongodb',
-      authors: [{ name: '田中' }],
+      authors: [{ name: '山田' }],
       collections: [
         { path: 'users', docIdStrategy: 'auto', shape: { name: { type: 'string' } } },
       ],

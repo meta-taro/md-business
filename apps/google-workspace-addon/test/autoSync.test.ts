@@ -11,7 +11,7 @@ version: 0.1.0
 issueDate: 2026-06-18
 status: draft
 authors:
-  - name: 田中
+  - name: 山田
 columns:
   - { name: 項目, type: text }
   - { name: 結果, type: enum, values: [OK, NG] }
@@ -26,7 +26,7 @@ function buildSpec(overrides: Partial<TestSpec> = {}): TestSpec {
     version: '0.1.0',
     issueDate: '2026-06-18',
     status: 'draft',
-    authors: [{ name: '田中' }],
+    authors: [{ name: '山田' }],
     columns: [
       { name: '項目', type: 'text' },
       { name: '結果', type: 'enum', values: ['OK', 'NG'] },
@@ -131,7 +131,7 @@ describe('prepareAutoSyncCommit', () => {
       version: '0.1.0',
       issueDate: '2026-06-18',
       status: 'draft',
-      authors: [{ name: '田中' }],
+      authors: [{ name: '山田' }],
       columns: [
         { name: '項目', type: 'text' },
         { name: '結果', type: 'enum', values: ['OK', 'NG'] },

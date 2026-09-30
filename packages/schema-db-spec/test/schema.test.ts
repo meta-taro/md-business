@@ -12,7 +12,7 @@ function buildDbSpec(): Record<string, unknown> {
     issueDate: '2026-06-26',
     status: 'draft',
     engine: 'postgres',
-    authors: [{ name: '田中', role: '設計担当' }],
+    authors: [{ name: '山田', role: '設計担当' }],
     tables: [
       {
         name: 'users',

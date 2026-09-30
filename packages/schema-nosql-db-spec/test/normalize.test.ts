@@ -79,10 +79,10 @@ describe('normalizeNosqlDbSpecFrontmatter — root keys', () => {
 describe('normalizeNosqlDbSpecFrontmatter — party scope', () => {
   it('translates authors and reviewers entries', () => {
     const { data } = normalizeNosqlDbSpecFrontmatter({
-      作成者: [{ 名前: '田中', 役割: 'PdM' }],
+      作成者: [{ 名前: '山田', 役割: 'PdM' }],
       レビュアー: [{ 氏名: 'ソウ' }],
     });
-    expect(data['authors']).toEqual([{ name: '田中', role: 'PdM' }]);
+    expect(data['authors']).toEqual([{ name: '山田', role: 'PdM' }]);
     expect(data['reviewers']).toEqual([{ name: 'ソウ' }]);
   });
 });

@@ -113,11 +113,11 @@ describe('valuesToMdTable', () => {
     // 検証シートでは ISO 短縮形 (YYYY-MM-DD) に正規化する。
     const md = valuesToMdTable([
       ['日付', '担当'],
-      [new Date(2026, 5, 22), '田中'],
+      [new Date(2026, 5, 22), '山田'],
       [new Date(2026, 5, 23), '佐藤'],
     ]);
     const lines = md.split('\n');
-    expect(lines[2]).toBe('| 2026-06-22 | 田中 |');
+    expect(lines[2]).toBe('| 2026-06-22 | 山田 |');
     expect(lines[3]).toBe('| 2026-06-23 | 佐藤 |');
   });
 

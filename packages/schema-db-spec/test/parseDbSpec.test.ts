@@ -11,7 +11,7 @@ const JAPANESE_MD = `---
 ステータス: 承認済
 エンジン: PostgreSQL
 作成者:
-  - 名前: 田中
+  - 名前: 山田
     役割: PdM
 テーブル:
   - 名前: users
@@ -81,7 +81,7 @@ describe('parseDbSpecMarkdown — autofill defaults', () => {
 発行日: 2026-06-26
 エンジン: sqlite
 作成者:
-  - 名前: 田中
+  - 名前: 山田
 テーブル:
   - 名前: notes
     列:
@@ -131,7 +131,7 @@ title: collision
 発行日: 2026-06-26
 エンジン: postgres
 作成者:
-  - 名前: 田中
+  - 名前: 山田
 テーブル:
   - 名前: t
     列:
@@ -152,7 +152,7 @@ title: collision
 発行日: 2026-06-26
 エンジン: postgres
 作成者:
-  - 名前: 田中
+  - 名前: 山田
 テーブル:
   - 名前: t
     列:
@@ -177,7 +177,7 @@ describe('parseDbSpecObject', () => {
         タイトル: 'オブジェクト入力',
         発行日: '2026-06-26',
         エンジン: 'mysql',
-        作成者: [{ 名前: '田中' }],
+        作成者: [{ 名前: '山田' }],
         テーブル: [{ 名前: 't', 列: [{ 名前: 'id', 型: 'bigint' }] }],
       },
       validate,

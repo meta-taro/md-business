@@ -11,7 +11,7 @@ issueDate: "2026-06-17"
 status: "draft"
 engine: "postgres"
 authors:
-  - name: "田中"
+  - name: "山田"
     role: "PdM"
 tables:
   - name: "orders"
@@ -88,7 +88,7 @@ describe('dbSpecPlugin — validate path', () => {
       タイトル: '最小',
       発行日: '2026-06-17',
       エンジン: 'postgres',
-      作成者: [{ 名前: '田中' }],
+      作成者: [{ 名前: '山田' }],
       テーブル: [{ 名前: 'users', カラム: [{ 名前: 'id', 型: 'integer' }] }],
     });
     expect(result.ok).toBe(true);

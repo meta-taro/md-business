@@ -19,7 +19,7 @@ describe('normalizeDbSpecFrontmatter — root scope', () => {
       エンジン: 'PostgreSQL',
       文字コード: 'UTF8',
       照合順序: 'ja_JP.UTF-8',
-      作成者: [{ 名前: '田中', 役割: '設計担当' }],
+      作成者: [{ 名前: '山田', 役割: '設計担当' }],
       レビュアー: [{ 名前: '山田' }],
       関連文書: ['./../spec/order-system.md'],
       テーブル: [{ 名前: 'users', 列: [{ 名前: 'id', 型: 'bigserial' }] }],
@@ -42,7 +42,7 @@ describe('normalizeDbSpecFrontmatter — root scope', () => {
       theme: 'blue',
       fileName: 'DB設計書_{文書番号}_v{版}',
     });
-    expect(data.authors).toEqual([{ name: '田中', role: '設計担当' }]);
+    expect(data.authors).toEqual([{ name: '山田', role: '設計担当' }]);
     expect(data.reviewers).toEqual([{ name: '山田' }]);
     expect(data.tables).toEqual([
       { name: 'users', columns: [{ name: 'id', type: 'bigserial' }] },
@@ -289,13 +289,13 @@ describe('normalizeDbSpecFrontmatter — party scope', () => {
   it('translates author/reviewer names and roles', () => {
     const { data } = normalizeDbSpecFrontmatter({
       作成者: [
-        { 名前: '田中', 役割: '設計担当' },
+        { 名前: '山田', 役割: '設計担当' },
         { 氏名: '鈴木', 役職: 'DBA' },
       ],
       レビュアー: [{ 名称: '佐藤', 肩書き: 'PM' }],
     });
     expect(data.authors).toEqual([
-      { name: '田中', role: '設計担当' },
+      { name: '山田', role: '設計担当' },
       { name: '鈴木', role: 'DBA' },
     ]);
     expect(data.reviewers).toEqual([{ name: '佐藤', role: 'PM' }]);

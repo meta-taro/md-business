@@ -12,7 +12,7 @@ function buildApiSpec(overrides: Partial<ApiSpec> = {}): ApiSpec {
     status: 'draft',
     protocol: 'rest',
     auth: 'bearer',
-    authors: [{ name: '田中' }],
+    authors: [{ name: '山田' }],
     endpoints: [
       { operationId: 'listUsers', method: 'GET', path: '/users', responses: [{ status: 200 }] },
     ],

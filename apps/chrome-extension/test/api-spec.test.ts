@@ -13,7 +13,7 @@ protocol: "rest"
 auth: "bearer"
 baseUrl: "https://api.example.com/v1"
 authors:
-  - name: "田中"
+  - name: "山田"
     role: "PdM"
 endpoints:
   - operationId: "listOrders"
@@ -100,7 +100,7 @@ describe('apiSpecPlugin — validate path', () => {
       文書番号: 'API-J-001',
       タイトル: '最小',
       発行日: '2026-06-17',
-      作成者: [{ 名前: '田中' }],
+      作成者: [{ 名前: '山田' }],
       エンドポイント: [
         {
           オペレーションID: 'ping',
@@ -208,7 +208,7 @@ describe('apiSpecPlugin — previewRender', () => {
       status: 'approved',
       protocol: 'rest',
       auth: 'oauth2',
-      authors: [{ name: '田中' }],
+      authors: [{ name: '山田' }],
       endpoints: [
         { operationId: 'ping', method: 'GET', path: '/ping', responses: [{ status: 200 }] },
       ],

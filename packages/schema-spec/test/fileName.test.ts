@@ -10,7 +10,7 @@ function buildSpec(overrides: Partial<Spec> = {}): Spec {
     version: '0.1.0',
     issueDate: '2026-06-17',
     status: 'draft',
-    authors: [{ name: '田中' }],
+    authors: [{ name: '山田' }],
     ...overrides,
   };
 }

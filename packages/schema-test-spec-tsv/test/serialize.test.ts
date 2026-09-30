@@ -80,7 +80,7 @@ describe('serialize ⇄ parse round-trip', () => {
   it('restores a full document', () => {
     const doc = makeDoc({
       formatId: 'md-business:test-spec-tsv/v1',
-      meta: { 版: '0.1.0', 作成者: '田中' },
+      meta: { 版: '0.1.0', 作成者: '山田' },
       directives: ['style 結果 〇=#e6f4ea', 'freeze 1'],
       columns: [
         { name: '項目', type: 'text', required: false },

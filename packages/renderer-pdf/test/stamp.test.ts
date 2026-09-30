@@ -41,7 +41,7 @@ describe('extractStampChars', () => {
   it('passes a personal name through, capped at 4 chars', () => {
     expect(extractStampChars('伊藤太郎')).toEqual(['伊', '藤', '太', '郎']);
     expect(extractStampChars('高橋')).toEqual(['高', '橋']);
-    expect(extractStampChars('田中')).toEqual(['田', '中']);
+    expect(extractStampChars('山田')).toEqual(['山', '田']);
   });
 
   it('respects a custom cap', () => {
@@ -63,7 +63,7 @@ describe('extractStampChars', () => {
 
 describe('renderStampSvg', () => {
   it('returns null when shape is off', () => {
-    expect(renderStampSvg({ text: '田中', shape: 'off' })).toBeNull();
+    expect(renderStampSvg({ text: '山田', shape: 'off' })).toBeNull();
   });
 
   it('returns null when text is effectively empty after cleanup', () => {
@@ -89,7 +89,7 @@ describe('renderStampSvg', () => {
   });
 
   it('honors explicit shape override', () => {
-    const out = renderStampSvg({ text: '田中', shape: 'square' });
+    const out = renderStampSvg({ text: '山田', shape: 'square' });
     expect(out!.shape).toBe('square');
   });
 
@@ -103,12 +103,12 @@ describe('renderStampSvg', () => {
   });
 
   it('respects a custom font family swap-point', () => {
-    const out = renderStampSvg({ text: '田中', font: '"My Tensho", serif' });
+    const out = renderStampSvg({ text: '山田', font: '"My Tensho", serif' });
     expect(out!.svg).toContain('My Tensho');
   });
 
   it('uses red fill / stroke (#c8161d)', () => {
-    const out = renderStampSvg({ text: '田中' });
+    const out = renderStampSvg({ text: '山田' });
     expect(out!.svg).toContain('#c8161d');
   });
 
