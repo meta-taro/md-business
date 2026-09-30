@@ -14,7 +14,7 @@ function buildApiSpec(): Record<string, unknown> {
     protocol: 'rest',
     auth: 'bearer',
     baseUrl: 'https://api.example.com/v1',
-    authors: [{ name: '田中', role: '設計担当' }],
+    authors: [{ name: '山田', role: '設計担当' }],
     endpoints: [
       {
         operationId: 'listUsers',

@@ -12,9 +12,15 @@
  * handles), not arbitrary personal names that legitimately appear as document
  * content. Legitimate matches elsewhere can be waived via an allowlist entry.
  *
- * Pure module — no I/O. Consumed by the staged-diff, commit-message, and
- * whole-tree scanners in this directory.
+ * Personal handles and names are matched by SHA-256 digest rather than spelled
+ * out, so that this public file does not itself publish the very names it
+ * guards against.
+ *
+ * Pure module apart from hashing — no I/O. Consumed by the staged-diff,
+ * commit-message, and whole-tree scanners in this directory.
  */
+
+import { createHash } from 'node:crypto';
 
 /** @typedef {{ id: string, re: RegExp, hint: string }} Pattern */
 
@@ -35,7 +41,7 @@ export const PATTERNS = [
   },
   {
     id: 'internal-handle',
-    re: /\bdokokade\b|\bs-yoko-dokokade\b|\bkajiwara\d*\b|\bdev-slot\d*\b/g,
+    re: /\bdokokade\b|\bdev-slot\d*\b/g,
     hint: '内部リポ/担当ハンドル',
   },
   {
@@ -44,11 +50,6 @@ export const PATTERNS = [
     id: 'author-attribution',
     re: /(?:依頼|指示|作成|修正|対応)\s*20\d\d-\d\d-\d\d/g,
     hint: '日付つき作業者帰属コメント',
-  },
-  {
-    id: 'pdm-honorific',
-    re: /田中さん/g,
-    hint: '内部担当者への言及',
   },
   {
     // Pointers into paths this repository gitignores. They resolve on the
@@ -74,15 +75,82 @@ export const PATTERNS = [
 ];
 
 /**
+ * SHA-256 digests of personal handles (lower-cased, trailing digits removed).
+ * @type {string[]}
+ */
+export const HANDLE_DIGESTS = [
+  '3de9a38679b1d6ebaa8e3f1ca2308a339caf0a21c96c809e9545e54a3af5a815',
+];
+
+/**
+ * SHA-256 digests of personal names that are flagged when followed by 「さん」.
+ * A bare name stays allowed: it legitimately appears as sample document data.
+ * @type {string[]}
+ */
+export const HONORIFIC_NAME_DIGESTS = [
+  '1806496bcb753c280f934bbde21a41ad5793018726681c038da9cfc8a8c82a20',
+];
+
+/** @param {string} s */
+export function digest(s) {
+  return createHash('sha256').update(s).digest('hex');
+}
+
+/**
+ * Hashed-word matchers. Each yields candidate substrings of a line; a candidate
+ * whose digest is in the set is reported.
+ * @type {{ id: string, hint: string, key: 'handles' | 'honorific', candidates: (line: string) => { matched: string, index: number, word: string }[] }[]}
+ */
+const HASHED = [
+  {
+    id: 'internal-handle',
+    hint: '内部リポ/担当ハンドル',
+    key: 'handles',
+    candidates(line) {
+      const out = [];
+      for (const m of line.matchAll(/[A-Za-z][A-Za-z0-9-]*/g)) {
+        // A handle may be embedded in a longer hyphenated account name.
+        for (const part of m[0].split('-')) {
+          const word = part.toLowerCase().replace(/\d+$/, '');
+          if (word) out.push({ matched: m[0], index: m.index, word });
+        }
+      }
+      return out;
+    },
+  },
+  {
+    id: 'pdm-honorific',
+    hint: '内部担当者への言及',
+    key: 'honorific',
+    candidates(line) {
+      const out = [];
+      for (const m of line.matchAll(/([\u4E00-\u9FFF]{1,6})さん/g)) {
+        // Try every suffix so a preceding kanji word does not hide the name.
+        for (let k = 0; k < m[1].length; k++) {
+          out.push({ matched: m[0], index: m.index, word: m[1].slice(k) });
+        }
+      }
+      return out;
+    },
+  },
+];
+
+/**
  * Scan a block of text and return every internal-reference match.
  *
  * @param {string} text
- * @param {{ allow?: string[] }} [options] allow — literal strings that waive a
- *   finding when they equal either the matched substring or the trimmed line.
+ * @param {{ allow?: string[], digests?: { handles?: string[], honorific?: string[] } }} [options]
+ *   allow — literal strings that waive a finding when they equal either the
+ *   matched substring or the trimmed line. digests — replaces the built-in
+ *   digest lists (tests use it to avoid spelling out real names).
  * @returns {{ patternId: string, hint: string, matched: string, line: number, col: number, text: string }[]}
  */
 export function scanText(text, options = {}) {
   const allow = new Set((options.allow ?? []).map((s) => s.trim()).filter(Boolean));
+  const digests = {
+    handles: new Set(options.digests?.handles ?? HANDLE_DIGESTS),
+    honorific: new Set(options.digests?.honorific ?? HONORIFIC_NAME_DIGESTS),
+  };
   const findings = [];
   const lines = String(text).split(/\r?\n/);
 
@@ -105,6 +173,23 @@ export function scanText(text, options = {}) {
           matched,
           line: i + 1,
           col: m.index + 1,
+          text: trimmed,
+        });
+      }
+    }
+
+    for (const h of HASHED) {
+      const seen = new Set();
+      for (const c of h.candidates(line)) {
+        if (seen.has(c.index) || !digests[h.key].has(digest(c.word))) continue;
+        seen.add(c.index);
+        if (allow.has(c.matched)) continue;
+        findings.push({
+          patternId: h.id,
+          hint: h.hint,
+          matched: c.matched,
+          line: i + 1,
+          col: c.index + 1,
           text: trimmed,
         });
       }

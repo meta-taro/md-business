@@ -27,7 +27,7 @@ function buildTestSpec(): Record<string, unknown> {
     version: '0.1.0',
     issueDate: '2026-06-18',
     status: 'draft',
-    authors: [{ name: '田中', role: 'QA Lead' }],
+    authors: [{ name: '山田', role: 'QA Lead' }],
     columns: [
       { name: '項目', type: 'text' },
       { name: '手順', type: 'multiline_text' },

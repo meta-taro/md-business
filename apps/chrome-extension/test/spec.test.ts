@@ -11,7 +11,7 @@ version: "1.0.0"
 issueDate: "2026-06-17"
 status: "draft"
 authors:
-  - name: "田中"
+  - name: "山田"
     role: "PdM"
 ---
 
@@ -79,7 +79,7 @@ describe('specPlugin — validate path', () => {
       文書番号: 'SPEC-J-001',
       タイトル: '最小',
       発行日: '2026-06-17',
-      作成者: [{ 名前: '田中' }],
+      作成者: [{ 名前: '山田' }],
     });
     expect(result.ok).toBe(true);
     if (!result.ok) return;
@@ -146,7 +146,7 @@ describe('specPlugin — previewRender', () => {
         文書番号: 'SPEC-W',
         タイトル: 'auto warning',
         発行日: '2026-06-17',
-        作成者: [{ 名前: '田中' }],
+        作成者: [{ 名前: '山田' }],
         目次: '手動',
       },
       '',

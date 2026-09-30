@@ -50,7 +50,7 @@ function buildSpec(): Record<string, unknown> {
     version: '0.1.0',
     issueDate: '2026-06-17',
     status: 'draft',
-    authors: [{ name: '田中', role: 'Tech Lead' }],
+    authors: [{ name: '山田', role: 'Tech Lead' }],
   };
 }
 

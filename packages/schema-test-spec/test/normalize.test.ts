@@ -16,7 +16,7 @@ describe('normalizeTestSpecFrontmatter — root scope', () => {
       版: '0.1.0',
       発行日: '2026-06-18',
       ステータス: 'ドラフト',
-      作成者: [{ 名前: '田中', 役割: 'QA Lead' }],
+      作成者: [{ 名前: '山田', 役割: 'QA Lead' }],
       レビュアー: [{ 名前: '佐藤' }],
       関連文書: ['./PRD.md'],
       シートID: '1AbcD_Sheet',
@@ -39,7 +39,7 @@ describe('normalizeTestSpecFrontmatter — root scope', () => {
       theme: 'blue',
       fileName: '{documentNumber}.pdf',
     });
-    expect(data.authors).toEqual([{ name: '田中', role: 'QA Lead' }]);
+    expect(data.authors).toEqual([{ name: '山田', role: 'QA Lead' }]);
     expect(data.reviewers).toEqual([{ name: '佐藤' }]);
     expect(data.columns).toEqual([{ name: '項目', type: 'text' }]);
   });
@@ -199,13 +199,13 @@ describe('normalizeTestSpecFrontmatter — party scope', () => {
   it('translates author/reviewer names and roles', () => {
     const { data } = normalizeTestSpecFrontmatter({
       作成者: [
-        { 名前: '田中', 役割: 'QA Lead' },
+        { 名前: '山田', 役割: 'QA Lead' },
         { 氏名: '鈴木', 役職: 'QA' },
       ],
       レビュアー: [{ 名称: '佐藤', 肩書き: 'PM' }],
     });
     expect(data.authors).toEqual([
-      { name: '田中', role: 'QA Lead' },
+      { name: '山田', role: 'QA Lead' },
       { name: '鈴木', role: 'QA' },
     ]);
     expect(data.reviewers).toEqual([{ name: '佐藤', role: 'PM' }]);

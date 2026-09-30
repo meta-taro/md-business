@@ -15,7 +15,7 @@ const SAMPLE = [
   'issueDate: 2026-06-19',
   'repository: meta-taro/md-business@main:docs/test-spec/sample.md',
   'authors:',
-  '  - { name: 田中, role: PdM }',
+  '  - { name: 山田, role: PdM }',
   'columns:',
   '  - { name: 項目, type: text }',
   '  - { name: 結果, type: enum, values: [OK, NG] }',

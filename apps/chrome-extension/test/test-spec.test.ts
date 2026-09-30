@@ -10,7 +10,7 @@ version: "0.1.0"
 issueDate: "2026-06-18"
 status: "draft"
 authors:
-  - name: "田中"
+  - name: "山田"
     role: "QA"
 columns:
   - name: "項目"
@@ -85,7 +85,7 @@ describe('testSpecPlugin — validate path', () => {
       文書番号: 'TEST-J-001',
       タイトル: '最小',
       発行日: '2026-06-18',
-      作成者: [{ 名前: '田中' }],
+      作成者: [{ 名前: '山田' }],
       列: [{ 名前: '項目', 型: '文字列' }],
     });
     expect(result.ok).toBe(true);
@@ -179,7 +179,7 @@ describe('testSpecPlugin — previewRender', () => {
         version: '0.1.0',
         issueDate: '2026-06-18',
         status: 'draft',
-        authors: [{ name: '田中' }],
+        authors: [{ name: '山田' }],
         columns: [
           { name: '結果', type: 'enum' },
         ],

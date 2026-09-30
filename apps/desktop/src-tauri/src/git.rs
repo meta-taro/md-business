@@ -2080,13 +2080,13 @@ c
 
     #[test]
     fn log出力を1件ずつに分解する() {
-        let stdout = log_record("abc123", "田中", "2026-08-15T09:00:00+09:00", "最初のコミット")
+        let stdout = log_record("abc123", "山田", "2026-08-15T09:00:00+09:00", "最初のコミット")
             + &log_record("def456", "sou", "2026-08-14T18:30:00+09:00", "直した");
         let entries = parse_log(&stdout);
 
         assert_eq!(entries.len(), 2);
         assert_eq!(entries[0].hash, "abc123");
-        assert_eq!(entries[0].author, "田中");
+        assert_eq!(entries[0].author, "山田");
         assert_eq!(entries[0].date, "2026-08-15T09:00:00+09:00");
         assert_eq!(entries[0].subject, "最初のコミット");
         assert_eq!(entries[1].hash, "def456");

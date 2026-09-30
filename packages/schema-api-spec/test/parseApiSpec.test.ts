@@ -13,7 +13,7 @@ const JAPANESE_MD = `---
 認証: Bearer
 ベースURL: https://api.example.com/v1
 作成者:
-  - 名前: 田中
+  - 名前: 山田
     役割: PdM
 エンドポイント:
   - オペレーションID: listUsers
@@ -91,7 +91,7 @@ describe('parseApiSpecMarkdown — autofill defaults', () => {
 タイトル: 最小構成
 発行日: 2026-07-15
 作成者:
-  - 名前: 田中
+  - 名前: 山田
 エンドポイント:
   - オペレーションID: ping
     メソッド: GET
@@ -118,7 +118,7 @@ describe('parseApiSpecMarkdown — failure path', () => {
 タイトル: エンドポイントなし
 発行日: 2026-07-15
 作成者:
-  - 名前: 田中
+  - 名前: 山田
 ---
 `;
     const result = parseApiSpecMarkdown(md, validate);
@@ -153,7 +153,7 @@ title: collision
 文書番号: API-2026-004
 発行日: 2026-07-15
 作成者:
-  - 名前: 田中
+  - 名前: 山田
 エンドポイント:
   - オペレーションID: ping
     メソッド: GET
@@ -174,7 +174,7 @@ title: collision
 タイトル: 重複
 発行日: 2026-07-15
 作成者:
-  - 名前: 田中
+  - 名前: 山田
 エンドポイント:
   - オペレーションID: dup
     メソッド: GET
@@ -203,7 +203,7 @@ describe('parseApiSpecObject', () => {
         タイトル: 'オブジェクト入力',
         発行日: '2026-07-15',
         プロトコル: 'GraphQL',
-        作成者: [{ 名前: '田中' }],
+        作成者: [{ 名前: '山田' }],
         エンドポイント: [
           { オペレーションID: 'q', メソッド: 'POST', パス: '/graphql', レスポンス: [{ ステータス: 200 }] },
         ],

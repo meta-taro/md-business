@@ -17,7 +17,7 @@ function buildMinimalApiSpec(): Record<string, unknown> {
     status: 'draft',
     protocol: 'rest',
     auth: 'none',
-    authors: [{ name: '田中' }],
+    authors: [{ name: '山田' }],
     endpoints: [
       { operationId: 'listUsers', method: 'GET', path: '/users', responses: [{ status: 200 }] },
     ],

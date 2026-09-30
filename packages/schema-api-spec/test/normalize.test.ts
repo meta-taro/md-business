@@ -19,7 +19,7 @@ describe('normalizeApiSpecFrontmatter — root scope', () => {
       プロトコル: 'REST',
       認証: 'Bearer',
       ベースURL: 'https://api.example.com/v1',
-      作成者: [{ 名前: '田中', 役割: '設計担当' }],
+      作成者: [{ 名前: '山田', 役割: '設計担当' }],
       レビュアー: [{ 名前: '山田' }],
       関連文書: ['./../db-spec/order-db.md'],
       テーマ: '青',
@@ -40,7 +40,7 @@ describe('normalizeApiSpecFrontmatter — root scope', () => {
       theme: 'blue',
       fileName: 'API設計書_{文書番号}_v{版}',
     });
-    expect(data.authors).toEqual([{ name: '田中', role: '設計担当' }]);
+    expect(data.authors).toEqual([{ name: '山田', role: '設計担当' }]);
     expect(data.reviewers).toEqual([{ name: '山田' }]);
   });
 
@@ -264,13 +264,13 @@ describe('normalizeApiSpecFrontmatter — party scope', () => {
   it('translates author/reviewer names and roles', () => {
     const { data } = normalizeApiSpecFrontmatter({
       作成者: [
-        { 名前: '田中', 役割: '設計担当' },
+        { 名前: '山田', 役割: '設計担当' },
         { 氏名: '鈴木', 役職: 'API 担当' },
       ],
       レビュアー: [{ 名称: '佐藤', 肩書き: 'PM' }],
     });
     expect(data.authors).toEqual([
-      { name: '田中', role: '設計担当' },
+      { name: '山田', role: '設計担当' },
       { name: '鈴木', role: 'API 担当' },
     ]);
     expect(data.reviewers).toEqual([{ name: '佐藤', role: 'PM' }]);

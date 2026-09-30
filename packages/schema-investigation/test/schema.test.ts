@@ -13,7 +13,7 @@ function buildInvestigation(): Record<string, unknown> {
     title: 'ログイン失敗の急増',
     createdAt: '2026-08-12T09:30:00+09:00',
     status: 'investigating',
-    authors: [{ name: '田中', role: '調査担当' }],
+    authors: [{ name: '山田', role: '調査担当' }],
     targets: [{ path: 'logs/app.jsonl', sha256: SHA }],
     tools: [{ name: 'md-business mcp-server', version: '0.9.0' }],
     window: { from: '2026-08-11T00:00:00+09:00', to: '2026-08-12T00:00:00+09:00' },

@@ -16,7 +16,7 @@ describe('normalizeSpecFrontmatter — root scope', () => {
       版: '0.1.0',
       発行日: '2026-06-17',
       ステータス: 'ドラフト',
-      作成者: [{ 名前: '田中', 役割: 'Tech Lead' }],
+      作成者: [{ 名前: '山田', 役割: 'Tech Lead' }],
       レビュアー: [{ 名前: '佐藤' }],
       関連文書: ['./PRD.md'],
       章ファイル: ['01-overview.md'],
@@ -39,7 +39,7 @@ describe('normalizeSpecFrontmatter — root scope', () => {
       theme: 'blue',
       fileName: '{documentNumber}.pdf',
     });
-    expect(data.authors).toEqual([{ name: '田中', role: 'Tech Lead' }]);
+    expect(data.authors).toEqual([{ name: '山田', role: 'Tech Lead' }]);
   });
 
   it('accepts English keys verbatim (idempotent)', () => {
@@ -116,13 +116,13 @@ describe('normalizeSpecFrontmatter — party scope', () => {
   it('translates author/reviewer names and roles', () => {
     const { data } = normalizeSpecFrontmatter({
       作成者: [
-        { 名前: '田中', 役割: 'Tech Lead' },
+        { 名前: '山田', 役割: 'Tech Lead' },
         { 氏名: '鈴木', 役職: 'Engineer' },
       ],
       レビュアー: [{ 名称: '佐藤', 肩書き: 'PM' }],
     });
     expect(data.authors).toEqual([
-      { name: '田中', role: 'Tech Lead' },
+      { name: '山田', role: 'Tech Lead' },
       { name: '鈴木', role: 'Engineer' },
     ]);
     expect(data.reviewers).toEqual([{ name: '佐藤', role: 'PM' }]);
@@ -143,7 +143,7 @@ describe('normalizeSpecFrontmatter — warnings', () => {
 
   it('reports nested collision paths', () => {
     const { warnings } = normalizeSpecFrontmatter({
-      作成者: [{ 名前: '田中', 氏名: '田中太郎' }],
+      作成者: [{ 名前: '山田', 氏名: '山田太郎' }],
     });
     expect(warnings.some((w) => w.path === 'authors[0].name')).toBe(true);
   });

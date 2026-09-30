@@ -48,7 +48,7 @@ describe('validate.compiled.js runtime behaviour after standalone inlining', () 
       version: '0.1.0',
       issueDate: '2026-06-19',
       status: 'draft',
-      authors: [{ name: '田中', role: 'PdM' }],
+      authors: [{ name: '山田', role: 'PdM' }],
       columns: [{ name: '項目', type: 'text' }],
     });
     expect(ok).toBe(true);

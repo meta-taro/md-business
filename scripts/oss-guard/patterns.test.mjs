@@ -1,7 +1,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { scanText } from './patterns.mjs';
+import { scanText, digest, HANDLE_DIGESTS, HONORIFIC_NAME_DIGESTS } from './patterns.mjs';
+
+// 実在の名前をこのファイルに書かないよう、架空の名前のダイジェストで差し替えて試す。
+const fake = { digests: { handles: [digest('examplehandle')], honorific: [digest('架空')] } };
 
 const ids = (findings) => findings.map((f) => f.patternId);
 
@@ -18,15 +21,30 @@ test('内部ルールのセクション参照を検出する', () => {
 
 test('内部リポ/担当ハンドルを検出する', () => {
   assert.ok(ids(scanText('dokokade/store-x')).includes('internal-handle'));
-  assert.ok(ids(scanText('assignee: kajiwara888')).includes('internal-handle'));
-  assert.ok(ids(scanText('s-yoko-dokokade が担当')).includes('internal-handle'));
+  assert.ok(ids(scanText('assignee: examplehandle888', fake)).includes('internal-handle'));
+  assert.ok(ids(scanText('x-examplehandle が担当', fake)).includes('internal-handle'));
+  assert.ok(ids(scanText('ExampleHandle', fake)).includes('internal-handle'));
   assert.ok(ids(scanText('dev-slot2 に割当')).includes('internal-handle'));
 });
 
 test('日付つき作業者帰属コメントを検出する', () => {
-  const f = scanText('// 田中さん依頼 2026-07-22 の対応');
+  const f = scanText('// 架空さん依頼 2026-07-22 の対応', fake);
   assert.ok(ids(f).includes('author-attribution'));
   assert.ok(ids(f).includes('pdm-honorific'));
+});
+
+test('前に漢字語が付いても さん付けの名前を検出する', () => {
+  assert.ok(ids(scanText('担当架空さんへ', fake)).includes('pdm-honorific'));
+});
+
+test('さん無しの名前・無関係のさん付けは検出しない', () => {
+  assert.equal(scanText('作成者: 架空', fake).length, 0);
+  assert.equal(scanText('皆さんへ', fake).length, 0);
+});
+
+test('実在の名前はダイジェストでだけ持つ', () => {
+  assert.ok(HANDLE_DIGESTS.length > 0 && HONORIFIC_NAME_DIGESTS.length > 0);
+  for (const d of [...HANDLE_DIGESTS, ...HONORIFIC_NAME_DIGESTS]) assert.match(d, /^[0-9a-f]{64}$/);
 });
 
 test('内部役割呼称 PdM を検出する', () => {
@@ -90,6 +108,6 @@ test('allowlist は一致文字列を抑制する', () => {
 });
 
 test('allowlist は行全体一致でも抑制する', () => {
-  const line = '  // 田中さん依頼 2026-07-22 の対応';
-  assert.equal(scanText(line, { allow: ['// 田中さん依頼 2026-07-22 の対応'] }).length, 0);
+  const line = '  // 架空さん依頼 2026-07-22 の対応';
+  assert.equal(scanText(line, { ...fake, allow: ['// 架空さん依頼 2026-07-22 の対応'] }).length, 0);
 });

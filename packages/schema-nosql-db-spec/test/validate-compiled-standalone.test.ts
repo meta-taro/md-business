@@ -16,7 +16,7 @@ function buildMinimalNosqlDbSpec(): Record<string, unknown> {
     issueDate: '2026-06-26',
     status: 'draft',
     engine: 'firestore',
-    authors: [{ name: '田中' }],
+    authors: [{ name: '山田' }],
     collections: [
       {
         path: 'users',

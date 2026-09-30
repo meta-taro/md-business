@@ -43,7 +43,7 @@ describe('parseSpecObject — frontmatter object path', () => {
         文書番号: 'SPEC-T-001',
         タイトル: 'テスト仕様書',
         発行日: '2026-06-17',
-        作成者: [{ 名前: '田中' }],
+        作成者: [{ 名前: '山田' }],
       },
       validate,
     );
@@ -63,7 +63,7 @@ describe('parseSpecObject — frontmatter object path', () => {
         タイトル: '同義語タイトル',
         表題: 'こちらが採用される',
         発行日: '2026-06-17',
-        作成者: [{ 名前: '田中' }],
+        作成者: [{ 名前: '山田' }],
       },
       validate,
     );
@@ -78,7 +78,7 @@ describe('parseSpecObject — frontmatter object path', () => {
         文書番号: 'SPEC-T-003',
         タイトル: '章なし手動目次',
         発行日: '2026-06-17',
-        作成者: [{ 名前: '田中' }],
+        作成者: [{ 名前: '山田' }],
         目次: '手動',
       },
       validate,
@@ -95,7 +95,7 @@ describe('parseSpecObject — frontmatter object path', () => {
         タイトル: '不明ステータス',
         発行日: '2026-06-17',
         ステータス: '保留',
-        作成者: [{ 名前: '田中' }],
+        作成者: [{ 名前: '山田' }],
       },
       validate,
     );

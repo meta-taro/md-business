@@ -11,7 +11,7 @@ function buildDbSpec(overrides: Partial<DbSpec> = {}): DbSpec {
     issueDate: '2026-06-26',
     status: 'draft',
     engine: 'postgres',
-    authors: [{ name: '田中' }],
+    authors: [{ name: '山田' }],
     tables: [{ name: 'users', columns: [{ name: 'id', type: 'bigserial' }] }],
     ...overrides,
   };
