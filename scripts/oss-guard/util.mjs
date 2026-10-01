@@ -10,11 +10,17 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 export const REPO_ROOT = resolve(HERE, '..', '..');
 
 /** The scanners' own source lists the denylisted terms literally, so it is
- * never scanned; lockfiles are generated; `.gitignore` has to name the private
- * paths it excludes. Paths are matched with `includes` against a
- * forward-slash-normalized repo-relative path. */
+ * never scanned; lockfiles are generated; `.gitignore` and the placement
+ * check (script + workflow) have to name the private paths they guard. Paths
+ * are matched with `includes` against a forward-slash-normalized
+ * repo-relative path. */
 const EXCLUDED_PREFIXES = ['scripts/oss-guard/'];
-const EXCLUDED_FILES = ['pnpm-lock.yaml', '.gitignore'];
+const EXCLUDED_FILES = [
+  'pnpm-lock.yaml',
+  '.gitignore',
+  '.github/scripts/oss-placement-check.sh',
+  '.github/workflows/oss-placement-check.yml',
+];
 
 /** Binary assets carry no reviewable text — skip by extension. */
 const BINARY_EXTS = new Set([

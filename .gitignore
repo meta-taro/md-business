@@ -67,10 +67,18 @@ pnpm-debug.log*
 
 # 開発者個人の作業ルール / 進捗ノート (OSS 上流に出さない)。
 # クローンした開発者ごとに独自運用するため、tracked から外す。
-# tools/ だけは配布される道具カードなので追跡する。ディレクトリごと除外していると
+# 設定と配布物（道具カード・ルール・テンプレート・hook・コマンド・エージェント・
+# スキル・settings.json）だけは追跡する。ディレクトリごと除外していると
 # 中身を個別に許可できない (git が降りない) ため、`/*` で中を除外してから戻す。
 /.claude/*
 !/.claude/tools/
+!/.claude/rules/
+!/.claude/templates/
+!/.claude/hooks/
+!/.claude/commands/
+!/.claude/agents/
+!/.claude/skills/
+!/.claude/settings.json
 /CLAUDE.md
 
 # OSS 内部参照スキャナのマシンローカルな許可リスト（コミットしない）。

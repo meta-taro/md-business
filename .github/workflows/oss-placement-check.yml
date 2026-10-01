@@ -1,0 +1,16 @@
+name: OSS placement check
+
+# 作業の記録（.claude/ の設定と配布物以外・名前で記録と分かるファイル）が
+# 追跡されていないかを検査する。pre-commit / pre-push と同じスクリプトを走らせる。
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  placement:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check placement
+        run: bash .github/scripts/oss-placement-check.sh

@@ -11,6 +11,9 @@ node scripts/oss-guard/check-staged.mjs
 echo "[pre-commit] コミット identity..."
 node scripts/oss-guard/check-identity.mjs
 
+echo "[pre-commit] 置き場所の検査..."
+bash .github/scripts/oss-placement-check.sh
+
 echo "[pre-commit] lint..."
 pnpm -w run lint
 
