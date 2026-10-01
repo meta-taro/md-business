@@ -4,6 +4,9 @@
 # 静的検出することで、依存パッケージ由来の CSP 違反コードを push 前に弾く。
 set -e
 
+echo "[pre-push] 置き場所の検査..."
+bash .github/scripts/oss-placement-check.sh
+
 echo "[pre-push] build..."
 pnpm -w run build
 
