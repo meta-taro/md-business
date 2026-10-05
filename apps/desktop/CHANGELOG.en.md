@@ -14,6 +14,10 @@ Japanese is the source of truth for this file; see [CHANGELOG.md](./CHANGELOG.md
 
 - **Showing a document through MCP is now a single tool, `open_in_app`.** Connected from inside the app, it opens in the current window; from outside, it starts the app and opens it. There used to be two tools, `open_document` and `open_in_app`, and neither was mentioned in the guidance the AI reads first, so the AI concluded it had no way to open a document and just handed you a path. The guidance now says to show what it created or changed with `open_in_app`. **`open_document` is gone.**
 
+### Fixed
+
+- **Exporting as an image no longer runs scripts in the document or navigates to other pages.** The surface that draws the export now only renders the document it is given, once. Scripts, navigation and frame contents are blocked, and requests that would load another page are stopped before they leave the machine. Images and fonts in the document still load, so the export looks the same as the preview.
+
 ## 0.31.1
 
 ### Fixed

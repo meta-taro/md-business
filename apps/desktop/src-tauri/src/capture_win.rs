@@ -16,7 +16,7 @@
 //! 描かれていないものは撮りようが無い、ということらしい。そこで画面の外へ置いたまま
 //! 表示状態にする。タスクバーにも Alt+Tab にも出さないので、利用者からは見えない。
 
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::path::Path;
 use std::rc::Rc;
 use std::time::{Duration, Instant};
@@ -25,11 +25,12 @@ use base64::engine::general_purpose::STANDARD;
 use base64::Engine;
 use webview2_com::Microsoft::Web::WebView2::Win32::{
     CreateCoreWebView2EnvironmentWithOptions, ICoreWebView2, ICoreWebView2Controller,
-    ICoreWebView2Environment,
+    ICoreWebView2Environment, COREWEBVIEW2_WEB_RESOURCE_CONTEXT_DOCUMENT,
 };
 use webview2_com::{
     CallDevToolsProtocolMethodCompletedHandler, CreateCoreWebView2ControllerCompletedHandler,
     CreateCoreWebView2EnvironmentCompletedHandler, NavigationCompletedEventHandler,
+    NavigationStartingEventHandler, WebResourceRequestedEventHandler,
 };
 use windows::core::{w, HSTRING, PCWSTR};
 use windows::Win32::Foundation::{HWND, RECT};
@@ -259,6 +260,8 @@ fn shoot_inner(html: &str, spec: &ShotSpec, user_data_dir: &Path) -> Result<Vec<
     let webview =
         unsafe { controller.CoreWebView2() }.map_err(|error| format!("{UNAVAILABLE}: {error}"))?;
 
+    lock_down(&webview, &environment)?;
+
     let done = Rc::new(RefCell::new(false));
     let sink = done.clone();
     let handler = NavigationCompletedEventHandler::create(Box::new(move |_, _| {
@@ -300,6 +303,68 @@ fn shoot_inner(html: &str, spec: &ShotSpec, user_data_dir: &Path) -> Result<Vec<
 
     unsafe { controller.Close() }.map_err(|error| format!("後片付けに失敗しました: {error}"))?;
     Ok(bytes)
+}
+
+/// 撮る webview を、渡した HTML を 1 枚描くだけのものにする。
+///
+/// 撮る HTML は呼ぶ側で既に組み上がっている（図は画像に、本文は無害化済み）。描かせるのに
+/// 脚本は要らない。ここで止めておけば、呼ぶ側が何を渡しても、撮る道具が脚本を走らせたり
+/// よそのページへ移ったりすることは無い。
+///
+/// 画像や字など、描くための読み込みは止めない。本文が外の画像を指していれば、
+/// 下見と同じく写るのが正しい出来上がりなので。
+fn lock_down(
+    webview: &ICoreWebView2,
+    environment: &ICoreWebView2Environment,
+) -> Result<(), String> {
+    let fail = |error: windows::core::Error| format!("画像を作れませんでした: {error}");
+    let settings = unsafe { webview.Settings() }.map_err(fail)?;
+    unsafe {
+        settings.SetIsScriptEnabled(false).map_err(fail)?;
+        settings.SetIsWebMessageEnabled(false).map_err(fail)?;
+        settings
+            .SetAreDefaultScriptDialogsEnabled(false)
+            .map_err(fail)?;
+    }
+
+    // 移ってよいのは、渡した HTML を開く最初の 1 回だけ。meta refresh などで
+    // 別のページへ移ろうとしたら断る。
+    let opened = Rc::new(Cell::new(false));
+    let navigation = NavigationStartingEventHandler::create(Box::new(move |_, args| {
+        if opened.replace(true) {
+            if let Some(args) = args {
+                unsafe { args.SetCancel(true) }?
+            }
+        }
+        Ok(())
+    }));
+    // 枠の中身はどれも読まない（撮る HTML に枠を使う理由が無い）。
+    let frame = NavigationStartingEventHandler::create(Box::new(|_, args| {
+        if let Some(args) = args {
+            unsafe { args.SetCancel(true) }?;
+        }
+        Ok(())
+    }));
+    // 移るのを断っても、行き先への頼み自体は先に出ていく。ページとして読む頼みは
+    // 外へ出る前にここで止める（渡した HTML は data: で開くので、ここには来ない）。
+    let refusal =
+        unsafe { environment.CreateWebResourceResponse(None, 403, w!("Forbidden"), w!("")) }
+            .map_err(fail)?;
+    let document = WebResourceRequestedEventHandler::create(Box::new(move |_, args| {
+        if let Some(args) = args {
+            unsafe { args.SetResponse(&refusal) }?;
+        }
+        Ok(())
+    }));
+    let mut token = Default::default();
+    unsafe { webview.add_NavigationStarting(&navigation, &mut token) }.map_err(fail)?;
+    unsafe { webview.add_FrameNavigationStarting(&frame, &mut token) }.map_err(fail)?;
+    unsafe {
+        webview.AddWebResourceRequestedFilter(w!("*"), COREWEBVIEW2_WEB_RESOURCE_CONTEXT_DOCUMENT)
+    }
+    .map_err(fail)?;
+    unsafe { webview.add_WebResourceRequested(&document, &mut token) }.map_err(fail)?;
+    Ok(())
 }
 
 /// 撮るのは 1 度に 1 枚ずつ。
@@ -454,6 +519,107 @@ mod tests {
                 assert_eq!(&bytes[0..2], &[0xff, 0xd8], "JPEG の先頭ではない");
                 assert!(png_head(&bytes).is_none(), "PNG が返っている");
             }
+            Err(message) if skipped(&message) => eprintln!("見送り: {message}"),
+            Err(message) => panic!("{message}"),
+        }
+    }
+
+    /// 手元に待ち受けを 1 本立て、撮影中にそこへ頼みが届いたかで、描いた中身が
+    /// 外へ出ようとしたかを見る。画素を読むより確かで、読み違えようが無い。
+    fn knocked_while(job: impl FnOnce(u16) -> Result<Vec<u8>, String>) -> Option<bool> {
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        listener.set_nonblocking(true).unwrap();
+        let port = listener.local_addr().unwrap().port();
+        match job(port) {
+            Ok(_) => {}
+            Err(message) if skipped(&message) => {
+                eprintln!("見送り: {message}");
+                return None;
+            }
+            Err(message) => panic!("{message}"),
+        }
+        // 遅れて来る分も拾う（撮り終えてから届く頼みもある）。
+        // 繋ぎに来ただけ（先回りの接続）は数えない。頼みの中身が届いたときだけ数える。
+        let until = Instant::now() + Duration::from_secs(2);
+        while Instant::now() < until {
+            if let Ok((mut stream, _)) = listener.accept() {
+                use std::io::Read;
+                stream.set_nonblocking(false).unwrap();
+                stream
+                    .set_read_timeout(Some(Duration::from_millis(500)))
+                    .unwrap();
+                let mut head = [0u8; 16];
+                if matches!(stream.read(&mut head), Ok(n) if n > 0) {
+                    return Some(true);
+                }
+            }
+            std::thread::sleep(Duration::from_millis(50));
+        }
+        Some(false)
+    }
+
+    fn small_png() -> ShotSpec {
+        ShotSpec {
+            width: 200,
+            height: 100,
+            scale: 1.0,
+            format: ImageFormat::Png { transparent: false },
+        }
+    }
+
+    #[test]
+    fn 描く中身の脚本は動かさない() {
+        let knocked = knocked_while(|port| {
+            let html = format!(
+                r#"<!doctype html><meta charset="utf-8"><body><script>fetch("http://127.0.0.1:{port}/")</script>"#
+            );
+            capture(&html, &small_png(), &work_dir("script"))
+        });
+        assert_ne!(knocked, Some(true), "脚本が動いて外へ出ようとした");
+    }
+
+    #[test]
+    fn 描く中身からよそへ移らない() {
+        let knocked = knocked_while(|port| {
+            let html = format!(
+                r#"<!doctype html><meta charset="utf-8"><meta http-equiv="refresh" content="0;url=http://127.0.0.1:{port}/"><body>x"#
+            );
+            capture(&html, &small_png(), &work_dir("navigate"))
+        });
+        assert_ne!(knocked, Some(true), "別のページへ移ろうとした");
+    }
+
+    /// 止めるのは脚本と移動だけ。本文が外の画像を指していれば、下見と同じく読みに行く。
+    ///
+    /// 画像は読み終わるまで描き終わらないので、ここでは待ち受けが返事まで返す
+    /// （返さないと、撮影が期限まで待ってから断る）。
+    #[test]
+    fn 描くための読み込みは止めない() {
+        use std::io::{Read, Write};
+        use std::sync::atomic::{AtomicBool, Ordering};
+        use std::sync::Arc;
+
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let port = listener.local_addr().unwrap().port();
+        let asked = Arc::new(AtomicBool::new(false));
+        let seen = asked.clone();
+        std::thread::spawn(move || {
+            for mut stream in listener.incoming().flatten() {
+                let mut head = [0u8; 1024];
+                if matches!(stream.read(&mut head), Ok(n) if n > 0) {
+                    seen.store(true, Ordering::SeqCst);
+                }
+                let _ = stream.write_all(
+                    b"HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
+                );
+            }
+        });
+
+        let html = format!(
+            r#"<!doctype html><meta charset="utf-8"><body><img src="http://127.0.0.1:{port}/a.png">"#
+        );
+        match capture(&html, &small_png(), &work_dir("image")) {
+            Ok(_) => assert!(asked.load(Ordering::SeqCst), "画像を読みに行かなかった"),
             Err(message) if skipped(&message) => eprintln!("見送り: {message}"),
             Err(message) => panic!("{message}"),
         }
