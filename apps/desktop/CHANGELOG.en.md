@@ -4,6 +4,12 @@ Changes to this app. Versions follow [Semantic Versioning](https://semver.org/).
 
 Japanese is the source of truth for this file; see [CHANGELOG.md](./CHANGELOG.md).
 
+## 0.32.1
+
+### Added
+
+- **The app is now also released for Windows on ARM (Snapdragon and similar)**. There are two installers per format, with `x64` or `arm64` in the name. The download page offers the ARM64 installer first when opened on an ARM PC (browsers that do not report the CPU type get the x64 installer, with ARM64 listed alongside). The app itself is the same as 0.32.0.
+
 ## 0.32.0
 
 ### Changed
