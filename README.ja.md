@@ -238,7 +238,7 @@ md-business が目指すのは、**業務文書を AI agent が運用できる�
 
 ビルドも Node.js もパッケージマネージャも要りません。
 
-1. **[デスクトップアプリをダウンロード](https://meta-taro.github.io/md-business/download/)**（Windows `.msi` / `.exe`、macOS `.dmg`）してインストールします。ブラウザで読んで印刷するだけなら [Chrome 拡張](https://chromewebstore.google.com/detail/lmdplkkfmgapnhombimeohjliinifgjh)でも足ります。
+1. **[デスクトップアプリをダウンロード](https://meta-taro.github.io/md-business/download/)**（Windows x64 / ARM64 の `.msi` / `.exe`、macOS `.dmg`）してインストールします。ブラウザで読んで印刷するだけなら [Chrome 拡張](https://chromewebstore.google.com/detail/lmdplkkfmgapnhombimeohjliinifgjh)でも足ります。
 2. フォルダを開きます。frontmatter に `schema:` を持つ `.md` は種別ごとのビューワーで、`.tsv` の検証シートはグリッド編集で開きます。
 3. ひな形から始めます。[`templates/`](./templates/) からコピーするか、検証シートならファイル一覧の ＋ から列プリセットを選んで作れます。
 4. プレビューから A4 PDF を出力します。

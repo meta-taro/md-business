@@ -265,7 +265,7 @@ The three apps are versioned independently. [CHANGELOG.md](./CHANGELOG.md) lists
 
 No build step, no Node.js, no package manager.
 
-1. **[Download the desktop app](https://meta-taro.github.io/md-business/download/)** (Windows `.msi` / `.exe`, macOS `.dmg`) and install it. Or add the [Chrome extension](https://chromewebstore.google.com/detail/lmdplkkfmgapnhombimeohjliinifgjh) if you only need to read and print documents in the browser.
+1. **[Download the desktop app](https://meta-taro.github.io/md-business/download/)** (Windows x64 / ARM64 `.msi` / `.exe`, macOS `.dmg`) and install it. Or add the [Chrome extension](https://chromewebstore.google.com/detail/lmdplkkfmgapnhombimeohjliinifgjh) if you only need to read and print documents in the browser.
 2. Open a folder. Any `.md` file with a `schema:` frontmatter key opens in the viewer for that document type; `.tsv` test sheets open in the grid editor.
 3. Start from a template — copy one out of [`templates/`](./templates/), or create a test sheet from a column preset with the ＋ button in the file list.
 4. Print to A4 PDF from the preview.
