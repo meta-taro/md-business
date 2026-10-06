@@ -129,6 +129,11 @@
     <p>
       <code>.msi</code>（推奨）または <code>.exe</code> セットアップをダウンロードして実行します。
     </p>
+    <p>
+      インストーラは機械の形ごとに 2 種類あります。ふつうの PC（Intel / AMD）は名前に <code>x64</code>、
+      Snapdragon などの ARM の PC は <code>arm64</code> が入っているものを選んでください。
+      形は「設定 → システム → バージョン情報」の「システムの種類」で確かめられます。
+    </p>
     <div class="callout">
       現在コード署名は未対応のため、初回実行時に <strong>SmartScreen の「WindowsによってPCが保護されました」</strong>
       が表示されることがあります。その場合は「詳細情報」→「実行」で続行してください。
@@ -238,6 +243,7 @@
 
 <script type="module">
   import { requestedTag, releaseApiUrl } from '../assets/release-target.mjs';
+  import { classifyAsset, pickPrimary, archFromHints } from '../assets/release-assets.mjs';
 
   // 指定が無ければ最新リリースを GitHub API から取得し、OS 判定してダウンロードボタンを組み立てる。
   // 公開リポの匿名 API を使うため、バージョンが上がってもこのページの編集は不要。
@@ -256,12 +262,16 @@
     return 'other';
   }
 
-  function classify(name) {
-    const n = name.toLowerCase();
-    if (n.endsWith('.msi')) return { os: 'windows', kind: 'Windows インストーラ (MSI)', primary: true };
-    if (n.endsWith('-setup.exe') || n.endsWith('.exe')) return { os: 'windows', kind: 'Windows インストーラ (EXE)', primary: false };
-    if (n.endsWith('.dmg')) return { os: 'macos', kind: 'macOS ディスクイメージ (DMG)', primary: true };
-    return null; // .sig / latest.json / *.app.tar.gz は一覧から除外
+  // 機械の形（x64 / ARM64）。読めるのは Chromium 系だけで、それ以外は null（= x64 を出し、
+  // ARM64 は並びのリンクから選んでもらう）。
+  async function detectArch() {
+    try {
+      const data = navigator.userAgentData;
+      if (!data || !data.getHighEntropyValues) return null;
+      return archFromHints(await data.getHighEntropyValues(['architecture', 'bitness']));
+    } catch (e) {
+      return null;
+    }
   }
 
   function fmtSize(bytes) {
@@ -289,19 +299,21 @@
       if (!res.ok) throw new Error('HTTP ' + res.status);
       const rel = await res.json();
       const assets = (rel.assets || [])
-        .map(a => ({ ...a, meta: classify(a.name) }))
+        .map(a => ({ ...a, meta: classifyAsset(a.name) }))
         .filter(a => a.meta);
 
       if (!assets.length) return fallback('');
 
       const os = detectOS();
-      const primaryForOS = assets.find(a => a.meta.os === os && a.meta.primary)
-        || assets.find(a => a.meta.os === os);
+      const arch = os === 'windows' ? await detectArch() : null;
+      const primaryForOS = pickPrimary(assets, os, arch);
 
       // メインボタン
       const primaryEl = document.getElementById('primary');
       if (primaryForOS) {
-        const osLabel = os === 'windows' ? 'Windows' : 'Mac';
+        const osLabel = os === 'windows'
+          ? 'Windows (' + (primaryForOS.meta.arch === 'arm64' ? 'ARM64' : 'x64') + ')'
+          : 'Mac';
         primaryEl.innerHTML =
           '<a class="btn btn-lg btn-brand" href="' + primaryForOS.browser_download_url + '">'
           + osLabel + ' 版をダウンロード</a>';

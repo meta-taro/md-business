@@ -8,7 +8,7 @@ md-business の**本命プロダクト**。6 種の業務文書（invoice / spec
 
 最新版のインストーラは **[Releases](https://github.com/meta-taro/md-business/releases/latest)** から入手できる。
 
-- **Windows**: `.msi`（または `.exe` セットアップ）をダウンロードして実行する。現在コード署名は未対応のため、SmartScreen の「発行元不明」警告が出たら「詳細情報」→「実行」で続行する。
+- **Windows**: `.msi`（または `.exe` セットアップ）をダウンロードして実行する。x64 と ARM64 の 2 種類があり、名前に `x64` / `arm64` が入っている。現在コード署名は未対応のため、SmartScreen の「発行元不明」警告が出たら「詳細情報」→「実行」で続行する。
 - **macOS**: `.dmg` を開き、アプリを Applications へドラッグする。未公証のため初回のみ Finder でアプリを右クリック →「開く」で Gatekeeper を回避する。
 
 一度インストールすれば、以降の新しいバージョンはアプリ内の **ヘルプ →「更新を確認」**、または起動時の自動確認から更新できる（GitHub Releases の署名付き成果物を検証して適用する）。
