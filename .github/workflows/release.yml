@@ -73,22 +73,6 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      # ARM の Windows では、lockfile に入っている ARM 用の部品（tauri CLI・rollup の
-      # ネイティブ部品）が入らないことがある。読み込めなければ入れ直す。
-      - name: Ensure native packages (Windows ARM64)
-        if: matrix.label == 'windows-arm64'
-        shell: pwsh
-        run: |
-          pnpm --filter @md-business/desktop exec tauri --version
-          $tauriOk = $LASTEXITCODE -eq 0
-          pnpm --filter @md-business/desktop exec node -e "import('vite').catch(() => process.exit(1))"
-          $viteOk = $LASTEXITCODE -eq 0
-          if (-not ($tauriOk -and $viteOk)) {
-            pnpm install --frozen-lockfile --force
-            pnpm --filter @md-business/desktop exec tauri --version
-            if ($LASTEXITCODE -ne 0) { exit 1 }
-          }
-
       # desktop は @md-business/* 9 パッケージの dist を import するため、
       # tauri build 前にワークスペースをビルドする（ci.yml と同じ turbo build）。
       - name: Build workspace packages
