@@ -83,6 +83,7 @@ pnpm --filter @md-business/desktop tauri build
 ```
 
 > `tauri dev` は初回に Rust 依存を大量にコンパイルするため時間がかかる。2 回目以降はインクリメンタル。
+> 起動前にワークスペースの各パッケージ（`@md-business/core` など）と MCP サイドカーを組み立てるので、clone 直後に `pnpm build` を先に回す必要はない。
 
 ## アイコン
 
