@@ -18,7 +18,8 @@
   ],
   "main": "./dist/extension.cjs",
   "activationEvents": [
-    "onLanguage:markdown"
+    "onLanguage:markdown",
+    "workspaceContains:**/*.tsv"
   ],
   "contributes": {
     "commands": [
@@ -68,7 +69,8 @@
     "@md-business/schema-invoice": "workspace:*",
     "@md-business/schema-nosql-db-spec": "workspace:*",
     "@md-business/schema-spec": "workspace:*",
-    "@md-business/schema-test-spec": "workspace:*"
+    "@md-business/schema-test-spec": "workspace:*",
+    "@md-business/schema-test-spec-tsv": "workspace:^"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",

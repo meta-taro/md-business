@@ -3,6 +3,7 @@ import * as vscode from 'vscode';
 import { diagnose, type Problem } from './diagnostics.js';
 import { mcpServers } from './mcp/servers.js';
 import { PreviewPanel } from './preview/panel.js';
+import { diagnoseTsv } from './tsvDiagnostics.js';
 
 // 打鍵のたびに検証すると、書きかけの行に毎回赤線が走る。手が止まってから出す。
 const CHANGE_DELAY_MS = 300;
@@ -12,8 +13,12 @@ export function activate(context: vscode.ExtensionContext): void {
   const pending = new Map<string, ReturnType<typeof setTimeout>>();
 
   const refresh = (doc: vscode.TextDocument): void => {
-    if (doc.languageId !== 'markdown') return;
-    collection.set(doc.uri, toDiagnostics(doc, diagnose(doc.getText())));
+    if (doc.languageId === 'markdown') {
+      collection.set(doc.uri, toDiagnostics(doc, diagnose(doc.getText())));
+    } else if (doc.uri.path.toLowerCase().endsWith('.tsv')) {
+      // TSV は言語 ID が環境ごとに違う（plaintext / tsv など）ので拡張子で見る。
+      collection.set(doc.uri, toDiagnostics(doc, diagnoseTsv(doc.getText())));
+    }
   };
 
   const cancel = (doc: vscode.TextDocument): void => {
