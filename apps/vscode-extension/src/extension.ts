@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 
 import { diagnose, type Problem } from './diagnostics.js';
+import { mcpServers } from './mcp/servers.js';
 import { PreviewPanel } from './preview/panel.js';
 
 // 打鍵のたびに検証すると、書きかけの行に毎回赤線が走る。手が止まってから出す。
@@ -53,6 +54,29 @@ export function activate(context: vscode.ExtensionContext): void {
         vscode.window.activeTextEditor?.document;
       if (target?.languageId === 'markdown') preview.open(target);
       else void vscode.window.showInformationMessage('Markdown を開いてから実行してください。');
+    }),
+  );
+
+  const foldersChanged = new vscode.EventEmitter<void>();
+  context.subscriptions.push(
+    foldersChanged,
+    vscode.workspace.onDidChangeWorkspaceFolders(() => foldersChanged.fire()),
+    vscode.lm.registerMcpServerDefinitionProvider('md-business', {
+      onDidChangeMcpServerDefinitions: foldersChanged.event,
+      provideMcpServerDefinitions: () =>
+        mcpServers(
+          (vscode.workspace.workspaceFolders ?? []).map((f) => ({
+            name: f.name,
+            fsPath: f.uri.fsPath,
+          })),
+          {
+            execPath: process.execPath,
+            script: vscode.Uri.joinPath(context.extensionUri, 'dist', 'mcp-server.cjs').fsPath,
+            version: String(context.extension.packageJSON.version),
+          },
+        ).map(
+          (s) => new vscode.McpStdioServerDefinition(s.label, s.command, s.args, s.env, s.version),
+        ),
     }),
   );
 

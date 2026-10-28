@@ -43,7 +43,13 @@
           "when": "editorLangId == markdown"
         }
       ]
-    }
+    },
+    "mcpServerDefinitionProviders": [
+      {
+        "id": "md-business",
+        "label": "md-business"
+      }
+    ]
   },
   "scripts": {
     "bundle": "node scripts/bundle.mjs",

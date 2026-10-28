@@ -65,6 +65,21 @@ await build({
   logLevel: 'info',
 });
 
+// MCP サーバーは拡張とは別プロセスで動く。利用者に Node を入れてもらわずに済むよう、
+// エディタ自身の Node で実行できる単一ファイルにする。
+await build({
+  entryPoints: [resolve(ROOT, '../../packages/mcp-server/src/bin.ts')],
+  bundle: true,
+  format: 'cjs',
+  platform: 'node',
+  target: 'node20',
+  outfile: resolve(ROOT, 'dist/mcp-server.cjs'),
+  plugins: [ajvRuntimeDefault],
+  minify: true,
+  sourcemap: false,
+  logLevel: 'info',
+});
+
 // 文書種別ごとの見た目は Chrome 拡張と同じ CSS を使う。
 const STYLES = ['invoice', 'spec', 'test-spec', 'db-spec', 'nosql-db-spec', 'api-spec'];
 const stylesSrc = resolve(ROOT, '../../packages/renderer-pdf/src/styles');
