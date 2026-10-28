@@ -9,6 +9,8 @@ export interface Runtime {
   /** 拡張に同梱した MCP サーバーのスクリプト。 */
   script: string;
   version: string;
+  /** 「このファイルを画面に出して」を受け付ける口。無ければサーバーはデスクトップアプリで開く。 */
+  pipe?: string;
 }
 
 export interface ServerSpec {
@@ -36,7 +38,10 @@ export function mcpServers(folders: readonly Folder[], runtime: Runtime): Server
       label,
       command: runtime.execPath,
       args: [runtime.script, folder.fsPath],
-      env: { ELECTRON_RUN_AS_NODE: '1' },
+      env:
+        runtime.pipe === undefined
+          ? { ELECTRON_RUN_AS_NODE: '1' }
+          : { ELECTRON_RUN_AS_NODE: '1', MD_BUSINESS_EDITOR_PIPE: runtime.pipe },
       version: runtime.version,
     };
   });

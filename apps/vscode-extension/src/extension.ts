@@ -1,7 +1,9 @@
+import { tmpdir } from 'node:os';
 import * as vscode from 'vscode';
 
 import { diagnose, type Problem } from './diagnostics.js';
 import { GRID_VIEW_TYPE, TsvGridProvider } from './grid/provider.js';
+import { bridgePipePath, resolveOpenRequest, startOpenBridge, type OpenReply } from './mcp/openBridge.js';
 import { mcpServers } from './mcp/servers.js';
 import { PreviewPanel } from './preview/panel.js';
 import { diagnoseTsv } from './tsvDiagnostics.js';
@@ -78,14 +80,26 @@ export function activate(context: vscode.ExtensionContext): void {
     }),
   );
 
+  // 同梱サーバーの open_in_app を VS Code で受ける。口が開けなければサーバーはデスクトップアプリへ回る。
+  const bridge = startOpenBridge(bridgePipePath(process.platform, tmpdir()), (line) =>
+    openRequested(line, preview),
+  ).then(
+    (b) => {
+      context.subscriptions.push(b);
+      return b.pipe;
+    },
+    () => undefined,
+  );
+
   const foldersChanged = new vscode.EventEmitter<void>();
   context.subscriptions.push(
     foldersChanged,
     vscode.workspace.onDidChangeWorkspaceFolders(() => foldersChanged.fire()),
     vscode.lm.registerMcpServerDefinitionProvider('md-business', {
       onDidChangeMcpServerDefinitions: foldersChanged.event,
-      provideMcpServerDefinitions: () =>
-        mcpServers(
+      provideMcpServerDefinitions: async () => {
+        const pipe = await bridge;
+        return mcpServers(
           (vscode.workspace.workspaceFolders ?? []).map((f) => ({
             name: f.name,
             fsPath: f.uri.fsPath,
@@ -94,10 +108,12 @@ export function activate(context: vscode.ExtensionContext): void {
             execPath: process.execPath,
             script: vscode.Uri.joinPath(context.extensionUri, 'dist', 'mcp-server.cjs').fsPath,
             version: String(context.extension.packageJSON.version),
+            ...(pipe === undefined ? {} : { pipe }),
           },
         ).map(
           (s) => new vscode.McpStdioServerDefinition(s.label, s.command, s.args, s.env, s.version),
-        ),
+        );
+      },
     }),
   );
 
@@ -106,6 +122,27 @@ export function activate(context: vscode.ExtensionContext): void {
 }
 
 export function deactivate(): void {}
+
+/** サーバーから届いた依頼のファイルを開く。検証シートは表で、Markdown は横にプレビューも出す。 */
+async function openRequested(line: string, preview: PreviewPanel): Promise<OpenReply> {
+  const folders = (vscode.workspace.workspaceFolders ?? []).map((f) => f.uri.fsPath);
+  const request = resolveOpenRequest(line, folders, process.platform);
+  if (!request.ok) return request;
+  const uri = vscode.Uri.file(request.path);
+  try {
+    await vscode.workspace.fs.stat(uri);
+  } catch {
+    return { ok: false, error: 'ファイルが見つかりません。' };
+  }
+  if (request.path.toLowerCase().endsWith('.tsv')) {
+    await vscode.commands.executeCommand('vscode.openWith', uri, GRID_VIEW_TYPE);
+    return { ok: true };
+  }
+  const document = await vscode.workspace.openTextDocument(uri);
+  await vscode.window.showTextDocument(document);
+  if (document.languageId === 'markdown') preview.open(document);
+  return { ok: true };
+}
 
 function toDiagnostics(doc: vscode.TextDocument, problems: Problem[]): vscode.Diagnostic[] {
   return problems.map((problem) => {

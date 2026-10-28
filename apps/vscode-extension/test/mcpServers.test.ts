@@ -35,6 +35,17 @@ describe('mcpServers', () => {
     expect(server?.env).toEqual({ ELECTRON_RUN_AS_NODE: '1' });
   });
 
+  it('tells the server where to ask VS Code to open a file', () => {
+    const [server] = mcpServers([{ name: 'docs', fsPath: 'C:/work/docs' }], {
+      ...runtime,
+      pipe: '\\\\.\\pipe\\md-business-vscode-abc',
+    });
+    expect(server?.env).toEqual({
+      ELECTRON_RUN_AS_NODE: '1',
+      MD_BUSINESS_EDITOR_PIPE: '\\\\.\\pipe\\md-business-vscode-abc',
+    });
+  });
+
   it('keeps labels apart when two folders share a name', () => {
     const servers = mcpServers(
       [

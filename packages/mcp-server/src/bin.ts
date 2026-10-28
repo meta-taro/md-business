@@ -15,6 +15,7 @@ import { createServer, SERVER_NAME, SERVER_VERSION } from './server.js';
 import { FileDocumentStore } from './fileStore.js';
 import { createGitRunner } from './gitRunner.js';
 import { createDesktopOpener } from './desktopOpener.js';
+import { createEditorOpener } from './editorOpener.js';
 import { parseCliArgs, runInfoCommand } from './cli.js';
 import { createLogSink, nodeLogFs } from './logSink.js';
 
@@ -35,11 +36,16 @@ async function main(): Promise<void> {
   }
 
   const store = new FileDocumentStore(root);
+  const editorPipe = process.env['MD_BUSINESS_EDITOR_PIPE'];
   // ワークスペースが git 管理でなければ、各 git ツールが理由付きで失敗するだけ。
   const server = createServer(store, {
     git: createGitRunner(() => store.getRoot()),
     // 画面へ出す依頼は、アプリが動いていない状態から来ることの方が多い。
-    desktop: createDesktopOpener({ getRoot: () => store.getRoot() }),
+    // VS Code 拡張から起動されたときは、その VS Code で開く（アプリが入っていなくても出せる）。
+    desktop:
+      editorPipe !== undefined && editorPipe !== ''
+        ? createEditorOpener({ getRoot: () => store.getRoot(), pipe: editorPipe })
+        : createDesktopOpener({ getRoot: () => store.getRoot() }),
     // アプリ抜きで起動したときも作業ログは残す。設定はワークスペースの中にあるので、
     // どちらの起動でも同じ場所を読む。
     onLog: createLogSink({

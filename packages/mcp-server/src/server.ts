@@ -1294,7 +1294,7 @@ export function createServer(store: DocumentStore, options: CreateServerOptions 
       'open_in_app',
       {
         description:
-          '作った・直した文書をデスクトップアプリで開いて、利用者の画面に出す。利用者にパスを伝えて探してもらう代わりに、書いたらこれを呼ぶ。アプリが起動していなければ起動する。',
+          '作った・直した文書を利用者の画面に出す。利用者にパスを伝えて探してもらう代わりに、書いたらこれを呼ぶ。VS Code 拡張から起動していれば VS Code で開き、それ以外はデスクトップアプリで開く（起動していなければ起動する）。',
         inputSchema: {
           path: z.string().describe('画面に出すワークスペース相対パス'),
         },
