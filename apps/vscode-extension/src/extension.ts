@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 
 import { diagnose, type Problem } from './diagnostics.js';
+import { GRID_VIEW_TYPE, TsvGridProvider } from './grid/provider.js';
 import { mcpServers } from './mcp/servers.js';
 import { PreviewPanel } from './preview/panel.js';
 import { diagnoseTsv } from './tsvDiagnostics.js';
@@ -59,6 +60,21 @@ export function activate(context: vscode.ExtensionContext): void {
         vscode.window.activeTextEditor?.document;
       if (target?.languageId === 'markdown') preview.open(target);
       else void vscode.window.showInformationMessage('Markdown を開いてから実行してください。');
+    }),
+  );
+
+  context.subscriptions.push(
+    vscode.window.registerCustomEditorProvider(
+      GRID_VIEW_TYPE,
+      new TsvGridProvider(context.extensionUri),
+    ),
+    vscode.commands.registerCommand('md-business.openGrid', (uri?: vscode.Uri) => {
+      const target = uri ?? vscode.window.activeTextEditor?.document.uri;
+      if (target?.path.toLowerCase().endsWith('.tsv')) {
+        void vscode.commands.executeCommand('vscode.openWith', target, GRID_VIEW_TYPE);
+      } else {
+        void vscode.window.showInformationMessage('検証シート（.tsv）を開いてから実行してください。');
+      }
     }),
   );
 

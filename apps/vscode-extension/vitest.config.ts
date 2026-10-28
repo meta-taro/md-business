@@ -15,6 +15,9 @@ export default defineConfig({
         'src/preview/panel.ts',
         'src/preview/messages.ts',
         'src/webview/main.ts',
+        'src/webview/grid.ts',
+        'src/grid/provider.ts',
+        'src/grid/messages.ts',
       ],
       thresholds: {
         lines: 80,

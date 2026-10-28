@@ -65,6 +65,19 @@ await build({
   logLevel: 'info',
 });
 
+// 検証シートの表エディタ。DOM で表を組むだけなので検証器は持たない（判定は拡張側で行う）。
+await build({
+  entryPoints: [resolve(ROOT, 'src/webview/grid.ts')],
+  bundle: true,
+  format: 'iife',
+  platform: 'browser',
+  target: 'chrome128',
+  outfile: resolve(ROOT, 'dist/tsvGrid.js'),
+  minify: true,
+  sourcemap: false,
+  logLevel: 'info',
+});
+
 // MCP サーバーは拡張とは別プロセスで動く。利用者に Node を入れてもらわずに済むよう、
 // エディタ自身の Node で実行できる単一ファイルにする。
 await build({

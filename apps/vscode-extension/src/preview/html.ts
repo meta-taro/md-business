@@ -15,7 +15,7 @@ export function createNonce(): string {
   return Array.from(randomBytes(32), (byte) => ALPHANUMERIC[byte % ALPHANUMERIC.length]).join('');
 }
 
-function escapeAttribute(value: string): string {
+export function escapeAttribute(value: string): string {
   return value
     .replace(/&/g, '&amp;')
     .replace(/"/g, '&quot;')

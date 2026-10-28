@@ -28,6 +28,24 @@
         "title": "業務文書としてプレビュー",
         "category": "md-business",
         "icon": "$(briefcase)"
+      },
+      {
+        "command": "md-business.openGrid",
+        "title": "表で開く",
+        "category": "md-business",
+        "icon": "$(table)"
+      }
+    ],
+    "customEditors": [
+      {
+        "viewType": "md-business.tsvGrid",
+        "displayName": "md-business 検証シート（表）",
+        "selector": [
+          {
+            "filenamePattern": "*.tsv"
+          }
+        ],
+        "priority": "option"
       }
     ],
     "menus": {
@@ -36,12 +54,21 @@
           "command": "md-business.showPreview",
           "when": "editorLangId == markdown",
           "group": "navigation"
+        },
+        {
+          "command": "md-business.openGrid",
+          "when": "resourceExtname == .tsv && activeCustomEditorId != md-business.tsvGrid",
+          "group": "navigation"
         }
       ],
       "commandPalette": [
         {
           "command": "md-business.showPreview",
           "when": "editorLangId == markdown"
+        },
+        {
+          "command": "md-business.openGrid",
+          "when": "resourceExtname == .tsv"
         }
       ]
     },
