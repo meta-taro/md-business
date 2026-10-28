@@ -54,4 +54,14 @@ describe('lineForPath', () => {
     expect(lineForPath(DOC, '/missing')).toBe(2);
     expect(lineForPath('---\ntitle: x\n---', '/')).toBe(1);
   });
+
+  it('falls back to a Japanese schema declaration', () => {
+    expect(lineForPath('---\nタイトル: x\nスキーマ: spec/v1\n---\n', '/missing')).toBe(3);
+  });
+
+  it('maps a canonical key back to the alias the document used', () => {
+    const doc = '---\nスキーマ: spec/v1\n版: abc\n---\n';
+    expect(lineForPath(doc, '/version', { 版: 'version' })).toBe(3);
+    expect(lineForPath(doc, '/version')).toBe(2);
+  });
 });

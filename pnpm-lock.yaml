@@ -269,6 +269,30 @@ importers:
       '@md-business/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@md-business/mcp-server':
+        specifier: workspace:*
+        version: link:../../packages/mcp-server
+      '@md-business/schema-api-spec':
+        specifier: workspace:*
+        version: link:../../packages/schema-api-spec
+      '@md-business/schema-db-spec':
+        specifier: workspace:*
+        version: link:../../packages/schema-db-spec
+      '@md-business/schema-investigation':
+        specifier: workspace:*
+        version: link:../../packages/schema-investigation
+      '@md-business/schema-invoice':
+        specifier: workspace:*
+        version: link:../../packages/schema-invoice
+      '@md-business/schema-nosql-db-spec':
+        specifier: workspace:*
+        version: link:../../packages/schema-nosql-db-spec
+      '@md-business/schema-spec':
+        specifier: workspace:*
+        version: link:../../packages/schema-spec
+      '@md-business/schema-test-spec':
+        specifier: workspace:*
+        version: link:../../packages/schema-test-spec
     devDependencies:
       '@types/node':
         specifier: ^22.10.0
