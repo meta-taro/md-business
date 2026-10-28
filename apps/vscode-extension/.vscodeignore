@@ -1,5 +1,7 @@
 **
 !dist/extension.cjs
+!dist/preview.js
+!dist/styles/*.css
 !package.json
 !README.md
 !LICENSE

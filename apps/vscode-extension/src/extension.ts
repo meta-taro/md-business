@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 
 import { diagnose, type Problem } from './diagnostics.js';
+import { PreviewPanel } from './preview/panel.js';
 
 // 打鍵のたびに検証すると、書きかけの行に毎回赤線が走る。手が止まってから出す。
 const CHANGE_DELAY_MS = 300;
@@ -40,6 +41,19 @@ export function activate(context: vscode.ExtensionContext): void {
       collection.delete(doc.uri);
     }),
     { dispose: () => pending.forEach((timer) => clearTimeout(timer)) },
+  );
+
+  const preview = new PreviewPanel(context.extensionUri);
+  context.subscriptions.push(
+    preview,
+    vscode.commands.registerCommand('md-business.showPreview', (uri?: vscode.Uri) => {
+      // エディタ上部のボタンからは uri が渡る。コマンドパレットからは渡らない。
+      const target =
+        (uri && vscode.workspace.textDocuments.find((d) => d.uri.toString() === uri.toString())) ??
+        vscode.window.activeTextEditor?.document;
+      if (target?.languageId === 'markdown') preview.open(target);
+      else void vscode.window.showInformationMessage('Markdown を開いてから実行してください。');
+    }),
   );
 
   // 拡張が立ち上がる前から開いていた文書にも出す。

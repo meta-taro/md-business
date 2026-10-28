@@ -9,7 +9,13 @@ export default defineConfig({
       reporter: ['text', 'lcov'],
       include: ['src/**/*.ts'],
       // エントリは VS Code API の配線だけを持つ。判断は src/ の他のモジュールへ出してテストする。
-      exclude: ['src/**/*.d.ts', 'src/extension.ts'],
+      exclude: [
+        'src/**/*.d.ts',
+        'src/extension.ts',
+        'src/preview/panel.ts',
+        'src/preview/messages.ts',
+        'src/webview/main.ts',
+      ],
       thresholds: {
         lines: 80,
         functions: 80,
