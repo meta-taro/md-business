@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 
 import { createNonce, previewHtml } from './html.js';
 import type { ReadyMessage, UpdateMessage } from './messages.js';
+import { composeZumen, drawZumen } from './zumen.js';
 
 const VIEW_TYPE = 'md-business.preview';
 // 打鍵のたびに描き直すと、長い文書で入力が引っかかる。
@@ -15,6 +16,7 @@ export class PreviewPanel implements vscode.Disposable {
   private panel: vscode.WebviewPanel | undefined;
   private document: vscode.TextDocument | undefined;
   private timer: ReturnType<typeof setTimeout> | undefined;
+  private sequence = 0;
   private readonly subscriptions: vscode.Disposable[] = [];
 
   constructor(private readonly extensionUri: vscode.Uri) {
@@ -25,7 +27,7 @@ export class PreviewPanel implements vscode.Disposable {
       vscode.workspace.onDidChangeTextDocument(({ document }) => {
         if (document !== this.document) return;
         if (this.timer !== undefined) clearTimeout(this.timer);
-        this.timer = setTimeout(() => this.post(), CHANGE_DELAY_MS);
+        this.timer = setTimeout(() => void this.post(), CHANGE_DELAY_MS);
       }),
     );
   }
@@ -47,7 +49,7 @@ export class PreviewPanel implements vscode.Disposable {
         stylesBaseUri: `${webview.asWebviewUri(dist).toString()}/`,
       });
       webview.onDidReceiveMessage((message: ReadyMessage) => {
-        if (message.type === 'ready') this.post();
+        if (message.type === 'ready') void this.post();
       });
       this.panel.onDidDispose(() => {
         this.panel = undefined;
@@ -63,13 +65,17 @@ export class PreviewPanel implements vscode.Disposable {
     this.document = document;
     if (this.panel)
       this.panel.title = `プレビュー: ${vscode.workspace.asRelativePath(document.uri)}`;
-    this.post();
+    void this.post();
   }
 
-  private post(): void {
+  private async post(): Promise<void> {
     this.timer = undefined;
     if (!this.panel || !this.document) return;
-    const message: UpdateMessage = { type: 'update', text: this.document.getText() };
+    // 図を描いている間に次の打鍵や文書の切り替えが来ることがある。古い結果で上書きしない。
+    const seq = ++this.sequence;
+    const text = await composeZumen(this.document.getText(), drawZumen);
+    if (seq !== this.sequence || !this.panel) return;
+    const message: UpdateMessage = { type: 'update', text };
     void this.panel.webview.postMessage(message);
   }
 

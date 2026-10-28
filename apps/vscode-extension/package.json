@@ -97,7 +97,8 @@
     "@md-business/schema-nosql-db-spec": "workspace:*",
     "@md-business/schema-spec": "workspace:*",
     "@md-business/schema-test-spec": "workspace:*",
-    "@md-business/schema-test-spec-tsv": "workspace:^"
+    "@md-business/schema-test-spec-tsv": "workspace:^",
+    "@metataro/zumen": "^0.3.3"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",

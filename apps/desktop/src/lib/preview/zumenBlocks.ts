@@ -36,7 +36,7 @@ function titleOf(body: string): string | null {
   const found = /^title:[ \t]*(.+?)[ \t]*$/m.exec(body);
   if (found === null) return null;
   // YAML は値を引用符で囲める。囲みは書式であって題名の一部ではない。
-  return found[1].replace(/^(['"])([\s\S]*)\1$/, '$2');
+  return found[1]!.replace(/^(['"])([\s\S]*)\1$/, '$2');
 }
 
 /**
