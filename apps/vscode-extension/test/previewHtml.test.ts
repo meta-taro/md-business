@@ -20,6 +20,16 @@ describe('previewHtml', () => {
     expect(previewHtml(OPTIONS)).toContain(`data-styles-base="${OPTIONS.stylesBaseUri}"`);
   });
 
+  it('shows the document on white paper whatever the editor theme is', () => {
+    const html = previewHtml(OPTIONS);
+    expect(html).toContain('color-scheme: light');
+    expect(html).toMatch(/#root\s*\{[^}]*background:\s*#fff/);
+  });
+
+  it('keeps the paper at A4 width instead of squeezing it into a narrow panel', () => {
+    expect(previewHtml(OPTIONS)).toMatch(/#root\s*\{[^}]*width:\s*210mm/);
+  });
+
   it('escapes attribute values', () => {
     const html = previewHtml({ ...OPTIONS, stylesBaseUri: 'x"><script>' });
     expect(html).not.toContain('x"><script>');
