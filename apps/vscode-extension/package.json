@@ -24,9 +24,9 @@
     "commands": [
       {
         "command": "md-business.showPreview",
-        "title": "プレビューを横に開く",
+        "title": "業務文書としてプレビュー",
         "category": "md-business",
-        "icon": "$(open-preview)"
+        "icon": "$(briefcase)"
       }
     ],
     "menus": {
