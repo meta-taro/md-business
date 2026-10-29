@@ -81,7 +81,7 @@
   },
   "scripts": {
     "bundle": "node scripts/bundle.mjs",
-    "package": "pnpm bundle && pnpm dlx @vscode/vsce package --no-dependencies",
+    "package": "pnpm bundle && pnpm dlx @vscode/vsce package --no-dependencies --baseContentUrl https://github.com/meta-taro/md-business/blob/HEAD/apps/vscode-extension --baseImagesUrl https://github.com/meta-taro/md-business/raw/HEAD/apps/vscode-extension",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "tsc -p tsconfig.json --noEmit",
     "test": "vitest",
