@@ -50,8 +50,13 @@ export const sendToEditor: SendToEditor = (pipe, request) =>
       if (end === -1) return;
       finish(parseReply(buffer.slice(0, end)));
     });
-    socket.on('error', (error) =>
-      finish({ ok: false, error: `VS Code へ繋げませんでした: ${error.message}` }),
+    socket.on('error', (error: NodeJS.ErrnoException) =>
+      // 相手が先に切ると、OS によっては close より先に書き込みが EPIPE / ECONNRESET で失敗する。
+      finish(
+        error.code === 'EPIPE' || error.code === 'ECONNRESET'
+          ? { ok: false, error: 'VS Code が応答の前に接続を閉じました。' }
+          : { ok: false, error: `VS Code へ繋げませんでした: ${error.message}` },
+      ),
     );
     socket.on('close', () =>
       finish({ ok: false, error: 'VS Code が応答の前に接続を閉じました。' }),
