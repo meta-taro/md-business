@@ -1,0 +1,118 @@
+{
+  "name": "md-business-vscode",
+  "displayName": "md-business",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Markdown-first business documents in VS Code — schema validation in the Problems panel, invoice / spec preview, and the md-business MCP tools for agent mode.",
+  "license": "MIT",
+  "publisher": "meta-taro",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/meta-taro/md-business"
+  },
+  "engines": {
+    "vscode": "^1.101.0"
+  },
+  "categories": [
+    "Other",
+    "AI"
+  ],
+  "icon": "images/icon.png",
+  "galleryBanner": {
+    "color": "#ffffff",
+    "theme": "light"
+  },
+  "main": "./dist/extension.cjs",
+  "activationEvents": [
+    "onLanguage:markdown",
+    "workspaceContains:**/*.tsv"
+  ],
+  "contributes": {
+    "commands": [
+      {
+        "command": "md-business.showPreview",
+        "title": "業務文書としてプレビュー",
+        "category": "md-business",
+        "icon": "$(briefcase)"
+      },
+      {
+        "command": "md-business.openGrid",
+        "title": "表で開く",
+        "category": "md-business",
+        "icon": "$(table)"
+      }
+    ],
+    "customEditors": [
+      {
+        "viewType": "md-business.tsvGrid",
+        "displayName": "md-business 検証シート（表）",
+        "selector": [
+          {
+            "filenamePattern": "*.tsv"
+          }
+        ],
+        "priority": "option"
+      }
+    ],
+    "menus": {
+      "editor/title": [
+        {
+          "command": "md-business.showPreview",
+          "when": "editorLangId == markdown",
+          "group": "navigation"
+        },
+        {
+          "command": "md-business.openGrid",
+          "when": "resourceExtname == .tsv && activeCustomEditorId != md-business.tsvGrid",
+          "group": "navigation"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "md-business.showPreview",
+          "when": "editorLangId == markdown"
+        },
+        {
+          "command": "md-business.openGrid",
+          "when": "resourceExtname == .tsv"
+        }
+      ]
+    },
+    "mcpServerDefinitionProviders": [
+      {
+        "id": "md-business",
+        "label": "md-business"
+      }
+    ]
+  },
+  "scripts": {
+    "bundle": "node scripts/bundle.mjs",
+    "package": "pnpm bundle && pnpm dlx @vscode/vsce package --no-dependencies --baseContentUrl https://github.com/meta-taro/md-business/blob/HEAD/apps/vscode-extension --baseImagesUrl https://github.com/meta-taro/md-business/raw/HEAD/apps/vscode-extension",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest",
+    "test:run": "vitest run --coverage"
+  },
+  "dependencies": {
+    "@md-business/core": "workspace:*",
+    "@md-business/mcp-server": "workspace:*",
+    "@md-business/schema-api-spec": "workspace:*",
+    "@md-business/schema-db-spec": "workspace:*",
+    "@md-business/schema-investigation": "workspace:*",
+    "@md-business/schema-invoice": "workspace:*",
+    "@md-business/schema-nosql-db-spec": "workspace:*",
+    "@md-business/schema-spec": "workspace:*",
+    "@md-business/schema-test-spec": "workspace:*",
+    "@md-business/schema-test-spec-tsv": "workspace:^",
+    "@metataro/zumen": "^0.3.3"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "@types/vscode": "~1.101.0",
+    "@vitest/coverage-v8": "^3.2.6",
+    "esbuild": "^0.25.12",
+    "jsdom": "^29.1.1",
+    "typescript": "^5.6.3",
+    "vitest": "^3.2.6"
+  }
+}

@@ -90,3 +90,6 @@ scripts/oss-guard/allowlist.local.txt
 # 焼き込むので、鍵ファイル自体はどちらも tracked から外す。
 *.key
 *.key.pub
+
+# VS Code extension package
+*.vsix

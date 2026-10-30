@@ -9,9 +9,9 @@
 function sizeOf(openingTag: string): { width: string; height: string } | null {
   const box = /viewBox\s*=\s*"([^"]+)"/.exec(openingTag);
   if (box === null) return null;
-  const parts = box[1].trim().split(/[\s,]+/);
+  const parts = box[1]!.trim().split(/[\s,]+/);
   if (parts.length !== 4) return null;
-  return { width: parts[2], height: parts[3] };
+  return { width: parts[2]!, height: parts[3]! };
 }
 
 /**

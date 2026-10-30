@@ -36,24 +36,24 @@ export function collectFencedBlocks(source: string, lang: string): FencedBlock[]
 
   let index = 0;
   while (index < lines.length) {
-    const opening = FENCE.exec(lines[index]);
+    const opening = FENCE.exec(lines[index]!);
     if (!opening) {
       index += 1;
       continue;
     }
 
-    const marker = opening[1];
-    const wanted = opening[2].trim() === lang;
+    const marker = opening[1]!;
+    const wanted = opening[2]!.trim() === lang;
     const start = index;
     index += 1;
 
     while (index < lines.length) {
-      const closing = FENCE.exec(lines[index]);
+      const closing = FENCE.exec(lines[index]!);
       if (
         closing &&
-        closing[1][0] === marker[0] &&
-        closing[1].length >= marker.length &&
-        closing[2].trim() === ''
+        closing[1]![0] === marker[0] &&
+        closing[1]!.length >= marker.length &&
+        closing[2]!.trim() === ''
       ) {
         break;
       }
