@@ -5,8 +5,9 @@
 [![Node.js 24 LTS](https://img.shields.io/badge/node-24%20LTS-brightgreen.svg)](https://nodejs.org/)
 [![pnpm](https://img.shields.io/badge/pnpm-required-F69220.svg)](https://pnpm.io/)
 [![Chrome Web Store](https://img.shields.io/badge/Chrome%20Web%20Store-published-4285F4.svg)](https://chromewebstore.google.com/detail/lmdplkkfmgapnhombimeohjliinifgjh)
+[![VS Code Marketplace](https://img.shields.io/badge/VS%20Code%20Marketplace-published-007ACC.svg)](https://marketplace.visualstudio.com/items?itemName=meta-taro.md-business-vscode)
 
-**[⬇ Download the desktop app](https://meta-taro.github.io/md-business/download/)** (Windows / macOS) — installers, no build step. Or add the [Chrome extension](https://chromewebstore.google.com/detail/lmdplkkfmgapnhombimeohjliinifgjh) to read and print Markdown business documents in the browser.
+**[⬇ Download the desktop app](https://meta-taro.github.io/md-business/download/)** (Windows / macOS) — installers, no build step. Or add the [Chrome extension](https://chromewebstore.google.com/detail/lmdplkkfmgapnhombimeohjliinifgjh) to read and print Markdown business documents in the browser, or the [VS Code extension](https://marketplace.visualstudio.com/items?itemName=meta-taro.md-business-vscode) to validate and preview them where you write code.
 
 > **English** | [日本語](./README.ja.md)
 
@@ -139,7 +140,7 @@ md-business provides multiple human-facing viewers and automation channels:
 | Tauri Desktop App       | Local-first repository operation and document workflow automation | Available |
 | Chrome Extension        | Open and preview Markdown business documents in the browser       | Available |
 | Google Workspace Add-on | Review and display documents in familiar office workflows         | In review |
-| VS Code Extension       | Developer and agent-oriented editing                              | Planned   |
+| VS Code Extension       | Developer and agent-oriented editing                              | Available |
 | PWA                     | Cross-platform human-facing viewer                                | Planned   |
 | GitHub Action           | CI validation and automatic rendering                             | Planned   |
 | LINE LIFF               | Mobile-first access for Japanese business workflows               | Planned   |

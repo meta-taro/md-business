@@ -5,8 +5,9 @@
 [![Node.js 24 LTS](https://img.shields.io/badge/node-24%20LTS-brightgreen.svg)](https://nodejs.org/)
 [![pnpm](https://img.shields.io/badge/pnpm-required-F69220.svg)](https://pnpm.io/)
 [![Chrome Web Store](https://img.shields.io/badge/Chrome%20Web%20Store-published-4285F4.svg)](https://chromewebstore.google.com/detail/lmdplkkfmgapnhombimeohjliinifgjh)
+[![VS Code Marketplace](https://img.shields.io/badge/VS%20Code%20Marketplace-published-007ACC.svg)](https://marketplace.visualstudio.com/items?itemName=meta-taro.md-business-vscode)
 
-**[⬇ デスクトップアプリをダウンロード](https://meta-taro.github.io/md-business/download/)**（Windows / macOS）— インストーラです。ビルドは要りません。ブラウザで読んで印刷するだけなら [Chrome 拡張](https://chromewebstore.google.com/detail/lmdplkkfmgapnhombimeohjliinifgjh)もあります。
+**[⬇ デスクトップアプリをダウンロード](https://meta-taro.github.io/md-business/download/)**（Windows / macOS）— インストーラです。ビルドは要りません。ブラウザで読んで印刷するだけなら [Chrome 拡張](https://chromewebstore.google.com/detail/lmdplkkfmgapnhombimeohjliinifgjh)、コードを書くエディタで検証・プレビューするなら [VS Code 拡張](https://marketplace.visualstudio.com/items?itemName=meta-taro.md-business-vscode)もあります。
 
 > [English](./README.md) | **日本語**
 
