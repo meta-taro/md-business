@@ -1,10 +1,35 @@
 {
   "name": "md-business-vscode",
   "displayName": "md-business",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
-  "description": "Markdown-first business documents in VS Code — schema validation in the Problems panel, invoice / spec preview, and the md-business MCP tools for agent mode.",
+  "description": "Write invoices, design specs, test specs, API and DB specs as Markdown that AI agents can edit and validate: JSON Schema errors in the Problems panel, print preview, a TSV test-sheet grid, and MCP tools for Copilot agent mode.",
   "license": "MIT",
+  "keywords": [
+    "markdown",
+    "invoice",
+    "qualified invoice",
+    "test specification",
+    "test case",
+    "design document",
+    "api specification",
+    "database design",
+    "json schema",
+    "frontmatter",
+    "docs as code",
+    "documentation",
+    "mcp",
+    "ai agent",
+    "copilot",
+    "tsv",
+    "請求書",
+    "設計書",
+    "テスト仕様書"
+  ],
+  "homepage": "https://meta-taro.github.io/md-business/",
+  "bugs": {
+    "url": "https://github.com/meta-taro/md-business/issues"
+  },
   "publisher": "meta-taro",
   "repository": {
     "type": "git",

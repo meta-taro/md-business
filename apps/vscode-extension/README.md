@@ -2,6 +2,8 @@
 
 Markdown-first business documents in VS Code: invoices, basic design specs, test specs, DB specs and API specs written as Markdown frontmatter + JSON Schema, plus test-spec sheets in TSV.
 
+**The problem it solves:** specs and invoices usually live in Word or Excel, where an AI agent can read them but cannot safely edit, validate or diff them. Here the document is a plain Markdown file in your repository. The agent edits it, the schema catches what it got wrong, Git keeps the history, and people read it as a printed document or a table.
+
 ## What it does
 
 1. **Schema errors in the Problems panel.** Documents that declare a schema (`schema: invoice/v1`, `schema: spec/v1`, …) are validated as you type and on save, and each error points at its line. Test-spec TSV files (first line `#! md-business:test-spec-tsv/v1`) are checked too: the header line, column definitions, required cells and values outside the allowed choices. Markdown files without a schema declaration are left alone.
@@ -31,6 +33,14 @@ pnpm install
 pnpm --filter md-business-vscode test:run
 pnpm --filter md-business-vscode package   # writes md-business-vscode-<version>.vsix
 ```
+
+## Links
+
+- Source and issues: [github.com/meta-taro/md-business](https://github.com/meta-taro/md-business)
+- Website and user guide: [meta-taro.github.io/md-business](https://meta-taro.github.io/md-business/)
+- Desktop app (Windows / macOS, with PDF export): [download](https://meta-taro.github.io/md-business/download/)
+- Chrome extension (read and print in the browser): [Chrome Web Store](https://chromewebstore.google.com/detail/lmdplkkfmgapnhombimeohjliinifgjh)
+- Diagrams in `zumen` code blocks are drawn by [zumen](https://github.com/meta-taro/zumen) ([VS Code extension](https://marketplace.visualstudio.com/items?itemName=meta-taro.zumen-vscode))
 
 ## License
 
