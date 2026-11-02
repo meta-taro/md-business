@@ -241,3 +241,20 @@ describe('sanitizeViewerHtml — empty / edge inputs', () => {
     expect(sanitizeViewerHtml('hello')).toBe('hello');
   });
 });
+
+describe('sanitizeViewerHtml — 構成図（zumen）が出す SVG', () => {
+  it('模様の切り抜き（clipPath と clip-path）を残す', () => {
+    const out = sanitizeViewerHtml(
+      '<svg><defs><clipPath id="c1"><path d="M0 0H10V10Z"/></clipPath></defs><g clip-path="url(#c1)"><path d="M0 0L10 10"/></g></svg>',
+    );
+    expect(out).toContain('<clipPath id="c1">');
+    expect(out).toContain('clip-path="url(#c1)"');
+  });
+
+  it('埋め込んだ書体（style の @font-face）を残す', () => {
+    const face = '@font-face{font-family:"zumen-embed";src:url(data:font/woff2;base64,AAAA) format("woff2");}';
+    const out = sanitizeViewerHtml(`<svg><style>${face}</style><text font-family="zumen-embed, sans-serif">字</text></svg>`);
+    expect(out).toContain('@font-face');
+    expect(out).toContain('font-family="zumen-embed, sans-serif"');
+  });
+});
