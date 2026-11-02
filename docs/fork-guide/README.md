@@ -2,18 +2,15 @@
 
 md-business は MIT ライセンスで配布されており、企業内 / コンサル案件 / 個人事業者向けに **fork してカスタム派生を作る** ことを推奨しています。本ガイドは、fork して安全に運用するための章立てを示します。
 
-> ⚠️ 本ドキュメントは **章立てのみ** の placeholder です。詳細は Phase 5（OSS コミュニティ拡張フェーズ）で順次拡充します（Issue #7）。
->
 > 既に fork を始めている方は、本家 [meta-taro/md-business](https://github.com/meta-taro/md-business) の Issue / Discussions で質問・提案を歓迎します。
 
 ## 1. このリポジトリの全体像
 
 - pnpm workspace monorepo（`packages/` + `apps/`）
 - 各 `schema-*` パッケージが業務文書の正本 JSON Schema を提供
-- 各 `viewer-*` / `renderer-*` が表現層
-- `apps/chrome-extension` / `apps/google-workspace-addon` / `apps/pwa` が配信チャネル
+- `renderer-pdf` が表示・PDF の表現層、`fences` が ```zumen``` / ```chart``` / ```data``` の描画、`explorer` がファイル一覧、`mcp-server` が AI 向けの MCP サーバー
+- `apps/desktop`（Tauri）/ `apps/chrome-extension` / `apps/vscode-extension` / `apps/google-workspace-addon` が配信チャネル
 
-→ Phase 5 でアーキテクチャ図と依存関係を追記予定。
 
 ## 2. 推奨される fork 戦略
 
@@ -21,7 +18,6 @@ md-business は MIT ライセンスで配布されており、企業内 / コン
 - **コンサル案件（顧客カスタムスキーマ）**: `packages/schema-<custom>/` を新規追加。`@md-business/core/runtime` を依存して `parseAndValidate` を再利用。
 - **企業ホワイトラベル（独自ブランド配信）**: `apps/chrome-extension` の `manifest.json` / アイコン / 名称を差し替えて独自ストア公開。本家 schema は引き続き本家追従。
 
-→ Phase 5 で各戦略のサンプル PR / fork サンプルリポを追加予定。
 
 ## 3. 上流追従の運用
 
@@ -29,7 +25,6 @@ md-business は MIT ライセンスで配布されており、企業内 / コン
 - 月次で `git fetch upstream && git rebase upstream/main` を推奨
 - 大規模スキーマ変更時は本家 CHANGELOG / Release Notes を参照
 
-→ Phase 5 で実例コマンド・コンフリクト回避パターンを追記予定。
 
 ## 4. 各サブパッケージのカスタマイズ余地
 
@@ -38,19 +33,19 @@ md-business は MIT ライセンスで配布されており、企業内 / コン
 | `schema-invoice`            | 業種別 frontmatter 追加 / 印影レイアウト          | fork or 派生 schema 新規追加     |
 | `schema-spec`               | 業務固有の章立てテンプレ                          | `templates/spec/<業種>.md` 追加  |
 | `schema-test-spec`          | 業務固有の列スキーマ拡張                          | frontmatter `columns:` で拡張    |
-| `viewer-invoice`            | 印影・ロゴ・テーマカラー差し替え                  | `theme:` frontmatter で対応      |
+| `schema-invoice`（表示）    | 印影・ロゴ・テーマカラー差し替え                  | `theme:` frontmatter で対応      |
 | `renderer-pdf`              | 用紙サイズ / 余白 / フォント差し替え              | Paged.js CSS の override         |
 
-→ Phase 5 で各パッケージの拡張ポイント一覧を追加予定。
 
 ## 5. 配布チャネル別の注意点
 
 - **Chrome Web Store**: Publisher アカウント取得 ($5) / プライバシーポリシー必須 / 個人開発者でも可
 - **Google Workspace Marketplace**: ドメイン認証 + Sensitive scope 検証申請 / 法人アカウント推奨
-- **PWA セルフホスト**: HTTPS 必須 / Astro 5 ビルド済み静的サイト
+- **デスクトップアプリ**: 自動更新は `apps/desktop/src-tauri/tauri.conf.json` の `plugins.updater`（公開鍵と配信先）が本家を指している。fork で配るなら自分の署名鍵を作って `pubkey` と `endpoints` を差し替える。そのままだと、fork 版が本家の版へ更新されようとする。署名鍵の秘密側は Repository secrets に置き、リポジトリへ入れない
+- **VS Code Marketplace**: `apps/vscode-extension/package.json` の `publisher` と `name` を自分のものに変える
+- **PWA セルフホスト**（計画中）: HTTPS 必須
 - **npm 公開**: 各 `@<your-org>/schema-<type>` として個別公開推奨（monorepo 全体公開は非推奨）
 
-→ Phase 5 で申請手順 / 提出素材テンプレを追加予定。
 
 ## 関連
 

@@ -1,6 +1,10 @@
 # @md-business/desktop
 
-md-business の**本命プロダクト**。6 種の業務文書（invoice / spec / test-spec / db-spec / nosql-db-spec / api-spec）を用途別ビューワーで開き、**Markdown を左右 2 画面でライブ編集**しながらプレビュー同期・PDF 出力する Tauri デスクトップアプリ。
+md-business の**本命プロダクト**。業務文書（invoice / spec / test-spec / test-spec-tsv / db-spec / nosql-db-spec / api-spec / investigation）を用途別ビューワーで開き、**Markdown を左右 2 画面でライブ編集**しながらプレビュー同期・PDF 出力する Tauri デスクトップアプリ。
+
+- **探す**: ファイル一覧の絞り込み欄で、フォルダ内の `.md` / `.tsv` を表題・本文まで横断検索する。一覧はツリーとサムネイルの格子を切り替えられる。
+- **読む**: プレビューの拡大・縮小（50〜300%、Ctrl/Cmd + `+` / `-` / `0`、Ctrl + ホイール）。印刷・PDF は常に 100%。
+- **描く**: ```zumen```（構成図）、```chart```（隣の TSV から棒・折れ線・円）、```data```（隣の TSV を表として引用）。描けないときは囲みの上に理由を出す。
 
 デザイン方針・レイアウト・実装フェーズは [`DESIGN.md`](./DESIGN.md) を正本とする。
 
@@ -18,8 +22,8 @@ md-business の**本命プロダクト**。6 種の業務文書（invoice / spec
 アプリは起動と同時にローカル専用の MCP サーバーを内蔵で立ち上げる。AI クライアントを繋ぐと、いま開いているフォルダの業務文書を読み書きできる。
 
 1. アプリの右サイドパネルを開き、`MCP` タブを選ぶ。
-2. 「接続設定を写す」を押す。下記の形の JSON がクリップボードに入る。
-3. AI クライアント（Claude Code / Claude Desktop / Cursor / Cline など）の MCP 設定へ貼る。
+2. 「開いているフォルダへ設定を置く」を押すと、そのフォルダに `.mcp.json` が書かれる。これを読むクライアント（Claude Code など）は自分で拾う。
+3. 別の場所に設定を置くクライアント（Claude Desktop / Cursor / Cline など）は、「接続設定を写す」で下記の形の JSON をクリップボードへ入れ、MCP 設定へ貼る。
 
 既に設定を持っていてトークンだけ入れ替えたいときは、隣の「接続トークンを写す」を使う。
 

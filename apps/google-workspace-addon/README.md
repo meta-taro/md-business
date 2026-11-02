@@ -1,8 +1,8 @@
 # @md-business/google-workspace-addon
 
-Google Workspace アドオン雛形（Docs / Sheets / Slides サイドバーから Markdown を扱う）。
+Google Workspace アドオン。検証シートの Markdown をスプレッドシートの表として開いて記入し、サイドバーのボタンで GitHub へ書き戻す。
 
-> **公開ステータス**: 開発初期段階。Marketplace 申請は `schema-test-spec` (v0.7.0) 完成と同時に submit 予定。申請手順は [`docs/google-addon-submit-guide.md`](../../docs/google-addon-submit-guide.md) を参照。
+> **公開ステータス**: 0.1.0（未公開）。Google Workspace Marketplace の審査と OAuth 検証を進めている段階で、まだ配っていない。変更履歴は [`CHANGELOG.md`](./CHANGELOG.md)。申請手順は [`docs/google-addon-submit-guide.md`](../../docs/google-addon-submit-guide.md) を参照。
 
 ## 役割分担（Chrome 拡張 / Workspace アドオン）
 
@@ -59,11 +59,10 @@ esbuild.config.mjs     (IIFE バンドル + Apps Script global function 露出 f
 
 ## ロードマップ（このパッケージ）
 
-- [x] **v0.1.0 (2026-06-18)** — 雛形 + Markdown table ⇔ Sheets 双方向 import/export（実機確証済）+ 申請手順書 [`docs/google-addon-submit-guide.md`](../../docs/google-addon-submit-guide.md)（実走知見を Phase A〜C のトラブルシュートに反映済）
-- [x] v0.2.0 — `schema-test-spec` 完成連動: 検証シート md ⇔ Sheets の **frontmatter スキーマ駆動 double-binding**（列スキーマ宣言 → DataValidation プルダウン / ConditionalFormat 行背景色 / DateValidation 日付ピッカー / setFrozenRows ヘッダー固定 を import で自動適用、export で逆変換して frontmatter ごと書き出し）+ サイドバーの「GitHub に push」ボタンで GitHub Contents API へ commit（`git push` と同じメンタルモデル）
-- [ ] v0.3.0 — Docs 向け md ⇔ ドキュメント変換（章立て / 表 / リスト）
-- [ ] v0.4.0 — Slides 向け md ⇔ プレゼン変換
-- [ ] Marketplace 公開: schema-test-spec 完成と同時に submit（Phase D-F: listing 草案 → 検証申請 → 公開申請）
+- [x] **0.1.0** — Markdown table ⇔ Sheets 双方向 import/export + 申請手順書 [`docs/google-addon-submit-guide.md`](../../docs/google-addon-submit-guide.md)。あわせて `schema-test-spec` 連動: 検証シート md ⇔ Sheets の **frontmatter スキーマ駆動 double-binding**（列スキーマ宣言 → DataValidation プルダウン / ConditionalFormat 行背景色 / DateValidation 日付ピッカー / setFrozenRows ヘッダー固定 を import で自動適用、export で逆変換して frontmatter ごと書き出し）+ サイドバーの「GitHub に push」ボタンで GitHub Contents API へ commit（`git push` と同じメンタルモデル）
+- [ ] Docs 向け md ⇔ ドキュメント変換（章立て / 表 / リスト）
+- [ ] Slides 向け md ⇔ プレゼン変換
+- [ ] Marketplace 公開（審査中）
 
 ## 参考 / 一次資料
 
