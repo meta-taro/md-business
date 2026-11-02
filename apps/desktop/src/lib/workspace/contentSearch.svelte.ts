@@ -3,11 +3,15 @@
  *
  * 本文を読むのは重いので、索引は**絞り込みに何か打たれたときに初めて**作る。
  * 走査し直す（保存・改名・外部の変更）と索引は古くなるので、次に引くときに作り直す。
+ *
+ * 検索の部品も引くときに初めて読み込む。ツリーは起動時に出るので、ここで静的に読むと
+ * 一度も検索しない人の起動まで重くなる。
  */
 import { invoke } from '@tauri-apps/api/core';
-import { indexWorkspace, type IndexedFile, type WorkspaceHit } from '@md-business/explorer';
+import type { IndexedFile, WorkspaceHit } from '@md-business/explorer';
 import { workspace } from './workspace.svelte';
-import { contentHits, readFilesForIndex } from './workspaceSearch';
+
+const loadSearch = () => import('./workspaceSearch');
 
 class ContentSearchStore {
   hits = $state.raw<WorkspaceHit[]>([]);
@@ -30,6 +34,8 @@ class ContentSearchStore {
     }
     await this.ensureIndex();
     if (ticket !== this.latest || this.index === null) return;
+    const { contentHits } = await loadSearch();
+    if (ticket !== this.latest) return;
     this.hits = contentHits(this.index, query, shownInTree);
   }
 
@@ -46,6 +52,10 @@ class ContentSearchStore {
     const includeSite = workspace.siteVisible;
     this.indexing = true;
     try {
+      const [{ indexWorkspace }, { readFilesForIndex }] = await Promise.all([
+        import('@md-business/explorer'),
+        loadSearch(),
+      ]);
       const result = await readFilesForIndex(
         workspace.entries,
         (relPath) => invoke<string>('read_document', { root, relPath, includeSite }),
