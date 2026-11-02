@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseChartSpec } from './chartSpec';
+import { parseChartSpec } from '../../src/chart/chartSpec.js';
 
 /** 通る指定を組み立てる。個々のテストは変えたいところだけ差す。 */
 function block(over: Record<string, string> = {}): string {

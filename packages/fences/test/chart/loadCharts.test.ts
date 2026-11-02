@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
-import { loadCharts } from './loadCharts';
-import type { ChartLoadProblem } from './loadCharts';
+import { loadCharts } from '../../src/chart/loadCharts.js';
+import type { ChartLoadProblem } from '../../src/chart/loadCharts.js';
 
 const FENCE = '```';
 

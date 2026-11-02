@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { loadDataBlocks, type LoadDataOptions } from './loadData';
+import { loadDataBlocks, type LoadDataOptions } from '../../src/data/loadData.js';
 
 const BLOCK = '```data\nsource: data/売上.tsv\n```';
 const TSV = '月\t売上\n1月\t120';

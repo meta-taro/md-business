@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildChartData, parseDataTable } from './chartData';
+import { buildChartData, parseDataTable } from '../../src/chart/chartData.js';
 
 const TSV = ['日付\tセッション\tユーザー', '2026-08-01\t120\t80', '2026-08-02\t140\t95'].join('\n');
 

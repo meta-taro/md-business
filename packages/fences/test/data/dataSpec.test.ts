@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseDataSpec } from './dataSpec';
+import { parseDataSpec } from '../../src/data/dataSpec.js';
 
 describe('データの囲みの指定を読む', () => {
   it('出どころだけ書けば通る', () => {

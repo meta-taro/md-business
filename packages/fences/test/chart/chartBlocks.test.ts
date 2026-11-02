@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { collectChartBlocks, replaceChartBlocks } from './chartBlocks';
+import { collectChartBlocks, replaceChartBlocks } from '../../src/chart/chartBlocks.js';
 
 const FENCE = '```';
 const TILDE = '~~~';
