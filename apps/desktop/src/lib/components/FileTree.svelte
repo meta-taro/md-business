@@ -31,8 +31,8 @@
     childPath,
     type FileTreeMenuAction,
   } from './fileTreeMenu';
+  import { EXPLORER_VIEW_KEY, parseExplorerView, type ExplorerView } from '$lib/explorer/explorerView';
   import NewSheetDialog from './NewSheetDialog.svelte';
-  import FileInfoDialog from './FileInfoDialog.svelte';
 
   // git 状態 → ホバー説明（バッジ title）。色マークの意味を言葉でも補う。
   // t() はロケール反応なので関数で都度引く（キーは git.state.<state>）。
@@ -64,6 +64,30 @@
     return () => clearTimeout(timer);
   });
   const contentHits = $derived(filtering ? contentSearch.hits : []);
+
+  // ツリーとサムネイル格子の切り替え。前回の選択を覚えておく。格子の部品は起動時に読まず、
+  // 格子へ切り替えたときに初めて読み込む（起動前に読む JS を増やさないため）。
+  function readView(): ExplorerView {
+    try {
+      return parseExplorerView(localStorage.getItem(EXPLORER_VIEW_KEY));
+    } catch {
+      return 'tree';
+    }
+  }
+  let view = $state<ExplorerView>(readView());
+  const gridComponent = $derived(
+    view === 'grid' ? import('$lib/explorer/ThumbnailGrid.svelte').then((m) => m.default) : null,
+  );
+
+  function toggleView(): void {
+    view = view === 'grid' ? 'tree' : 'grid';
+    closeMenu();
+    try {
+      localStorage.setItem(EXPLORER_VIEW_KEY, view);
+    } catch {
+      // 覚えられなくても切り替え自体はできる
+    }
+  }
 
   function onRowClick(path: string, kind: 'folder' | 'file'): void {
     if (kind === 'folder') {
@@ -412,25 +436,57 @@
       <span class="title">{t('tree.explorer')}</span>
     </div>
     {#if workspace.root !== null}
-      <!-- ツリーには root 直下しか出ないため、フォルダを 1 つも持たないリポジトリでは
-           右クリックの入口がない。ルート直下へ作る道をヘッダーに常設する。 -->
-      <button
-        class="new-sheet"
-        type="button"
-        onclick={() => (newSheetFolder = '')}
-        title={t('tree.menuNewTestSheet')}
-        aria-label={t('tree.menuNewTestSheet')}
-      >
-        <svg viewBox="0 0 16 16" aria-hidden="true">
-          <path
-            d="M8 3.5v9M3.5 8h9"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="1.4"
-            stroke-linecap="round"
-          />
-        </svg>
-      </button>
+      <div class="head-actions">
+        <button
+          class="new-sheet"
+          type="button"
+          onclick={toggleView}
+          aria-pressed={view === 'grid'}
+          title={view === 'grid' ? t('tree.viewTree') : t('tree.viewGrid')}
+          aria-label={view === 'grid' ? t('tree.viewTree') : t('tree.viewGrid')}
+        >
+          {#if view === 'grid'}
+            <svg viewBox="0 0 16 16" aria-hidden="true">
+              <path
+                d="M3 4h10M5.5 8H13M5.5 12H13M3 8h.01M3 12h.01"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.4"
+                stroke-linecap="round"
+              />
+            </svg>
+          {:else}
+            <svg viewBox="0 0 16 16" aria-hidden="true">
+              <path
+                d="M3 3h4v4H3zM9 3h4v4H9zM3 9h4v4H3zM9 9h4v4H9z"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.3"
+                stroke-linejoin="round"
+              />
+            </svg>
+          {/if}
+        </button>
+        <!-- ツリーには root 直下しか出ないため、フォルダを 1 つも持たないリポジトリでは
+             右クリックの入口がない。ルート直下へ作る道をヘッダーに常設する。 -->
+        <button
+          class="new-sheet"
+          type="button"
+          onclick={() => (newSheetFolder = '')}
+          title={t('tree.menuNewTestSheet')}
+          aria-label={t('tree.menuNewTestSheet')}
+        >
+          <svg viewBox="0 0 16 16" aria-hidden="true">
+            <path
+              d="M8 3.5v9M3.5 8h9"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.4"
+              stroke-linecap="round"
+            />
+          </svg>
+        </button>
+      </div>
     {/if}
   </div>
 
@@ -582,6 +638,14 @@
     <div class="empty">
       <p class="hint">{t(emptyKey, { query: filterQuery.trim() })}</p>
     </div>
+  {:else if gridComponent !== null && rows.length > 0}
+    {#await gridComponent then ThumbnailGrid}
+      <ThumbnailGrid
+        tree={filtering ? filteredTree : workspace.tree}
+        {filtering}
+        onopen={(path) => onRowClick(path, 'file')}
+      />
+    {/await}
   {:else if rows.length > 0}
     <!-- 十字キーはツリー全体で受け、行の button には roving tabindex を配る。 -->
     <ul class="tree" role="tree" bind:this={treeEl} onscroll={closeMenu} onkeydown={onTreeKeydown}>
@@ -754,11 +818,14 @@
 {/if}
 
 {#if fileInfoPath !== null && workspace.root !== null}
-  <FileInfoDialog
-    root={workspace.root}
-    relPath={fileInfoPath}
-    onclose={() => (fileInfoPath = null)}
-  />
+  <!-- 右クリックから開くときだけ要るので、起動時には読まない。 -->
+  {#await import('./FileInfoDialog.svelte') then { default: FileInfoDialog }}
+    <FileInfoDialog
+      root={workspace.root}
+      relPath={fileInfoPath}
+      onclose={() => (fileInfoPath = null)}
+    />
+  {/await}
 {/if}
 
 <style>
@@ -813,6 +880,16 @@
     align-items: center;
     gap: var(--space-1);
     min-width: 0;
+  }
+
+  .head-actions {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+  }
+
+  .new-sheet[aria-pressed='true'] {
+    color: var(--accent);
   }
 
   /* ヘッダー右端の新規作成ボタン。 */
