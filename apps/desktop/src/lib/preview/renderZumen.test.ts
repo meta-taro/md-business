@@ -53,3 +53,29 @@ describe('renderZumenSvg', () => {
     expect(draw).toHaveBeenCalledTimes(2);
   });
 });
+
+describe('renderZumenSvg — 本物の zumen を通す', () => {
+  // zumen は版ごとに SVG へ足すものがある。無害化がそれを黙って落とすと、
+  // 図は出るのに押せない・読み上げられない・模様がはみ出す、になる。
+  it('節のリンク・読み上げの題・模様の切り抜きが無害化のあとも残る', async () => {
+    const { toSvg } = await import('@metataro/zumen');
+    const source = [
+      'version: 1',
+      'title: 本番構成',
+      'nodes:',
+      '  - id: web',
+      '    title: Web',
+      '    link: ./db.md',
+      '  - id: db',
+      '    title: DB',
+      'edges:',
+      '  - from: web',
+      '    to: db',
+      '',
+    ].join('\n');
+    const svg = await renderZumenSvg(source, 'light', toSvg);
+    expect(svg).toMatch(/<a [^>]*href="\.\/db\.md"/);
+    expect(svg).toContain('role="img"');
+    expect(svg).toMatch(/aria-labelledby="([^"]+)"[\s\S]*<title id="\1"/);
+  });
+});

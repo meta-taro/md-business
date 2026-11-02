@@ -129,7 +129,7 @@
     "@md-business/schema-spec": "workspace:*",
     "@md-business/schema-test-spec": "workspace:*",
     "@md-business/schema-test-spec-tsv": "workspace:^",
-    "@metataro/zumen": "^0.3.3"
+    "@metataro/zumen": "^0.7.0"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",
