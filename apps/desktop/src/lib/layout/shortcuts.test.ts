@@ -93,3 +93,11 @@ describe('resolvePreviewMessage — プレビュー iframe からの postMessage
     expect(resolvePreviewMessage(undefined)).toBeNull();
   });
 });
+
+describe('resolvePreviewMessage — 表示倍率', () => {
+  it('zoomIn / zoomOut / zoomReset を通す', () => {
+    for (const action of ['zoomIn', 'zoomOut', 'zoomReset'] as const) {
+      expect(resolvePreviewMessage({ source: PREVIEW_MESSAGE_SOURCE, action })).toBe(action);
+    }
+  });
+});

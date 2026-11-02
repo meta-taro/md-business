@@ -10,6 +10,9 @@
 /** ショートカットで起動できるアクション。 */
 export type ShortcutAction = 'save' | 'pdf' | 'find';
 
+/** プレビューの表示倍率を変えるアクション（キーの判定は previewZoom.ts。起動時に読まないため）。 */
+export type ZoomAction = 'zoomIn' | 'zoomOut' | 'zoomReset';
+
 /** matchShortcut が見るキーイベントの最小形（KeyboardEvent 互換）。 */
 export interface ShortcutEvent {
   key: string;
@@ -52,12 +55,15 @@ export const PREVIEW_MESSAGE_SOURCE = 'md-business-preview';
  * source が一致しない／未知の action は null（親側は無視する）。信頼できない postMessage
  * を受け取る口なので、object 形状と source を厳格に確認してから action を通す。
  */
-export function resolvePreviewMessage(data: unknown): ShortcutAction | null {
+export function resolvePreviewMessage(data: unknown): ShortcutAction | ZoomAction | null {
   if (typeof data !== 'object' || data === null) return null;
   const message = data as { source?: unknown; action?: unknown };
   if (message.source !== PREVIEW_MESSAGE_SOURCE) return null;
   if (message.action === 'save') return 'save';
   if (message.action === 'pdf') return 'pdf';
   if (message.action === 'find') return 'find';
+  if (message.action === 'zoomIn' || message.action === 'zoomOut' || message.action === 'zoomReset') {
+    return message.action;
+  }
   return null;
 }

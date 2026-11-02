@@ -78,12 +78,29 @@ function escapeHtml(value: string): string {
  *   - Ctrl/Cmd+F → 親へ postMessage して共通 SearchBar をプレビュー対象で開く（ネイティブの
  *     WebView 検索ではなくアプリ統一の検索バーを使う。ハイライトは親が contentDocument を
  *     直接操作して行う＝same-origin srcdoc なのでフレーム越しに到達できる）
+ *   - Ctrl/Cmd + = / + / ; / - / 0 と Ctrl/Cmd+ホイール → 親へ倍率の変更を渡す（倍率は親が
+ *     持ち、ヘッダのボタンと同じ値を動かす。ここで決めると、ボタンとずれる）
  * source を固定文字列にして、親側 resolvePreviewMessage が他フレーム由来を弾けるようにする。
  */
 const PREVIEW_SHORTCUT_SCRIPT = `<script>
 (function () {
   function primary(e) { return (e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey; }
+  function post(action) { parent.postMessage({ source: 'md-business-preview', action: action }, '*'); }
+  function zoomKey(e) {
+    if (!(e.ctrlKey || e.metaKey) || e.altKey) return null;
+    if (e.key === '=' || e.key === '+' || e.key === ';') return 'zoomIn';
+    if (e.shiftKey) return null;
+    if (e.key === '-') return 'zoomOut';
+    if (e.key === '0') return 'zoomReset';
+    return null;
+  }
   window.addEventListener('keydown', function (e) {
+    var zoom = zoomKey(e);
+    if (zoom) {
+      e.preventDefault();
+      post(zoom);
+      return;
+    }
     if (!primary(e)) return;
     var k = (e.key || '').toLowerCase();
     if (k === 'p') {
@@ -91,14 +108,30 @@ const PREVIEW_SHORTCUT_SCRIPT = `<script>
       window.print();
     } else if (k === 's') {
       e.preventDefault();
-      parent.postMessage({ source: 'md-business-preview', action: 'save' }, '*');
+      post('save');
     } else if (k === 'f') {
       e.preventDefault();
-      parent.postMessage({ source: 'md-business-preview', action: 'find' }, '*');
+      post('find');
     }
   });
+  // 既定のままだとページ全体（アプリの枠ごと）が拡大される。止めるには passive を外す。
+  // トラックパッドのピンチは細かい wheel を連続で出すので、間を空けて 1 段ずつにする。
+  var lastWheel = 0;
+  window.addEventListener('wheel', function (e) {
+    if (!(e.ctrlKey || e.metaKey) || e.deltaY === 0) return;
+    e.preventDefault();
+    if (e.timeStamp - lastWheel < 80) return;
+    lastWheel = e.timeStamp;
+    post(e.deltaY < 0 ? 'zoomIn' : 'zoomOut');
+  }, { passive: false });
 })();
 </script>`;
+
+/**
+ * 表示倍率。値は親が `--preview-zoom` に入れる。
+ * 画面の上だけに効かせる（印刷＝PDF は A4 の正本なので、倍率に関わらず 100% で刷る）。
+ */
+const PREVIEW_ZOOM_STYLE = '<style>@media screen { html { zoom: var(--preview-zoom, 1); } }</style>';
 
 export function buildPreviewDocument(input: PreviewDocumentInput): string {
   const {
@@ -123,7 +156,8 @@ export function buildPreviewDocument(input: PreviewDocumentInput): string {
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${escapeHtml(title)}</title>
 <style>:root { color-scheme: ${escapeHtml(theme)}; }</style>
-${style}
+${style}${shortcuts ? `
+${PREVIEW_ZOOM_STYLE}` : ''}
 </head>
 <body>
 ${bodyHtml}${script}

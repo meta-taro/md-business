@@ -165,6 +165,11 @@
       search.openFor('preview');
       return;
     }
+    if (action === 'zoomIn' || action === 'zoomOut' || action === 'zoomReset') {
+      // 倍率はプレビューを開いてから要るので、起動時の読み込みに載せない
+      void import('$lib/preview/previewZoomState.svelte').then((m) => m.previewZoom.apply(action));
+      return;
+    }
     runAction(action);
   }
 
