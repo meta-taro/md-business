@@ -1,8 +1,8 @@
 {
   "name": "@md-business/chrome-extension",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "private": true,
-  "description": "Markdown-first business document viewer for Chrome — open a .md file, preview as 適格請求書 / 基本設計書, save as PDF. Mermaid diagrams & tax-exempt mode supported.",
+  "description": "Markdown-first business document viewer for Chrome — open a .md file as an invoice, design spec, test spec, API/DB spec or investigation report and save it as PDF. Mermaid and architecture diagrams supported.",
   "license": "MIT",
   "type": "module",
   "scripts": {
