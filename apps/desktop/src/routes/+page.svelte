@@ -12,9 +12,8 @@
   import { imageExport } from '$lib/preview/imageExportController.svelte';
   import { previewReady, previewVisible, shouldRenderPreview } from '$lib/preview/previewGate';
   import { resolvePreviewLink } from '$lib/preview/previewLink';
-  import { MAX_ZOOM, MIN_ZOOM, formatZoom } from '$lib/preview/previewZoom';
+  import { MAX_ZOOM, MIN_ZOOM, formatZoom, matchZoomShortcut } from '$lib/preview/previewZoom';
   import { previewZoom } from '$lib/preview/previewZoomState.svelte';
-  import { matchZoomShortcut } from '$lib/layout/shortcuts';
   import {
     frameWidth,
     nextViewport,

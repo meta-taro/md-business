@@ -5,6 +5,8 @@
  * 段はブラウザの拡大と同じ並びにしてある（同じ操作で同じ値になる）。
  */
 
+import type { ShortcutEvent, ZoomAction } from '$lib/layout/shortcuts';
+
 const STEPS = [0.5, 0.67, 0.75, 0.8, 0.9, 1, 1.1, 1.25, 1.5, 1.75, 2, 2.5, 3] as const;
 
 export const DEFAULT_ZOOM = 1;
@@ -34,4 +36,26 @@ export function parseStoredZoom(raw: string | null): number {
 
 export function formatZoom(zoom: number): string {
   return `${Math.round(zoom * 100)}%`;
+}
+
+/**
+ * 表示倍率のキー。Ctrl / Cmd と組み合わせる。
+ *
+ * 拡大の `+` は配列によって Shift が要る（US は Shift+=、日本語配列は Shift+;）。
+ * Shift 付きでも当てないと、日本語配列では拡大が押せない。`=` と `;` は Shift 無しの同じキー。
+ */
+export function matchZoomShortcut(event: ShortcutEvent): ZoomAction | null {
+  if (!(event.ctrlKey || event.metaKey) || event.altKey) return null;
+  switch (event.key) {
+    case '=':
+    case '+':
+    case ';':
+      return 'zoomIn';
+    case '-':
+      return event.shiftKey ? null : 'zoomOut';
+    case '0':
+      return event.shiftKey ? null : 'zoomReset';
+    default:
+      return null;
+  }
 }

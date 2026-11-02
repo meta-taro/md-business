@@ -17,7 +17,6 @@
     type ShortcutAction,
   } from '$lib/layout/shortcuts';
   import { search } from '$lib/search/search.svelte';
-  import { previewZoom } from '$lib/preview/previewZoomState.svelte';
   import TopBar from '$lib/components/TopBar.svelte';
   import MenuBar from '$lib/components/MenuBar.svelte';
   import { publish } from '$lib/preview/publishController.svelte';
@@ -167,7 +166,8 @@
       return;
     }
     if (action === 'zoomIn' || action === 'zoomOut' || action === 'zoomReset') {
-      previewZoom.apply(action);
+      // 倍率はプレビューを開いてから要るので、起動時の読み込みに載せない
+      void import('$lib/preview/previewZoomState.svelte').then((m) => m.previewZoom.apply(action));
       return;
     }
     runAction(action);

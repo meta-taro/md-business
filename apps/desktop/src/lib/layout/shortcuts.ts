@@ -10,7 +10,7 @@
 /** ショートカットで起動できるアクション。 */
 export type ShortcutAction = 'save' | 'pdf' | 'find';
 
-/** プレビューの表示倍率を変えるアクション。 */
+/** プレビューの表示倍率を変えるアクション（キーの判定は previewZoom.ts。起動時に読まないため）。 */
 export type ZoomAction = 'zoomIn' | 'zoomOut' | 'zoomReset';
 
 /** matchShortcut が見るキーイベントの最小形（KeyboardEvent 互換）。 */
@@ -37,28 +37,6 @@ export function matchShortcut(event: ShortcutEvent): ShortcutAction | null {
       return 'pdf';
     case 'f':
       return 'find';
-    default:
-      return null;
-  }
-}
-
-/**
- * 表示倍率のキー。Ctrl / Cmd と組み合わせる。
- *
- * 拡大の `+` は配列によって Shift が要る（US は Shift+=、日本語配列は Shift+;）。
- * Shift 付きでも当てないと、日本語配列では拡大が押せない。`=` と `;` は Shift 無しの同じキー。
- */
-export function matchZoomShortcut(event: ShortcutEvent): ZoomAction | null {
-  if (!(event.ctrlKey || event.metaKey) || event.altKey) return null;
-  switch (event.key) {
-    case '=':
-    case '+':
-    case ';':
-      return 'zoomIn';
-    case '-':
-      return event.shiftKey ? null : 'zoomOut';
-    case '0':
-      return event.shiftKey ? null : 'zoomReset';
     default:
       return null;
   }

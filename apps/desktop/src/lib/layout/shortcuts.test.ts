@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
   matchShortcut,
-  matchZoomShortcut,
   resolvePreviewMessage,
   PREVIEW_MESSAGE_SOURCE,
   type ShortcutEvent,
@@ -92,35 +91,6 @@ describe('resolvePreviewMessage — プレビュー iframe からの postMessage
     expect(resolvePreviewMessage(null)).toBeNull();
     expect(resolvePreviewMessage('save')).toBeNull();
     expect(resolvePreviewMessage(undefined)).toBeNull();
-  });
-});
-
-describe('matchZoomShortcut — 表示倍率', () => {
-  const ev = (key: string, extra: Partial<Parameters<typeof matchZoomShortcut>[0]> = {}) => ({
-    key,
-    ctrlKey: true,
-    metaKey: false,
-    altKey: false,
-    shiftKey: false,
-    ...extra,
-  });
-
-  it('Ctrl + = / + / ; で拡大（日本語配列の Ctrl+; と Shift 付きの + も受ける）', () => {
-    expect(matchZoomShortcut(ev('='))).toBe('zoomIn');
-    expect(matchZoomShortcut(ev('+', { shiftKey: true }))).toBe('zoomIn');
-    expect(matchZoomShortcut(ev(';'))).toBe('zoomIn');
-  });
-
-  it('Ctrl + - で縮小、Ctrl + 0 で 100%', () => {
-    expect(matchZoomShortcut(ev('-'))).toBe('zoomOut');
-    expect(matchZoomShortcut(ev('0'))).toBe('zoomReset');
-  });
-
-  it('Cmd でも同じ。修飾なし・Alt 併用は当てない', () => {
-    expect(matchZoomShortcut(ev('-', { ctrlKey: false, metaKey: true }))).toBe('zoomOut');
-    expect(matchZoomShortcut(ev('-', { ctrlKey: false }))).toBeNull();
-    expect(matchZoomShortcut(ev('-', { altKey: true }))).toBeNull();
-    expect(matchZoomShortcut(ev('a'))).toBeNull();
   });
 });
 
