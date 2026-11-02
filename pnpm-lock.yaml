@@ -278,6 +278,9 @@ importers:
       '@md-business/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@md-business/fences':
+        specifier: workspace:*
+        version: link:../../packages/fences
       '@md-business/mcp-server':
         specifier: workspace:*
         version: link:../../packages/mcp-server

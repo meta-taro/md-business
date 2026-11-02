@@ -1,8 +1,28 @@
 import * as vscode from 'vscode';
 
+import { composeFences } from './fences.js';
 import { createNonce, previewHtml } from './html.js';
 import type { ReadyMessage, UpdateMessage } from './messages.js';
 import { composeZumen, drawZumen } from './zumen.js';
+
+/**
+ * 図とデータの表は、文書が入っているワークスペースのフォルダを起点に読む。
+ * フォルダの外の文書は起点が無いので、読みに行かずに理由を出す。
+ */
+function fenceSource(document: vscode.TextDocument): {
+  docPath: string | null;
+  read: (path: string) => Promise<string>;
+} {
+  const folder = vscode.workspace.getWorkspaceFolder(document.uri);
+  if (!folder) return { docPath: null, read: () => Promise.reject(new Error('no folder')) };
+  return {
+    docPath: vscode.workspace.asRelativePath(document.uri, false),
+    read: async (path) =>
+      new TextDecoder().decode(
+        await vscode.workspace.fs.readFile(vscode.Uri.joinPath(folder.uri, ...path.split('/'))),
+      ),
+  };
+}
 
 const VIEW_TYPE = 'md-business.preview';
 // 打鍵のたびに描き直すと、長い文書で入力が引っかかる。
@@ -73,7 +93,8 @@ export class PreviewPanel implements vscode.Disposable {
     if (!this.panel || !this.document) return;
     // 図を描いている間に次の打鍵や文書の切り替えが来ることがある。古い結果で上書きしない。
     const seq = ++this.sequence;
-    const text = await composeZumen(this.document.getText(), drawZumen);
+    const withFences = await composeFences(this.document.getText(), fenceSource(this.document));
+    const text = await composeZumen(withFences, drawZumen);
     if (seq !== this.sequence || !this.panel) return;
     const message: UpdateMessage = { type: 'update', text };
     void this.panel.webview.postMessage(message);

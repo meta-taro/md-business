@@ -9,7 +9,7 @@
  */
 import { toSvg } from '@metataro/zumen';
 
-import { replaceFencedBlocks } from '../../../desktop/src/lib/markdown/fencedBlocks.js';
+import { replaceFencedBlocks } from '@md-business/fences';
 import { loadZumenImages } from '../../../desktop/src/lib/preview/zumenBlocks.js';
 
 export interface DrawOptions {

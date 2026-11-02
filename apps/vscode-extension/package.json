@@ -120,6 +120,7 @@
   },
   "dependencies": {
     "@md-business/core": "workspace:*",
+    "@md-business/fences": "workspace:*",
     "@md-business/mcp-server": "workspace:*",
     "@md-business/schema-api-spec": "workspace:*",
     "@md-business/schema-db-spec": "workspace:*",
