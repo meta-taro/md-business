@@ -23,3 +23,7 @@ export { loadDataBlocks } from './data/loadData.js';
 export type { DataLoadKind, DataLoadProblem, LoadDataOptions } from './data/loadData.js';
 
 export { describeChartProblem, describeDataProblem } from './describe.js';
+
+export { toDataUri, toImageAlt, withExplicitSize } from './svgImage.js';
+export { loadZumenImages } from './zumen/zumenBlocks.js';
+export type { LoadZumenOptions, ZumenTheme } from './zumen/zumenBlocks.js';
