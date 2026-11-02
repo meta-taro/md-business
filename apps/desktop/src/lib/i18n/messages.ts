@@ -206,6 +206,11 @@ export interface Messages {
   'tree.expandExplorer': string;
   'tree.collapseExplorer': string;
   'tree.explorer': string;
+  'tree.viewGrid': string;
+  'tree.viewTree': string;
+  'tree.gridTrail': string;
+  'tree.gridTop': string;
+  'tree.gridEmpty': string;
   'tree.openOtherFolder': string;
   'tree.filterPlaceholder': string;
   'tree.filterClearTitle': string;
@@ -901,6 +906,11 @@ const en: Messages = {
   'tree.expandExplorer': 'Open explorer',
   'tree.collapseExplorer': 'Collapse explorer',
   'tree.explorer': 'Explorer',
+  'tree.viewGrid': 'Show thumbnails',
+  'tree.viewTree': 'Show tree',
+  'tree.gridTrail': 'Folder path',
+  'tree.gridTop': 'Top',
+  'tree.gridEmpty': 'Nothing in this folder',
   'tree.openOtherFolder': 'Open another folder',
   'tree.filterPlaceholder': 'Filter by name or search text',
   'tree.filterClearTitle': 'Clear filter (Esc)',
@@ -1598,6 +1608,11 @@ const ja: Messages = {
   'tree.expandExplorer': 'エクスプローラーを開く',
   'tree.collapseExplorer': 'エクスプローラーを畳む',
   'tree.explorer': 'エクスプローラー',
+  'tree.viewGrid': 'サムネイルで表示',
+  'tree.viewTree': 'ツリーで表示',
+  'tree.gridTrail': 'フォルダの場所',
+  'tree.gridTop': '最上位',
+  'tree.gridEmpty': 'このフォルダには何もありません',
   'tree.openOtherFolder': '別のフォルダを開く',
   'tree.filterPlaceholder': 'ファイル名で絞り込み・本文を検索',
   'tree.filterClearTitle': 'フィルタをクリア（Esc）',
@@ -2285,6 +2300,11 @@ const zh: Messages = {
   'tree.expandExplorer': '打开资源管理器',
   'tree.collapseExplorer': '折叠资源管理器',
   'tree.explorer': '资源管理器',
+  'tree.viewGrid': '以缩略图显示',
+  'tree.viewTree': '以树状显示',
+  'tree.gridTrail': '文件夹位置',
+  'tree.gridTop': '顶层',
+  'tree.gridEmpty': '此文件夹为空',
   'tree.openOtherFolder': '打开其他文件夹',
   'tree.filterPlaceholder': '按文件名筛选或搜索正文',
   'tree.filterClearTitle': '清除筛选（Esc）',
@@ -2969,6 +2989,11 @@ const ko: Messages = {
   'tree.expandExplorer': '탐색기 열기',
   'tree.collapseExplorer': '탐색기 접기',
   'tree.explorer': '탐색기',
+  'tree.viewGrid': '썸네일로 보기',
+  'tree.viewTree': '트리로 보기',
+  'tree.gridTrail': '폴더 위치',
+  'tree.gridTop': '최상위',
+  'tree.gridEmpty': '이 폴더는 비어 있습니다',
   'tree.openOtherFolder': '다른 폴더 열기',
   'tree.filterPlaceholder': '파일 이름으로 필터·본문 검색',
   'tree.filterClearTitle': '필터 지우기 (Esc)',
