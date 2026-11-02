@@ -6,6 +6,7 @@
   import { invoke } from '@tauri-apps/api/core';
   import { openUrl, revealItemInDir } from '@tauri-apps/plugin-opener';
   import { workspace } from '$lib/workspace/workspace.svelte';
+  import { contentSearch } from '$lib/workspace/contentSearch.svelte';
   import {
     flattenVisible,
     filterTree,
@@ -52,6 +53,17 @@
       ? flattenVisible(filteredTree, new Set(collectFolderPaths(filteredTree)))
       : flattenVisible(workspace.tree, workspace.expanded),
   );
+
+  // 名前の絞り込みの下に、題名・本文で当たったものを出す。打つたびに引くと本文の索引作りが
+  // 重なるので、打ち終わるのを少し待つ。走査し直したら（保存・外部の変更）引き直す。
+  $effect(() => {
+    const query = filterQuery;
+    void workspace.scanGeneration;
+    const shown = new Set(rows.filter((r) => r.node.kind === 'file').map((r) => r.node.path));
+    const timer = setTimeout(() => void contentSearch.run(query, shown), 200);
+    return () => clearTimeout(timer);
+  });
+  const contentHits = $derived(filtering ? contentSearch.hits : []);
 
   function onRowClick(path: string, kind: 'folder' | 'file'): void {
     if (kind === 'folder') {
@@ -563,14 +575,14 @@
         </div>
       {/if}
     </div>
-  {:else if rows.length === 0}
+  {:else if rows.length === 0 && contentHits.length === 0}
     <!-- フィルタで 0 件 か 空フォルダ かで文言を分ける。空フォルダは、そのフォルダが
          何を並べる場所なのか（web を名乗っているか）で変わる。 -->
     {@const emptyKey = emptyTreeMessage(filtering, workspace.siteVisible)}
     <div class="empty">
       <p class="hint">{t(emptyKey, { query: filterQuery.trim() })}</p>
     </div>
-  {:else}
+  {:else if rows.length > 0}
     <!-- 十字キーはツリー全体で受け、行の button には roving tabindex を配る。 -->
     <ul class="tree" role="tree" bind:this={treeEl} onscroll={closeMenu} onkeydown={onTreeKeydown}>
       {#each rows as row, i (row.node.path)}
@@ -665,6 +677,39 @@
 
     {#if workspace.truncated}
       <p class="banner warn" role="status">{t('tree.truncated')}</p>
+    {/if}
+  {/if}
+
+  {#if workspace.root !== null && filtering}
+    <!-- 題名・本文で当たったもの。名前で当たったものは上のツリーに出ているので重ねない。 -->
+    {#if contentHits.length > 0 || contentSearch.indexing}
+      <section class="content-hits" class:fill={rows.length === 0} aria-label={t('tree.contentHits')}>
+        <p class="content-head">
+          {contentSearch.indexing ? t('tree.contentIndexing') : t('tree.contentHits')}
+        </p>
+        <ul class="content-list">
+          {#each contentHits as hit (hit.path)}
+            <li>
+              <button
+                class="content-row"
+                class:active={workspace.activePath === hit.path}
+                type="button"
+                title={hit.path}
+                onclick={() => onRowClick(hit.path, 'file')}
+              >
+                <span class="content-title">{hit.title ?? fileLabel(hit.path)}</span>
+                <span class="content-path">{hit.path}</span>
+                {#if hit.snippet}
+                  <span class="content-snippet">{hit.snippet}</span>
+                {/if}
+              </button>
+            </li>
+          {/each}
+        </ul>
+        {#if contentSearch.truncated}
+          <p class="banner warn" role="status">{t('tree.contentTruncated')}</p>
+        {/if}
+      </section>
     {/if}
   {/if}
   {/if}
@@ -1388,6 +1433,77 @@
   .ico.file.json,
   .ico.file.xml {
     color: var(--text-tertiary);
+  }
+
+  .content-hits {
+    /* ツリーを押し出さないよう、下側の高さに上限を置いて中だけ送る。 */
+    flex: none;
+    max-height: 45%;
+    display: flex;
+    flex-direction: column;
+    border-top: 1px solid var(--border);
+  }
+
+  .content-hits.fill {
+    /* 名前で当たるものが無いときは、ツリーの場所ごと使う。 */
+    flex: 1;
+    min-height: 0;
+    max-height: none;
+    border-top: none;
+  }
+
+  .content-head {
+    margin: 0;
+    padding: var(--space-2) var(--space-3) var(--space-1);
+    font-size: var(--text-xs-size);
+    color: var(--text-tertiary);
+  }
+
+  .content-list {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+    list-style: none;
+    margin: 0;
+    padding: 0 0 var(--space-1);
+  }
+
+  .content-row {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: var(--space-1) var(--space-3);
+    border: none;
+    background: transparent;
+    color: var(--text-secondary);
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .content-row:hover {
+    background: var(--bg-hover);
+  }
+
+  .content-row.active {
+    background: var(--accent-subtle);
+    color: var(--accent);
+  }
+
+  .content-title {
+    font-size: var(--text-sm-size);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .content-path,
+  .content-snippet {
+    font-size: var(--text-xs-size);
+    color: var(--text-tertiary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .name {
