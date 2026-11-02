@@ -249,6 +249,7 @@ describe('createDefaultRegistry', () => {
       'db-spec',
       'nosql-db-spec',
       'api-spec',
+      'investigation',
       'spec',
     ]);
   });

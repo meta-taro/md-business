@@ -5,6 +5,7 @@ import { testSpecPlugin } from './test-spec.js';
 import { dbSpecPlugin } from './db-spec.js';
 import { nosqlDbSpecPlugin } from './nosql-db-spec.js';
 import { apiSpecPlugin } from './api-spec.js';
+import { investigationPlugin } from './investigation.js';
 
 export { PluginRegistry };
 export type { SchemaPlugin } from './types.js';
@@ -14,6 +15,7 @@ export { testSpecPlugin };
 export { dbSpecPlugin };
 export { nosqlDbSpecPlugin };
 export { apiSpecPlugin };
+export { investigationPlugin };
 
 /**
  * Build the default registry shipped with the extension.
@@ -30,6 +32,10 @@ export { apiSpecPlugin };
  * must be evaluated first to win the route. db-spec / nosql-db-spec / api-spec
  * do not collide with each other (disjoint markers: `tables` / `テーブル`,
  * `collections` / `コレクション`, `endpoints` / `エンドポイント`).
+ *
+ * investigation is registered before spec for the same reason: a report carries
+ * `文書番号` / `レビュアー` too, and its `所見` / `対象ファイル` / `使用ツール`
+ * markers are the stricter claim.
  */
 export function createDefaultRegistry(): PluginRegistry {
   const registry = new PluginRegistry();
@@ -38,6 +44,7 @@ export function createDefaultRegistry(): PluginRegistry {
   registry.register(dbSpecPlugin);
   registry.register(nosqlDbSpecPlugin);
   registry.register(apiSpecPlugin);
+  registry.register(investigationPlugin);
   registry.register(specPlugin);
   return registry;
 }
