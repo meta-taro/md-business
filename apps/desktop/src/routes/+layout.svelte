@@ -17,6 +17,7 @@
     type ShortcutAction,
   } from '$lib/layout/shortcuts';
   import { search } from '$lib/search/search.svelte';
+  import { previewZoom } from '$lib/preview/previewZoomState.svelte';
   import TopBar from '$lib/components/TopBar.svelte';
   import MenuBar from '$lib/components/MenuBar.svelte';
   import { publish } from '$lib/preview/publishController.svelte';
@@ -163,6 +164,10 @@
     // iframe 内 Ctrl/Cmd+F は「プレビュー対象で検索バーを開く」に変換（発信元は必ずプレビュー）。
     if (action === 'find') {
       search.openFor('preview');
+      return;
+    }
+    if (action === 'zoomIn' || action === 'zoomOut' || action === 'zoomReset') {
+      previewZoom.apply(action);
       return;
     }
     runAction(action);

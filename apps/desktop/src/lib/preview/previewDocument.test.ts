@@ -103,6 +103,23 @@ describe('buildPreviewDocument', () => {
     expect(html).toContain('.mdb-api-spec { color: red; }');
   });
 
+  // 倍率は画面の上だけの話。印刷（PDF）は A4 の正本なので 100% のまま刷る。
+  it('表示倍率は画面用の指定にだけ効かせる', () => {
+    const html = buildPreviewDocument(base);
+    expect(html).toMatch(/@media screen \{[^}]*zoom: var\(--preview-zoom, 1\)/);
+  });
+
+  it('倍率のキーと Ctrl+ホイールを親へ渡す', () => {
+    const html = buildPreviewDocument(base);
+    for (const action of ['zoomIn', 'zoomOut', 'zoomReset']) expect(html).toContain(`'${action}'`);
+    expect(html).toContain("addEventListener('wheel'");
+    expect(html).toContain('passive: false');
+  });
+
+  it('書き出す HTML には倍率の仕掛けを入れない', () => {
+    expect(buildPreviewDocument({ ...base, shortcuts: false })).not.toContain('--preview-zoom');
+  });
+
   // 静的サイトは同じ CSS を何十ページも抱えることになるので、そこだけ外に出す。
   it('cssHref を渡すと CSS を埋め込まず外部参照にする', () => {
     const html = buildPreviewDocument({ ...base, cssHref: '../assets/api-spec.css' });

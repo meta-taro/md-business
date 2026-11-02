@@ -12,6 +12,9 @@
   import { imageExport } from '$lib/preview/imageExportController.svelte';
   import { previewReady, previewVisible, shouldRenderPreview } from '$lib/preview/previewGate';
   import { resolvePreviewLink } from '$lib/preview/previewLink';
+  import { MAX_ZOOM, MIN_ZOOM, formatZoom } from '$lib/preview/previewZoom';
+  import { previewZoom } from '$lib/preview/previewZoomState.svelte';
+  import { matchZoomShortcut } from '$lib/layout/shortcuts';
   import {
     frameWidth,
     nextViewport,
@@ -296,6 +299,20 @@
     void openRelativeDocument(link.path);
   }
 
+  // 倍率は iframe の中の文書へ入れる（枠ごと拡大すると、幅が足りずに横へはみ出す）。
+  // 文書は描き直すたびに入れ替わるので、読み込みのたびと倍率が変わったときに入れ直す。
+  function applyPreviewZoom(): void {
+    viewerFrame?.contentDocument?.documentElement.style.setProperty(
+      '--preview-zoom',
+      String(previewZoom.value),
+    );
+  }
+
+  $effect(() => {
+    void previewZoom.value;
+    applyPreviewZoom();
+  });
+
   // iframe ロード時: プレビュー側のユーザースクロールを検知して追従を止めるリスナーを張り、
   // 直近フォーカスへ 1 度だけ位置合わせする。srcdoc 再生成のたびに document が入れ替わり
   // リスナーも一緒に消えるので、毎ロードで張り直す（リーク無し）。
@@ -310,6 +327,7 @@
       win.addEventListener('keydown', cancelFollow);
       win.addEventListener('click', handlePreviewLinkClick);
     }
+    applyPreviewZoom();
     applyPreviewScroll();
     // srcdoc 再生成でハイライト（CSS.highlights）が失われるため、プレビュー検索が開いたまま
     // なら新しいドキュメントへ貼り直す（開いていない／別対象なら refresh は no-op）。
@@ -1212,6 +1230,14 @@
   // また Ctrl/Cmd+F は、エディター（CodeMirror が自前で処理）／プレビュー iframe（自前で
   // postMessage）以外の親フォーカス時のフォールバックとして共通 SearchBar を開く。
   function onWindowKey(event: KeyboardEvent): void {
+    // 倍率のキーは組み上げたプレビューが出ているときだけ受ける。それ以外で止めると、
+    // 入力欄の Ctrl+- などを意味もなく奪う。
+    const zoom = previewSearchable ? matchZoomShortcut(event) : null;
+    if (zoom !== null) {
+      event.preventDefault();
+      previewZoom.apply(zoom);
+      return;
+    }
     if ((event.ctrlKey || event.metaKey) && !event.altKey && !event.shiftKey) {
       if ((event.key || '').toLowerCase() === 'f') {
         // エディターにフォーカスがあれば CodeMirror 側が既に openFor('editor') 済み＝二重で開かない。
@@ -1639,6 +1665,33 @@
           {viewport === 'pc' ? t('page.viewportPhoneBtn') : t('page.viewportPcBtn')}
         </button>
       {/if}
+      {#if liveUrl === null && preview?.ok}
+        <!-- 倍率。待ち受けを映している間は出さない（出どころが別で、中へ手が届かない）。 -->
+        <span class="zoom-group" role="group" aria-label={t('page.previewZoomGroup')}>
+          <button
+            type="button"
+            class="head-btn"
+            onclick={() => previewZoom.apply('zoomOut')}
+            disabled={previewZoom.value <= MIN_ZOOM}
+            title={t('page.previewZoomOutTitle')}
+            aria-label={t('page.previewZoomOutTitle')}>−</button
+          >
+          <button
+            type="button"
+            class="head-btn zoom-value"
+            onclick={() => previewZoom.apply('zoomReset')}
+            title={t('page.previewZoomResetTitle')}>{formatZoom(previewZoom.value)}</button
+          >
+          <button
+            type="button"
+            class="head-btn"
+            onclick={() => previewZoom.apply('zoomIn')}
+            disabled={previewZoom.value >= MAX_ZOOM}
+            title={t('page.previewZoomInTitle')}
+            aria-label={t('page.previewZoomInTitle')}>+</button
+          >
+        </span>
+      {/if}
       <!-- 見る面だけにする。作っている最中は書く手が別（エージェント）なので、
            こちらは広く見えているほうが役に立つ。 -->
       <button
@@ -1984,6 +2037,24 @@
     text-overflow: ellipsis;
     text-transform: none;
     letter-spacing: normal;
+  }
+
+  .zoom-group {
+    flex: none;
+    display: inline-flex;
+    gap: 2px;
+  }
+
+  /* 数字が 3 桁と 2 桁で行き来しても、隣のボタンが動かないようにする */
+  .zoom-value {
+    min-width: 4.5em;
+    justify-content: center;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .head-btn:disabled {
+    opacity: 0.45;
+    cursor: default;
   }
 
   .head-btn {

@@ -458,6 +458,10 @@ export interface Messages {
   'page.previewRestoreTitle': string;
   'page.previewFullscreenBtn': string;
   'page.previewRestoreBtn': string;
+  'page.previewZoomGroup': string;
+  'page.previewZoomOutTitle': string;
+  'page.previewZoomInTitle': string;
+  'page.previewZoomResetTitle': string;
   /** 待ち受けをそのまま映しているときの、プレビュー面の名前。 */
   'page.livePreviewTitle': string;
   'page.sheetPreviewBtn': string;
@@ -1154,6 +1158,10 @@ const en: Messages = {
   'page.previewRestoreTitle': 'Back to split view (Esc)',
   'page.previewFullscreenBtn': '⤢ Fullscreen',
   'page.previewRestoreBtn': '↙ Back to split',
+  'page.previewZoomGroup': 'Zoom',
+  'page.previewZoomOutTitle': 'Zoom out (Ctrl+-)',
+  'page.previewZoomInTitle': 'Zoom in (Ctrl++)',
+  'page.previewZoomResetTitle': 'Reset to 100% (Ctrl+0)',
   'page.livePreviewTitle': 'Live preview',
   'page.sheetPreviewBtn': '🖨 Print view',
   'page.sheetPreviewTitle': 'See how the sheet prints, and export it to PDF / HTML / image',
@@ -1845,6 +1853,10 @@ const ja: Messages = {
   'page.previewRestoreTitle': '分割表示に戻す（Esc）',
   'page.previewFullscreenBtn': '⤢ 全画面',
   'page.previewRestoreBtn': '↙ 分割に戻す',
+  'page.previewZoomGroup': '表示倍率',
+  'page.previewZoomOutTitle': '縮小（Ctrl+-）',
+  'page.previewZoomInTitle': '拡大（Ctrl++）',
+  'page.previewZoomResetTitle': '100% に戻す（Ctrl+0）',
   'page.livePreviewTitle': '公開中のプレビュー',
   'page.sheetPreviewBtn': '🖨 下見',
   'page.sheetPreviewTitle': '紙に刷ったときの見た目を確かめる（PDF・HTML・画像はここから）',
@@ -2525,6 +2537,10 @@ const zh: Messages = {
   'page.previewRestoreTitle': '返回分屏视图（Esc）',
   'page.previewFullscreenBtn': '⤢ 全屏',
   'page.previewRestoreBtn': '↙ 返回分屏',
+  'page.previewZoomGroup': '缩放',
+  'page.previewZoomOutTitle': '缩小（Ctrl+-）',
+  'page.previewZoomInTitle': '放大（Ctrl++）',
+  'page.previewZoomResetTitle': '恢复为 100%（Ctrl+0）',
   'page.livePreviewTitle': '实时预览',
   'page.sheetPreviewBtn': '🖨 打印预览',
   'page.sheetPreviewTitle': '查看打印后的效果，并导出 PDF / HTML / 图片',
@@ -3208,6 +3224,10 @@ const ko: Messages = {
   'page.previewRestoreTitle': '분할 보기로 복귀 (Esc)',
   'page.previewFullscreenBtn': '⤢ 전체 화면',
   'page.previewRestoreBtn': '↙ 분할로 복귀',
+  'page.previewZoomGroup': '배율',
+  'page.previewZoomOutTitle': '축소（Ctrl+-）',
+  'page.previewZoomInTitle': '확대（Ctrl++）',
+  'page.previewZoomResetTitle': '100%로 되돌리기（Ctrl+0）',
   'page.livePreviewTitle': '실시간 미리보기',
   'page.sheetPreviewBtn': '🖨 인쇄 미리보기',
   'page.sheetPreviewTitle': '인쇄된 모습을 확인하고 PDF / HTML / 이미지로 내보내기',
