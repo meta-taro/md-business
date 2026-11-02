@@ -4,6 +4,20 @@ Changes to this app. Versions follow [Semantic Versioning](https://semver.org/).
 
 Japanese is the source of truth for this file; see [CHANGELOG.md](./CHANGELOG.md).
 
+## 0.33.0
+
+### Added
+
+- **Search by document title and body, not just file name.** Type in the filter box above the file tree and, below the name matches, a "found in title / body" list appears; click an entry to open it. Only Markdown and test sheets (`.tsv`) are read, and the index is built the first time you type. Rescanning the folder rebuilds it.
+
+- **Zoom the preview in and out** with the toolbar buttons, Ctrl (Cmd on Mac) + `+` / `-` / `0`, or Ctrl + mouse wheel — in full-screen too. Zoom steps from 50% to 300% and is kept for the next launch. **Printing and PDF export are always at 100%**; the zoom only changes what you see on screen.
+
+- **Switch the file tree to a thumbnail grid.** The grid shows documents as scaled-down pages; open a folder card to go in and use the breadcrumb to go back up. Images are shown scaled down as they are. Thumbnails are drawn only for the cards on screen, and scripts in the document do not run. The choice is kept for the next launch.
+
+### Changed
+
+- Architecture diagrams (```` ```zumen ````) are drawn with zumen 0.7.0: section links, accessible descriptions and pattern clipping now come through.
+
 ## 0.32.1
 
 ### Added
