@@ -126,6 +126,10 @@ class WorkspaceStore {
   expanded = $state<Set<string>>(new Set());
   /** 走査が深さ / 件数上限で打ち切られたか（警告表示用）。 */
   truncated = $state<boolean>(false);
+  /** 走査で得たファイルの並び（横断検索が本文を読む元）。 */
+  entries = $state.raw<DocEntry[]>([]);
+  /** 走査するたびに 1 増える。横断検索の索引が古くなったかをこれで見る。 */
+  scanGeneration = $state<number>(0);
   /**
    * 今開いているフォルダで、サイトの部品まで一覧に出しているか。
    *
@@ -738,6 +742,8 @@ class WorkspaceStore {
       browserPreview.syncRoot(root);
       this.truncated = result.truncated;
       this.siteVisible = includeSite;
+      this.entries = result.entries;
+      this.scanGeneration += 1;
       this.error = null;
       // 次回起動で自動復元できるよう、開けたフォルダを記憶する（WebView の localStorage）。
       if (browser) localStorage.setItem(LAST_FOLDER_KEY, root);

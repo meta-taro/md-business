@@ -215,6 +215,9 @@ export interface Messages {
   'tree.openFolder': string;
   'action.newWindow': string;
   'tree.filterNoMatch': string;
+  'tree.contentHits': string;
+  'tree.contentIndexing': string;
+  'tree.contentTruncated': string;
   'tree.noFiles': string;
   'tree.noFilesWeb': string;
   'tree.truncated': string;
@@ -895,7 +898,7 @@ const en: Messages = {
   'tree.collapseExplorer': 'Collapse explorer',
   'tree.explorer': 'Explorer',
   'tree.openOtherFolder': 'Open another folder',
-  'tree.filterPlaceholder': 'Filter by file name',
+  'tree.filterPlaceholder': 'Filter by name or search text',
   'tree.filterClearTitle': 'Clear filter (Esc)',
   'tree.filterClear': 'Clear filter',
   'tree.emptyHint': 'Open a folder to\nsee the document tree',
@@ -903,6 +906,9 @@ const en: Messages = {
   'tree.openFolder': 'Open folder',
   'action.newWindow': 'New window',
   'tree.filterNoMatch': 'No files match\n"{query}"',
+  'tree.contentHits': 'Found in titles and text',
+  'tree.contentIndexing': 'Reading files…',
+  'tree.contentTruncated': 'Too many files: some are matched by name only',
   'tree.noFiles': 'No .md / .tsv\nfiles found',
   'tree.noFilesWeb': 'Nothing here yet\nHTML / CSS show up too',
   'tree.truncated': 'Showing partial results (limit reached)',
@@ -1585,7 +1591,7 @@ const ja: Messages = {
   'tree.collapseExplorer': 'エクスプローラーを畳む',
   'tree.explorer': 'エクスプローラー',
   'tree.openOtherFolder': '別のフォルダを開く',
-  'tree.filterPlaceholder': 'ファイル名で絞り込み',
+  'tree.filterPlaceholder': 'ファイル名で絞り込み・本文を検索',
   'tree.filterClearTitle': 'フィルタをクリア（Esc）',
   'tree.filterClear': 'フィルタをクリア',
   'tree.emptyHint': 'フォルダを開くと\n文書ツリーが表示されます',
@@ -1593,6 +1599,9 @@ const ja: Messages = {
   'tree.openFolder': 'フォルダを開く',
   'action.newWindow': '別の窓を開く',
   'tree.filterNoMatch': '「{query}」に\n一致するファイルがありません',
+  'tree.contentHits': '題名・本文で見つかったもの',
+  'tree.contentIndexing': '本文を読んでいます…',
+  'tree.contentTruncated': '数が多いため、一部のファイルは名前だけで探しています',
   'tree.noFiles': '.md / .tsv が\n見つかりませんでした',
   'tree.noFilesWeb': 'まだ何もありません\nHTML / CSS もここに並びます',
   'tree.truncated': '一部のみ表示（上限に達したため打ち切りました）',
@@ -2265,7 +2274,7 @@ const zh: Messages = {
   'tree.collapseExplorer': '折叠资源管理器',
   'tree.explorer': '资源管理器',
   'tree.openOtherFolder': '打开其他文件夹',
-  'tree.filterPlaceholder': '按文件名筛选',
+  'tree.filterPlaceholder': '按文件名筛选或搜索正文',
   'tree.filterClearTitle': '清除筛选（Esc）',
   'tree.filterClear': '清除筛选',
   'tree.emptyHint': '打开文件夹后\n将显示文档树',
@@ -2273,6 +2282,9 @@ const zh: Messages = {
   'tree.openFolder': '打开文件夹',
   'action.newWindow': '打开新窗口',
   'tree.filterNoMatch': '没有匹配\n“{query}”的文件',
+  'tree.contentHits': '在标题和正文中找到',
+  'tree.contentIndexing': '正在读取正文…',
+  'tree.contentTruncated': '文件过多，部分文件仅按名称查找',
   'tree.noFiles': '未找到\n.md / .tsv 文件',
   'tree.noFilesWeb': '这里还是空的\nHTML / CSS 也会出现在这里',
   'tree.truncated': '仅显示部分（已达上限而截断）',
@@ -2942,7 +2954,7 @@ const ko: Messages = {
   'tree.collapseExplorer': '탐색기 접기',
   'tree.explorer': '탐색기',
   'tree.openOtherFolder': '다른 폴더 열기',
-  'tree.filterPlaceholder': '파일 이름으로 필터',
+  'tree.filterPlaceholder': '파일 이름으로 필터·본문 검색',
   'tree.filterClearTitle': '필터 지우기 (Esc)',
   'tree.filterClear': '필터 지우기',
   'tree.emptyHint': '폴더를 열면\n문서 트리가 표시됩니다',
@@ -2950,6 +2962,9 @@ const ko: Messages = {
   'tree.openFolder': '폴더 열기',
   'action.newWindow': '새 창 열기',
   'tree.filterNoMatch': '"{query}"과(와)\n일치하는 파일이 없습니다',
+  'tree.contentHits': '제목·본문에서 찾은 항목',
+  'tree.contentIndexing': '본문을 읽는 중…',
+  'tree.contentTruncated': '파일이 많아 일부는 이름으로만 찾습니다',
   'tree.noFiles': '.md / .tsv 파일을\n찾을 수 없습니다',
   'tree.noFilesWeb': '아직 아무것도 없습니다\nHTML / CSS도 여기에 표시됩니다',
   'tree.truncated': '일부만 표시 (상한에 도달하여 중단)',
