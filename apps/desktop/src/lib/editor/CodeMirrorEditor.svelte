@@ -4,6 +4,8 @@
   import { createEditorSearchBinding } from './editorSearchBinding';
   import { search } from '$lib/search/search.svelte';
   import type { EditorFocusInfo } from '$lib/layout/scrollSync';
+  import type { LineMark } from '$lib/presence/lineMarks';
+  import { t } from '$lib/i18n/i18n.svelte';
 
   // 親から初期値を受け取り、編集は onChange で親へ返す（一方向）。source の
   // 外部差し替え（別ファイルを開いた等）は $effect で setDoc に反映する。
@@ -20,8 +22,10 @@
      * になり、開き直しても寄らない。
      */
     caret?: { offset: number; seq: number } | null;
+    /** 同じ文書を開いている相手の居場所（行ごとの印）。 */
+    peerMarks?: readonly LineMark[];
   }
-  const { value, onChange, onSync, readOnly = false, caret = null }: Props = $props();
+  const { value, onChange, onSync, readOnly = false, caret = null, peerMarks = [] }: Props = $props();
 
   let host = $state<HTMLDivElement | null>(null);
   let editor: MarkdownEditorHandle | undefined;
@@ -57,6 +61,10 @@
 
   $effect(() => {
     editor?.setReadOnly(readOnly);
+  });
+
+  $effect(() => {
+    editor?.setPeerMarks({ marks: peerMarks, otherBranchNote: t('presence.otherBranch') });
   });
 
   // 外から指定された位置へ寄せる。本文は先に差し替わっているので、ここでは位置だけを見る。
