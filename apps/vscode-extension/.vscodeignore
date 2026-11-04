@@ -1,6 +1,7 @@
 **
 !dist/extension.cjs
 !dist/preview.js
+!dist/tsvGrid.js
 !dist/mcp-server.cjs
 !dist/styles/*.css
 !package.json
