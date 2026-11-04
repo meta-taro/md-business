@@ -1,6 +1,6 @@
 # md-business for VS Code
 
-Markdown-first business documents in VS Code: invoices, basic design specs, test specs, DB specs and API specs written as Markdown frontmatter + JSON Schema, plus test-spec sheets in TSV.
+Markdown-first business documents in VS Code: invoices, basic design specs, test specs, DB specs, API specs and investigation reports written as Markdown frontmatter + JSON Schema, plus test-spec sheets in TSV.
 
 **The problem it solves:** specs and invoices usually live in Word or Excel, where an AI agent can read them but cannot safely edit, validate or diff them. Here the document is a plain Markdown file in your repository. The agent edits it, the schema catches what it got wrong, Git keeps the history, and people read it as a printed document or a table.
 
@@ -8,7 +8,12 @@ Markdown-first business documents in VS Code: invoices, basic design specs, test
 
 1. **Schema errors in the Problems panel.** Documents that declare a schema (`schema: invoice/v1`, `schema: spec/v1`, …) are validated as you type and on save, and each error points at its line. Test-spec TSV files (first line `#! md-business:test-spec-tsv/v1`) are checked too: the header line, column definitions, required cells and values outside the allowed choices. Markdown files without a schema declaration are left alone.
 2. **See the document the way it is used.**
-   - **md-business: 業務文書としてプレビュー** (the briefcase button at the top right of the editor) opens the document as it will be printed, beside the source. Architecture diagrams written as `zumen` code blocks are drawn as diagrams.
+   - **md-business: 業務文書としてプレビュー** (the briefcase button at the top right of the editor) opens the document as it will be printed, beside the source. Code blocks are drawn as well:
+     - `zumen` — an architecture diagram written in the document itself.
+     - `chart` — a bar, line or pie chart from a TSV file next to the document (`source: data/sales.tsv`).
+     - `data` — a TSV file next to the document, quoted as a table.
+
+     A block that cannot be drawn stays in place with the reason above it (a missing file, an unknown chart type, a column that is not there).
 
      ![Basic design spec with an architecture diagram in the preview](images/preview-zumen.png)
 

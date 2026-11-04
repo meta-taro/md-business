@@ -47,6 +47,9 @@ importers:
       '@md-business/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@md-business/fences':
+        specifier: workspace:*
+        version: link:../../packages/fences
       '@md-business/renderer-pdf':
         specifier: workspace:*
         version: link:../../packages/renderer-pdf
@@ -56,6 +59,9 @@ importers:
       '@md-business/schema-db-spec':
         specifier: workspace:*
         version: link:../../packages/schema-db-spec
+      '@md-business/schema-investigation':
+        specifier: workspace:*
+        version: link:../../packages/schema-investigation
       '@md-business/schema-invoice':
         specifier: workspace:*
         version: link:../../packages/schema-invoice
@@ -68,6 +74,9 @@ importers:
       '@md-business/schema-test-spec':
         specifier: workspace:*
         version: link:../../packages/schema-test-spec
+      '@metataro/zumen':
+        specifier: ^0.7.0
+        version: 0.7.0
       buffer:
         specifier: ^6.0.3
         version: 6.0.3
@@ -144,6 +153,9 @@ importers:
       '@md-business/explorer':
         specifier: workspace:*
         version: link:../../packages/explorer
+      '@md-business/fences':
+        specifier: workspace:*
+        version: link:../../packages/fences
       '@md-business/mcp-server':
         specifier: workspace:*
         version: link:../../packages/mcp-server
@@ -272,6 +284,9 @@ importers:
       '@md-business/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@md-business/fences':
+        specifier: workspace:*
+        version: link:../../packages/fences
       '@md-business/mcp-server':
         specifier: workspace:*
         version: link:../../packages/mcp-server
@@ -387,6 +402,21 @@ importers:
         version: 3.2.7(@types/debug@4.1.13)(@types/node@22.20.1)(happy-dom@20.10.5)(jsdom@29.1.1)(yaml@2.9.1)
 
   packages/explorer:
+    devDependencies:
+      '@types/node':
+        specifier: ^22.10.0
+        version: 22.20.1
+      '@vitest/coverage-v8':
+        specifier: ^3.2.6
+        version: 3.2.7(vitest@3.2.7(@types/debug@4.1.13)(@types/node@22.20.1)(happy-dom@20.10.5)(jsdom@29.1.1)(yaml@2.9.1))
+      typescript:
+        specifier: ^5.6.3
+        version: 5.9.3
+      vitest:
+        specifier: ^3.2.6
+        version: 3.2.7(@types/debug@4.1.13)(@types/node@22.20.1)(happy-dom@20.10.5)(jsdom@29.1.1)(yaml@2.9.1)
+
+  packages/fences:
     devDependencies:
       '@types/node':
         specifier: ^22.10.0

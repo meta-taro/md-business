@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>md-business — business documents your AI agent can actually open</title>
-<meta name="description" content="Invoices, specifications and test sheets as Markdown with JSON Schema validation. People read PDF and Sheets; AI agents read, edit, validate and diff the same file. Desktop app with a built-in MCP server. MIT.">
+<meta name="description" content="Invoices, specifications, test sheets, API and database designs and investigation reports as Markdown with JSON Schema validation. People read PDF and Sheets; AI agents read, edit, validate and diff the same file. Desktop app with a built-in MCP server. MIT.">
 <link rel="canonical" href="https://meta-taro.github.io/md-business/">
 <link rel="alternate" hreflang="en" href="https://meta-taro.github.io/md-business/">
 <link rel="alternate" hreflang="ja" href="https://meta-taro.github.io/md-business/ja/">
@@ -15,12 +15,12 @@
 <meta property="og:locale:alternate" content="ja_JP">
 <meta property="og:url" content="https://meta-taro.github.io/md-business/">
 <meta property="og:title" content="md-business — business documents your AI agent can actually open">
-<meta property="og:description" content="Invoices, specifications and test sheets as Markdown. People read PDF and Sheets; agents read and edit the same file.">
+<meta property="og:description" content="Invoices, specifications, test sheets, API and database designs and investigation reports as Markdown. People read PDF and Sheets; agents read and edit the same file.">
 <meta property="og:image" content="https://meta-taro.github.io/md-business/screenshots/desktop-invoice.png">
 <meta property="og:image:alt" content="A qualified invoice open in the md-business desktop app, with the file tree on the left and the rendered document on the right.">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="md-business — business documents your AI agent can actually open">
-<meta name="twitter:description" content="Invoices, specifications and test sheets as Markdown. People read PDF and Sheets; agents read and edit the same file.">
+<meta name="twitter:description" content="Invoices, specifications, test sheets, API and database designs and investigation reports as Markdown. People read PDF and Sheets; agents read and edit the same file.">
 <meta name="twitter:image" content="https://meta-taro.github.io/md-business/screenshots/desktop-invoice.png">
 <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png">
 <link rel="icon" type="image/png" sizes="16x16" href="assets/favicon-16.png">
@@ -173,7 +173,7 @@ PDF · Sheets · Chrome · desktop  ← how people actually read it</code></pre>
   <div class="cards">
     <div class="card">
       <h3>invoice <span class="badge">stable</span></h3>
-      <p>Japan-compliant qualified invoice (適格請求書) with registration number, per-rate tax breakdown, and totals filled in for you.</p>
+      <p>Japan-compliant qualified invoice (適格請求書) with registration number, per-rate tax breakdown, and totals filled in for you. Quotes and receipts use the same format.</p>
     </div>
     <div class="card">
       <h3>spec <span class="badge">stable</span></h3>
@@ -181,15 +181,23 @@ PDF · Sheets · Chrome · desktop  ← how people actually read it</code></pre>
     </div>
     <div class="card">
       <h3>test-spec <span class="badge">stable</span></h3>
-      <p>Test sheets as a grid, with pass / fail / on-hold per case and a round trip to Google Sheets.</p>
+      <p>Test sheets in Markdown, with pass / fail / on-hold per case, an A4 PDF and a round trip to Google Sheets.</p>
     </div>
     <div class="card">
-      <h3>api-spec <span class="badge muted">planned</span></h3>
+      <h3>test-spec-tsv <span class="badge">stable</span></h3>
+      <p>Test sheets as a tab-separated file that opens as a grid: sort, filter, narrow to the rows you need, then print.</p>
+    </div>
+    <div class="card">
+      <h3>api-spec <span class="badge">stable</span></h3>
       <p>API endpoint specifications with request / response shapes and example payloads.</p>
     </div>
     <div class="card">
-      <h3>db-spec / nosql-db-spec <span class="badge muted">planned</span></h3>
+      <h3>db-spec / nosql-db-spec <span class="badge">stable</span></h3>
       <p>RDB and NoSQL schema design documents with field-level definitions and relationships.</p>
+    </div>
+    <div class="card">
+      <h3>investigation <span class="badge">stable</span></h3>
+      <p>Investigation reports with a cover, a list of findings, and the evidence files the findings cite.</p>
     </div>
   </div>
 </section>
@@ -201,9 +209,11 @@ PDF · Sheets · Chrome · desktop  ← how people actually read it</code></pre>
       <h3>Desktop app <span class="badge">Windows / macOS</span></h3>
       <p>
         Standalone viewer and editor (Tauri 2 + SvelteKit). Purpose-built viewers for each document type,
-        live split-view editing, A4 PDF export, self-updating. A built-in MCP server lets an AI client
+        live split-view editing, A4 PDF export, self-updating. Search titles and bodies across the folder,
+        switch the file list to thumbnails, zoom the preview, and draw <code>zumen</code>, <code>chart</code>
+        and <code>data</code> blocks. A built-in MCP server lets an AI client
         (Claude Code, Claude Desktop, Cursor, Cline, …) read and write the documents in the folder you
-        have open — copy the connection settings from the MCP tab and paste them once.
+        have open — from the MCP tab, add the settings to the open folder or copy them into your client once.
         <br>
         <a href="download/">Download →</a> &nbsp; <a href="manual/#mcp">Connect an AI assistant →</a>
         &nbsp; <a href="manual/">User guide →</a>
@@ -212,7 +222,8 @@ PDF · Sheets · Chrome · desktop  ← how people actually read it</code></pre>
     <div class="card">
       <h3>Chrome extension <span class="badge">published</span></h3>
       <p>
-        Open a local <code>.md</code> in Chrome, preview it as a rendered business document, and export to A4 PDF.
+        Open a local <code>.md</code> in Chrome, preview it as a rendered business document — every type, including
+        investigation reports and <code>zumen</code> diagrams — and export to A4 PDF.
         <br>
         <a href="https://chromewebstore.google.com/detail/lmdplkkfmgapnhombimeohjliinifgjh">Install from Chrome Web Store →</a>
       </p>
@@ -220,7 +231,8 @@ PDF · Sheets · Chrome · desktop  ← how people actually read it</code></pre>
     <div class="card">
       <h3>VS Code extension <span class="badge">published</span></h3>
       <p>
-        Schema errors in the Problems panel, a print preview beside the source, test-spec TSV as a grid,
+        Schema errors in the Problems panel, a print preview beside the source (investigation reports,
+        <code>zumen</code> diagrams and <code>chart</code> / <code>data</code> blocks included), test-spec TSV as a grid,
         and the md-business MCP tools in Copilot agent mode.
         <br>
         <a href="https://marketplace.visualstudio.com/items?itemName=meta-taro.md-business-vscode">Install from VS Code Marketplace →</a>
@@ -234,7 +246,7 @@ PDF · Sheets · Chrome · desktop  ← how people actually read it</code></pre>
       </p>
     </div>
     <div class="card">
-      <h3>PWA viewer <span class="badge muted">in development</span></h3>
+      <h3>PWA viewer <span class="badge muted">planned</span></h3>
       <p>Astro 5 + Lit web components viewer for browser-based preview without installation.</p>
     </div>
     <div class="card">
@@ -269,15 +281,15 @@ PDF · Sheets · Chrome · desktop  ← how people actually read it</code></pre>
     it fixes the document.
   </p>
   <p class="note">
-    <code>```zumen</code> fences arrive with the next desktop release.
+    <code>```zumen</code> fences are drawn in the desktop app, the VS Code extension and the Chrome extension.
   </p>
 </section>
 
 <section>
   <h2>Not there yet</h2>
   <ul>
-    <li><strong>api-spec and db-spec are not implemented.</strong> If those are the documents you need, this is not ready for you yet.</li>
     <li><strong>The Google Workspace add-on is still under review</strong>, so the Sheets round trip cannot be installed from the Marketplace.</li>
+    <li><strong>The Chrome extension cannot draw <code>chart</code> or <code>data</code> blocks.</strong> Both read a TSV file next to the document, and the extension only receives the one file you opened. It shows the reason instead; open the document in the desktop app or VS Code to see them drawn.</li>
     <li><strong>The schemas are Japan-first.</strong> The invoice follows the Japanese qualified-invoice rules; other tax regimes are not modelled.</li>
     <li><strong>There is no server and no account.</strong> Files stay on your disk and in your Git repository. That is deliberate — but it also means there is nothing to share a document from except the repository itself.</li>
   </ul>

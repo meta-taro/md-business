@@ -1,15 +1,27 @@
 # @md-business/chrome-extension
 
 Markdown ファースト × 業務文書ビューワー（Chrome 拡張・MV3）。
-ローカルの `.md` を開いて **適格請求書** として描画し、ブラウザの印刷ダイアログから PDF 保存します。
+ローカルの `.md` を開いて業務文書として描画し、ブラウザの印刷ダイアログから A4 の PDF に保存します。
 
-## できること（Phase 1-MVP）
+## できること
 
-- ✅ ローカルの `.md` を開く（ポップアップから drag-and-drop / file picker）
-- ✅ ローカルの `.md` をブラウザで開いた瞬間に自動レンダ（`file://` ホスト権限・要 chrome://extensions で有効化）
-- ✅ frontmatter から `schema:` または `schemaVersion:` を読み取って描画
-- ✅ 「PDF として保存」ボタン → ブラウザ印刷ダイアログ
-- ✅ SchemaPlugin インタフェースで v1.1+ のテスト設計書・基本仕様書を追加可能
+- ローカルの `.md` を開く（ポップアップへドロップ / ファイル選択 / テンプレートから始める）
+- `file://` の `.md` をブラウザで開いた瞬間に描画（拡張のカードで「ファイルの URL へのアクセスを許可」を ON）
+- frontmatter から書式を判定して描画する。扱える書式:
+  - 適格請求書（見積書・領収書を含む）
+  - 基本設計書
+  - 検証シート（Markdown 系統）
+  - DB 設計書（RDB / NoSQL）
+  - API 仕様書
+  - 調査報告書
+- Mermaid 図と構成図（` ```zumen `）を描く
+- 書き換えた内容をファイルへ保存（Ctrl+S / Ctrl+Shift+S）
+- 「PDF として保存」→ 印刷ダイアログ
+
+### できないこと
+
+- グラフ（` ```chart `）とデータ（` ```data `）の囲みは描かない。どちらも隣のファイルを読む指定で、拡張は開いた 1 枚しか受け取らないため。囲みの位置に理由を出す。デスクトップアプリか VS Code 拡張で開けば描ける。
+- 検証シートの TSV 系統（`.tsv`）は扱わない。デスクトップアプリか VS Code 拡張で開く。
 
 ## 開発手順
 
@@ -17,13 +29,8 @@ Markdown ファースト × 業務文書ビューワー（Chrome 拡張・MV3）
 # ルートで一回だけ
 pnpm install
 
-# 依存パッケージをビルド（最初のみ）
-pnpm --filter @md-business/core build
-pnpm --filter @md-business/schema-invoice build
-pnpm --filter @md-business/renderer-pdf build
-
-# 拡張をビルド（dist/ に出る）
-pnpm --filter @md-business/chrome-extension build
+# 拡張をビルド（依存パッケージもまとめてビルドされ、dist/ に出る）
+pnpm turbo run build --filter @md-business/chrome-extension
 ```
 
 ## Chrome に読み込む（unpacked）
@@ -47,7 +54,7 @@ pnpm --filter @md-business/chrome-extension build
 | `inbound-eligible.md` | 英語フィールド名・軽減税率（8%）込み | <https://raw.githubusercontent.com/meta-taro/md-business/main/templates/invoice/inbound-eligible.md> |
 
 1. 拡張のアイコンをクリック → ポップアップが出る
-2. 上記いずれかの `.md` をドロップ（または v0.1.1 以降は popup の「テンプレートから始める」ボタンを 1 クリック）
+2. 上記いずれかの `.md` をドロップ（または popup の「テンプレートから始める」ボタンを 1 クリック）
 3. 新しいタブに請求書が描画される
 4. 「PDF として保存」ボタン → 印刷ダイアログ → 「PDF に保存」
 
@@ -61,18 +68,25 @@ src/
 ├── plugins/
 │   ├── types.ts             # SchemaPlugin インタフェース
 │   ├── registry.ts          # frontmatter から該当プラグインを解決
-│   ├── invoice.ts           # 請求書プラグイン（Phase 1-MVP）
+│   ├── invoice.ts           # 請求書（見積書・領収書を含む）
+│   ├── spec.ts              # 基本設計書
+│   ├── test-spec.ts         # 検証シート（Markdown 系統）
+│   ├── db-spec.ts / nosql-db-spec.ts / api-spec.ts
+│   ├── investigation.ts     # 調査報告書
 │   └── index.ts             # createDefaultRegistry()
 └── shared/
     ├── loadMarkdown.ts      # 純粋ロジック（DOM 非依存・テスト容易）
+    ├── fences.ts            # 図・データ・構成図の囲みを描く前処理
     └── storage.ts           # chrome.storage.session キー定義
 ```
 
 依存:
 
 - `@md-business/core` — frontmatter パーサ + JSON Schema 検証（Ajv2020）
-- `@md-business/schema-invoice` — 適格請求書 v1 スキーマ
-- `@md-business/renderer-pdf` — HTML 描画と `invoice.css`
+- `@md-business/schema-*` — 書式ごとの JSON Schema と正規化
+- `@md-business/fences` — 図・データ・構成図の囲み（デスクトップアプリ・VS Code 拡張と共通）
+- `@metataro/zumen` — 構成図の描画（使うときだけ読み込む）
+- `@md-business/renderer-pdf` — 書式ごとの HTML 描画と CSS
 - `pagedjs` — `@page` ルールとページネーション（vendor/ に同梱）
 
 ## SchemaPlugin を追加する
@@ -94,7 +108,7 @@ export const designDocPlugin: SchemaPlugin<DesignDoc> = {
 
 ## Chrome Web Store 提出（参考）
 
-Issue #10 を参照。掲載アイコン・スクリーンショット（1280×800 × 3〜5）・PRIVACY.md は別途準備します。
+提出用 zip は `pnpm release` で `release/` に出ます（バージョンを上げるときは `pnpm release:minor` など）。
 申請はパブリッシャーアカウントを持つ人間が行います。
 
 ## ライセンス

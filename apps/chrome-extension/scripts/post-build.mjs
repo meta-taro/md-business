@@ -23,7 +23,7 @@ async function copySchemaCss() {
   const stylesDir = resolve(ROOT, '..', '..', 'packages', 'renderer-pdf', 'src', 'styles');
   const destDir = resolve(DIST, 'styles');
   await ensureDir(destDir);
-  for (const file of ['invoice.css', 'spec.css', 'test-spec.css', 'db-spec.css', 'nosql-db-spec.css', 'api-spec.css']) {
+  for (const file of ['invoice.css', 'spec.css', 'test-spec.css', 'db-spec.css', 'nosql-db-spec.css', 'api-spec.css', 'investigation.css']) {
     await copyFile(resolve(stylesDir, file), resolve(destDir, file));
     console.log(`[post-build] copied ${file}`);
   }
@@ -163,11 +163,25 @@ const STARTER_TEMPLATES = [
     label: '日本語フィールド名・検証シート（ログイン機能サンプル）',
     description: '列定義（プルダウン / 日付 / 数値）と検証手順表を含む検証シート。Google Sheets 連携 + GitHub 自動同期に対応。日本語キー。',
   },
+  {
+    schema: 'api-spec',
+    category: 'API 詳細設計書',
+    file: 'standard-ja.md',
+    label: '日本語フィールド名・API 詳細設計書（受発注サブシステム）',
+    description: 'エンドポイント・リクエスト / レスポンス・エラーコードを表で並べる API 詳細設計書サンプル。日本語キー。',
+  },
+  {
+    schema: 'investigation',
+    category: '調査報告書',
+    file: 'standard-ja.md',
+    label: '日本語フィールド名・調査報告書（ログイン失敗の調査）',
+    description: '対象ファイル・使用ツール・所見（根拠つき）を並べる調査報告書サンプル。日本語キー。',
+  },
 ];
 
 // Display order for category sections in the popup. Templates whose category
 // is not listed here fall back to the end (preserves insertion order).
-const CATEGORY_ORDER = ['適格請求書', '免税事業者', '基本設計書', '検証シート'];
+const CATEGORY_ORDER = ['適格請求書', '免税事業者', '基本設計書', 'API 詳細設計書', '検証シート', '調査報告書'];
 
 async function copyStarterTemplates() {
   const repoRoot = resolve(ROOT, '..', '..');

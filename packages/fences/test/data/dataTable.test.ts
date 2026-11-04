@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { toDataScript, toMarkdownTable } from './dataTable';
+import { toDataScript, toMarkdownTable } from '../../src/data/dataTable.js';
 
 const TABLE = { columns: ['月', '売上'], rows: [['1月', '120'], ['2月', '']] };
 

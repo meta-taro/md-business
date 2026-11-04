@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { renderChartSvg } from './chartSvg';
-import type { ChartData } from './chartData';
+import { renderChartSvg } from '../../src/chart/chartSvg.js';
+import type { ChartData } from '../../src/chart/chartData.js';
 
 function data(over: Partial<ChartData> = {}): ChartData {
   return {
