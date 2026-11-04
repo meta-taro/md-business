@@ -21,6 +21,7 @@ import { HighlightStyle, syntaxHighlighting } from '@codemirror/language';
 import { tags as t } from '@lezer/highlight';
 import type { EditorFocusInfo } from '$lib/layout/scrollSync';
 import { searchHighlightField } from './editorSearchBinding';
+import { peerMarksField, setPeerMarks, type PeerMarksPayload } from './peerMarksField';
 import { diffEdit } from './textDiff';
 
 export interface MarkdownEditorOptions {
@@ -64,6 +65,8 @@ export interface MarkdownEditorHandle {
    * （自動保存は本文が変わったときだけ動くため）。
    */
   setReadOnly(flag: boolean): void;
+  /** 同じ文書を開いている相手の居場所を描き直す。文書は書き換えない。 */
+  setPeerMarks(payload: PeerMarksPayload): void;
   /** リソース破棄（onDestroy から呼ぶ）。 */
   destroy(): void;
 }
@@ -119,6 +122,35 @@ const tokenTheme = EditorView.theme({
     color: 'var(--bg-app)',
     outline: '1px solid var(--accent)',
   },
+  // 相手の居場所。行の左端の色帯と、行の終わりの名前札。色相は名前から決まる（--peer-hue）。
+  '.cm-peer-line': {
+    boxShadow: 'inset 3px 0 0 hsl(var(--peer-hue) 70% 50%)',
+  },
+  '.cm-peer-names': {
+    marginLeft: 'var(--space-2)',
+    userSelect: 'none',
+  },
+  '.cm-peer-name': {
+    display: 'inline-block',
+    marginLeft: '4px',
+    padding: '0 6px',
+    borderRadius: '3px',
+    fontFamily: 'var(--font-ui)',
+    fontSize: 'var(--text-xs-size)',
+    lineHeight: '1.6',
+    color: '#fff',
+    backgroundColor: 'hsl(var(--peer-hue) 70% 42%)',
+  },
+  // 45 秒届いていない相手は薄く。落ちたのか、ただ止まっているのかは分からないため消さない。
+  '.cm-peer-faded': {
+    opacity: '0.45',
+  },
+  // 別のブランチを見ている相手は、同じ行番号でも中身が違いうる。枠だけにして区別する。
+  '.cm-peer-other-branch': {
+    color: 'hsl(var(--peer-hue) 70% 42%)',
+    backgroundColor: 'transparent',
+    outline: '1px dashed hsl(var(--peer-hue) 70% 42%)',
+  },
 });
 
 // 構文ハイライトも CSS 変数で。Markdown（見出し/強調/リンク/コード/引用/罫線）と
@@ -150,6 +182,7 @@ function baseExtensions(): Extension {
     syntaxHighlighting(tokenHighlight),
     tokenTheme,
     searchHighlightField,
+    peerMarksField,
     EditorState.tabSize.of(2),
     EditorView.lineWrapping,
   ];
@@ -271,6 +304,9 @@ export function createMarkdownEditor(options: MarkdownEditorOptions): MarkdownEd
       view.dispatch({
         effects: readOnlyCompartment.reconfigure(readOnlyExtension(flag)),
       });
+    },
+    setPeerMarks(payload: PeerMarksPayload): void {
+      view.dispatch({ effects: setPeerMarks.of(payload) });
     },
     destroy(): void {
       scroller?.removeEventListener('scroll', handleScroll);

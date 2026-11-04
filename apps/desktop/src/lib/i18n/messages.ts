@@ -14,6 +14,8 @@ export interface Messages {
   'app.unsavedLong': string;
   // 汎用
   'common.close': string;
+  // 同時編集の居場所
+  'presence.otherBranch': string;
   // 上のメニュー行
   'menu.bar': string;
   'menu.file': string;
@@ -722,6 +724,7 @@ const en: Messages = {
   'app.unsaved': 'Unsaved',
   'app.unsavedLong': 'You have unsaved changes',
   'common.close': 'Close',
+  'presence.otherBranch': 'on another branch',
   'menu.bar': 'Menu bar',
   'menu.file': 'File',
   'menu.export': 'Export',
@@ -1424,6 +1427,7 @@ const ja: Messages = {
   'app.unsaved': '未保存',
   'app.unsavedLong': '未保存の変更があります',
   'common.close': '閉じる',
+  'presence.otherBranch': '別のブランチ',
   'menu.bar': 'メニュー',
   'menu.file': 'ファイル',
   'menu.export': '書き出し',
@@ -2119,6 +2123,7 @@ const zh: Messages = {
   'app.unsaved': '未保存',
   'app.unsavedLong': '有未保存的更改',
   'common.close': '关闭',
+  'presence.otherBranch': '其他分支',
   'menu.bar': '菜单栏',
   'menu.file': '文件',
   'menu.export': '导出',
@@ -2808,6 +2813,7 @@ const ko: Messages = {
   'app.unsaved': '저장 안 됨',
   'app.unsavedLong': '저장하지 않은 변경 사항이 있습니다',
   'common.close': '닫기',
+  'presence.otherBranch': '다른 브랜치',
   'menu.bar': '메뉴',
   'menu.file': '파일',
   'menu.export': '내보내기',
