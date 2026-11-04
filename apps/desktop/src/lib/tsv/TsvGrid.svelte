@@ -25,6 +25,7 @@
     validateTsv,
   } from '@md-business/schema-test-spec-tsv';
   import { isMarked, toggleMarks } from './gridMarks';
+  import type { CellMark } from '$lib/presence/cellMarks';
   import {
     addAnnotation,
     annotationFlagText,
@@ -250,6 +251,8 @@
     conditions?: ReadonlyMap<number, ColumnCondition>;
     /** 列の絞り込み条件を置く（null でその列の条件を外す）。 */
     onColumnFilter?: (col: number, condition: ColumnCondition | null) => void;
+    /** 同じ表を開いている相手の居場所（セルごと）。文書は書き換えず、枠と名前だけ出す。 */
+    peerMarks?: readonly CellMark[];
   }
 
   let {
@@ -279,6 +282,7 @@
     onSort,
     conditions = new Map(),
     onColumnFilter,
+    peerMarks = [],
   }: Props = $props();
 
   // 前に見ていた位置。組み立て時に 1 度だけ読み、今の表の大きさへ収める。
@@ -316,6 +320,23 @@
   // 手で付けた印（#@ mark）。前の版との突き合わせに落ちない例外だけを指す逃げ道で、
   // 比べていない間も出す（比べようがないから手で付けている、という場面がある）。
   const marks = $derived(readMarks(doc.directives));
+
+  // 相手の居場所。セルを描くたびに配列を探さないよう、行と列の組で引けるようにしておく。
+  const peerMarksByCell = $derived(new Map(peerMarks.map((mark) => [`${mark.row}:${mark.col}`, mark])));
+
+  /** そのセルにいる相手。いなければ undefined。 */
+  function peersAt(row: number, col: number): CellMark['peers'] | undefined {
+    return peerMarksByCell.get(`${row}:${col}`)?.peers;
+  }
+
+  /** 名前札のホバーに出す説明。別のブランチ・位置がずれうることを添える。 */
+  function peerTitle(peer: CellMark['peers'][number]): string {
+    const notes = [
+      ...(peer.otherBranch ? [t('presence.otherBranch')] : []),
+      ...(peer.shifts ? [t('presence.mayShift')] : []),
+    ];
+    return notes.length === 0 ? peer.who : `${peer.who}（${notes.join('・')}）`;
+  }
 
   /** 手で印を付けたセルか。 */
   function isMarkedCell(row: number, col: number): boolean {
@@ -2129,6 +2150,7 @@
                 widget?.kind !== 'number' &&
                 spillsRight(doc.rows[r] ?? [], c, doc.columns.length)}
               {@const annots = cellAnnots(r, c)}
+              {@const here = peersAt(r, c)}
               <td
                 class:invalid={issue !== undefined}
                 class:active
@@ -2146,6 +2168,10 @@
                 class:computed={isLocked(c)}
                 class:diff-changed={isChangedCell(r, c) || isMarkedCell(r, c)}
                 class:annotated={annots.length > 0}
+                class:peer-here={here !== undefined}
+                class:peer-faded={here !== undefined && here.every((p) => p.faded)}
+                class:peer-other-branch={here !== undefined && here.every((p) => p.otherBranch)}
+                style={here === undefined ? undefined : `--peer-hue: ${here[0]?.hue ?? 0}`}
                 title={issue ?? (isLocked(c) ? t('grid.computedCell') : diffTitle(r, c))}
                 data-cell={`${r}-${c}`}
                 onkeydown={(e) => onGridKeydown(r, c, e)}
@@ -2285,6 +2311,20 @@
                         >{/if}
                     {/if}
                   </div>
+                {/if}
+                {#if here !== undefined}
+                  <!-- 相手の名前札。セルの左上に出す。押してもセルの選択として届く（td が受ける）。 -->
+                  <span class="peer-names">
+                    {#each here as peer (peer.who)}
+                      <span
+                        class="peer-name"
+                        class:faded={peer.faded}
+                        class:other-branch={peer.otherBranch}
+                        style={`--peer-hue: ${peer.hue}`}
+                        title={peerTitle(peer)}>{peer.shifts ? `≈ ${peer.label}` : peer.label}</span
+                      >
+                    {/each}
+                  </span>
                 {/if}
                 {#if annots.length > 0}
                   <!-- 注釈の印と本文。印だけ出して本文はホバー / フォーカスで開く。常に出すと
@@ -3562,6 +3602,56 @@
      表が読めなくなり、押さないと出ない形にすると付いていること自体に気づかれない。 */
   td.annotated {
     position: relative;
+  }
+
+  /* 相手の居場所。色相は名前から決まる（--peer-hue）。選択リングと重ならないよう内側に引く。 */
+  td.peer-here {
+    position: relative;
+    box-shadow: inset 0 0 0 2px hsl(var(--peer-hue) 70% 50%);
+  }
+
+  /* 45 秒届いていない相手は薄く。落ちたのか、ただ止まっているのかは分からないため消さない。 */
+  td.peer-faded {
+    box-shadow: inset 0 0 0 2px hsl(var(--peer-hue) 70% 50% / 0.45);
+  }
+
+  /* 別のブランチを見ている相手は、同じセルでも中身が違いうる。点線にして区別する。 */
+  td.peer-other-branch {
+    box-shadow: none;
+    outline: 2px dashed hsl(var(--peer-hue) 70% 50%);
+    outline-offset: -2px;
+  }
+
+  .peer-names {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 1;
+    display: flex;
+    gap: 2px;
+    max-width: 100%;
+    overflow: hidden;
+  }
+
+  .peer-name {
+    padding: 0 4px;
+    border-bottom-right-radius: var(--radius-sm, 4px);
+    font-size: var(--text-2xs-size, 10px);
+    line-height: 1.4;
+    white-space: nowrap;
+    color: #fff;
+    background: hsl(var(--peer-hue) 70% 42%);
+  }
+
+  .peer-name.faded {
+    opacity: 0.45;
+  }
+
+  .peer-name.other-branch {
+    color: hsl(var(--peer-hue) 70% 42%);
+    background: var(--bg-app);
+    outline: 1px dashed hsl(var(--peer-hue) 70% 42%);
+    outline-offset: -1px;
   }
 
   .annot-flag {

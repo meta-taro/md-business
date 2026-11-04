@@ -16,6 +16,7 @@ export interface Messages {
   'common.close': string;
   // 同時編集の居場所
   'presence.otherBranch': string;
+  'presence.mayShift': string;
   // 上のメニュー行
   'menu.bar': string;
   'menu.file': string;
@@ -725,6 +726,7 @@ const en: Messages = {
   'app.unsavedLong': 'You have unsaved changes',
   'common.close': 'Close',
   'presence.otherBranch': 'on another branch',
+  'presence.mayShift': 'position may shift (this table has no row IDs)',
   'menu.bar': 'Menu bar',
   'menu.file': 'File',
   'menu.export': 'Export',
@@ -1428,6 +1430,7 @@ const ja: Messages = {
   'app.unsavedLong': '未保存の変更があります',
   'common.close': '閉じる',
   'presence.otherBranch': '別のブランチ',
+  'presence.mayShift': '位置がずれることがある（行 ID の無い表）',
   'menu.bar': 'メニュー',
   'menu.file': 'ファイル',
   'menu.export': '書き出し',
@@ -2124,6 +2127,7 @@ const zh: Messages = {
   'app.unsavedLong': '有未保存的更改',
   'common.close': '关闭',
   'presence.otherBranch': '其他分支',
+  'presence.mayShift': '位置可能有偏差（此表没有行 ID）',
   'menu.bar': '菜单栏',
   'menu.file': '文件',
   'menu.export': '导出',
@@ -2814,6 +2818,7 @@ const ko: Messages = {
   'app.unsavedLong': '저장하지 않은 변경 사항이 있습니다',
   'common.close': '닫기',
   'presence.otherBranch': '다른 브랜치',
+  'presence.mayShift': '위치가 어긋날 수 있음 (행 ID가 없는 표)',
   'menu.bar': '메뉴',
   'menu.file': '파일',
   'menu.export': '내보내기',
