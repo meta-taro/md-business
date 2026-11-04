@@ -94,7 +94,7 @@ await build({
 });
 
 // 文書種別ごとの見た目は Chrome 拡張と同じ CSS を使う。
-const STYLES = ['invoice', 'spec', 'test-spec', 'db-spec', 'nosql-db-spec', 'api-spec'];
+const STYLES = ['invoice', 'spec', 'test-spec', 'db-spec', 'nosql-db-spec', 'api-spec', 'investigation'];
 const stylesSrc = resolve(ROOT, '../../packages/renderer-pdf/src/styles');
 const stylesDest = resolve(ROOT, 'dist/styles');
 await mkdir(stylesDest, { recursive: true });

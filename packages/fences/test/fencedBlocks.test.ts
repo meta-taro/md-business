@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { collectFencedBlocks, replaceFencedBlocks } from './fencedBlocks';
+import { collectFencedBlocks, replaceFencedBlocks } from '../src/fencedBlocks.js';
 
 const F = '```';
 

@@ -60,7 +60,7 @@
 <section>
   <p>
     <strong>md-business</strong> デスクトップアプリは、Markdown で書いた業務文書（適格請求書・基本設計書・
-    検証シート・API / DB 設計書）を開き、文書種別ごとの専用プレビューを表示します。左側の Markdown を
+    検証シート・API / DB 設計書・調査報告書）を開き、文書種別ごとの専用プレビューを表示します。左側の Markdown を
     編集すると、右側のプレビューがその場で更新されます。仕上がったら A4 PDF に出力できます。すべての処理は
     お使いの PC の中だけで完結し、アカウント登録も外部送信もありません。
   </p>
@@ -69,8 +69,15 @@
 <section id="install">
   <h2>1. インストールと初回起動</h2>
   <ol>
-    <li><a href="../../download/">ダウンロードページ</a>からインストーラ（Windows <code>.msi</code> /
-      macOS <code>.dmg</code>）を入手して実行します。</li>
+    <li><a href="../../download/">ダウンロードページ</a>からインストーラを入手して実行します。
+      ページを開いた PC に合うものが最初に表示されます。自分で選ぶ場合は次のとおりです。
+      <ul>
+        <li><strong>Windows（Intel / AMD の PC）</strong> — 名前に <code>x64</code> が入った <code>.msi</code>（推奨）または <code>.exe</code></li>
+        <li><strong>Windows（Snapdragon などの ARM の PC）</strong> — 名前に <code>arm64</code> が入った <code>.msi</code> または <code>.exe</code></li>
+        <li><strong>macOS</strong> — <code>.dmg</code></li>
+      </ul>
+      <code>.msi</code> は PC の全ユーザー向けに、<code>.exe</code> はログイン中のユーザーだけに入ります。
+      PC の種類は「設定 → システム → バージョン情報」の「システムの種類」で確かめられます。</li>
     <li>初回起動時に「発行元不明」の警告が出ることがあります（現在コード署名は未対応のため）。
       Windows は <strong>「詳細情報」→「実行」</strong>、macOS は <strong>アプリを右クリック →「開く」</strong>
       を 1 回行ってください。詳しくは<a href="#trouble">「困ったときは」</a>を参照。</li>
@@ -87,9 +94,11 @@
       <strong>保存</strong>・<strong>PDF</strong>・<strong>テーマ</strong>（ライト / ダーク）・
       <strong>ヘルプ</strong>、およびウィンドウの最小化 / 最大化 / 閉じるボタン。</li>
     <li><strong>左レール</strong> — 開いたフォルダのファイルツリーと、変更されたファイルを示すソース管理欄。
-      ファイルをクリックすると開きます。</li>
+      ファイルをクリックすると開きます。上部の絞り込み欄で文書を探せ、一覧はツリーとサムネイルを切り替えられます
+      （<a href="#open">第 3 項</a>）。</li>
     <li><strong>中央</strong> — 左右 2 分割。左が <strong>Markdown エディター</strong>、右が
-      <strong>プレビュー</strong>。間の仕切りをドラッグすると幅を変えられます。</li>
+      <strong>プレビュー</strong>。間の仕切りをドラッグすると幅を変えられます。プレビューは拡大・縮小できます
+      （<a href="#edit">第 4 項</a>）。</li>
   </ul>
 </section>
 
@@ -110,9 +119,23 @@
     <strong>新しい文書を作るには。</strong>検証シートはアプリ内で作れます（<a href="#testsheet">第 6 項</a>）。
     請求書や設計書など他の文書は、ひな型をフォルダにコピーして始めます。リポジトリの
     <a href="https://github.com/meta-taro/md-business/tree/main/templates"><code>templates/</code></a>
-    に invoice / spec / test-spec / api-spec のひな型があります。ファイルをフォルダに置くとツリーに現れ、
+    に invoice / spec / test-spec / api-spec / investigation のひな型があります。ファイルをフォルダに置くとツリーに現れ、
     開いて編集できます。
   </div>
+
+  <h3>文書を探す</h3>
+  <p>
+    左レール上部の絞り込み欄（<strong>「ファイル名で絞り込み・本文を検索」</strong>）に言葉を打つと、ファイル名で当たったものの下に
+    <strong>「題名・本文で見つかったもの」</strong>が並びます。フォルダ全体の Markdown と検証シート（<code>.tsv</code>）の
+    題名・本文から探し、クリックするとその文書が開きます。
+  </p>
+
+  <h3>サムネイルで見る</h3>
+  <p>
+    左レールの切り替えで一覧を<strong>「サムネイルで表示」</strong>にすると、文書を縮めた見た目で格子状に並べます。
+    フォルダのカードを押すと中へ入り、上のパンくずで戻ります。<strong>「ツリーで表示」</strong>で元の一覧に戻ります。
+    どちらで見るかは次に起動したときも保たれます。
+  </p>
 </section>
 
 <section id="edit">
@@ -131,9 +154,10 @@
       <tr><td><code>invoice/v1</code></td><td>適格請求書</td></tr>
       <tr><td><code>spec/v1</code></td><td>基本設計書</td></tr>
       <tr><td><code>test-spec/v1</code></td><td>検証シート（テスト設計書）</td></tr>
-      <tr><td><code>api-spec</code></td><td>API 設計書</td></tr>
-      <tr><td><code>db-spec</code></td><td>DB 設計書（RDB）</td></tr>
-      <tr><td><code>nosql-db-spec</code></td><td>NoSQL 設計書</td></tr>
+      <tr><td><code>api-spec/v1</code></td><td>API 設計書</td></tr>
+      <tr><td><code>db-spec/v1</code></td><td>DB 設計書（RDB）</td></tr>
+      <tr><td><code>nosql-db-spec/v1</code></td><td>NoSQL 設計書</td></tr>
+      <tr><td><code>investigation/v1</code></td><td>調査報告書（表紙・所見の一覧・本文）</td></tr>
     </tbody>
   </table>
   <p>
@@ -144,6 +168,31 @@
   <p>
     変更は<strong>保存</strong>ボタンまたは <kbd>Ctrl / ⌘ + S</kbd> で保存します。文書名の横の丸印は未保存の
     変更があることを示します。
+  </p>
+  <p>
+    TSV 検証シートは frontmatter ではなく、1 行目の <code>#! md-business:test-spec-tsv/v1</code> で見分けられ、
+    グリッドで開きます（<a href="#testsheet">第 6 項</a>）。
+  </p>
+
+  <h3>プレビューを拡大・縮小する</h3>
+  <p>
+    プレビューのツールバーにある<strong>表示倍率</strong>のボタン、<kbd>Ctrl / ⌘ + +</kbd>・<kbd>Ctrl / ⌘ + -</kbd>、
+    または <kbd>Ctrl</kbd> + マウスホイールで、50%〜300% の間で拡大・縮小できます。<kbd>Ctrl / ⌘ + 0</kbd> で 100% に戻ります。
+    全画面表示でも使え、倍率は次に起動したときも保たれます。倍率は画面の見え方にだけ掛かり、
+    <strong>印刷と PDF は常に 100% で出ます</strong>。
+  </p>
+
+  <h3>図・グラフ・表を本文に書く</h3>
+  <p>本文に次の囲みを置くと、プレビューと PDF に図・グラフ・表として描かれます。</p>
+  <ul>
+    <li><strong><code>```zumen</code></strong> — 何があって何と繋がるかを書くと、構成図になります。</li>
+    <li><strong><code>```chart</code></strong> — 文書の隣に置いた TSV から、棒・折れ線・円のグラフを描きます。</li>
+    <li><strong><code>```data</code></strong> — 文書の隣に置いた TSV を、表として引用します。</li>
+  </ul>
+  <p>
+    数字は TSV に置いたままなので、TSV を直せば文書の中の表とグラフも追いつきます。描けなかったときは黙って消さず、
+    理由を囲みの上に表示します。同じ囲みは VS Code 拡張でも描かれます。Chrome 拡張は <code>zumen</code> だけを描き、
+    <code>chart</code> / <code>data</code> には描けない理由を表示します（隣のファイルを読めないため）。
   </p>
 </section>
 
@@ -207,8 +256,12 @@
     押すたびにさらに絞れます。
   </p>
   <p>
+    列の見出しからは、その列で<strong>並べ替え</strong>（昇順・降順）と<strong>絞り込み</strong>ができます。
+    絞り込んでいる間はツールバーに「◯件 / 全◯件」が出ます。
+  </p>
+  <p>
     絞り込みは<strong>ファイルに何も書きません</strong>。外した行は保存しても元の位置に残り、
-    提出物（コピー）にも全行が出ます。戻すときは<strong>「絞り込み解除」</strong>を押すか、
+    提出物（コピー）にも全行が出ます。戻すときは<strong>「すべて表示」</strong>を押すか（並べ替えもまとめて戻ります）、
     ファイルを開き直してください。控えにした行（表から外してファイルに残す方）とは別のものです。
   </p>
   <p>
@@ -287,11 +340,13 @@
   <h3>つなぐ手順</h3>
   <ul>
     <li>右のサイドパネルを開き、<strong><code>MCP</code> タブ</strong>を選びます。</li>
-    <li><strong>「接続設定を写す」</strong>を押します。AI クライアントの設定へそのまま貼れる JSON が
-      クリップボードに入ります。</li>
-    <li>AI クライアント（Claude Code / Claude Desktop / Cursor / Cline など）の MCP 設定へ貼ります。</li>
+    <li><strong>「開いているフォルダへ設定を置く」</strong>を押します。開いているフォルダに <code>.mcp.json</code> が置かれ、
+      それを読むクライアント（Claude Code など）は、そのフォルダで起動するだけでつながります。設定には接続トークンが入るので、
+      Git リポジトリなら <code>.gitignore</code> にも書き足されます。</li>
+    <li><code>.mcp.json</code> を読まないクライアント（Claude Desktop / Cursor / Cline など）には、
+      <strong>「接続設定を写す」</strong>を押し、クリップボードに入った JSON をそのクライアントの MCP 設定へ貼ります。</li>
   </ul>
-  <p>写される内容は次の形です。</p>
+  <p>置かれる・写される内容は次の形です。</p>
   <pre><code>{
   "mcpServers": {
     "md-business": {
@@ -327,6 +382,26 @@
     アシスタントが書き込むと、アプリ側の一覧とプレビューも自動で追いつくので、操作は不要です。
   </p>
   <p>
+    何を頼めばよいか分からないときは、アシスタントに<strong>「何ができるの？」</strong>と聞いてください。
+    アシスタントは <code>about_md_business</code> を読み、やりたいこと別に使う道具を答えます。
+    アシスタントが文書を作ったり直したりしたときは、<code>open_in_app</code> でその文書をアプリの画面に出すので、
+    ファイルを探しに行く必要はありません。
+  </p>
+  <p>アシスタントが使える道具は、おおよそ次のまとまりです。</p>
+  <ul>
+    <li><strong>業務文書</strong> — <code>list_schemas</code> / <code>get_schema</code> / <code>read_document</code> /
+      <code>validate_document</code> / <code>create_document</code> / <code>update_document</code> / <code>search_documents</code></li>
+    <li><strong>検証シート</strong> — <code>read_tsv</code> / <code>append_tsv_row</code> / <code>update_tsv_row</code></li>
+    <li><strong>Git</strong> — <code>git_status</code> / <code>git_diff</code> / <code>git_commit</code>（<code>git push</code> は道具にしていません）</li>
+    <li><strong>外から届いたデータ</strong> — <code>read_data</code> / <code>data_to_table</code> / <code>read_har</code></li>
+    <li><strong>ログと調査</strong> — <code>search_lines</code> / <code>read_lines</code> / <code>filter_records</code> /
+      <code>aggregate</code> / <code>build_timeline</code> / <code>save_evidence</code> / <code>check_tsv</code></li>
+    <li><strong>web サイトのフォルダ</strong> — <code>declare_web_mode</code> / <code>web_mode_status</code> /
+      <code>list_site_files</code> / <code>read_site_file</code> / <code>write_site_file</code></li>
+    <li><strong>アプリの画面</strong> — <code>open_in_app</code> / <code>list_open_documents</code> / <code>close_document</code> /
+      <code>export_pdf</code> / <code>capture_window</code></li>
+  </ul>
+  <p>
     <strong>検証シートは行ごとに編集</strong>できます。「3 行目の結果を OK にして実施日を入れて」のように
     頼むと、その行だけが書き換わります。触っていない行はそのまま残るので、変更履歴に余計な差分が出ません。
     列は名前で指定するため、列を並び替えても指示の仕方は変わりません。選択肢にない値も書き込めますが、
@@ -360,6 +435,8 @@
     <tbody>
       <tr><td>保存</td><td><kbd>Ctrl + S</kbd></td><td><kbd>⌘ + S</kbd></td></tr>
       <tr><td>PDF 出力</td><td><kbd>Ctrl + P</kbd></td><td><kbd>⌘ + P</kbd></td></tr>
+      <tr><td>プレビューを拡大 / 縮小</td><td><kbd>Ctrl + +</kbd> / <kbd>Ctrl + -</kbd>（<kbd>Ctrl</kbd> + ホイールでも可）</td><td><kbd>⌘ + +</kbd> / <kbd>⌘ + -</kbd></td></tr>
+      <tr><td>プレビューを 100% に戻す</td><td><kbd>Ctrl + 0</kbd></td><td><kbd>⌘ + 0</kbd></td></tr>
       <tr><td>分割を 50/50 に戻す（仕切りにフォーカス時）</td><td><kbd>Enter</kbd> / <kbd>Home</kbd></td><td><kbd>Enter</kbd> / <kbd>Home</kbd></td></tr>
       <tr><td>グリッド全画面を抜ける</td><td><kbd>Esc</kbd></td><td><kbd>Esc</kbd></td></tr>
     </tbody>

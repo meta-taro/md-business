@@ -8,6 +8,7 @@ import {
   type LoadMarkdownResult,
   type PreviewMarkdownResult,
 } from '../shared/loadMarkdown.js';
+import { composeFences } from '../shared/fences.js';
 import { renderMermaidInHtml } from '../shared/renderMermaid.js';
 import { STORAGE_KEY } from '../shared/storage.js';
 import { createPrintFrame } from './printFrame.js';
@@ -184,9 +185,16 @@ function updateIframeBody(html: string): void {
   if (host) host.innerHTML = html;
 }
 
+// Composing fences is async, so a slow pass can finish after a newer one.
+// Only the latest pass may paint.
+let previewGeneration = 0;
+
 async function renderPreviewFromSource(): Promise<void> {
+  const generation = ++previewGeneration;
+  const source = await composeFences(state.source);
+  if (generation !== previewGeneration) return;
   const result: PreviewMarkdownResult = previewMarkdown(
-    state.source,
+    source,
     state.pluginId ? { pluginId: state.pluginId } : {},
   );
   if (!result.ok) {
@@ -202,6 +210,7 @@ async function renderPreviewFromSource(): Promise<void> {
   // Invoice documents have no Mermaid blocks so this short-circuits without
   // triggering the dynamic import.
   const renderedHtml = await renderMermaidInHtml(result.bodyHtml);
+  if (generation !== previewGeneration) return;
   updateIframeBody(renderedHtml);
   updateErrorBadge(result.errors.length);
   showWarnings(result.warnings);
@@ -376,12 +385,13 @@ async function handleSaveClick(saveAs: boolean): Promise<void> {
  * Run the strict validation path used by PDF DL. Returns a rendered
  * `LoadMarkdownResult` when valid, or an error structure for the banner.
  */
-function strictValidate(): LoadMarkdownResult {
-  return loadMarkdown(state.source, state.pluginId ? { pluginId: state.pluginId } : {});
+async function strictValidate(): Promise<LoadMarkdownResult> {
+  const source = await composeFences(state.source);
+  return loadMarkdown(source, state.pluginId ? { pluginId: state.pluginId } : {});
 }
 
-function handlePdfDownloadClick(): void {
-  const result = strictValidate();
+async function handlePdfDownloadClick(): Promise<void> {
+  const result = await strictValidate();
   if (!result.ok) {
     const items = [...(result.details ?? []), ...(result.warnings ?? [])];
     setStatus({ title: result.reason, items }, 'error');
@@ -621,7 +631,7 @@ async function main(): Promise<void> {
   setMode('preview');
 
   const printBtn = document.getElementById('mdb-print');
-  printBtn?.addEventListener('click', handlePdfDownloadClick);
+  printBtn?.addEventListener('click', () => void handlePdfDownloadClick());
 
   const saveBtn = document.getElementById('mdb-save');
   saveBtn?.addEventListener('click', () => {

@@ -173,7 +173,7 @@ Every shipped template uses dummy data — no real company names, registration n
 
 Open any of these in the Chrome extension viewer or render via `@md-business/renderer-pdf` to produce a print-ready PDF without writing any code.
 
-Future templates may include meeting notes, contracts, API documents, database design documents, operational checklists, and other business documents.
+Database design documents (`db-spec/v1` for relational, `nosql-db-spec/v1` for document stores) have schemas and open in every app, but no blank template yet — [`examples/`](./examples/) has a filled one to copy from. Future templates may include meeting notes, contracts, operational checklists, and other business documents.
 
 ## Examples
 
@@ -224,12 +224,22 @@ The goal is to make the canonical business document layer open, portable, review
 | Invoice / quote / receipt (Japanese インボイス制度) | `invoice/v1` | [docs/spec/invoice-v1.md](./docs/spec/invoice-v1.md) → [packages/schema-invoice/](./packages/schema-invoice/README.md) |
 | Design document | `spec/v1` | [docs/spec/spec-v1.md](./docs/spec/spec-v1.md) → [packages/schema-spec/](./packages/schema-spec/README.md) |
 | Test specification | `test-spec/v1` | [docs/spec/test-spec-v1.md](./docs/spec/test-spec-v1.md) → [packages/schema-test-spec/](./packages/schema-test-spec/README.md) |
+| Test sheet (tab-separated) | `test-spec-tsv/v1` | [docs/spec/test-spec-tsv-v1.md](./docs/spec/test-spec-tsv-v1.md) → [packages/schema-test-spec-tsv/](./packages/schema-test-spec-tsv/README.md) |
+| API specification | `api-spec/v1` | [packages/schema-api-spec/](./packages/schema-api-spec/README.md) |
+| Database design (relational) | `db-spec/v1` | [packages/schema-db-spec/](./packages/schema-db-spec/README.md) |
+| Database design (NoSQL) | `nosql-db-spec/v1` | [packages/schema-nosql-db-spec/](./packages/schema-nosql-db-spec/README.md) |
+| Investigation report | `investigation/v1` | [packages/schema-investigation/](./packages/schema-investigation/README.md) |
 
-Each spec document includes the JSON Schema link, top-level field table, YAML frontmatter sample, and validation examples.
+Where a spec document exists, it includes the JSON Schema link, top-level field table, YAML frontmatter sample, and validation examples.
 
 ### Desktop app
 
-The desktop app (Tauri 2 + SvelteKit) opens the six business-document types in purpose-built viewers, edits Markdown in a live split view, and exports A4 PDF.
+The desktop app (Tauri 2 + SvelteKit) opens every business-document type above in a purpose-built viewer, edits Markdown in a live split view, and exports A4 PDF.
+
+- **Find**: type in the file-list filter to search titles and bodies across the folder's Markdown and test sheets, or switch the list to a thumbnail grid.
+- **Read**: zoom the preview (50–300%, Ctrl/Cmd + `+` / `-` / `0` or Ctrl + wheel); printing and PDF always come out at 100%.
+- **Draw**: ```zumen``` blocks become architecture diagrams, ```chart``` blocks draw bar / line / pie charts from a neighbouring TSV file, and ```data``` blocks quote a TSV file as a table. The VS Code extension draws the same blocks; the Chrome extension draws zumen only, because it cannot read neighbouring files.
+- **Stay current**: the app checks for a newer release on launch and installs it when you agree. Windows (x64 / ARM64) and macOS builds are published.
 
 - **Download** (Windows / macOS): <https://meta-taro.github.io/md-business/download/>
 - **User guide (English)**: <https://meta-taro.github.io/md-business/manual/>
@@ -239,11 +249,15 @@ The desktop app (Tauri 2 + SvelteKit) opens the six business-document types in p
 
 The desktop app is where the source-of-truth layer becomes operable by an AI agent. It starts a local MCP server on launch, so an AI client can read, validate, search, create, and update the business documents in the folder you have open.
 
-- Connect by pasting one JSON snippet: the app copies a ready-to-use `mcpServers` entry to the clipboard.
+- Connect from the `MCP` tab: **Add settings to the open folder** writes `.mcp.json` for clients that read it, or **Copy client settings** puts a ready-to-use `mcpServers` entry on the clipboard.
 - The connection details persist across restarts, so the settings you paste once keep working.
-- The document tools are `list_schemas`, `get_schema`, `read_document`, `validate_document`, `create_document`, `update_document` and `search_documents`, plus `read_tsv`, `append_tsv_row` and `update_tsv_row` for test sheets. Every call is validated against the declared schema and listed in the app.
+- `about_md_business` answers "what can I do here" with the tools to call, in order, for each task. The document tools are `list_schemas`, `get_schema`, `read_document`, `validate_document`, `create_document`, `update_document` and `search_documents`, plus `read_tsv`, `append_tsv_row` and `update_tsv_row` for test sheets. Every call is validated against the declared schema and listed in the app.
 - Test sheets are the tab-separated format, not Markdown, so the agent fills them in row by row: rows it did not touch stay out of the diff. `search_documents` lists them alongside the Markdown documents, so the agent can find a sheet without being told its path.
 - When the folder is a git repository, `git_status`, `git_diff` and `git_commit` let the agent review what it changed and record it — so a day of edits ends as readable history rather than an untracked pile.
+- External JSON / XML (exchange-format invoices, bank statements, accounting exports) is read-only: `read_data` reads it as a tree and `data_to_table` quotes a repeating part as a table. `read_har` reads network captures.
+- Logs are never read whole: `search_lines` and `read_lines` find and read the lines around a hit, `filter_records` and `aggregate` work on JSONL / TSV records, and `build_timeline` merges several files in time order. Every result is masked for tokens, cookies and email addresses. `save_evidence` keeps an extract as a file an investigation report can cite, and `check_tsv` checks test sheets without reading them row by row.
+- For a folder declared as a website (`md-business.yml`), `declare_web_mode`, `web_mode_status`, `list_site_files`, `read_site_file` and `write_site_file` let the agent edit the site's own files while the app shows the result live.
+- `open_in_app` puts the document the agent just wrote in front of you, and `list_open_documents` / `close_document` let it see and tidy the tabs.
 - `export_pdf` asks the app to open a document and bring up the print dialog, so the agent can hand you a finished A4 page to save — where it goes is still your choice.
 - `capture_window` photographs the app's own window, so the agent can see what it actually renders instead of guessing from the file. Only this window is in the picture — whatever else is on your desk stays off it — and the picture is still yours, so it goes nowhere public unless you say so.
 - Reach is limited to the folder currently open in the app, the server binds to loopback only, and requests without the matching token are rejected.
@@ -253,7 +267,7 @@ The desktop app is where the source-of-truth layer becomes operable by an AI age
 
 ### Release history
 
-The three apps are versioned independently. [CHANGELOG.md](./CHANGELOG.md) lists the current version of each and links to its own history.
+The four apps — desktop, Chrome extension, VS Code extension and Workspace Add-on — are versioned independently. [CHANGELOG.md](./CHANGELOG.md) lists the current version of each and links to its own history.
 
 ### Conventions
 

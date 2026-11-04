@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { resolveRelPath } from './relPath';
+import { resolveRelPath } from '../src/relPath.js';
 
 describe('resolveRelPath', () => {
   it('開いているファイルと同じ場所を指す', () => {

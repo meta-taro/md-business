@@ -1,9 +1,9 @@
 {
   "name": "md-business-vscode",
   "displayName": "md-business",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "private": true,
-  "description": "Write invoices, design specs, test specs, API and DB specs as Markdown that AI agents can edit and validate: JSON Schema errors in the Problems panel, print preview, a TSV test-sheet grid, and MCP tools for Copilot agent mode.",
+  "description": "Write invoices, design specs, test specs, API and DB specs and investigation reports as Markdown that AI agents can edit and validate: JSON Schema errors in the Problems panel, print preview, a TSV test-sheet grid, and MCP tools for Copilot agent mode.",
   "license": "MIT",
   "keywords": [
     "markdown",
@@ -120,6 +120,7 @@
   },
   "dependencies": {
     "@md-business/core": "workspace:*",
+    "@md-business/fences": "workspace:*",
     "@md-business/mcp-server": "workspace:*",
     "@md-business/schema-api-spec": "workspace:*",
     "@md-business/schema-db-spec": "workspace:*",

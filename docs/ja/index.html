@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>md-business — AI が開ける業務文書</title>
-<meta name="description" content="請求書・基本設計書・検証シートを Markdown で持ち、JSON Schema で検証する OSS。人は PDF や Sheets で読み、AI は同じファイルを読んで直して差分を出す。MCP サーバー内蔵のデスクトップアプリ。MIT。">
+<meta name="description" content="請求書・基本設計書・検証シート・API / DB 設計書・調査報告書を Markdown で持ち、JSON Schema で検証する OSS。人は PDF や Sheets で読み、AI は同じファイルを読んで直して差分を出す。MCP サーバー内蔵のデスクトップアプリ。MIT。">
 <link rel="canonical" href="https://meta-taro.github.io/md-business/ja/">
 <link rel="alternate" hreflang="en" href="https://meta-taro.github.io/md-business/">
 <link rel="alternate" hreflang="ja" href="https://meta-taro.github.io/md-business/ja/">
@@ -15,12 +15,12 @@
 <meta property="og:locale:alternate" content="en_US">
 <meta property="og:url" content="https://meta-taro.github.io/md-business/ja/">
 <meta property="og:title" content="md-business — AI が開ける業務文書">
-<meta property="og:description" content="請求書・基本設計書・検証シートを Markdown で持つ。人は PDF や Sheets で読み、AI は同じファイルを直す。">
+<meta property="og:description" content="請求書・基本設計書・検証シート・API / DB 設計書・調査報告書を Markdown で持つ。人は PDF や Sheets で読み、AI は同じファイルを直す。">
 <meta property="og:image" content="https://meta-taro.github.io/md-business/screenshots/desktop-invoice.png">
 <meta property="og:image:alt" content="md-business デスクトップアプリで適格請求書を開いた画面。左にファイル一覧、右に請求書ビュー。">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="md-business — AI が開ける業務文書">
-<meta name="twitter:description" content="請求書・基本設計書・検証シートを Markdown で持つ。人は PDF や Sheets で読み、AI は同じファイルを直す。">
+<meta name="twitter:description" content="請求書・基本設計書・検証シート・API / DB 設計書・調査報告書を Markdown で持つ。人は PDF や Sheets で読み、AI は同じファイルを直す。">
 <meta name="twitter:image" content="https://meta-taro.github.io/md-business/screenshots/desktop-invoice.png">
 <link rel="icon" type="image/png" sizes="32x32" href="../assets/favicon-32.png">
 <link rel="icon" type="image/png" sizes="16x16" href="../assets/favicon-16.png">
@@ -169,7 +169,7 @@ PDF・Sheets・Chrome・デスクトップ ← 人が実際に読む形</code></
   <div class="cards">
     <div class="card">
       <h3>invoice <span class="badge">実装済み</span></h3>
-      <p>適格請求書。登録番号・税率ごとの内訳・合計の自動計算まで含む。</p>
+      <p>適格請求書。登録番号・税率ごとの内訳・合計の自動計算まで含む。見積書・領収書も同じ書式で書ける。</p>
     </div>
     <div class="card">
       <h3>spec <span class="badge">実装済み</span></h3>
@@ -177,15 +177,23 @@ PDF・Sheets・Chrome・デスクトップ ← 人が実際に読む形</code></
     </div>
     <div class="card">
       <h3>test-spec <span class="badge">実装済み</span></h3>
-      <p>検証シート。ケースごとの OK / NG / 保留を表で埋め、Google Sheets と往復できる。</p>
+      <p>Markdown の検証シート。ケースごとの OK / NG / 保留を表で埋め、A4 PDF に出し、Google Sheets と往復できる。</p>
     </div>
     <div class="card">
-      <h3>api-spec <span class="badge muted">未実装</span></h3>
+      <h3>test-spec-tsv <span class="badge">実装済み</span></h3>
+      <p>タブ区切りの検証シート。表（グリッド）で開き、並べ替え・絞り込み・必要な行だけに絞ってから印刷できる。</p>
+    </div>
+    <div class="card">
+      <h3>api-spec <span class="badge">実装済み</span></h3>
       <p>API 詳細設計書。エンドポイントのリクエスト / レスポンス定義と例。</p>
     </div>
     <div class="card">
-      <h3>db-spec / nosql-db-spec <span class="badge muted">未実装</span></h3>
+      <h3>db-spec / nosql-db-spec <span class="badge">実装済み</span></h3>
       <p>RDB / NoSQL の DB 設計書。項目単位の定義とリレーション。</p>
+    </div>
+    <div class="card">
+      <h3>investigation <span class="badge">実装済み</span></h3>
+      <p>調査報告書。表紙・所見の一覧と、所見が根拠として指す証跡ファイルを持つ。</p>
     </div>
   </div>
 </section>
@@ -197,9 +205,11 @@ PDF・Sheets・Chrome・デスクトップ ← 人が実際に読む形</code></
       <h3>デスクトップアプリ <span class="badge">Windows / macOS</span></h3>
       <p>
         単体で動くビューワー兼エディタ（Tauri 2 + SvelteKit）。文書種別ごとの専用ビュー、
-        左右 2 画面のライブ編集、A4 PDF 出力、自動更新。MCP サーバーを内蔵しているので、
+        左右 2 画面のライブ編集、A4 PDF 出力、自動更新。フォルダ全体の題名・本文の検索、
+        ファイル一覧のサムネイル表示、プレビューの拡大縮小、<code>zumen</code> / <code>chart</code> / <code>data</code> の囲みの描画にも対応。
+        MCP サーバーを内蔵しているので、
         AI クライアント（Claude Code・Claude Desktop・Cursor・Cline …）が、いま開いているフォルダの文書を
-        読み書きできる —— MCP タブの接続設定を一度貼るだけ。
+        読み書きできる —— MCP タブで、開いているフォルダへ設定を置くか、接続設定を一度貼るだけ。
         <br>
         <a href="../download/">ダウンロード →</a> &nbsp; <a href="../manual/ja/#mcp">AI を繋ぐ →</a>
         &nbsp; <a href="../manual/ja/">操作マニュアル →</a>
@@ -209,6 +219,7 @@ PDF・Sheets・Chrome・デスクトップ ← 人が実際に読む形</code></
       <h3>Chrome 拡張 <span class="badge">公開中</span></h3>
       <p>
         ローカルの <code>.md</code> を Chrome で開き、業務文書として表示して A4 PDF に出す。
+        調査報告書を含むすべての書式を開け、<code>zumen</code> の構成図も描く。
         <br>
         <a href="https://chromewebstore.google.com/detail/lmdplkkfmgapnhombimeohjliinifgjh">Chrome ウェブストア →</a>
       </p>
@@ -217,6 +228,7 @@ PDF・Sheets・Chrome・デスクトップ ← 人が実際に読む形</code></
       <h3>VS Code 拡張 <span class="badge">公開中</span></h3>
       <p>
         スキーマの誤りを問題パネルに出し、印刷イメージを横に開き、検証シート TSV を表で編集する。
+        印刷イメージには調査報告書・<code>zumen</code> の構成図・<code>chart</code> / <code>data</code> の囲みも描かれる。
         Copilot のエージェントモードから md-business の MCP ツールも使える。
         <br>
         <a href="https://marketplace.visualstudio.com/items?itemName=meta-taro.md-business-vscode">VS Code Marketplace →</a>
@@ -230,7 +242,7 @@ PDF・Sheets・Chrome・デスクトップ ← 人が実際に読む形</code></
       </p>
     </div>
     <div class="card">
-      <h3>PWA ビューワー <span class="badge muted">開発中</span></h3>
+      <h3>PWA ビューワー <span class="badge muted">予定</span></h3>
       <p>Astro 5 + Lit。インストールせずブラウザで見る。</p>
     </div>
     <div class="card">
@@ -264,15 +276,16 @@ PDF・Sheets・Chrome・デスクトップ ← 人が実際に読む形</code></
     図を描き直して貼り替える手間が無い。AI には両方の MCP サーバーを繋いでおけば、設計書を直すついでに図も直せる。
   </p>
   <p class="note">
-    <code>```zumen</code> の囲みは、次のデスクトップ版から使える。
+    <code>```zumen</code> の囲みは、デスクトップアプリ・VS Code 拡張・Chrome 拡張のどれでも構成図として描かれる。
   </p>
 </section>
 
 <section>
   <h2>まだ出来ていないこと</h2>
   <ul>
-    <li><strong>api-spec と db-spec は未実装。</strong>その 2 つが必要な文書なら、まだ使える状態ではない。</li>
     <li><strong>Google Workspace アドオンは審査中。</strong>Sheets との往復は、まだ Marketplace から入れられない。</li>
+    <li><strong>Chrome 拡張では <code>chart</code> と <code>data</code> の囲みを描けない。</strong>どちらも文書の隣の TSV を読む指定で、
+      拡張は開いた 1 枚しか受け取らないため。囲みの上に理由を出すので、描くときはデスクトップアプリか VS Code 拡張で開く。</li>
     <li><strong>スキーマは日本の様式が前提。</strong>請求書は適格請求書の規則に沿っており、他国の税制は想定していない。</li>
     <li><strong>サーバーもアカウントも無い。</strong>ファイルは手元のディスクと Git リポジトリにだけ残る。
       これは意図した設計だが、裏を返すと、文書を渡す手段がリポジトリ以外に無いということでもある。</li>

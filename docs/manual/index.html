@@ -60,7 +60,7 @@
 <section>
   <p>
     The <strong>md-business</strong> desktop app opens business documents written as Markdown
-    (invoices, design specs, test sheets, API and database designs), shows a purpose-built preview
+    (invoices, design specs, test sheets, API and database designs, investigation reports), shows a purpose-built preview
     for each document type, and lets you edit the Markdown on the left while the preview updates live
     on the right. When a document looks right, export it to an A4 PDF. Everything runs locally on your
     machine — no account, no upload.
@@ -70,8 +70,15 @@
 <section id="install">
   <h2>1. Install and first launch</h2>
   <ol>
-    <li>Download the installer from the <a href="../download/">download page</a>
-      (Windows <code>.msi</code> / macOS <code>.dmg</code>) and run it.</li>
+    <li>Download the installer from the <a href="../download/">download page</a> and run it.
+      The page shows the one that fits the machine you opened it on first. To choose yourself:
+      <ul>
+        <li><strong>Windows on an Intel / AMD PC</strong> — the <code>.msi</code> (recommended) or <code>.exe</code> with <code>x64</code> in its name</li>
+        <li><strong>Windows on an ARM PC (Snapdragon and similar)</strong> — the <code>.msi</code> or <code>.exe</code> with <code>arm64</code> in its name</li>
+        <li><strong>macOS</strong> — the <code>.dmg</code></li>
+      </ul>
+      The <code>.msi</code> installs for every user of the PC; the <code>.exe</code> installs for the signed-in user only.
+      To check which kind of PC you have, look at "System type" under Settings → System → About.</li>
     <li>On the first launch you may see an "unknown publisher" warning because the build is not yet
       code-signed. On Windows choose <strong>More info → Run anyway</strong>; on macOS
       <strong>right-click the app → Open</strong> once. See <a href="#trouble">Troubleshooting</a> for details.</li>
@@ -90,9 +97,11 @@
       <strong>Theme</strong> (light/dark), <strong>Help</strong>, and the window minimize / maximize /
       close controls.</li>
     <li><strong>Left rail</strong> — the file tree of the folder you opened, and a source-control
-      section that marks changed files. Click a file to open it.</li>
+      section that marks changed files. Click a file to open it. The filter box at the top finds documents,
+      and the list can switch between a tree and thumbnails (<a href="#open">section 3</a>).</li>
     <li><strong>Center</strong> — a split view: the <strong>Markdown editor</strong> on the left and
-      the <strong>preview</strong> on the right. Drag the divider between them to change the balance.</li>
+      the <strong>preview</strong> on the right. Drag the divider between them to change the balance.
+      The preview can be zoomed (<a href="#edit">section 4</a>).</li>
   </ul>
 </section>
 
@@ -115,9 +124,24 @@
     (<a href="#testsheet">section 6</a>). For other documents such as invoices and specs, copy one of
     the ready-made templates into your folder first — see
     <a href="https://github.com/meta-taro/md-business/tree/main/templates"><code>templates/</code></a>
-    in the repository (invoice, spec, test-spec, api-spec). Once the file is in your folder, it appears
+    in the repository (invoice, spec, test-spec, api-spec, investigation). Once the file is in your folder, it appears
     in the tree and you can open and edit it.
   </div>
+
+  <h3>Find a document</h3>
+  <p>
+    Type in the filter box at the top of the left rail (<strong>Filter by name or search text</strong>).
+    Files whose names match are listed first, followed by <strong>Found in titles and text</strong>: matches
+    in the titles and bodies of every Markdown file and test sheet (<code>.tsv</code>) in the folder.
+    Click a result to open it.
+  </p>
+
+  <h3>Browse as thumbnails</h3>
+  <p>
+    Switch the list to <strong>Show thumbnails</strong> to lay documents out as a grid of small page images.
+    Click a folder card to go inside and use the breadcrumbs above to come back; <strong>Show tree</strong>
+    returns to the usual list. The choice is remembered the next time you launch the app.
+  </p>
 </section>
 
 <section id="edit">
@@ -136,9 +160,10 @@
       <tr><td><code>invoice/v1</code></td><td>Qualified invoice (適格請求書)</td></tr>
       <tr><td><code>spec/v1</code></td><td>Basic design specification</td></tr>
       <tr><td><code>test-spec/v1</code></td><td>Test specification / validation sheet</td></tr>
-      <tr><td><code>api-spec</code></td><td>API design document</td></tr>
-      <tr><td><code>db-spec</code></td><td>Database (RDB) design document</td></tr>
-      <tr><td><code>nosql-db-spec</code></td><td>NoSQL design document</td></tr>
+      <tr><td><code>api-spec/v1</code></td><td>API design document</td></tr>
+      <tr><td><code>db-spec/v1</code></td><td>Database (RDB) design document</td></tr>
+      <tr><td><code>nosql-db-spec/v1</code></td><td>NoSQL design document</td></tr>
+      <tr><td><code>investigation/v1</code></td><td>Investigation report (cover, list of findings, body)</td></tr>
     </tbody>
   </table>
   <p>
@@ -149,6 +174,32 @@
   <p>
     Save your changes with the <strong>Save</strong> button or <kbd>Ctrl / ⌘ + S</kbd>. A dot next to the
     document title means there are unsaved changes.
+  </p>
+  <p>
+    TSV test sheets have no front-matter; they are recognized by the first line
+    <code>#! md-business:test-spec-tsv/v1</code> and open in the grid (<a href="#testsheet">section 6</a>).
+  </p>
+
+  <h3>Zoom the preview</h3>
+  <p>
+    Use the <strong>Zoom</strong> buttons in the preview toolbar, <kbd>Ctrl / ⌘ + +</kbd> and
+    <kbd>Ctrl / ⌘ + -</kbd>, or <kbd>Ctrl</kbd> + mouse wheel to zoom between 50% and 300%;
+    <kbd>Ctrl / ⌘ + 0</kbd> returns to 100%. Zoom also works in full screen, and the level is remembered.
+    It only changes what you see on screen — <strong>printing and PDF always come out at 100%</strong>.
+  </p>
+
+  <h3>Diagrams, charts and tables in the text</h3>
+  <p>Put one of these fenced blocks in a document and it is drawn in the preview and the PDF.</p>
+  <ul>
+    <li><strong><code>```zumen</code></strong> — write what exists and what connects to what, and it becomes an architecture diagram.</li>
+    <li><strong><code>```chart</code></strong> — draws a bar, line or pie chart from a TSV file next to the document.</li>
+    <li><strong><code>```data</code></strong> — quotes a TSV file next to the document as a table.</li>
+  </ul>
+  <p>
+    The numbers stay in the TSV, so fixing the TSV updates the tables and charts in the document. A block
+    that cannot be drawn is not dropped silently; the reason is shown above it. The VS Code extension draws
+    the same blocks. The Chrome extension draws <code>zumen</code> only and shows why it cannot draw
+    <code>chart</code> / <code>data</code> (it cannot read neighbouring files).
   </p>
 </section>
 
@@ -207,6 +258,35 @@
     <li>Your edits are written back into the TSV automatically, so <kbd>Ctrl / ⌘ + S</kbd> saves
       the sheet like any other document.</li>
   </ul>
+
+  <h3>Show only the rows you need</h3>
+  <p>
+    Once a sheet grows, finding the row you want to fix means scrolling. Press <strong>Only this value</strong>
+    above the grid to keep only the rows whose value in the selected cell's column matches. While you are
+    searching with <kbd>Ctrl / ⌘ + F</kbd>, <strong>Only matches</strong> appears too. Each press narrows further.
+  </p>
+  <p>
+    Each column header also lets you <strong>sort</strong> (ascending / descending) and <strong>filter</strong>
+    by that column. While rows are hidden, the toolbar shows how many are visible out of the total.
+  </p>
+  <p>
+    Narrowing <strong>writes nothing to the file</strong>. Hidden rows stay where they are when you save,
+    and copies you hand in contain every row. Press <strong>Show all rows</strong> (which also clears sorting)
+    or reopen the file to get everything back. This is separate from held-back rows (rows taken out of the
+    table but kept in the file).
+  </p>
+  <p>
+    While narrowed, an auto-numbered column (<code>rowNumber()</code>) is not renumbered. Numbering only the
+    visible rows would leave numbers in the file that skip the hidden ones.
+  </p>
+
+  <h3>Put it on paper</h3>
+  <p>
+    Press <strong>Print view</strong> above the grid to switch the right pane to a print layout. Exporting
+    to <strong>PDF / HTML / image</strong> is available only in this state. The header row repeats on every
+    page and held-back rows are not printed. Switching does not change the file; press
+    <strong>Back to grid</strong> to return to editing.
+  </p>
   <p>
     For the full format — line kinds, column-type notation, escaping, and save rules — see the
     <a href="https://github.com/meta-taro/md-business/blob/main/docs/spec/test-spec-tsv-v1.md">custom TSV test-sheet specification</a>.
@@ -222,7 +302,9 @@
     <li>Choose <strong>Save as PDF</strong> as the destination and save. The PDF matches the preview
       one-to-one.</li>
   </ol>
-  <p>The PDF button is active only while a document preview is on screen (not during grid editing or a Git diff).</p>
+  <p>The PDF button is active only while a document preview is on screen (not during grid editing or a Git diff).
+    To make a PDF of a test sheet, switch to <strong>Print view</strong> above the grid first
+    (<a href="#testsheet">section 6</a>).</p>
 </section>
 
 <section id="git">
@@ -233,6 +315,19 @@
     <strong>diff</strong> in the right pane instead of the preview; open any file normally to return to
     the preview. This lets you review exactly what you changed before committing with your usual Git tool.
   </p>
+  <h3>Share a link to the same document</h3>
+  <p>
+    When each person works in their own clone of the same repository, <strong>right-click a file in the tree
+    → Copy share link</strong> to get a link starting with <code>md-business://</code>. Send it by chat or
+    email; when the other person clicks it, the app starts (or comes to the front) and opens the same document.
+  </p>
+  <div class="callout note">
+    <strong>A link only opens in a folder the other person has already opened in the app.</strong>
+    The link says which repository and where inside it, not where it lives on their machine. If no matching
+    clone is found, the app says so instead of opening anything; ask them to open that folder once.
+    Clicking a link <strong>does not switch branches</strong>; if they are on a different branch from the one
+    the link was made on, the app only tells them so.
+  </div>
 </section>
 
 <section id="layout">
@@ -256,11 +351,14 @@
   <h3>How to connect</h3>
   <ul>
     <li>Open the side panel on the right and select the <strong><code>MCP</code> tab</strong>.</li>
-    <li>Click <strong>Copy connection settings</strong>. This puts a JSON snippet on the clipboard that you
-      can paste straight into an AI client.</li>
-    <li>Paste it into the MCP settings of your AI client (Claude Code, Claude Desktop, Cursor, Cline, …).</li>
+    <li>Click <strong>Add settings to the open folder</strong>. This writes a <code>.mcp.json</code> into the
+      folder you have open, so clients that read it (such as Claude Code) connect just by starting in that
+      folder. The file contains the access token, so if the folder is a Git repository it is also added to
+      <code>.gitignore</code>.</li>
+    <li>For clients that do not read <code>.mcp.json</code> (Claude Desktop, Cursor, Cline and others), click
+      <strong>Copy client settings</strong> and paste the JSON from the clipboard into that client's MCP settings.</li>
   </ul>
-  <p>The copied snippet looks like this.</p>
+  <p>The settings look like this.</p>
   <pre><code>{
   "mcpServers": {
     "md-business": {
@@ -298,6 +396,26 @@
     refresh anything.
   </p>
   <p>
+    Not sure what to ask for? Ask the assistant <strong>"What can I do?"</strong>. It reads
+    <code>about_md_business</code> and answers with the tools to use for each kind of task. When the assistant
+    creates or changes a document, it uses <code>open_in_app</code> to bring that document up in the app, so
+    you do not have to go looking for the file.
+  </p>
+  <p>The tools fall roughly into these groups.</p>
+  <ul>
+    <li><strong>Documents</strong> — <code>list_schemas</code> / <code>get_schema</code> / <code>read_document</code> /
+      <code>validate_document</code> / <code>create_document</code> / <code>update_document</code> / <code>search_documents</code></li>
+    <li><strong>Test sheets</strong> — <code>read_tsv</code> / <code>append_tsv_row</code> / <code>update_tsv_row</code></li>
+    <li><strong>Git</strong> — <code>git_status</code> / <code>git_diff</code> / <code>git_commit</code> (<code>git push</code> is not offered)</li>
+    <li><strong>Data from elsewhere</strong> — <code>read_data</code> / <code>data_to_table</code> / <code>read_har</code></li>
+    <li><strong>Logs and investigation</strong> — <code>search_lines</code> / <code>read_lines</code> / <code>filter_records</code> /
+      <code>aggregate</code> / <code>build_timeline</code> / <code>save_evidence</code> / <code>check_tsv</code></li>
+    <li><strong>Web site folders</strong> — <code>declare_web_mode</code> / <code>web_mode_status</code> /
+      <code>list_site_files</code> / <code>read_site_file</code> / <code>write_site_file</code></li>
+    <li><strong>The app window</strong> — <code>open_in_app</code> / <code>list_open_documents</code> / <code>close_document</code> /
+      <code>export_pdf</code> / <code>capture_window</code></li>
+  </ul>
+  <p>
     <strong>Test sheets are edited row by row.</strong> Ask for something like "mark row 3 as OK and fill in
     today's date" and only that row changes — rows it did not touch stay exactly as they were, so your
     history shows the edit and nothing else. Columns are addressed by name, so reordering them does not
@@ -320,7 +438,7 @@
   <h2>11. Update the app</h2>
   <p>
     The app checks for a newer version on startup, and you can check any time from
-    <strong>Help → Check for update</strong>. When an update is available it is downloaded, verified
+    <strong>Help → Check for updates</strong>. When an update is available it is downloaded, verified
     against a signature, and applied in place — you do not need to reinstall from the download page.
     The Help popover also shows the current version, the keyboard shortcuts, and the license.
   </p>
@@ -333,10 +451,39 @@
     <tbody>
       <tr><td>Save</td><td><kbd>Ctrl + S</kbd></td><td><kbd>⌘ + S</kbd></td></tr>
       <tr><td>Export PDF</td><td><kbd>Ctrl + P</kbd></td><td><kbd>⌘ + P</kbd></td></tr>
+      <tr><td>Zoom the preview in / out</td><td><kbd>Ctrl + +</kbd> / <kbd>Ctrl + -</kbd> (or <kbd>Ctrl</kbd> + wheel)</td><td><kbd>⌘ + +</kbd> / <kbd>⌘ + -</kbd></td></tr>
+      <tr><td>Reset the preview to 100%</td><td><kbd>Ctrl + 0</kbd></td><td><kbd>⌘ + 0</kbd></td></tr>
       <tr><td>Reset split to 50/50 (divider focused)</td><td><kbd>Enter</kbd> / <kbd>Home</kbd></td><td><kbd>Enter</kbd> / <kbd>Home</kbd></td></tr>
       <tr><td>Exit grid fullscreen</td><td><kbd>Esc</kbd></td><td><kbd>Esc</kbd></td></tr>
     </tbody>
   </table>
+
+  <h3>Test grid</h3>
+  <p>When a test sheet (TSV) is open in the grid, the keys work the way they do in a spreadsheet.</p>
+  <table>
+    <thead><tr><th>Action</th><th>Windows / Linux</th><th>macOS</th></tr></thead>
+    <tbody>
+      <tr><td>Move between cells</td><td><kbd>↑ ↓ ← →</kbd> / <kbd>Tab</kbd></td><td><kbd>↑ ↓ ← →</kbd> / <kbd>Tab</kbd></td></tr>
+      <tr><td>Edit a cell</td><td><kbd>Enter</kbd> / <kbd>F2</kbd></td><td><kbd>Enter</kbd> / <kbd>F2</kbd></td></tr>
+      <tr><td>Confirm and move to the cell below</td><td><kbd>Enter</kbd></td><td><kbd>Enter</kbd></td></tr>
+      <tr><td>New line inside a cell (multi-line columns such as steps, expected result, notes)</td><td><kbd>Alt + Enter</kbd> / <kbd>Ctrl + Enter</kbd> / <kbd>Shift + Enter</kbd></td><td><kbd>⌥ + Enter</kbd> / <kbd>⌘ + Enter</kbd> / <kbd>Shift + Enter</kbd></td></tr>
+      <tr><td>Extend the selection</td><td><kbd>Shift + ↑ ↓ ← →</kbd> / <kbd>Shift + Home</kbd> / <kbd>Shift + End</kbd></td><td><kbd>Shift + ↑ ↓ ← →</kbd> / <kbd>Shift + Home</kbd> / <kbd>Shift + End</kbd></td></tr>
+      <tr><td>Select the whole table</td><td><kbd>Ctrl + A</kbd></td><td><kbd>⌘ + A</kbd></td></tr>
+      <tr><td>Copy the selection</td><td><kbd>Ctrl + C</kbd></td><td><kbd>⌘ + C</kbd></td></tr>
+      <tr><td>Paste</td><td><kbd>Ctrl + V</kbd></td><td><kbd>⌘ + V</kbd></td></tr>
+      <tr><td>Fill the selection down</td><td><kbd>Ctrl + D</kbd></td><td><kbd>⌘ + D</kbd></td></tr>
+      <tr><td>Undo / redo</td><td><kbd>Ctrl + Z</kbd> / <kbd>Ctrl + Y</kbd></td><td><kbd>⌘ + Z</kbd> / <kbd>⌘ + Y</kbd></td></tr>
+    </tbody>
+  </table>
+  <p>
+    <kbd>Home</kbd> / <kbd>End</kbd> go to the start / end of the row; add <kbd>Ctrl</kbd> (<kbd>⌘</kbd> on macOS)
+    to go to the top-left / bottom-right of the table. With <kbd>Shift</kbd> they extend the selection instead of moving.
+  </p>
+  <p>
+    <kbd>Ctrl + D</kbd> copies the value in the first row of the selection into the rows below — useful for
+    entering the same result, date or owner on dozens of rows. With a single cell selected, it takes the value
+    from the cell just above. The "Fill down" button at the bottom of the screen does the same.
+  </p>
 </section>
 
 <section id="trouble">

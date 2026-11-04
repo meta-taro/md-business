@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>ダウンロード — md-business デスクトップアプリ</title>
-<meta name="description" content="md-business デスクトップアプリ（Windows / macOS）のダウンロード。6 種の業務文書を用途別ビューワーで開き、Markdown を左右 2 画面でライブ編集・PDF 出力する。">
+<meta name="description" content="md-business デスクトップアプリ（Windows / macOS）のダウンロード。請求書・設計書・検証シート・調査報告書などの業務文書を用途別ビューワーで開き、Markdown を左右 2 画面でライブ編集・PDF 出力する。">
 <link rel="canonical" href="https://meta-taro.github.io/md-business/download/">
 <link rel="icon" type="image/png" sizes="32x32" href="../assets/favicon-32.png">
 <link rel="icon" type="image/png" sizes="16x16" href="../assets/favicon-16.png">
@@ -54,7 +54,7 @@
 <header class="doc-header">
   <div class="crumbs"><a href="../">md-business</a> / ダウンロード</div>
   <h1>デスクトップアプリをダウンロード</h1>
-  <div class="meta">Windows・macOS 対応 — 6 種の業務文書を Markdown でライブ編集し PDF 出力。AI アシスタントを直接つないで読み書きできます</div>
+  <div class="meta">Windows（x64 / ARM64）・macOS 対応 — 請求書・設計書・検証シート・調査報告書などの業務文書を Markdown でライブ編集し PDF 出力。AI アシスタントを直接つないで読み書きできます</div>
 </header>
 
 <main class="doc">
@@ -120,6 +120,10 @@
       zumen も MIT の OSS で、md-business と<strong>互いに合わせながら開発しています</strong>。
       図のために別のツールを用意したり、貼るために書き出したりする手順は要りません。
     </p>
+    <p>
+      数字も同じです。本文に <code>chart</code> の囲みを書くと、文書の隣に置いた TSV から棒・折れ線・円のグラフを描きます。
+      <code>data</code> の囲みは、隣の TSV をそのまま表として引用します。元の TSV を直せば、文書の中の表とグラフも追いつきます。
+    </p>
   </section>
 
   <section>
@@ -159,6 +163,11 @@
       インストール後の操作方法は<strong>操作マニュアル</strong>をご覧ください。フォルダを開いて編集し、請求書・
       検証シートを作成して PDF 出力するまでの手順を通しで説明しています。
     </p>
+    <ul>
+      <li><strong>探す</strong> — ファイル一覧の絞り込み欄に打つと、フォルダ全体の文書を題名・本文まで探します。一覧はツリーとサムネイルを切り替えられます。</li>
+      <li><strong>読む</strong> — プレビューは 50〜300% で拡大縮小できます（<code>Ctrl</code> / <code>Cmd</code> + <code>+</code> / <code>-</code> / <code>0</code>、<code>Ctrl</code> + ホイール）。印刷と PDF は常に 100% で出ます。</li>
+      <li><strong>描く</strong> — <code>zumen</code> / <code>chart</code> / <code>data</code> の囲みを、プレビューと PDF に図・グラフ・表として描きます。</li>
+    </ul>
     <p>
       <a href="../manual/ja/">操作マニュアル（日本語）→</a> &nbsp;
       <a href="../manual/">User guide (English) →</a>
@@ -166,6 +175,24 @@
   </section>
 
   <section>
+    <h2>デスクトップアプリ以外で開く</h2>
+    <p>
+      同じ Markdown は、入れ慣れたエディタやブラウザでも開けます。
+    </p>
+    <ul>
+      <li><strong>VS Code 拡張</strong> — スキーマの誤りを問題パネルに出し、印刷イメージを横に開き、検証シート TSV を表で編集します。
+        調査報告書・<code>zumen</code>・<code>chart</code> / <code>data</code> の囲みも描きます。
+        <a href="https://marketplace.visualstudio.com/items?itemName=meta-taro.md-business-vscode">Visual Studio Marketplace →</a></li>
+      <li><strong>Chrome 拡張</strong> — ローカルの <code>.md</code> を開いて業務文書として表示し、A4 PDF に出します。
+        調査報告書を含むすべての書式と <code>zumen</code> を描きます。<code>chart</code> / <code>data</code> は隣のファイルを読めないため、描けない理由を表示します。
+        <a href="https://chromewebstore.google.com/detail/lmdplkkfmgapnhombimeohjliinifgjh">Chrome ウェブストア →</a></li>
+    </ul>
+    <p>
+      AI アシスタントから使うときは、デスクトップアプリを入れて<a href="#mcp">下の手順</a>でつなぎます。
+    </p>
+  </section>
+
+  <section id="mcp">
     <h2>AI アシスタントとつなぐ</h2>
     <p>
       アプリは起動と同時に、この PC の中だけで動く <strong>MCP サーバー</strong>を内蔵で立ち上げます。
@@ -175,8 +202,16 @@
       頼めばその行だけが書き換わります。アシスタントが書き込むと、アプリの一覧とプレビューも操作なしで追いつきます。
     </p>
     <p>
-      つなぎ方は、サイドパネルの <code>MCP</code> タブで<strong>「接続設定を写す」</strong>を押し、
-      AI クライアントの設定へ貼るだけです。接続先は次に起動しても変わらないので、一度貼れば貼り直しは要りません。
+      つなぎ方は、サイドパネルの <code>MCP</code> タブで<strong>「開いているフォルダへ設定を置く」</strong>を押すだけです。
+      フォルダに <code>.mcp.json</code> が置かれ、それを読むクライアント（Claude Code など）はそのままつながります。
+      設定には接続トークンが入るので、Git リポジトリなら <code>.gitignore</code> にも書き足されます。
+      <code>.mcp.json</code> を読まないクライアントには、<strong>「接続設定を写す」</strong>を押して、その設定画面へ貼ってください。
+      接続先は次に起動しても変わらないので、置いた設定・貼った設定はそのまま使い続けられます。
+    </p>
+    <p>
+      つないだら、まず「何ができるの？」と聞いてみてください。アシスタントは <code>about_md_business</code> を読んで、
+      やりたいこと別に使う道具を順に答えます。アシスタントが文書を作ったり直したりすると、<code>open_in_app</code> で
+      その文書をアプリの画面に出します。
     </p>
     <div class="callout">
       アシスタントが触れる範囲は<strong>アプリで開いているフォルダの中だけ</strong>です。サーバーはこの PC

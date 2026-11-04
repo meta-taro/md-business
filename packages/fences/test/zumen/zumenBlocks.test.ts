@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { loadZumenImages } from './zumenBlocks';
+import { loadZumenImages } from '../../src/zumen/zumenBlocks.js';
 
 /** SVG から data URL を戻して中身を見る。 */
 function decode(markup: string): string {

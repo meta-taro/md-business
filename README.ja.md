@@ -124,19 +124,19 @@ AI agent が基本設計書・API 仕様書・DB 設計書・実装メモを、�
 
 AI agent が日付・明細・税フィールド・取引先情報・支払条件などを Markdown 上で更新。スキーマが必須項目を検証し、PDF レンダラーが人間向けの最終文書を生成します。外部の会計ツールは「正本」ではなく「連携先」として扱えます。
 
-## 配布チャネル（計画中）
+## 配布チャネル
 
-md-business は、複数の人間向けビューワーと自動化チャネルを提供することを目指しています：
+md-business は、複数の人間向けビューワーと自動化チャネルを提供します：
 
-| チャネル                       | 役割                                                                       |
-| ------------------------------ | -------------------------------------------------------------------------- |
-| Google Workspace アドオン      | 慣れた Office ワークフローの中で文書をレビュー・表示                       |
-| Chrome 拡張                    | ブラウザ上で Markdown 業務文書を開いてプレビュー                           |
-| VS Code 拡張                   | 開発者・agent 向けの編集環境                                                |
-| PWA                            | クロスプラットフォームの人間向けビューワー                                 |
-| Tauri デスクトップアプリ       | ローカルリポジトリの操作と、文書ワークフロー自動化を一体で提供             |
-| GitHub Action                  | CI バリデーションと自動レンダリング                                        |
-| LINE LIFF                      | モバイル中心の日本向け業務ワークフロー                                     |
+| チャネル                  | 役割                                                           | 状態   |
+| ------------------------- | -------------------------------------------------------------- | ------ |
+| Tauri デスクトップアプリ  | ローカルリポジトリの操作と、文書ワークフロー自動化を一体で提供 | 公開中 |
+| Chrome 拡張               | ブラウザ上で Markdown 業務文書を開いてプレビュー               | 公開中 |
+| Google Workspace アドオン | 慣れた Office ワークフローの中で文書をレビュー・表示           | 審査中 |
+| VS Code 拡張              | 開発者・agent 向けの編集環境                                   | 公開中 |
+| PWA                       | クロスプラットフォームの人間向けビューワー                     | 計画中 |
+| GitHub Action             | CI バリデーションと自動レンダリング                            | 計画中 |
+| LINE LIFF                 | モバイル中心の日本向け業務ワークフロー                         | 計画中 |
 
 これらは **コアプロダクトではありません**。
 Markdown 正本を取り巻く **アダプター** にすぎません。
@@ -166,7 +166,7 @@ Markdown 正本を取り巻く **アダプター** にすぎません。
 
 Chrome 拡張ビューワーで開く、または `@md-business/renderer-pdf` でレンダリングすると、コードを書かずに印刷品質の PDF が生成できます。
 
-今後、見積書・議事録・契約書・API 仕様書・DB 設計書・運用チェックリストなど、他の業務文書のテンプレートも追加予定です。
+DB 設計書（RDB は `db-spec/v1`、NoSQL は `nosql-db-spec/v1`）はスキーマがあり、どのアプリでも開けますが、白紙のテンプレートはまだありません。[`examples/`](./examples/) の記入済みのものを写して使えます。今後、議事録・契約書・運用チェックリストなど、他の業務文書のテンプレートも追加予定です。
 
 ## 実例（中身の入った文書）
 
@@ -217,16 +217,46 @@ md-business が目指すのは、**業務文書を AI agent が運用できる�
 | 適格請求書（インボイス制度） | `invoice/v1` | [docs/spec/invoice-v1.md](./docs/spec/invoice-v1.md) → [packages/schema-invoice/](./packages/schema-invoice/README.md) |
 | 基本設計書 | `spec/v1` | [docs/spec/spec-v1.md](./docs/spec/spec-v1.md) → [packages/schema-spec/](./packages/schema-spec/README.md) |
 | 検証シート | `test-spec/v1` | [docs/spec/test-spec-v1.md](./docs/spec/test-spec-v1.md) → [packages/schema-test-spec/](./packages/schema-test-spec/README.md) |
+| 検証シート（タブ区切り） | `test-spec-tsv/v1` | [docs/spec/test-spec-tsv-v1.md](./docs/spec/test-spec-tsv-v1.md) → [packages/schema-test-spec-tsv/](./packages/schema-test-spec-tsv/README.md) |
+| API 詳細設計書 | `api-spec/v1` | [packages/schema-api-spec/](./packages/schema-api-spec/README.md) |
+| DB 設計書（RDB） | `db-spec/v1` | [packages/schema-db-spec/](./packages/schema-db-spec/README.md) |
+| DB 設計書（NoSQL） | `nosql-db-spec/v1` | [packages/schema-nosql-db-spec/](./packages/schema-nosql-db-spec/README.md) |
+| 調査報告書 | `investigation/v1` | [packages/schema-investigation/](./packages/schema-investigation/README.md) |
 
-各仕様書には、JSON Schema へのリンク、トップレベルフィールド一覧、YAML frontmatter のサンプル、バリデーション例が含まれます。
+仕様書があるものは、JSON Schema へのリンク、トップレベルフィールド一覧、YAML frontmatter のサンプル、バリデーション例が含まれます。
 
 ### デスクトップアプリ
 
-デスクトップアプリ（Tauri 2 + SvelteKit）は、6 種の業務文書を用途別ビューワーで開き、Markdown を左右 2 画面でライブ編集し、A4 PDF を出力します。
+デスクトップアプリ（Tauri 2 + SvelteKit）は、上の業務文書をすべて用途別ビューワーで開き、Markdown を左右 2 画面でライブ編集し、A4 PDF を出力します。
+
+- **探す**: ファイル一覧の絞り込み欄に打つと、フォルダ内の Markdown と検証シートを表題・本文まで横断して探せます。一覧はサムネイルの格子にも切り替えられます。
+- **読む**: プレビューを拡大・縮小できます（50〜300%、Ctrl/Cmd + `+` / `-` / `0`、Ctrl + ホイール）。印刷と PDF は常に 100% で出ます。
+- **描く**: ```zumen``` は構成図に、```chart``` は隣の TSV から棒・折れ線・円グラフに、```data``` は隣の TSV を表として引用します。VS Code 拡張も同じものを描きます。Chrome 拡張は隣のファイルを読めないため、構成図だけを描きます。
+- **新しく保つ**: 起動時に新しい版を確かめ、了承すると入れ替えます。Windows（x64 / ARM64）と macOS 向けを配っています。
 
 - **ダウンロード**（Windows / macOS）: <https://meta-taro.github.io/md-business/download/>
 - **操作マニュアル（日本語）**: <https://meta-taro.github.io/md-business/manual/ja/>
 - **User guide (English)**: <https://meta-taro.github.io/md-business/manual/>
+
+#### 内蔵 MCP サーバー
+
+デスクトップアプリは、起動すると手元だけで待ち受ける MCP サーバーを立てます。AI クライアントは、アプリで開いているフォルダの業務文書を読み・検証し・探し・作り・直せます。
+
+- つなぎ方は `MCP` タブから。**開いているフォルダへ設定を置く**で `.mcp.json` が書かれ、**接続設定を写す**でそのまま使える `mcpServers` の設定がクリップボードに入ります。接続情報は再起動しても変わりません。
+- `about_md_business` は「ここで何ができるか」に、やりたいこと別の呼ぶ順で答えます。
+- 文書: `list_schemas` / `get_schema` / `read_document` / `validate_document` / `create_document` / `update_document` / `search_documents`。検証シートは `read_tsv` / `append_tsv_row` / `update_tsv_row` で行単位に触るので、触っていない行は差分に出ません。`check_tsv` は行を読まずに壊れていないかだけを見ます。
+- 外から届いた JSON / XML（請求書の交換形式・口座明細・会計サービスの書き出し）は読むだけです。`read_data` で木として読み、`data_to_table` で繰り返し部分を表として引用します。`read_har` は通信の記録を読みます。
+- ログは全文を読みません。`search_lines` / `read_lines` で当たりの周辺だけ、`filter_records` / `aggregate` で JSONL / TSV のレコードを絞って数え、`build_timeline` で複数のファイルを時刻順に混ぜます。戻り値はトークン・Cookie・メールアドレスが伏せ字になります。`save_evidence` は抜粋を調査報告書から指せるファイルとして残します。
+- サイトとして宣言したフォルダ（`md-business.yml`）では、`declare_web_mode` / `web_mode_status` / `list_site_files` / `read_site_file` / `write_site_file` でサイトの部品を直し、出来上がりはアプリにそのまま映ります。
+- `open_in_app` は AI が書いた文書を画面に出し、`list_open_documents` / `close_document` で開いているタブを見て片付けます。`export_pdf` は印刷ダイアログまで出します（保存先は人が選びます）。`capture_window` はアプリの窓だけを撮ります。
+- フォルダが git リポジトリなら `git_status` / `git_diff` / `git_commit` で変更を確かめて記録できます。`git push` はツールにしていません。
+- 届く範囲はアプリで開いているフォルダだけで、待ち受けはループバックのみ、トークンが合わない要求は断ります。AI が書くと、ファイル一覧とプレビューは再読み込みなしで追従します。
+
+詳しくは [packages/mcp-server/](./packages/mcp-server/README.md) を参照してください。
+
+### 変更履歴
+
+デスクトップアプリ・Chrome 拡張・VS Code 拡張・Workspace アドオンの 4 つは、版をそれぞれ独立に付けています。[CHANGELOG.md](./CHANGELOG.md) に各アプリの現在の版と、それぞれの履歴へのリンクがあります。
 
 ### 規約
 
@@ -246,7 +276,7 @@ md-business が目指すのは、**業務文書を AI agent が運用できる�
 
 以降は[操作マニュアル](https://meta-taro.github.io/md-business/manual/ja/)にあります。
 
-これらの文書を AI に編集させるには、デスクトップアプリが動かしている MCP サーバーへ AI クライアントをつなぎます。右パネルの `MCP` タブで、**接続設定を開いているフォルダへ追加**すると `.mcp.json` が書かれ、それを読むクライアント（Claude Code など）は自分で拾います。別の場所に設定を置くクライアントなら、**接続設定を写す**でクリップボードへ写せます。どちらも中身は同じで、ポートとトークンは埋まった状態です。
+これらの文書を AI に編集させるには、デスクトップアプリが動かしている MCP サーバーへ AI クライアントをつなぎます。右パネルの `MCP` タブで、**開いているフォルダへ設定を置く**すると `.mcp.json` が書かれ、それを読むクライアント（Claude Code など）は自分で拾います。別の場所に設定を置くクライアントなら、**接続設定を写す**でクリップボードへ写せます。どちらも中身は同じで、ポートとトークンは埋まった状態です。
 
 ```json
 {
