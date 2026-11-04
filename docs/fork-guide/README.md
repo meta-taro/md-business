@@ -42,6 +42,7 @@ md-business は MIT ライセンスで配布されており、企業内 / コン
 - **Chrome Web Store**: Publisher アカウント取得 ($5) / プライバシーポリシー必須 / 個人開発者でも可
 - **Google Workspace Marketplace**: ドメイン認証 + Sensitive scope 検証申請 / 法人アカウント推奨
 - **デスクトップアプリ**: 自動更新は `apps/desktop/src-tauri/tauri.conf.json` の `plugins.updater`（公開鍵と配信先）が本家を指している。fork で配るなら自分の署名鍵を作って `pubkey` と `endpoints` を差し替える。そのままだと、fork 版が本家の版へ更新されようとする。署名鍵の秘密側は Repository secrets に置き、リポジトリへ入れない
+- **MCP Registry**: リポジトリ直下の `server.json` は本家の名前（`io.github.meta-taro/md-business`）で MCP サーバーを登録する。`.github/workflows/mcp-registry.yml` は本家のリポジトリでしか動かない。fork でも登録するなら `name` と `repository.url` を自分の GitHub 名前空間に変え、ワークフローの `if:` と `scripts/mcp-registry.test.mjs` の期待値も合わせる
 - **VS Code Marketplace**: `apps/vscode-extension/package.json` の `publisher` と `name` を自分のものに変える
 - **PWA セルフホスト**（計画中）: HTTPS 必須
 - **npm 公開**: 各 `@<your-org>/schema-<type>` として個別公開推奨（monorepo 全体公開は非推奨）
