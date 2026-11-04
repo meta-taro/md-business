@@ -1,0 +1,111 @@
+# md-business の MCP サーバーを公式 MCP Registry に載せる。
+#
+# レジストリ（https://registry.modelcontextprotocol.io）は、MCP クライアントや
+# ディレクトリがサーバーを探すところ。リポジトリ直下の `server.json` を読む。
+# その版がアプリの版と揃っていることは `scripts/mcp-registry.test.mjs` が確かめる。
+#
+# Release は下書きで作られ、人が publish して初めて配布が始まる。だから起点は
+# release ワークフローの完了ではなく publish にする。下書きの版を載せると、
+# 見た人を存在しないダウンロードへ案内してしまう。
+# 初回や再試行のために手でも動かせる。そのときは既定ブランチの `server.json` が
+# 名乗る版を、その版の Release が公開済みのときだけ載せる。
+#
+# 秘密は置かない。`id-token: write` で GitHub の OIDC トークンを使い、
+# `io.github.meta-taro/` 名前空間の持ち主であることを示す。
+
+name: mcp-registry
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    # fork のリリースで本家の名前を名乗って公開しようとしないように。
+    if: github.repository == 'meta-taro/md-business'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.release.tag_name || github.sha }}
+          sparse-checkout: server.json
+          sparse-checkout-cone-mode: false
+
+      - name: Check the version against the tag and the release
+        id: version
+        env:
+          TAG: ${{ github.event.release.tag_name }}
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -eu
+          HAVE="$(jq -r .version server.json)"
+          if [ -n "$TAG" ] && [ "v$HAVE" != "$TAG" ]; then
+            echo "::error::server.json says $HAVE but the tag is $TAG"
+            exit 1
+          fi
+          DRAFT="$(gh release view "v$HAVE" --json isDraft --jq .isDraft || echo missing)"
+          if [ "$DRAFT" != "false" ]; then
+            echo "::error::there is no published release v$HAVE to list"
+            exit 1
+          fi
+          echo "version=$HAVE" >> "$GITHUB_OUTPUT"
+
+      - name: See whether the registry already lists it
+        id: listed
+        env:
+          WANT: ${{ steps.version.outputs.version }}
+        run: |
+          set -eu
+          # 読めなかったのを「載っていない」と見なすと二重に公開しうるうえ、
+          # 何もせずに緑で終わった実行は済んだように見える。読めなければ失敗させる。
+          BODY=""
+          for wait in 0 30 60 120; do
+            [ "$wait" = 0 ] || sleep "$wait"
+            BODY="$(curl -fsS --max-time 20 \
+              'https://registry.modelcontextprotocol.io/v0/servers?search=io.github.meta-taro/md-business' \
+              || true)"
+            [ -n "$BODY" ] && break
+            echo "the registry did not answer; trying again"
+          done
+          if [ -z "$BODY" ]; then
+            echo "::error::the registry could not be read, so nothing was published. Re-run this workflow once it answers."
+            exit 1
+          fi
+          NOW="$(echo "$BODY" | jq -r \
+            '.servers[] | select(.server.name == "io.github.meta-taro/md-business")
+             | select(._meta["io.modelcontextprotocol.registry/official"].isLatest)
+             | .server.version' | head -1)"
+          echo "listed now: ${NOW:-(nothing)}"
+          if [ "$NOW" = "$WANT" ]; then
+            echo "$WANT is already listed; nothing to do"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Install mcp-publisher
+        if: steps.listed.outputs.skip != 'true'
+        run: |
+          set -eu
+          # 版を固定する。publisher の新版がリリース当日の挙動を変えないように。
+          VER=1.8.1
+          curl -fsSL -o "$RUNNER_TEMP/mcp-publisher.tar.gz" \
+            "https://github.com/modelcontextprotocol/registry/releases/download/v${VER}/mcp-publisher_linux_amd64.tar.gz"
+          tar -xzf "$RUNNER_TEMP/mcp-publisher.tar.gz" -C "$RUNNER_TEMP" mcp-publisher
+          "$RUNNER_TEMP/mcp-publisher" --version
+
+      - name: Publish
+        if: steps.listed.outputs.skip != 'true'
+        run: |
+          set -eu
+          "$RUNNER_TEMP/mcp-publisher" login github-oidc
+          "$RUNNER_TEMP/mcp-publisher" publish
