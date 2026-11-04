@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.1
+
+### Fixed
+
+- Test-spec sheets (`.tsv`) opened as an empty table, because the script that draws the grid was left out of the 0.2.0 package.
+
 ## 0.2.0
 
 ### Added
