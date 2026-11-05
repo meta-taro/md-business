@@ -14,6 +14,7 @@ import {
   invoiceDocumentLabels,
   translateInvoiceErrors,
   translateInvoiceWarnings,
+  renderInvoiceFileName,
   type Invoice,
 } from '@md-business/schema-invoice';
 import validateInvoice from '@md-business/schema-invoice/validate';
@@ -49,6 +50,7 @@ export const invoiceProvider = createSchemaPreview<Invoice>({
   translateErrors: translateInvoiceErrors,
   translateWarnings: translateInvoiceWarnings,
   withPreviewDefaults,
+  pdfFileName: (data) => renderInvoiceFileName(data, data.fileName),
   documentTitle: (data) => `${invoiceDocumentLabels(data).title} ${data.invoiceNumber}`,
   documentLabel: (data) => invoiceDocumentLabels(data).title,
   // データ駆動スキーマは frontmatter のみで描くため body は無視する。

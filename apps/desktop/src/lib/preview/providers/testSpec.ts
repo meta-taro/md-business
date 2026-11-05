@@ -13,6 +13,7 @@ import {
   autofillTestSpec,
   translateTestSpecErrors,
   translateTestSpecWarnings,
+  renderTestSpecFileName,
   type TestSpec,
 } from '@md-business/schema-test-spec';
 import validateTestSpec from '@md-business/schema-test-spec/validate';
@@ -46,6 +47,7 @@ export const testSpecProvider = createSchemaPreview<TestSpec>({
   translateErrors: translateTestSpecErrors,
   translateWarnings: translateTestSpecWarnings,
   withPreviewDefaults,
+  pdfFileName: (data) => renderTestSpecFileName(data, data.fileName),
   documentTitle: (data) => data.title || `検証シート ${data.documentNumber ?? ''}`.trim(),
   // prose スキーマは Markdown 本文を HTML 化・sanitize して描く。
   renderBody: (data, body) =>

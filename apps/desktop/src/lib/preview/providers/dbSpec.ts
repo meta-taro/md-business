@@ -6,6 +6,7 @@ import {
   autofillDbSpec,
   translateDbSpecErrors,
   translateDbSpecWarnings,
+  renderDbSpecFileName,
   type DbSpec,
 } from '@md-business/schema-db-spec';
 import validateDbSpec from '@md-business/schema-db-spec/validate';
@@ -40,6 +41,7 @@ export const dbSpecProvider = createSchemaPreview<DbSpec>({
   translateErrors: translateDbSpecErrors,
   translateWarnings: translateDbSpecWarnings,
   withPreviewDefaults,
+  pdfFileName: (data) => renderDbSpecFileName(data, data.fileName),
   documentTitle: (data) => data.title || `DB 設計書 ${data.documentNumber ?? ''}`.trim(),
   // データ駆動スキーマは frontmatter のみで描くため body は無視する。
   renderBody: (data) => renderDbSpecBody(data),

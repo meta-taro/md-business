@@ -93,3 +93,18 @@ describe('createSchemaPreview（テーマ）', () => {
     expect(result.warnings).toEqual([]);
   });
 });
+
+describe('createSchemaPreview（PDF の保存名）', () => {
+  it('pdfFileName があればその名前を返す', () => {
+    const preview = createSchemaPreview({ ...makeEchoConfig(), pdfFileName: () => 'SPEC-001_v1' });
+    const result = preview.render({ stub: true });
+    if (!result.ok) throw new Error('not ok');
+    expect(result.pdfFileName).toBe('SPEC-001_v1');
+  });
+
+  it('pdfFileName が無いスキーマは名前を持たない（呼ぶ側が文書タイトルを使う）', () => {
+    const result = createSchemaPreview(makeEchoConfig()).render({ stub: true });
+    if (!result.ok) throw new Error('not ok');
+    expect(result.pdfFileName).toBeUndefined();
+  });
+});

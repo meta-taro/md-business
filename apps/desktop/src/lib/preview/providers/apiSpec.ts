@@ -6,6 +6,7 @@ import {
   autofillApiSpec,
   translateApiSpecErrors,
   translateApiSpecWarnings,
+  renderApiSpecFileName,
   type ApiSpec,
 } from '@md-business/schema-api-spec';
 import validateApiSpec from '@md-business/schema-api-spec/validate';
@@ -36,6 +37,7 @@ export const apiSpecProvider = createSchemaPreview<ApiSpec>({
   translateErrors: translateApiSpecErrors,
   translateWarnings: translateApiSpecWarnings,
   withPreviewDefaults,
+  pdfFileName: (data) => renderApiSpecFileName(data, data.fileName),
   documentTitle: (data) => data.title || `API 設計書 ${data.documentNumber ?? ''}`.trim(),
   // データ駆動スキーマは frontmatter のみで描くため body は無視する。
   renderBody: (data) => renderApiSpecBody(data),
