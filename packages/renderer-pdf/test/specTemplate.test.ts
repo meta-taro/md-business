@@ -130,3 +130,45 @@ describe('renderSpecBody — HTML safety', () => {
     expect(html).toContain('data-schema-version="spec/v1"');
   });
 });
+
+describe('renderSpecBody — 区分', () => {
+  it('表紙に区分を出す（社内版は classification のまま）', () => {
+    const html = renderSpecBody(standardSpec({ classification: '社外秘' }));
+    expect(html).toContain('<div class="mdb-spec__classification">社外秘</div>');
+  });
+
+  it('各ページの右上にも区分を刷る', () => {
+    const html = renderSpecBody(standardSpec({ classification: '社外秘' }));
+    expect(html).toContain('<style>@page { @top-right { content: "社外秘"; } }</style>');
+  });
+
+  it('提出版は提出用（提出版の区分があればそちら）', () => {
+    expect(renderSpecBody(standardSpec({ classification: '社外秘' }), { edition: 'submission' }))
+      .toContain('<div class="mdb-spec__classification">提出用</div>');
+    const html = renderSpecBody(
+      standardSpec({ classification: '社外秘', submissionClassification: '顧客限り' }),
+      { edition: 'submission' },
+    );
+    expect(html).toContain('<div class="mdb-spec__classification">顧客限り</div>');
+    expect(html).toContain('content: "顧客限り"');
+    expect(html).not.toContain('社外秘');
+  });
+
+  it('区分が無ければ表紙にも右上にも何も出さない', () => {
+    const html = renderSpecBody(standardSpec());
+    expect(html).not.toContain('mdb-spec__classification');
+    expect(html).not.toContain('@top-right');
+  });
+
+  it('表紙を出さないときも右上には刷る', () => {
+    const html = renderSpecBody(standardSpec({ classification: '社外秘' }), { hideCover: true });
+    expect(html).not.toContain('mdb-spec__classification');
+    expect(html).toContain('@top-right');
+  });
+
+  it('右上の文字列は CSS と HTML の両方から抜け出せない', () => {
+    const html = renderSpecBody(standardSpec({ classification: String.raw`a"b\c</style><script>x` }));
+    expect(html).toContain(String.raw`content: "a\"b\\c\3c /style\3e \3c script\3e x"`);
+    expect(html).not.toContain('<script>');
+  });
+});
