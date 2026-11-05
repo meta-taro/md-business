@@ -134,3 +134,27 @@ describe('buildPreviewDocument', () => {
     expect(html).not.toContain('onload="x');
   });
 });
+
+describe('buildPreviewDocument — 印刷の余白', () => {
+  const base = {
+    bodyHtml: '<section class="mdb-spec"><h1>設計書</h1></section>',
+    css: '@page { margin: 20mm; } .mdb-spec { color: red; }',
+  };
+  const marginBoxes = /@media print\s*\{\s*@page\s*\{\s*@top-center\s*\{\s*content:\s*''\s*;?\s*\}\s*@bottom-center\s*\{\s*content:\s*''\s*;?\s*\}/;
+
+  it('上下の余白に空の欄を置き、WebView が刷り込む URL とページ番号を出させない', () => {
+    expect(buildPreviewDocument(base)).toMatch(marginBoxes);
+  });
+
+  it('文書の CSS より前に置く（文書が自分の欄を書けば、そちらが勝つ）', () => {
+    const html = buildPreviewDocument(base);
+    const ours = html.search(marginBoxes);
+    expect(ours).toBeGreaterThan(-1);
+    expect(ours).toBeLessThan(html.indexOf(base.css));
+  });
+
+  it('書き出す HTML にも入れる（ブラウザで開いて刷っても同じ）', () => {
+    expect(buildPreviewDocument({ ...base, shortcuts: false })).toMatch(marginBoxes);
+    expect(buildPreviewDocument({ ...base, cssHref: 'site.css' })).toMatch(marginBoxes);
+  });
+});

@@ -133,6 +133,20 @@ const PREVIEW_SHORTCUT_SCRIPT = `<script>
  */
 const PREVIEW_ZOOM_STYLE = '<style>@media screen { html { zoom: var(--preview-zoom, 1); } }</style>';
 
+/**
+ * 印刷のとき、上下の余白へ空の欄を置く。
+ *
+ * WebView の印刷は、余白に日時・題・URL（`tauri.localhost`）・ページ番号を自分で刷り込む。
+ * 印刷ダイアログで外せるが、既定が「刷る」なので、黙って PDF に残る。
+ * 余白を 0 にした 1 ページ目にだけ出ないので、2 ページ目以降を開くまで気づけない。
+ *
+ * 文書の側が同じ辺に欄（`@top-center` など）を持つと、WebView は自分のものを刷らない。
+ * 中身の無い欄を置いて、それを使う。文書の CSS より前に置くので、文書が自分の欄
+ * （ページ番号など）を書けばそちらが勝つ。
+ */
+const PRINT_MARGIN_STYLE =
+  "<style>@media print { @page { @top-center { content: ''; } @bottom-center { content: ''; } } }</style>";
+
 export function buildPreviewDocument(input: PreviewDocumentInput): string {
   const {
     bodyHtml,
@@ -156,6 +170,7 @@ export function buildPreviewDocument(input: PreviewDocumentInput): string {
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${escapeHtml(title)}</title>
 <style>:root { color-scheme: ${escapeHtml(theme)}; }</style>
+${PRINT_MARGIN_STYLE}
 ${style}${shortcuts ? `
 ${PREVIEW_ZOOM_STYLE}` : ''}
 </head>
