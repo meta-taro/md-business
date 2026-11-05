@@ -1,6 +1,7 @@
 import {
   describeFrontmatterError,
   editionWarnings,
+  emphasisWarnings,
   hasRevisionMarks,
   parseMarkdown,
   revisionHistoryWarnings,
@@ -133,6 +134,7 @@ export function loadMarkdown(source: string, options: LoadMarkdownOptions = {}):
       ...(validated.warnings ?? []),
       ...(editionAware ? editionWarnings(markdownBody, edition) : []),
       ...revisionHistoryWarnings(frontmatter, markdownBody),
+      ...(plugin.proseBody === true ? emphasisWarnings(source) : []),
     ],
     editionAware,
     revisionAware,
@@ -219,6 +221,7 @@ export function previewMarkdown(
   const leaks = [
     ...(editionAware ? editionWarnings(markdownBody, edition) : []),
     ...revisionHistoryWarnings(frontmatter, markdownBody),
+    ...(plugin.proseBody === true ? emphasisWarnings(source) : []),
   ];
   if (plugin.previewRender) {
     const result = plugin.previewRender(frontmatter, markdownBody, edition, revisions);

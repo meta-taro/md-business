@@ -78,3 +78,19 @@ describe('改版の印', () => {
     expect(invoice.comparable).toBe(false);
   });
 });
+
+describe('記号のまま刷られる強調', () => {
+  it('本文を描く文書では、閉じ忘れた ** をファイルの行番号で知らせる', async () => {
+    const plain = await renderPreview('# メモ\n\n支払いは**月末に締める。\n');
+    if (!plain.ok) throw new Error(plain.reason);
+    expect(plain.warnings.join('\n')).toContain('3 行目');
+  });
+
+  it('本文を描かない書式（請求書）では知らせない', async () => {
+    const invoice = await renderPreview(
+      ['---', 'schemaVersion: invoice/v1', 'invoiceNumber: INV-1', '---', '', 'メモ**', ''].join('\n'),
+    );
+    if (!invoice.ok) throw new Error(invoice.reason);
+    expect(invoice.warnings.join('\n')).not.toContain('「**」');
+  });
+});

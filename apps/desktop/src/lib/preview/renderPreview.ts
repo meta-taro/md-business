@@ -8,7 +8,7 @@
  * 非同期なのは、振り分けた後にそのスキーマの描画一式を読み込むため（providers/lazy）。
  * 「どのスキーマか」が決まるまで、どのスキーマの中身も読まない。
  */
-import { describeFrontmatterError, parseMarkdown } from '@md-business/core';
+import { describeFrontmatterError, emphasisWarnings, parseMarkdown } from '@md-business/core';
 import { isTsvSource } from '../tsv/detect';
 import { resolveProvider } from './registry';
 import { LAZY_PROVIDERS } from './providers/lazy';
@@ -51,11 +51,21 @@ export async function renderPreview(
   if (!lazy) {
     // 業務スキーマ非該当は空表示にせず、GitHub のように素の Markdown を描く。
     // frontmatter が解析できた（＝描画対象になる）ケースのみここへ来る。
-    return renderMarkdownFallback(body, options, frontmatter);
+    return withEmphasisWarnings(renderMarkdownFallback(body, options, frontmatter), source);
   }
 
   const provider = await lazy.load();
-  return provider.render(frontmatter, body, options);
+  return withEmphasisWarnings(provider.render(frontmatter, body, options), source);
+}
+
+/**
+ * 本文を地の文で描く文書だけ、記号のまま刷られる強調を知らせる（表や帳票の書式は本文を描かない）。
+ * 行番号はファイルの行で数えるので、前の版と比べている間は比べた本文の行になり、少しずれることがある。
+ */
+function withEmphasisWarnings(result: PreviewResult, source: string): PreviewResult {
+  if (!result.ok || result.comparable !== true) return result;
+  const found = emphasisWarnings(source);
+  return found.length === 0 ? result : { ...result, warnings: [...result.warnings, ...found] };
 }
 
 export type { PreviewResult, RenderPreviewOptions } from './previewFactory';

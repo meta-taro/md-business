@@ -278,3 +278,15 @@ describe('renderMarkdownToHtml — 図に添える説明', () => {
     expect(html).toContain('a &#x3C; b &#x26; c');
   });
 });
+
+describe('renderMarkdownToHtml — 全角の約物に接する強調', () => {
+  it('閉じる ** の前が全角の約物でも、後ろに文字が続けば強調になる', () => {
+    const html = renderMarkdownToHtml('**「重要」**です。', { hasFrontmatter: false });
+    expect(html).toContain('<strong>「重要」</strong>です。');
+  });
+
+  it('~~ の取り消し線も同じく効く', () => {
+    const html = renderMarkdownToHtml('~~「旧」~~の手順。', { hasFrontmatter: false });
+    expect(html).toContain('<del>「旧」</del>の手順。');
+  });
+});

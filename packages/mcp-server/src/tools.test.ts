@@ -349,3 +349,15 @@ describe('updateDocument', () => {
     expect((await updateDocument(seed(), { path: 'nope.md' })).ok).toBe(false);
   });
 });
+
+describe('記号のまま刷られる強調', () => {
+  it('閉じ忘れた ** を、ファイルの行番号で読むときも検証するときも知らせる', async () => {
+    const store = new MemoryDocumentStore({
+      'notes/memo.md': '---\ntitle: 覚書\n---\n\n支払いは**月末に締める。\n',
+    });
+    const read = await readDocument(store, 'notes/memo.md');
+    expect(read.ok && read.warnings.join('\n')).toContain('5 行目');
+    const validated = await validateDocument(store, 'notes/memo.md');
+    expect(validated.ok && validated.warnings.join('\n')).toContain('「**」');
+  });
+});

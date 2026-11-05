@@ -71,3 +71,15 @@ describe('改版の印（印あり・清書）', () => {
     expect(preview.warnings.join('\n')).toContain('1.1.0');
   });
 });
+
+describe('記号のまま刷られる強調', () => {
+  it('本文を描く書式では、閉じ忘れた ** を知らせる', () => {
+    const result = loadMarkdown(SPEC.replace('に締める。', 'に**締める。'));
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.warnings.join('\n')).toContain('「**」');
+    const preview = previewMarkdown(SPEC.replace('に締める。', 'に**締める。'));
+    if (!preview.ok) return;
+    expect(preview.warnings.join('\n')).toContain('「**」');
+  });
+});

@@ -11,6 +11,7 @@ import {
   buildDocument,
   validateWithCompiled,
   editionWarnings,
+  emphasisWarnings,
   revisionHistoryWarnings,
   stripInternalBlocks,
   type DocumentEdition,
@@ -62,8 +63,13 @@ function documentWarnings(
   frontmatter: Record<string, unknown>,
   body: string,
   edition: DocumentEdition,
+  source: string,
 ): string[] {
-  return [...editionWarnings(body, edition), ...revisionHistoryWarnings(frontmatter, body)];
+  return [
+    ...editionWarnings(body, edition),
+    ...revisionHistoryWarnings(frontmatter, body),
+    ...emphasisWarnings(source),
+  ];
 }
 
 /** ローカル文書を読み、frontmatter / body / 検出 schema を返す。 */
@@ -85,7 +91,7 @@ export async function readDocument(
     schema: detectSchemaId(data),
     frontmatter: data,
     body: edition === 'submission' ? stripInternalBlocks(body).text : body,
-    warnings: documentWarnings(data, body, edition),
+    warnings: documentWarnings(data, body, edition, src),
   };
 }
 
@@ -115,7 +121,7 @@ export async function validateDocument(
   }
   const src = await store.read(safe.relative);
   const { data, body } = splitFrontmatter(src);
-  const warnings = documentWarnings(data, body, edition);
+  const warnings = documentWarnings(data, body, edition, src);
   const schemaId = detectSchemaId(data);
   if (schemaId === null) {
     return {

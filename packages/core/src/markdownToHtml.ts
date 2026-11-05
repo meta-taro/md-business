@@ -1,6 +1,8 @@
 import { unified } from 'unified';
 import remarkParse from 'remark-parse';
 import remarkGfm from 'remark-gfm';
+import remarkCjkFriendly from 'remark-cjk-friendly';
+import remarkCjkFriendlyGfmStrikethrough from 'remark-cjk-friendly-gfm-strikethrough';
 import remarkRehype from 'remark-rehype';
 import rehypeStringify from 'rehype-stringify';
 import { splitFrontmatter } from './frontmatter.js';
@@ -401,6 +403,10 @@ function buildProcessor(lang: string, rawHtml: boolean) {
   return unified()
     .use(remarkParse)
     .use(remarkGfm)
+    // CommonMark は閉じる記号の直前が約物（」や。）だと、後ろに文字が続く限り閉じとみなさない。
+    // 日本語では `**「重要」**です` が強調にならず、記号がそのまま刷られる。
+    .use(remarkCjkFriendly)
+    .use(remarkCjkFriendlyGfmStrikethrough)
     .use(remarkRehype, {
       allowDangerousHtml: rawHtml,
       footnoteLabel: FOOTNOTE_LABEL[lang] ?? FOOTNOTE_LABEL['ja']!,
