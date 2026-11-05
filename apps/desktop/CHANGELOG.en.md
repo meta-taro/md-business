@@ -4,6 +4,12 @@ Changes to this app. Versions follow [Semantic Versioning](https://semver.org/).
 
 Japanese is the source of truth for this file; see [CHANGELOG.md](./CHANGELOG.md).
 
+## 0.33.1
+
+### Fixed
+
+- **The PDF save name now comes from the frontmatter `fileName` instead of always being "md-business".** "Save as PDF" names the file after the app window's title, so the title is swapped for the document's save name while printing and restored afterwards. Names are built the same way as in the Chrome extension; documents without `fileName` get the default for their type (for a basic design document, `基本設計書_{文書番号}_v{版}`).
+
 ## 0.33.0
 
 ### Added

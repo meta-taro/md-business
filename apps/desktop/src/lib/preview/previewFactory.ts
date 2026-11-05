@@ -49,6 +49,11 @@ export interface SchemaPreviewConfig<T> {
   withPreviewDefaults: (data: Record<string, unknown>) => T;
   documentTitle: (data: T) => string;
   /**
+   * PDF の保存名（frontmatter の `fileName` 書式から作る）。Chrome 拡張と同じ処理を渡す。
+   * 省略したスキーマは保存名を持たず、呼ぶ側が documentTitle を使う。
+   */
+  pdfFileName?: (data: T) => string;
+  /**
    * ペイン見出しに出す表示名を文書ごとに上書きする（省略時は `meta.label`）。
    * invoice のように 1 スキーマで複数の文書種別（請求書 / 見積書 / 領収書）を
    * 扱う場合、見出しがスキーマ名のままだと開いている文書と食い違うため。
@@ -86,6 +91,8 @@ export interface PreviewOk {
   style: PreviewStyle;
   /** <title> / タブ名に使う文書タイトル。 */
   documentTitle: string;
+  /** PDF の保存名（frontmatter の `fileName` から作った名前）。持たない書式もある。 */
+  pdfFileName?: string;
   /** 解決したスキーマの表示名（ペイン見出し用）。 */
   label: string;
   /** 日本語化済みの非致命 warning。 */
@@ -176,6 +183,7 @@ export function createSchemaPreview<T>(config: SchemaPreviewConfig<T>): PreviewP
       const safe = config.withPreviewDefaults(autofilled.data);
       const documentTitle = config.documentTitle(safe);
       const label = config.documentLabel?.(safe) ?? meta.label;
+      const pdfFileName = config.pdfFileName?.(safe);
 
       let bodyHtml: string;
       try {
@@ -212,6 +220,7 @@ export function createSchemaPreview<T>(config: SchemaPreviewConfig<T>): PreviewP
         }),
         style,
         documentTitle,
+        pdfFileName,
         label,
         warnings,
         errors,

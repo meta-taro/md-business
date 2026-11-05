@@ -6,6 +6,7 @@ import {
   autofillNosqlDbSpec,
   translateNosqlDbSpecErrors,
   translateNosqlDbSpecWarnings,
+  renderNosqlDbSpecFileName,
   type NosqlDbSpec,
 } from '@md-business/schema-nosql-db-spec';
 import validateNosqlDbSpec from '@md-business/schema-nosql-db-spec/validate';
@@ -40,6 +41,7 @@ export const nosqlDbSpecProvider = createSchemaPreview<NosqlDbSpec>({
   translateErrors: translateNosqlDbSpecErrors,
   translateWarnings: translateNosqlDbSpecWarnings,
   withPreviewDefaults,
+  pdfFileName: (data) => renderNosqlDbSpecFileName(data, data.fileName),
   documentTitle: (data) => data.title || `NoSQL 設計書 ${data.documentNumber ?? ''}`.trim(),
   // データ駆動スキーマは frontmatter のみで描くため body は無視する。
   renderBody: (data) => renderNosqlDbSpecBody(data),

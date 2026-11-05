@@ -8,6 +8,7 @@
   import type { PreviewResult } from '$lib/preview/previewFactory';
   import { frontmatterMessage } from '$lib/preview/frontmatterMessage';
   import { pdfExport } from '$lib/preview/pdfExport.svelte';
+  import { pdfSaveName, printWithTitle } from '$lib/preview/printTitle';
   import { htmlExport } from '$lib/preview/htmlExportController.svelte';
   import { imageExport } from '$lib/preview/imageExportController.svelte';
   import { previewReady, previewVisible, shouldRenderPreview } from '$lib/preview/previewGate';
@@ -505,8 +506,9 @@
           requestAnimationFrame(() => requestAnimationFrame(() => resolve(undefined))),
         );
       }
-      win.focus();
-      win.print();
+      // 「PDF として保存」の既定名はアプリの外枠の題名から付く。印刷のあいだだけ文書の保存名にする。
+      const name = preview?.ok ? pdfSaveName(preview) : '';
+      printWithTitle(document, win, name);
     });
     // プレビュー iframe の検索を共通ストアへ登録（getter で現在の iframe を都度取り直す＝
     // srcdoc 再生成で contentDocument が差し替わっても最新へ届く）。

@@ -14,6 +14,7 @@ import {
   autofillSpec,
   translateSpecErrors,
   translateSpecWarnings,
+  renderSpecFileName,
   type Spec,
 } from '@md-business/schema-spec';
 import validateSpec from '@md-business/schema-spec/validate';
@@ -46,6 +47,7 @@ export const specProvider = createSchemaPreview<Spec>({
   translateErrors: translateSpecErrors,
   translateWarnings: translateSpecWarnings,
   withPreviewDefaults,
+  pdfFileName: (data) => renderSpecFileName(data, data.fileName),
   documentTitle: (data) => data.title || `基本設計書 ${data.documentNumber ?? ''}`.trim(),
   // prose スキーマは Markdown 本文を HTML 化・sanitize して章セクションに描く。
   renderBody: (data, body) =>

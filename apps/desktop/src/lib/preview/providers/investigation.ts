@@ -10,6 +10,7 @@ import {
   autofillInvestigation,
   translateInvestigationErrors,
   translateInvestigationWarnings,
+  renderInvestigationFileName,
   type Investigation,
 } from '@md-business/schema-investigation';
 import validateInvestigation from '@md-business/schema-investigation/validate';
@@ -53,6 +54,7 @@ export const investigationProvider = createSchemaPreview<Investigation>({
   translateErrors: translateInvestigationErrors,
   translateWarnings: translateInvestigationWarnings,
   withPreviewDefaults,
+  pdfFileName: (data) => renderInvestigationFileName(data, data.fileName),
   documentTitle: (data) => data.title || `調査報告書 ${data.documentNumber ?? ''}`.trim(),
   renderBody: (data, body) =>
     renderInvestigationBody(data, {
