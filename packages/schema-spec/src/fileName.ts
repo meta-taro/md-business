@@ -12,6 +12,7 @@ import type { Spec } from './types.js';
  *   {発行日YMD} {issueYMD}          — issueDate as YYYYMMDD
  *   {YMD}                           — today as YYYYMMDD (local time)
  *   {date} {今日}                   — today as YYYY-MM-DD
+ *   {区分} {classification}         — classification
  *
  * Falls back to the default rule `基本設計書_{文書番号}_v{版}` when no
  * template is provided.
@@ -38,6 +39,8 @@ export function renderSpecFileName(spec: Spec, template?: string): string {
     'YMD': now.ymd,
     'date': now.iso,
     '今日': now.iso,
+    '区分': spec.classification ?? '',
+    'classification': spec.classification ?? '',
   };
   const rendered = tpl.replace(/\{([^}]+)\}/g, (_, raw: string) => {
     const key = raw.trim();

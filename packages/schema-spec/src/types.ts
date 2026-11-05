@@ -35,4 +35,8 @@ export interface Spec {
   theme?: string;
   /** Optional template for the PDF save filename. */
   fileName?: string;
+  /** Document classification such as 社外秘 / 社内限. Free text. */
+  classification?: string;
+  /** Classification shown in the submission edition. Defaults to 提出用. */
+  submissionClassification?: string;
 }

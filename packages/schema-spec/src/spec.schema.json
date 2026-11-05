@@ -66,6 +66,14 @@
     },
     "fileName": {
       "type": "string"
+    },
+    "classification": {
+      "type": "string",
+      "description": "Document classification (区分), e.g. 社外秘 / 社内限 / 提出用. Free text. Shown on the cover and in the page header."
+    },
+    "submissionClassification": {
+      "type": "string",
+      "description": "Classification shown in the submission edition (提出版の区分). Defaults to 提出用 when omitted."
     }
   },
   "$defs": {

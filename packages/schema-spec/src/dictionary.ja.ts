@@ -55,6 +55,11 @@ export const SPEC_JA_DICTIONARY: Dictionary = {
     ファイル名: 'fileName',
     fileName: 'fileName',
     保存名: 'fileName',
+    区分: 'classification',
+    機密区分: 'classification',
+    classification: 'classification',
+    提出版の区分: 'submissionClassification',
+    submissionClassification: 'submissionClassification',
   },
   party: {
     名前: 'name',

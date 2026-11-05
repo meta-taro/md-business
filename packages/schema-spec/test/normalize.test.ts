@@ -180,3 +180,16 @@ describe('normalizeSpecFrontmatter — nesting depth', () => {
     expect(result?.warnings.some((w) => /nested too deeply/i.test(w.message))).toBe(true);
   });
 });
+
+describe('normalizeSpecFrontmatter — classification', () => {
+  it('maps 区分 / 機密区分 to classification', () => {
+    expect(normalizeSpecFrontmatter({ 区分: '社外秘' }).data).toMatchObject({ classification: '社外秘' });
+    expect(normalizeSpecFrontmatter({ 機密区分: '社内限' }).data).toMatchObject({ classification: '社内限' });
+  });
+
+  it('maps 提出版の区分 to submissionClassification', () => {
+    const { data, warnings } = normalizeSpecFrontmatter({ 提出版の区分: '提出用（顧客A）' });
+    expect(warnings).toEqual([]);
+    expect(data).toMatchObject({ submissionClassification: '提出用（顧客A）' });
+  });
+});
