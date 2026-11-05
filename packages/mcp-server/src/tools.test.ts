@@ -146,6 +146,35 @@ describe('validateDocument', () => {
   });
 });
 
+// 社内の囲みと、囲みの外に残ったソースの場所を持つ文書。
+const WITH_INTERNAL = ['---', 'title: 覚書', '---', '', '# 方針', '', '::: 社内', '社内だけの話', ':::', '', '修正箇所は Service.php L12。', ''].join('\n');
+
+describe('版を指定して読む・検証する', () => {
+  const store = () => new MemoryDocumentStore({ 'notes/edition.md': WITH_INTERNAL });
+
+  it('既定は社内版のまま本文を返す', async () => {
+    const r = await readDocument(store(), 'notes/edition.md');
+    expect(r.ok && r.body).toContain('社内だけの話');
+  });
+
+  it('提出版は社内の囲みを落とした本文と、残ったものの警告を返す', async () => {
+    const r = await readDocument(store(), 'notes/edition.md', 'submission');
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      expect(r.body).not.toContain('社内だけの話');
+      expect(r.body).toContain('# 方針');
+      expect(r.warnings.join('\n')).toContain('Service.php L12');
+    }
+  });
+
+  it('validate も提出版なら警告を返す（社内版は空）', async () => {
+    const internal = await validateDocument(store(), 'notes/edition.md');
+    expect(internal.ok && internal.warnings).toEqual([]);
+    const submission = await validateDocument(store(), 'notes/edition.md', 'submission');
+    expect(submission.ok && submission.warnings.join('\n')).toContain('Service.php L12');
+  });
+});
+
 // invoice テンプレ frontmatter を構造化オブジェクトとして取り出す（schema キーは注入検証用に除く）
 const invoiceObject = (() => {
   const { data } = splitFrontmatter(VALID_INVOICE);

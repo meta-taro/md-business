@@ -237,6 +237,12 @@ function jsonResult(payload: unknown, isError = false) {
 /** 業務文書の任意 frontmatter（キー文字列・値は任意）。 */
 const frontmatterShape = z.record(z.string(), z.unknown());
 
+/** 社内版（既定）か提出版か。提出版は ::: 社内 の囲みを落として扱う。 */
+const editionShape = z
+  .enum(['internal', 'submission'])
+  .optional()
+  .describe('internal（既定・社内版）/ submission（提出版）');
+
 /** 条件の演算子（filter_records / aggregate 共通）。式は受け付けない。 */
 const conditionOps = [
   'eq',
@@ -420,11 +426,14 @@ export function createServer(store: DocumentStore, options: CreateServerOptions 
     'read_document',
     {
       description:
-        'ワークスペース相対パスの Markdown 業務文書を読み、frontmatter / body / 検出スキーマを返す。',
-      inputSchema: { path: z.string().describe('ワークスペース相対パス（例 invoices/INV-1.md）') },
+        'ワークスペース相対パスの Markdown 業務文書を読み、frontmatter / body / 検出スキーマを返す。edition に submission を渡すと、::: 社内 の囲みを落とした提出版の本文と、提出版に残ったソースの場所・コミットのハッシュの警告を返す。',
+      inputSchema: {
+        path: z.string().describe('ワークスペース相対パス（例 invoices/INV-1.md）'),
+        edition: editionShape,
+      },
     },
-    async ({ path }) => {
-      const r = await readDocument(store, path);
+    async ({ path, edition }) => {
+      const r = await readDocument(store, path, edition);
       emit('read_document', path, r);
       return jsonResult(r, !r.ok);
     },
@@ -434,11 +443,11 @@ export function createServer(store: DocumentStore, options: CreateServerOptions 
     'validate_document',
     {
       description:
-        '既存文書を宣言スキーマで JSON Schema 検証し、valid とエラー一覧を返す。schema 未宣言は invalid 扱い。',
-      inputSchema: { path: z.string().describe('ワークスペース相対パス') },
+        '既存文書を宣言スキーマで JSON Schema 検証し、valid とエラー一覧を返す。schema 未宣言は invalid 扱い。edition に submission を渡すと、提出版に残ったソースの場所・コミットのハッシュを warnings で返す（valid は変わらない）。',
+      inputSchema: { path: z.string().describe('ワークスペース相対パス'), edition: editionShape },
     },
-    async ({ path }) => {
-      const r = await validateDocument(store, path);
+    async ({ path, edition }) => {
+      const r = await validateDocument(store, path, edition);
       emit('validate_document', path, r);
       return jsonResult(r, !r.ok);
     },
