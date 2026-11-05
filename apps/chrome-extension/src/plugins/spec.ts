@@ -8,7 +8,12 @@ import {
   type Spec,
 } from '@md-business/schema-spec';
 import validateSpec from '@md-business/schema-spec/validate';
-import { validateWithCompiled, renderMarkdownToHtml, type DocumentEdition } from '@md-business/core';
+import {
+  validateWithCompiled,
+  renderMarkdownToHtml,
+  type DocumentEdition,
+  type RevisionView,
+} from '@md-business/core';
 import { renderSpecBody } from '@md-business/renderer-pdf';
 import { sanitizeViewerHtml } from '../shared/sanitizeHtml.js';
 import type { PreviewRenderResult, SchemaPlugin } from './types.js';
@@ -33,9 +38,13 @@ function withPreviewDefaults(data: Record<string, unknown>): Spec {
   return safe as unknown as Spec;
 }
 
-function bodyHtmlOf(markdownBody: string | undefined, edition: DocumentEdition): string {
+function bodyHtmlOf(
+  markdownBody: string | undefined,
+  edition: DocumentEdition,
+  revisions: RevisionView,
+): string {
   return markdownBody
-    ? sanitizeViewerHtml(renderMarkdownToHtml(markdownBody, { hasFrontmatter: false, edition }))
+    ? sanitizeViewerHtml(renderMarkdownToHtml(markdownBody, { hasFrontmatter: false, edition, revisions }))
     : '';
 }
 
@@ -44,6 +53,7 @@ export const specPlugin: SchemaPlugin<Spec> = {
   label: '基本設計書',
   schema: specSchema,
   stylesHref: 'styles/spec.css',
+  proseBody: true,
   detect(frontmatter) {
     // Spec-specific marker keys (English + Japanese aliases). Any one is
     // enough to route to this plugin when `schema:` / `schemaVersion:` are
@@ -69,15 +79,20 @@ export const specPlugin: SchemaPlugin<Spec> = {
     }
     return { ok: true, data: validation.data, warnings };
   },
-  render(frontmatter, markdownBody, edition = 'internal') {
+  render(frontmatter, markdownBody, edition = 'internal', revisions = 'marked') {
     // Spec documents render the Markdown body as the chapter section beneath
     // the cover page. Body is converted via the core's CSP-safe MD→HTML
     // pipeline (unified — no eval / new Function()), then sanitized to allow
     // inline `<svg>` + image data URLs while dropping `<script>` / event
     // handlers / `javascript:` URLs. (XSS hardening for v0.2.0 spec viewer.)
-    return renderSpecBody(frontmatter, { bodyHtml: bodyHtmlOf(markdownBody, edition), edition });
+    return renderSpecBody(frontmatter, { bodyHtml: bodyHtmlOf(markdownBody, edition, revisions), edition });
   },
-  previewRender(frontmatter, markdownBody, edition = 'internal'): PreviewRenderResult {
+  previewRender(
+    frontmatter,
+    markdownBody,
+    edition = 'internal',
+    revisions = 'marked',
+  ): PreviewRenderResult {
     const normalized = normalizeSpecFrontmatter(frontmatter);
     const autofilled = autofillSpec(normalized.data);
     const warnings = translateSpecWarnings([
@@ -92,7 +107,7 @@ export const specPlugin: SchemaPlugin<Spec> = {
           message: translateSpecErrors(validation.errors)[i] ?? e.message,
         }));
     const safe = withPreviewDefaults(autofilled.data);
-    const bodyHtml = bodyHtmlOf(markdownBody, edition);
+    const bodyHtml = bodyHtmlOf(markdownBody, edition, revisions);
     try {
       return { html: renderSpecBody(safe, { bodyHtml, edition }), warnings, errors };
     } catch (renderErr: unknown) {

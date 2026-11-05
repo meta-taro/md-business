@@ -13,7 +13,7 @@
  */
 import { invoke } from '@tauri-apps/api/core';
 import { browser } from '$app/environment';
-import type { DocumentEdition } from '@md-business/core';
+import type { DocumentEdition, RevisionView } from '@md-business/core';
 import { workspace } from '$lib/workspace/workspace.svelte';
 import { DEFAULT_ORDER, buildShotSpec, describeOutput, type ImageOrder } from './imageExport';
 import type { BatchFailureKind } from './batchMessage';
@@ -49,6 +49,9 @@ class ImageExportController {
   result = $state<ImageExportResult | null>(null);
   /** 画面で表示中の版。撮る中身も同じ版で組む。 */
   edition = $state<DocumentEdition>('internal');
+  revisions = $state<RevisionView>('marked');
+  /** 前の版と比べているときはその版の中身。書き出しも画面と同じく印を付けて組む。 */
+  compareWith = $state<string | null>(null);
   /** 選んでいる注文（型・倍率・形式）。 */
   order = $state<ImageOrder>({ ...DEFAULT_ORDER });
   /** 選ぶ欄を開いているか。閉じている間は一覧を組まない。 */
@@ -129,7 +132,7 @@ class ImageExportController {
           zumen: { theme: 'light', render: renderZumenSvg, describe: (message) => t('zumen.failed', { detail: message }) },
           ink: CHART_INK.light,
         });
-        return buildExportHtml(composed, this.edition);
+        return buildExportHtml(composed, this.edition, this.revisions);
       },
     };
   }
@@ -150,7 +153,8 @@ class ImageExportController {
     if (root === null || relPath === null) return;
 
     const { render, t } = await this.#renderer(root, relPath);
-    const html = await render(workspace.source);
+    const { sourceToRender } = await import('./compareSource');
+    const html = await render(sourceToRender(workspace.source, this.compareWith));
     // canExport を満たしていれば通常ここには来ない（プレビューが出ている＝組める）。
     if (html === null) return;
 

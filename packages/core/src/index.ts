@@ -47,6 +47,15 @@ export {
   editionWarnings,
 } from './edition.js';
 export type { DocumentEdition, InternalBlock, StripResult, SubmissionLeak, LeakKind } from './edition.js';
+export {
+  findRevisionMarks,
+  hasRevisionMarks,
+  acceptRevisions,
+  revisionHistoryWarnings,
+} from './revisions.js';
+export type { RevisionView, RevisionKind, RevisionMark } from './revisions.js';
+export { compareRevisions } from './compareRevisions.js';
+export { emphasisWarnings } from './emphasisWarnings.js';
 // `validateWithCompiled` is tree-shake-safe for browser bundles (no Ajv runtime).
 // `validateWith` and `parseAndValidate` live in `./runtime` and pull in Ajv's
 // code-generation runtime, which uses `new Function()` and is MV3-CSP-unsafe.

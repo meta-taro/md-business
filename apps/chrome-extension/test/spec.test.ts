@@ -103,7 +103,7 @@ describe('specPlugin — render with body', () => {
     if (!result.ok) throw new Error('expected ok');
     const html = specPlugin.render(result.data, '# 第1章\n\n本文段落');
     expect(html).toContain('mdb-spec__body');
-    expect(html).toContain('<h1>第1章</h1>');
+    expect(html).toContain('<h1 id="第1章">第1章</h1>');
     expect(html).toContain('<p>本文段落</p>');
   });
 
@@ -130,7 +130,7 @@ describe('specPlugin — previewRender', () => {
     expect(result).toBeDefined();
     if (!result) return;
     expect(result.html).toContain('mdb-spec');
-    expect(result.html).toContain('<h1>下書き</h1>');
+    expect(result.html).toContain('<h1 id="下書き">下書き</h1>');
     expect(result.errors.length).toBeGreaterThan(0);
   });
 
@@ -208,7 +208,7 @@ describe('loadMarkdown — spec end-to-end', () => {
     expect(result.documentTitle).toBe('テスト仕様書');
     expect(result.bodyHtml).toContain('mdb-spec');
     expect(result.bodyHtml).toContain('mdb-spec__body');
-    expect(result.bodyHtml).toContain('<h1>第1章 概要</h1>');
+    expect(result.bodyHtml).toContain('<h1 id="第1章-概要">第1章 概要</h1>');
     expect(result.bodyHtml).toContain('language-ts');
   });
 
@@ -225,6 +225,6 @@ describe('previewMarkdown — spec live editor', () => {
     const partial = `---\ntitle: "途中"\n文書番号: "SPEC-X"\n---\n\n# 章1`;
     const result = previewMarkdown(partial);
     if (!result.ok) throw new Error('expected success');
-    expect(result.bodyHtml).toContain('<h1>章1</h1>');
+    expect(result.bodyHtml).toContain('<h1 id="章1">章1</h1>');
   });
 });

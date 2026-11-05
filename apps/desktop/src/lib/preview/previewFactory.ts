@@ -17,10 +17,13 @@
  */
 import {
   editionWarnings,
+  hasRevisionMarks,
+  revisionHistoryWarnings,
   validateWithCompiled,
   type CompiledValidator,
   type DocumentEdition,
   type FrontmatterProblem,
+  type RevisionView,
   type ValidationError,
 } from '@md-business/core';
 import { buildPreviewDocument, type PreviewTheme } from './previewDocument';
@@ -61,6 +64,11 @@ export interface SchemaPreviewConfig<T> {
    */
   editionAware?: (data: T, body: string) => boolean;
   /**
+   * 本文を Markdown として描く書式か。描く書式だけが改版の印（`{++追加++}` など）を
+   * 拾い、印があれば「印あり / 清書」を選ばせる。frontmatter だけで描く書式は省略する。
+   */
+  proseBody?: boolean;
+  /**
    * ペイン見出しに出す表示名を文書ごとに上書きする（省略時は `meta.label`）。
    * invoice のように 1 スキーマで複数の文書種別（請求書 / 見積書 / 領収書）を
    * 扱う場合、見出しがスキーマ名のままだと開いている文書と食い違うため。
@@ -73,7 +81,12 @@ export interface SchemaPreviewConfig<T> {
    * データ駆動スキーマは frontmatter のみで描くため body を無視する（`(data) => …`
    * のままでも代入可能）。
    */
-  renderBody: (data: T, body: string, edition: DocumentEdition) => string;
+  renderBody: (
+    data: T,
+    body: string,
+    edition: DocumentEdition,
+    revisions: RevisionView,
+  ) => string;
   /** renderer-pdf の文書別 CSS（?raw インポート）。 */
   css: string;
 }
@@ -110,6 +123,10 @@ export interface PreviewOk {
   fatal?: string;
   /** 社内版・提出版を選べる文書か（選べないなら版の切り替えを出さない）。 */
   editionAware?: boolean;
+  /** 改版の印がある文書か（無ければ「印あり / 清書」の切り替えを出さない）。 */
+  revisionAware?: boolean;
+  /** 前の版と比べて印を付けられる文書か（本文を地の文で書く文書。表や帳票は比べない）。 */
+  comparable?: boolean;
 }
 
 export interface PreviewNotApplicable {
@@ -150,6 +167,8 @@ export interface RenderPreviewOptions {
   rawHtml?: boolean;
   /** 社内版（既定）か提出版か。提出版は社内の囲みを落とし、区分を提出用にする。 */
   edition?: DocumentEdition;
+  /** 改版の印を見せるか（既定）、印を外した清書にするか。社内版・提出版とは独立に選ぶ。 */
+  revisions?: RevisionView;
 }
 
 export interface PreviewProvider extends PreviewProviderMeta {
@@ -176,7 +195,7 @@ export function createSchemaPreview<T>(config: SchemaPreviewConfig<T>): PreviewP
       body = '',
       options: RenderPreviewOptions = {},
     ): PreviewResult {
-      const { theme, shortcuts, edition = 'internal' } = options;
+      const { theme, shortcuts, edition = 'internal', revisions = 'marked' } = options;
       const cssHref = options.cssHref?.(meta.id);
       const style = { id: meta.id, css: config.css };
 
@@ -197,10 +216,13 @@ export function createSchemaPreview<T>(config: SchemaPreviewConfig<T>): PreviewP
       const pdfFileName = config.pdfFileName?.(safe, edition);
       const editionAware = config.editionAware?.(safe, body) ?? false;
       if (editionAware) warnings.push(...editionWarnings(body, edition));
+      const revisionAware = config.proseBody === true && hasRevisionMarks(body);
+      // 版は日本語のキー（`版`）でも書けるので、normalize 前の frontmatter を見る。
+      warnings.push(...revisionHistoryWarnings(frontmatter, body));
 
       let bodyHtml: string;
       try {
-        bodyHtml = config.renderBody(safe, body, edition);
+        bodyHtml = config.renderBody(safe, body, edition, revisions);
       } catch (error: unknown) {
         return {
           ok: true,
@@ -218,6 +240,8 @@ export function createSchemaPreview<T>(config: SchemaPreviewConfig<T>): PreviewP
           warnings,
           errors,
           editionAware,
+          revisionAware,
+          comparable: config.proseBody === true,
           fatal: `プレビューを描画できませんでした: ${messageOf(error)}`,
         };
       }
@@ -239,6 +263,8 @@ export function createSchemaPreview<T>(config: SchemaPreviewConfig<T>): PreviewP
         warnings,
         errors,
         editionAware,
+        revisionAware,
+        comparable: config.proseBody === true,
       };
     },
   };

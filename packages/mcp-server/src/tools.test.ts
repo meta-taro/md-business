@@ -175,6 +175,39 @@ describe('版を指定して読む・検証する', () => {
   });
 });
 
+const BUMPED = [
+  '---',
+  'title: 覚書',
+  'version: 1.1.0',
+  '---',
+  '',
+  '支払いは{--月末--}{++翌月 10 日++}に締める。',
+  '',
+  '# 改版履歴',
+  '',
+  '| 版 | 日付 | 内容 |',
+  '| --- | --- | --- |',
+  '| 1.0.0 | 2026-10-01 | 初版 |',
+  '',
+].join('\n');
+
+describe('版と改版履歴の突き合わせ', () => {
+  const store = (src: string) => new MemoryDocumentStore({ 'notes/bumped.md': src });
+
+  it('frontmatter の版が改版履歴に無ければ、読むときも検証するときも警告する', async () => {
+    const read = await readDocument(store(BUMPED), 'notes/bumped.md');
+    expect(read.ok && read.warnings.join('\n')).toContain('1.1.0');
+    const validated = await validateDocument(store(BUMPED), 'notes/bumped.md');
+    expect(validated.ok && validated.warnings.join('\n')).toContain('1.1.0');
+  });
+
+  it('履歴に載っていれば何も言わない', async () => {
+    const listed = BUMPED.replace('| 1.0.0 |', '| 1.1.0 |');
+    const r = await validateDocument(store(listed), 'notes/bumped.md');
+    expect(r.ok && r.warnings).toEqual([]);
+  });
+});
+
 // invoice テンプレ frontmatter を構造化オブジェクトとして取り出す（schema キーは注入検証用に除く）
 const invoiceObject = (() => {
   const { data } = splitFrontmatter(VALID_INVOICE);
@@ -314,5 +347,17 @@ describe('updateDocument', () => {
   it('越境パス・不在は error を返す', async () => {
     expect((await updateDocument(seed(), { path: '../x.md' })).ok).toBe(false);
     expect((await updateDocument(seed(), { path: 'nope.md' })).ok).toBe(false);
+  });
+});
+
+describe('記号のまま刷られる強調', () => {
+  it('閉じ忘れた ** を、ファイルの行番号で読むときも検証するときも知らせる', async () => {
+    const store = new MemoryDocumentStore({
+      'notes/memo.md': '---\ntitle: 覚書\n---\n\n支払いは**月末に締める。\n',
+    });
+    const read = await readDocument(store, 'notes/memo.md');
+    expect(read.ok && read.warnings.join('\n')).toContain('5 行目');
+    const validated = await validateDocument(store, 'notes/memo.md');
+    expect(validated.ok && validated.warnings.join('\n')).toContain('「**」');
   });
 });

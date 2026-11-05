@@ -1,8 +1,12 @@
 import {
   describeFrontmatterError,
   editionWarnings,
+  emphasisWarnings,
+  hasRevisionMarks,
   parseMarkdown,
+  revisionHistoryWarnings,
   type DocumentEdition,
+  type RevisionView,
 } from '@md-business/core';
 import { createDefaultRegistry, type SchemaPlugin, type PluginRegistry } from '../plugins/index.js';
 import { frontmatterHint } from './frontmatterHint.js';
@@ -34,6 +38,8 @@ export interface LoadMarkdownSuccess {
   warnings: string[];
   /** The document differs between the internal and submission editions. */
   editionAware: boolean;
+  /** The body has revision marks, so marked / clean differ. */
+  revisionAware: boolean;
 }
 
 export interface LoadMarkdownFailure {
@@ -52,6 +58,8 @@ export interface LoadMarkdownOptions {
   pluginId?: string;
   /** Which edition to build. Defaults to the internal edition. */
   edition?: DocumentEdition;
+  /** Show revision marks (default) or build the clean copy. Independent of the edition. */
+  revisions?: RevisionView;
 }
 
 /**
@@ -110,12 +118,14 @@ export function loadMarkdown(source: string, options: LoadMarkdownOptions = {}):
   }
 
   const edition = options.edition ?? 'internal';
+  const revisions = options.revisions ?? 'marked';
   const editionAware = plugin.editionAware?.(frontmatter, markdownBody) ?? false;
+  const revisionAware = plugin.proseBody === true && hasRevisionMarks(markdownBody);
   const documentTitle = plugin.documentTitle?.(validated.data) ?? plugin.label;
   const pdfFileName = plugin.pdfFileName?.(validated.data, edition) ?? documentTitle;
   return {
     ok: true,
-    bodyHtml: plugin.render(validated.data, markdownBody, edition),
+    bodyHtml: plugin.render(validated.data, markdownBody, edition, revisions),
     stylesHref: plugin.stylesHref,
     documentTitle,
     pdfFileName,
@@ -123,8 +133,11 @@ export function loadMarkdown(source: string, options: LoadMarkdownOptions = {}):
     warnings: [
       ...(validated.warnings ?? []),
       ...(editionAware ? editionWarnings(markdownBody, edition) : []),
+      ...revisionHistoryWarnings(frontmatter, markdownBody),
+      ...(plugin.proseBody === true ? emphasisWarnings(source) : []),
     ],
     editionAware,
+    revisionAware,
   };
 }
 
@@ -144,6 +157,8 @@ export interface PreviewMarkdownSuccess {
   fatal?: string;
   /** The document differs between the internal and submission editions. */
   editionAware: boolean;
+  /** The body has revision marks, so marked / clean differ. */
+  revisionAware: boolean;
 }
 
 export interface PreviewMarkdownFailure {
@@ -200,10 +215,16 @@ export function previewMarkdown(
   // to the strict path when one is not available — older plugins still work
   // (they just block on validation errors).
   const edition = options.edition ?? 'internal';
+  const revisions = options.revisions ?? 'marked';
   const editionAware = plugin.editionAware?.(frontmatter, markdownBody) ?? false;
-  const leaks = editionAware ? editionWarnings(markdownBody, edition) : [];
+  const revisionAware = plugin.proseBody === true && hasRevisionMarks(markdownBody);
+  const leaks = [
+    ...(editionAware ? editionWarnings(markdownBody, edition) : []),
+    ...revisionHistoryWarnings(frontmatter, markdownBody),
+    ...(plugin.proseBody === true ? emphasisWarnings(source) : []),
+  ];
   if (plugin.previewRender) {
-    const result = plugin.previewRender(frontmatter, markdownBody, edition);
+    const result = plugin.previewRender(frontmatter, markdownBody, edition, revisions);
     return {
       ok: true,
       bodyHtml: result.html,
@@ -213,16 +234,18 @@ export function previewMarkdown(
       warnings: [...result.warnings, ...leaks],
       ...(result.fatal ? { fatal: result.fatal } : {}),
       editionAware,
+      revisionAware,
     };
   }
   const validated = plugin.validate(frontmatter);
   return {
     ok: true,
-    bodyHtml: validated.ok ? plugin.render(validated.data, markdownBody, edition) : '',
+    bodyHtml: validated.ok ? plugin.render(validated.data, markdownBody, edition, revisions) : '',
     stylesHref: plugin.stylesHref,
     pluginId: plugin.id,
     errors: validated.ok ? [] : validated.errors,
     warnings: [...(validated.warnings ?? []), ...leaks],
     editionAware,
+    revisionAware,
   };
 }

@@ -6,7 +6,7 @@
   import { livePreviewUrl, paneOrigin, sitePartView } from '$lib/preview/livePreview';
   import { previewRenderer } from '$lib/preview/previewRenderer.svelte';
   import type { PreviewResult } from '$lib/preview/previewFactory';
-  import type { DocumentEdition } from '@md-business/core';
+  import type { DocumentEdition, RevisionView } from '@md-business/core';
   import { frontmatterMessage } from '$lib/preview/frontmatterMessage';
   import { pdfExport } from '$lib/preview/pdfExport.svelte';
   import { pdfSaveName, printWithTitle } from '$lib/preview/printTitle';
@@ -46,6 +46,7 @@
   import { readSheetEnums } from '$lib/tsv/sheetEnums';
   import { parseRowBlame, type RowBlame } from '$lib/tsv/rowBlame';
   import { compareWithVersion, type SheetComparison } from '$lib/tsv/sheetCompare';
+  import { sourceToRender } from '$lib/preview/compareSource';
   import { changedRowPositions, checkSheetReview } from '$lib/tsv/reviewCheck';
   import { countSheetReferences } from '$lib/tsv/sheetCounts';
   import { exportProfileText, readSheetExportProfiles } from '$lib/tsv/sheetExport';
@@ -458,11 +459,30 @@
     });
   });
 
+  // 前の版との突き合わせ。提出様式では直した箇所を赤字にする慣習があり、いまは人が手で塗って
+  // いる。塗り忘れた行は「変えていない行」として相手へ渡るので、履歴から導き出して出す。
+  // git を叩くので、比べると決めたときだけ読む。
+  let compareOn = $state(false);
+  let compareCommit = $state('');
+  let fileLog = $state<GitLogEntry[]>([]);
+  let previousText = $state<string | null>(null);
+  let previousLoaded = $state(false);
+  let fileLogSeq = 0;
+  let previousSeq = 0;
+
+  // 地の文の文書は、前の版との違いを改版の印として本文へ書き込んで描く。印は「印あり」と
+  // 同じ経路で出るので、PDF も書き出しもプレビューと同じ絵になる。
+  // 読み終わるまでは比べない（出しかけの赤字は嘘になる）。
+  const proseCompareWith = $derived(compareOn && previousLoaded && !isTsvSource(debouncedSource) ? previousText : null);
+  const proseCompareMessage = $derived(
+    compareOn && previousLoaded && !isTsvSource(debouncedSource) && previousText === null ? t('page.compareMissing') : '',
+  );
+
   // 描くのは画像と図と表を埋めた本文。読めたものが 1 つも無ければ元の本文がそのまま返る。
   const previewSource = $derived(
     replaceFencedBlocks(
       replaceDataBlocks(
-        replaceChartBlocks(inlineImages(debouncedSource, inlineUrls), chartMarkup),
+        replaceChartBlocks(inlineImages(sourceToRender(debouncedSource, proseCompareWith), inlineUrls), chartMarkup),
         dataMarkup,
       ),
       zumenMarkup,
@@ -473,11 +493,14 @@
   let previewGeneration = 0;
   // 社内版・提出版。印刷はプレビューをそのまま刷るので、版はプレビューの段階で切り替える。
   let edition = $state<DocumentEdition>('internal');
+  // 改版の印を見せるか清書にするか。版とは別の軸で、これもプレビューの段階で切り替える。
+  let revisions = $state<RevisionView>('marked');
   $effect(() => {
     const render = previewRenderer.render;
     const source = previewSource;
     const theme = themeController.value;
     const currentEdition = edition;
+    const currentRevisions = revisions;
     // 組み立て一式は一度読み込むと面を切り替えても残る。残っているだけで組み直しが動くと、
     // 検証グリッドで 1 文字打つたびに誰も見ない HTML を本文全体から組み直すことになる。
     if (render === null || !shouldRenderPreview(paneState)) {
@@ -485,7 +508,7 @@
       return;
     }
     const generation = ++previewGeneration;
-    void render(source, { theme, edition: currentEdition }).then((result) => {
+    void render(source, { theme, edition: currentEdition, revisions: currentRevisions }).then((result) => {
       if (generation === previewGeneration) preview = result;
     });
   });
@@ -683,16 +706,6 @@
       });
   });
 
-  // 前の版との突き合わせ。提出様式では直した箇所を赤字にする慣習があり、いまは人が手で塗って
-  // いる。塗り忘れた行は「変えていない行」として相手へ渡るので、履歴から導き出して出す。
-  // git を叩くので、比べると決めたときだけ読む。
-  let compareOn = $state(false);
-  let compareCommit = $state('');
-  let fileLog = $state<GitLogEntry[]>([]);
-  let previousText = $state<string | null>(null);
-  let previousLoaded = $state(false);
-  let fileLogSeq = 0;
-  let previousSeq = 0;
 
   // 比べる版の候補は、そのファイルを触ったコミットだけに絞る。フォルダ全体の履歴を並べると
   // このファイルが 1 文字も変わっていない版が大半を占め、選ぶ意味が消える。
@@ -1074,10 +1087,14 @@
     imageExport.setReady(ready);
   });
 
-  // 書き出しも画面で表示中の版で組む。
+  // 書き出しも画面で表示中の版・印の見せ方で組む。
   $effect(() => {
     htmlExport.edition = edition;
     imageExport.edition = edition;
+    htmlExport.revisions = revisions;
+    imageExport.revisions = revisions;
+    htmlExport.compareWith = proseCompareWith;
+    imageExport.compareWith = proseCompareWith;
   });
 
   // グリッド編集 → 正本ソースへ書き戻し、エディターと即同期する。
@@ -1676,6 +1693,51 @@
             : t('page.editionToInternalTitle')}
         >
           {edition === 'internal' ? t('page.editionInternalBtn') : t('page.editionSubmissionBtn')}
+        </button>
+      {/if}
+      {#if !isTsv && preview?.ok && (preview.comparable || compareOn)}
+        <button
+          type="button"
+          class="head-btn"
+          onclick={() => {
+            compareOn = !compareOn;
+            // 比べた結果は印で出すので、清書のままだと違いが見えない。
+            if (compareOn) revisions = 'marked';
+          }}
+          aria-pressed={compareOn}
+          title={t('page.compareTitle')}
+        >
+          {t('page.compareBtn')}
+        </button>
+        {#if compareOn}
+          {#if fileLog.length === 0}
+            <span class="compare-note">{t('page.compareNoHistory')}</span>
+          {:else}
+            <label class="compare-pick">
+              {t('page.compareTarget')}
+              <select bind:value={compareCommit}>
+                {#each fileLog as entry (entry.hash)}
+                  <option value={entry.hash}>{shortHash(entry.hash)} {entry.subject}</option>
+                {/each}
+              </select>
+            </label>
+            {#if proseCompareMessage !== ''}
+              <span class="compare-note">{proseCompareMessage}</span>
+            {/if}
+          {/if}
+        {/if}
+      {/if}
+      {#if preview?.ok && preview.revisionAware}
+        <button
+          type="button"
+          class="head-btn"
+          onclick={() => (revisions = revisions === 'marked' ? 'clean' : 'marked')}
+          aria-pressed={revisions === 'clean'}
+          title={revisions === 'marked'
+            ? t('page.revisionsToCleanTitle')
+            : t('page.revisionsToMarkedTitle')}
+        >
+          {revisions === 'marked' ? t('page.revisionsMarkedBtn') : t('page.revisionsCleanBtn')}
         </button>
       {/if}
       {#if preview?.ok}

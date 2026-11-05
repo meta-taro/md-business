@@ -1,11 +1,23 @@
 import { unified } from 'unified';
 import remarkParse from 'remark-parse';
 import remarkGfm from 'remark-gfm';
+import remarkCjkFriendly from 'remark-cjk-friendly';
+import remarkCjkFriendlyGfmStrikethrough from 'remark-cjk-friendly-gfm-strikethrough';
 import remarkRehype from 'remark-rehype';
 import rehypeStringify from 'rehype-stringify';
+import GithubSlugger from 'github-slugger';
 import { splitFrontmatter } from './frontmatter.js';
 import { findInternalBlocks, stripInternalBlocks } from './edition.js';
 import type { DocumentEdition } from './edition.js';
+import {
+  acceptRevisions,
+  markRevisions,
+  REVISION_DEL_CLOSE,
+  REVISION_DEL_OPEN,
+  REVISION_INS_CLOSE,
+  REVISION_INS_OPEN,
+} from './revisions.js';
+import type { RevisionView } from './revisions.js';
 
 /**
  * Render a Markdown source string to an HTML fragment, frontmatter-stripped.
@@ -55,6 +67,12 @@ export interface RenderMarkdownToHtmlOptions {
    * 枠で囲んで出し、`submission`（提出版）は囲みごと落とす。
    */
   edition?: DocumentEdition;
+  /**
+   * 改版の印（`{++追加++}` `{--削除--}` `{~~前~>後~~}`）をどう出すか。既定の `marked` は
+   * 追加に下線・削除に取り消し線を付け、印のある段落の余白に縦線を引く。
+   * `clean` は印を外した清書にする。版（`edition`）とは別に選べる。
+   */
+  revisions?: RevisionView;
 }
 
 /**
@@ -287,6 +305,87 @@ function rehypeInternalBlocks(label: string) {
 }
 
 /** 囲みの開き・閉じの行を、前後を空けた目印の段落に置き換える。 */
+const REVISION_TAG: Record<string, { open: boolean; tagName: 'ins' | 'del' }> = {
+  [REVISION_INS_OPEN]: { open: true, tagName: 'ins' },
+  [REVISION_INS_CLOSE]: { open: false, tagName: 'ins' },
+  [REVISION_DEL_OPEN]: { open: true, tagName: 'del' },
+  [REVISION_DEL_CLOSE]: { open: false, tagName: 'del' },
+};
+const REVISION_SPLIT = new RegExp(
+  `([${REVISION_INS_OPEN}${REVISION_INS_CLOSE}${REVISION_DEL_OPEN}${REVISION_DEL_CLOSE}])`,
+);
+/** 余白に縦線を引く単位。印を含むいちばん内側の塊に付ける。 */
+const CHANGE_BAR_BLOCKS = new Set(['p', 'li', 'td', 'th', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'dt', 'dd']);
+
+/**
+ * 区切りの文字に挟まれた並びを `<ins>` / `<del>` へ入れ替える。
+ *
+ * 区切りは同じ親の並びの中で開いて閉じる。`{++**太字**++}` のように印が強調を包むと、
+ * 開きと閉じが強調の外側（兄弟の文字）に来るので、親の並びごと組み直す。
+ * 戻り値は、この並びに印が入ったか。
+ */
+function wrapRevisionChildren(node: HastNode): boolean {
+  if (node.children === undefined) return false;
+  let changed = false;
+  for (const child of node.children) {
+    if (child.type === 'element' && wrapRevisionChildren(child)) changed = true;
+  }
+
+  const root: HastNode[] = [];
+  const stack: HastNode[] = [];
+  const push = (item: HastNode): void => {
+    const top = stack[stack.length - 1];
+    if (top === undefined) root.push(item);
+    else top.children!.push(item);
+  };
+  let hasMarker = false;
+
+  for (const child of node.children) {
+    if (child.type !== 'text' || child.value === undefined || !REVISION_SPLIT.test(child.value)) {
+      push(child);
+      continue;
+    }
+    hasMarker = true;
+    for (const piece of child.value.split(REVISION_SPLIT)) {
+      const tag = REVISION_TAG[piece];
+      if (tag === undefined) {
+        if (piece !== '') push({ type: 'text', value: piece });
+      } else if (tag.open) {
+        const element: HastNode = {
+          type: 'element',
+          tagName: tag.tagName,
+          properties: { className: [tag.tagName === 'ins' ? 'mdb-ins' : 'mdb-del'] },
+          children: [],
+        };
+        push(element);
+        stack.push(element);
+      } else if (stack[stack.length - 1]?.tagName === tag.tagName) {
+        stack.pop();
+      }
+    }
+  }
+
+  if (hasMarker) {
+    node.children = root;
+    changed = true;
+  }
+  if (changed && node.tagName !== undefined && CHANGE_BAR_BLOCKS.has(node.tagName)) {
+    const properties = (node.properties ??= {});
+    const current = properties['className'];
+    const classes = Array.isArray(current) ? current : [];
+    if (!classes.includes('mdb-changed')) properties['className'] = [...classes, 'mdb-changed'];
+    // 縦線は内側の塊だけに引く。外側にも引くと、表の行やリストで二重になる。
+    return false;
+  }
+  return changed;
+}
+
+function rehypeRevisionMarks() {
+  return (tree: unknown) => {
+    wrapRevisionChildren(tree as HastNode);
+  };
+}
+
 function markInternalBlocks(body: string): string {
   const blocks = findInternalBlocks(body);
   if (blocks.length === 0) return body;
@@ -299,12 +398,61 @@ function markInternalBlocks(body: string): string {
   return lines.join('\n');
 }
 
+/** 図の説明の頭にある番号（`図 2-1` / `表 3` / `Figure 1.2`）。 */
+const FIGURE_LABEL = /^(?:図|表|Figure|Fig\.|Table)\s*\d+(?:[-.‐－]\d+)*/;
+const HEADING = /^h[1-6]$/;
+
+/** id の元にする文字。改版の印の削除側は除く（印ありでも清書でも同じ id になる）。 */
+function anchorTextOf(node: HastNode): string {
+  if (node.type === 'text') return node.value ?? '';
+  if (node.tagName === 'del') return '';
+  if (node.properties?.['ariaHidden'] === 'true') return '';
+  return (node.children ?? []).map(anchorTextOf).join('');
+}
+
+/**
+ * 見出しと、説明の付いた図に id を付け、`[図 2-1 へ戻る](#図-2-1)` のようなリンクの行き先にする。
+ *
+ * 見出しの id は GitHub と同じ規則にする。GitHub で書いた目次のリンクがそのまま効く。
+ * 図は説明が番号で始まるなら番号だけ（`#図-2-1`）、そうでなければ説明の文字で指す。
+ * 説明の後半を書き直しても、番号で張ったリンクは切れない。
+ *
+ * 同じ id は文書の頭から順に枝番で分ける（見出しと図で 1 つの数え方を使う）。
+ * PDF も同じ id をリンクの行き先にするので、印刷しても文書の中で飛べる。
+ */
+function rehypeAnchors() {
+  return (tree: unknown): void => {
+    const slugger = new GithubSlugger();
+    const walk = (node: HastNode): void => {
+      if (node.type === 'element' && node.properties?.['id'] === undefined) {
+        const tag = node.tagName ?? '';
+        if (HEADING.test(tag)) {
+          node.properties = { ...node.properties, id: slugger.slug(anchorTextOf(node).trim()) };
+        } else if (tag === 'figure') {
+          const caption = (node.children ?? []).find((child) => child.tagName === 'figcaption');
+          const text = caption === undefined ? '' : anchorTextOf(caption).trim();
+          if (text !== '') {
+            const label = FIGURE_LABEL.exec(text)?.[0] ?? text;
+            node.properties = { ...node.properties, id: slugger.slug(label) };
+          }
+        }
+      }
+      for (const child of node.children ?? []) walk(child);
+    };
+    walk(tree as HastNode);
+  };
+}
+
 function buildProcessor(lang: string, rawHtml: boolean) {
   const backLabel = FOOTNOTE_BACK_LABEL[lang] ?? FOOTNOTE_BACK_LABEL['ja']!;
 
   return unified()
     .use(remarkParse)
     .use(remarkGfm)
+    // CommonMark は閉じる記号の直前が約物（」や。）だと、後ろに文字が続く限り閉じとみなさない。
+    // 日本語では `**「重要」**です` が強調にならず、記号がそのまま刷られる。
+    .use(remarkCjkFriendly)
+    .use(remarkCjkFriendlyGfmStrikethrough)
     .use(remarkRehype, {
       allowDangerousHtml: rawHtml,
       footnoteLabel: FOOTNOTE_LABEL[lang] ?? FOOTNOTE_LABEL['ja']!,
@@ -322,6 +470,8 @@ function buildProcessor(lang: string, rawHtml: boolean) {
     .use(rehypeFootnotePopovers)
     .use(rehypeImageCaptions)
     .use(rehypeInternalBlocks(INTERNAL_LABEL[lang] ?? INTERNAL_LABEL['ja']!))
+    .use(rehypeRevisionMarks)
+    .use(rehypeAnchors)
     .use(rehypeStringify, { allowDangerousHtml: rawHtml });
 }
 
@@ -343,10 +493,17 @@ function processorFor(lang: string, rawHtml: boolean): ReturnType<typeof buildPr
 }
 
 export function renderMarkdownToHtml(src: string, options: RenderMarkdownToHtmlOptions = {}): string {
-  const { hasFrontmatter = true, lang = 'ja', rawHtml = false, edition = 'internal' } = options;
+  const {
+    hasFrontmatter = true,
+    lang = 'ja',
+    rawHtml = false,
+    edition = 'internal',
+    revisions = 'marked',
+  } = options;
   const raw = hasFrontmatter ? splitFrontmatter(src).body : src;
-  const body =
+  const edited =
     edition === 'submission' ? stripInternalBlocks(raw).text : markInternalBlocks(raw);
+  const body = revisions === 'clean' ? acceptRevisions(edited) : markRevisions(edited);
   const file = processorFor(lang, rawHtml).processSync(body);
   return String(file);
 }

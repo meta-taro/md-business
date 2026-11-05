@@ -556,3 +556,53 @@ body {
   letter-spacing: 0.08em;
   color: #b45309;
 }
+
+/*
+ * 改版の印。色だけに頼らず、白黒で刷っても下線・取り消し線・余白の縦線で読めるようにする。
+ * PDF の注釈（ビューワーで付ける取り消し線など）ではなく、紙面に描いた線として残る。
+ */
+ins.mdb-ins {
+  text-decoration: underline;
+  text-decoration-thickness: 0.8pt;
+  text-underline-offset: 1.5pt;
+  color: #1d4ed8;
+  background: #eff6ff;
+}
+
+del.mdb-del {
+  text-decoration: line-through;
+  text-decoration-thickness: 0.8pt;
+  color: #b91c1c;
+  background: #fef2f2;
+}
+
+/* 変わった段落の左の余白に縦線を引く。紙で見比べるときに、どこを読めばよいかが分かる。 */
+.mdb-changed {
+  position: relative;
+}
+
+.mdb-changed::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -3mm;
+  width: 0.8mm;
+  background: #4b5563;
+}
+
+li.mdb-changed::before {
+  left: calc(-1.5em - 2mm);
+}
+
+td.mdb-changed::before,
+th.mdb-changed::before {
+  left: 0;
+}
+
+ins.mdb-ins,
+del.mdb-del,
+.mdb-changed::before {
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}

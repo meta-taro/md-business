@@ -443,7 +443,7 @@ export function createServer(store: DocumentStore, options: CreateServerOptions 
     'validate_document',
     {
       description:
-        '既存文書を宣言スキーマで JSON Schema 検証し、valid とエラー一覧を返す。schema 未宣言は invalid 扱い。edition に submission を渡すと、提出版に残ったソースの場所・コミットのハッシュを warnings で返す（valid は変わらない）。',
+        '既存文書を宣言スキーマで JSON Schema 検証し、valid とエラー一覧を返す。schema 未宣言は invalid 扱い。edition に submission を渡すと、提出版に残ったソースの場所・コミットのハッシュを warnings で返す（valid は変わらない）。frontmatter の版が本文の改版履歴の表に無いときも warnings に出る。',
       inputSchema: { path: z.string().describe('ワークスペース相対パス'), edition: editionShape },
     },
     async ({ path, edition }) => {

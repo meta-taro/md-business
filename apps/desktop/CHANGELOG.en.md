@@ -4,6 +4,20 @@ Changes to this app. Versions follow [Semantic Versioning](https://semver.org/).
 
 Japanese is the source of truth for this file; see [CHANGELOG.md](./CHANGELOG.md).
 
+## 0.35.0
+
+### Added
+
+- **Revision marks (CriticMarkup) are rendered in basic design documents and investigation reports.** `{++add++}`, `{--delete--}`, `{~~old~>new~~}`, `{==highlight==}` and `{>>comment<<}` show additions underlined and deletions struck through. The "Marked / Clean" button in the toolbar switches to the clean copy, which accepts every change. PDF, HTML and image exports follow the selected view, and the mark colours are printed.
+
+- **A document can be compared with a past version.** "Compare with a past version" in the toolbar checks the document against the version in the selected commit and marks what changed. The marks are carried into the exported PDF.
+
+- **A warning appears when the frontmatter version is missing from the revision history table**, so a version bump without a history row is noticed.
+
+- **`**`, `__` and `~~` that would be printed as literal symbols instead of emphasis are reported with their line numbers**: unclosed markers, spaces just inside a marker, and `__` next to Japanese text. Emphasis next to full-width punctuation, such as `**「重要」**`, is now rendered as emphasis.
+
+- **Headings and figures can be linked to from within the document.** Headings get GitHub-compatible ids, so `[Screen design](#2-画面設計)` works. A figure whose caption starts with a label such as 図 2-1 can be linked as `#図-2-1`, and the link survives edits to the rest of the caption. The links stay clickable in the exported PDF.
+
 ## 0.34.0
 
 ### Added

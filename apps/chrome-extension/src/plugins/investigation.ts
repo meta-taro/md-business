@@ -13,6 +13,7 @@ import {
   renderMarkdownToHtml,
   findInternalBlocks,
   type DocumentEdition,
+  type RevisionView,
 } from '@md-business/core';
 import { renderInvestigationBody } from '@md-business/renderer-pdf';
 import { sanitizeViewerHtml } from '../shared/sanitizeHtml.js';
@@ -44,9 +45,13 @@ function withPreviewDefaults(data: Record<string, unknown>): Investigation {
 
 // The viewer has no folder to open evidence files from, so evidence paths are
 // shown as code rather than links (renderInvestigationBody's default).
-function bodyHtmlOf(markdownBody: string | undefined, edition: DocumentEdition): string {
+function bodyHtmlOf(
+  markdownBody: string | undefined,
+  edition: DocumentEdition,
+  revisions: RevisionView,
+): string {
   return markdownBody
-    ? sanitizeViewerHtml(renderMarkdownToHtml(markdownBody, { hasFrontmatter: false, edition }))
+    ? sanitizeViewerHtml(renderMarkdownToHtml(markdownBody, { hasFrontmatter: false, edition, revisions }))
     : '';
 }
 
@@ -61,6 +66,7 @@ export const investigationPlugin: SchemaPlugin<Investigation> = {
   label: '調査報告書',
   schema: investigationSchema,
   stylesHref: 'styles/investigation.css',
+  proseBody: true,
   detect(frontmatter) {
     // findings / targets / tools are keys no other schema claims. Must be
     // registered before spec, which also claims 文書番号 / レビュアー.
@@ -80,10 +86,15 @@ export const investigationPlugin: SchemaPlugin<Investigation> = {
     }
     return { ok: true, data: validation.data, warnings };
   },
-  render(frontmatter, markdownBody, edition = 'internal') {
-    return renderInvestigationBody(frontmatter, { bodyHtml: bodyHtmlOf(markdownBody, edition) });
+  render(frontmatter, markdownBody, edition = 'internal', revisions = 'marked') {
+    return renderInvestigationBody(frontmatter, { bodyHtml: bodyHtmlOf(markdownBody, edition, revisions) });
   },
-  previewRender(frontmatter, markdownBody, edition = 'internal'): PreviewRenderResult {
+  previewRender(
+    frontmatter,
+    markdownBody,
+    edition = 'internal',
+    revisions = 'marked',
+  ): PreviewRenderResult {
     const normalized = normalizeInvestigationFrontmatter(frontmatter);
     const autofilled = autofillInvestigation(normalized.data);
     const warnings = translateInvestigationWarnings([
@@ -95,7 +106,7 @@ export const investigationPlugin: SchemaPlugin<Investigation> = {
     const safe = withPreviewDefaults(autofilled.data);
     try {
       return {
-        html: renderInvestigationBody(safe, { bodyHtml: bodyHtmlOf(markdownBody, edition) }),
+        html: renderInvestigationBody(safe, { bodyHtml: bodyHtmlOf(markdownBody, edition, revisions) }),
         warnings,
         errors,
       };
