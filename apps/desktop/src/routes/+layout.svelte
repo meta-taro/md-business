@@ -139,7 +139,7 @@
     if (action === 'save') {
       if (workspace.canSave) void workspace.save();
     } else if (action === 'pdf') {
-      if (pdfExport.canExport) pdfExport.run();
+      if (pdfExport.canExport) void pdfExport.run();
     }
   }
 
@@ -277,7 +277,8 @@
       return;
     }
     await respond(true);
-    pdfExport.run();
+    // 外から頼まれた印刷は、これまでどおり印刷の画面を開く（勝手にフォルダへ書かない）。
+    void pdfExport.print();
   }
 
   onMount(() => {

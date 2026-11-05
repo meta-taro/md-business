@@ -1,4 +1,4 @@
-//! 画像出力の入口（Tauri command）。
+//! 画像・PDF 出力の入口（Tauri command）。
 //!
 //! 撮る中身は OS ごとに別物なので、ここは「どこへ置くか」だけを持つ。
 //!
@@ -13,7 +13,7 @@ use tauri::Manager;
 use crate::capture_logic::{extension, safe_file_stem, validate, ShotSpec};
 use crate::workspace::resolve_in_root;
 
-/// 撮った結果を置く。戻すのは表示用の相対パス。
+/// 出来上がったものを置く。戻すのは表示用の相対パス。
 ///
 /// `name` は一括生成のときだけ入る（表の 1 行から決まる出す名前）。**入っていても
 /// 使うのは名前の部分だけ**で、置き場は元の文書と同じフォルダから動かない。
@@ -21,18 +21,18 @@ fn place(
     root: &Path,
     rel_path: &str,
     name: Option<&str>,
-    spec: &ShotSpec,
+    ext: &str,
     bytes: &[u8],
 ) -> Result<String, String> {
     let source = resolve_in_root(root, rel_path)?;
     let target = match name {
-        None => source.with_extension(extension(&spec.format)),
+        None => source.with_extension(ext),
         Some(name) => {
             let stem = safe_file_stem(name)?;
             source
                 .parent()
                 .ok_or_else(|| "置き場が分かりません".to_string())?
-                .join(format!("{stem}.{}", extension(&spec.format)))
+                .join(format!("{stem}.{ext}"))
         }
     };
     std::fs::write(&target, bytes).map_err(|error| format!("書き出し失敗: {error}"))?;
@@ -66,18 +66,53 @@ pub fn export_image(
     }
 
     let bytes = shoot(&app, &html, &spec)?;
-    place(Path::new(&root), &rel_path, name.as_deref(), &spec, &bytes)
+    place(
+        Path::new(&root),
+        &rel_path,
+        name.as_deref(),
+        extension(&spec.format),
+        &bytes,
+    )
+}
+
+/// HTML を PDF にして、元の文書の隣へ置く。
+///
+/// 印刷の画面を通さずに作るのは、見出しをしおりにするため。WebView の印刷の画面から
+/// 保存した PDF にはしおりが付かず、長い設計書だと目当ての節まで送り続けることになる。
+/// `name` は保存名（frontmatter の fileName から組んだもの）。使うのは名前の部分だけ。
+#[tauri::command]
+pub fn export_pdf(
+    app: tauri::AppHandle,
+    root: String,
+    rel_path: String,
+    html: String,
+    name: Option<String>,
+) -> Result<String, String> {
+    if let Some(name) = name.as_deref() {
+        safe_file_stem(name)?;
+    }
+    let bytes = print(&app, &html)?;
+    place(Path::new(&root), &rel_path, name.as_deref(), "pdf", &bytes)
+}
+
+/// 裏で立てる WebView2 が使う作業場所。アプリの持ち物の中に置く。
+#[cfg(windows)]
+fn work_dir(app: &tauri::AppHandle) -> Result<std::path::PathBuf, String> {
+    Ok(app
+        .path()
+        .app_local_data_dir()
+        .map_err(|error| format!("作業場所が分かりません: {error}"))?
+        .join("capture"))
 }
 
 #[cfg(windows)]
 fn shoot(app: &tauri::AppHandle, html: &str, spec: &ShotSpec) -> Result<Vec<u8>, String> {
-    // 撮影用の WebView2 が使う作業場所。アプリの持ち物の中に置く。
-    let work = app
-        .path()
-        .app_local_data_dir()
-        .map_err(|error| format!("作業場所が分かりません: {error}"))?
-        .join("capture");
-    crate::capture_win::capture(html, spec, &work)
+    crate::capture_win::capture(html, spec, &work_dir(app)?)
+}
+
+#[cfg(windows)]
+fn print(app: &tauri::AppHandle, html: &str) -> Result<Vec<u8>, String> {
+    crate::capture_win::print(html, &work_dir(app)?)
 }
 
 #[cfg(not(windows))]
@@ -85,10 +120,14 @@ fn shoot(_app: &tauri::AppHandle, _html: &str, _spec: &ShotSpec) -> Result<Vec<u
     Err("この OS ではまだ画像を出せません。".into())
 }
 
+#[cfg(not(windows))]
+fn print(_app: &tauri::AppHandle, _html: &str) -> Result<Vec<u8>, String> {
+    Err("この OS ではまだ PDF を直接作れません。".into())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::capture_logic::ImageFormat;
     use std::path::PathBuf;
     use std::sync::atomic::{AtomicU32, Ordering};
 
@@ -121,20 +160,11 @@ mod tests {
         }
     }
 
-    fn png() -> ShotSpec {
-        ShotSpec {
-            width: 1200,
-            height: 630,
-            scale: 1.0,
-            format: ImageFormat::Png { transparent: false },
-        }
-    }
-
     #[test]
     fn 名前を指さなければ元の文書の隣へ同じ名前で置く() {
         let root = TempRoot::new("place_default");
         root.file("docs/告知.md", "x");
-        let out = place(&root.path, "docs/告知.md", None, &png(), b"PNG").expect("置けるはず");
+        let out = place(&root.path, "docs/告知.md", None, "png", b"PNG").expect("置けるはず");
         assert_eq!(out, "docs/告知.png");
         assert_eq!(
             std::fs::read(root.path.join("docs/告知.png")).expect("読める"),
@@ -146,8 +176,14 @@ mod tests {
     fn 名前を指すと同じフォルダの中でその名前になる() {
         let root = TempRoot::new("place_named");
         root.file("docs/雛形.md", "x");
-        let out =
-            place(&root.path, "docs/雛形.md", Some("春の新商品"), &png(), b"PNG").expect("置ける");
+        let out = place(
+            &root.path,
+            "docs/雛形.md",
+            Some("春の新商品"),
+            "png",
+            b"PNG",
+        )
+        .expect("置ける");
         assert_eq!(out, "docs/春の新商品.png");
         assert!(root.path.join("docs/春の新商品.png").exists());
         // 雛形そのものは触らない。
@@ -159,8 +195,30 @@ mod tests {
         let root = TempRoot::new("place_escape");
         root.file("docs/雛形.md", "x");
         for name in ["../外", "サブ/中", ".."] {
-            assert!(place(&root.path, "docs/雛形.md", Some(name), &png(), b"PNG").is_err());
+            assert!(place(&root.path, "docs/雛形.md", Some(name), "png", b"PNG").is_err());
         }
         assert!(!root.path.join("外.png").exists());
+    }
+
+    #[test]
+    fn pdf_も同じ置き方で隣へ置く() {
+        let root = TempRoot::new("place_pdf");
+        root.file("docs/設計.md", "x");
+        assert_eq!(
+            place(&root.path, "docs/設計.md", None, "pdf", b"%PDF").expect("置ける"),
+            "docs/設計.pdf"
+        );
+        assert_eq!(
+            place(
+                &root.path,
+                "docs/設計.md",
+                Some("SPEC-001_決済"),
+                "pdf",
+                b"%PDF"
+            )
+            .expect("置ける"),
+            "docs/SPEC-001_決済.pdf"
+        );
+        assert!(place(&root.path, "docs/設計.md", Some("../外"), "pdf", b"%PDF").is_err());
     }
 }

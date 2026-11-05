@@ -513,14 +513,17 @@
     });
   });
 
-  // PDF 出力（DESIGN §6.4）。プレビュー iframe を print-to-PDF する関数を共有コントローラへ
-  // 登録し、Top bar の [PDF] から起動する。iframe の srcdoc は renderer-pdf の @page
-  // CSS を内包するので、印刷（→「PDF として保存」）で画面と 1:1 の A4 正本になる。
+  // PDF 出力（DESIGN §6.4）。プレビューの中身と、iframe を印刷する関数を共有コントローラへ
+  // 登録し、Top bar の [PDF] から起動する。srcdoc は renderer-pdf の @page CSS を内包するので、
+  // どちらの道でも画面と 1:1 の A4 正本になる。
   let viewerFrame = $state<HTMLIFrameElement | undefined>(undefined);
   // プレビュー枠の幅。狭い幅での折り返しを見るための切り替えで、アプリを開き直すと PC に戻る。
   let viewport = $state<ViewportName>('pc');
   onMount(() => {
-    pdfExport.register(async () => {
+    pdfExport.register({
+      source: () =>
+        preview?.ok ? { html: preview.srcdoc, name: preview.pdfFileName?.trim() || null } : null,
+      print: async () => {
       const win = viewerFrame?.contentWindow;
       if (!win) return;
       // 狭い表示のまま印刷すると、版面が変わっていても出来た PDF を開くまで気づけない。
@@ -536,6 +539,7 @@
       // 「PDF として保存」の既定名はアプリの外枠の題名から付く。印刷のあいだだけ文書の保存名にする。
       const name = preview?.ok ? pdfSaveName(preview) : '';
       printWithTitle(document, win, name);
+      },
     });
     // プレビュー iframe の検索を共通ストアへ登録（getter で現在の iframe を都度取り直す＝
     // srcdoc 再生成で contentDocument が差し替わっても最新へ届く）。

@@ -229,19 +229,29 @@ fn call(webview: &ICoreWebView2, method: &str, params: String) -> Result<String,
     answer.ok_or_else(|| format!("画像を作れませんでした（{method}）。"))
 }
 
-/// 1 枚ぶんの撮影。専用の WebView2 を立てて撮り、閉じる。
-fn shoot(html: &str, spec: &ShotSpec, user_data_dir: &Path) -> Result<Vec<u8>, String> {
+/// 専用の WebView2 を立てて `html` を描き、`job` に仕上げさせて閉じる。
+///
+/// 撮るのも PDF に刷るのも、描くところまでは同じ。違うのは最後に投げる DevTools の命令だけ。
+fn render(
+    html: &str,
+    user_data_dir: &Path,
+    job: impl FnOnce(&ICoreWebView2) -> Result<Vec<u8>, String>,
+) -> Result<Vec<u8>, String> {
     unsafe { CoInitializeEx(None, COINIT_APARTMENTTHREADED) }
         .ok()
         .map_err(|error| format!("{UNAVAILABLE}: {error}"))?;
 
-    let outcome = shoot_inner(html, spec, user_data_dir);
+    let outcome = render_inner(html, user_data_dir, job);
 
     unsafe { CoUninitialize() };
     outcome
 }
 
-fn shoot_inner(html: &str, spec: &ShotSpec, user_data_dir: &Path) -> Result<Vec<u8>, String> {
+fn render_inner(
+    html: &str,
+    user_data_dir: &Path,
+    job: impl FnOnce(&ICoreWebView2) -> Result<Vec<u8>, String>,
+) -> Result<Vec<u8>, String> {
     let hwnd = create_hidden_window()?;
     // 途中で断っても畳まれるよう、作った直後に後片付けへ預ける。
     let _window = HiddenWindow(hwnd);
@@ -277,32 +287,57 @@ fn shoot_inner(html: &str, spec: &ShotSpec, user_data_dir: &Path) -> Result<Vec<
         return Err("画像を作れませんでした（描画が終わりません）。".into());
     }
 
+    let bytes = job(&webview)?;
+
+    unsafe { controller.Close() }.map_err(|error| format!("後片付けに失敗しました: {error}"))?;
+    Ok(bytes)
+}
+
+/// 1 枚ぶんの撮影。
+fn shoot(webview: &ICoreWebView2, spec: &ShotSpec) -> Result<Vec<u8>, String> {
     call(
-        &webview,
+        webview,
         "Emulation.setDeviceMetricsOverride",
         metrics_params(spec),
     )?;
     if wants_transparency(spec) {
         call(
-            &webview,
+            webview,
             "Emulation.setDefaultBackgroundColorOverride",
             transparent_background_params(),
         )?;
     }
-    let answer = call(&webview, "Page.captureScreenshot", screenshot_params(spec))?;
+    let answer = call(webview, "Page.captureScreenshot", screenshot_params(spec))?;
+    decode_data(&answer)
+}
 
-    let parsed: serde_json::Value = serde_json::from_str(&answer)
-        .map_err(|error| format!("画像を作れませんでした: {error}"))?;
+/// PDF に刷る。見出しからしおりを作らせる。
+///
+/// 印刷ダイアログの「PDF として保存」はしおりを付けない。DevTools の `Page.printToPDF` は
+/// `generateDocumentOutline` で見出しをしおりにできる（タグ付き PDF が前提）。
+/// 用紙と余白は文書の `@page` に従う。
+fn print_pdf(webview: &ICoreWebView2) -> Result<Vec<u8>, String> {
+    let params = serde_json::json!({
+        "preferCSSPageSize": true,
+        "printBackground": true,
+        "generateTaggedPDF": true,
+        "generateDocumentOutline": true,
+    });
+    let answer = call(webview, "Page.printToPDF", params.to_string())?;
+    decode_data(&answer)
+}
+
+/// DevTools の返り `{ "data": "<base64>" }` から中身を取り出す。
+fn decode_data(answer: &str) -> Result<Vec<u8>, String> {
+    let parsed: serde_json::Value =
+        serde_json::from_str(answer).map_err(|error| format!("画像を作れませんでした: {error}"))?;
     let encoded = parsed
         .get("data")
         .and_then(|value| value.as_str())
         .ok_or("画像を作れませんでした（中身が返りませんでした）。")?;
-    let bytes = STANDARD
+    STANDARD
         .decode(encoded)
-        .map_err(|error| format!("画像を作れませんでした: {error}"))?;
-
-    unsafe { controller.Close() }.map_err(|error| format!("後片付けに失敗しました: {error}"))?;
-    Ok(bytes)
+        .map_err(|error| format!("画像を作れませんでした: {error}"))
 }
 
 /// 撮る webview を、渡した HTML を 1 枚描くだけのものにする。
@@ -397,9 +432,20 @@ pub fn capture(html: &str, spec: &ShotSpec, user_data_dir: &Path) -> Result<Vec<
     let spec = spec.clone();
     let user_data_dir = user_data_dir.to_path_buf();
     in_turn(move || {
-        std::thread::spawn(move || shoot(&html, &spec, &user_data_dir))
+        std::thread::spawn(move || render(&html, &user_data_dir, |webview| shoot(webview, &spec)))
             .join()
             .map_err(|_| "画像を作れませんでした（撮影が異常終了しました）。".to_string())?
+    })
+}
+
+/// HTML を PDF にする（見出しのしおり付き）。順番と筋の扱いは `capture` と同じ。
+pub fn print(html: &str, user_data_dir: &Path) -> Result<Vec<u8>, String> {
+    let html = html.to_string();
+    let user_data_dir = user_data_dir.to_path_buf();
+    in_turn(move || {
+        std::thread::spawn(move || render(&html, &user_data_dir, print_pdf))
+            .join()
+            .map_err(|_| "PDF を作れませんでした（異常終了しました）。".to_string())?
     })
 }
 
@@ -503,6 +549,24 @@ mod tests {
             Err(message) if skipped(&message) => eprintln!("見送り: {message}"),
             Err(message) => panic!("{message}"),
         }
+    }
+
+    #[test]
+    fn 見出しがしおりになる() {
+        let html = r#"<!doctype html><html lang="ja"><meta charset="utf-8">
+<style>@page{size:A4;margin:20mm}</style><h1>概要</h1><p>本文</p><h2>詳細</h2><p>本文</p>"#;
+        match print(html, &work_dir("outline")) {
+            Ok(bytes) => {
+                assert_eq!(&bytes[0..5], b"%PDF-", "PDF の先頭ではない");
+                assert!(contains(&bytes, b"/Outlines"), "しおりが無い");
+            }
+            Err(message) if skipped(&message) => eprintln!("見送り: {message}"),
+            Err(message) => panic!("{message}"),
+        }
+    }
+
+    fn contains(hay: &[u8], needle: &[u8]) -> bool {
+        hay.windows(needle.len()).any(|w| w == needle)
     }
 
     #[test]

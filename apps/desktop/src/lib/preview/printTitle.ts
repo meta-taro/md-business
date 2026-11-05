@@ -24,6 +24,11 @@ export function pdfSaveName(preview: { pdfFileName?: string; documentTitle: stri
   return named ? named : preview.documentTitle.trim();
 }
 
+/** 裏の WebView2 で PDF を作れるのは Windows だけ（作る側が WebView2 の口を使うため）。 */
+export function canPrintDirectly(userAgent: string): boolean {
+  return userAgent.includes('Windows');
+}
+
 export function printWithTitle(host: TitleHost, frame: PrintFrame, name: string): void {
   if (name !== '') {
     const previous = host.title;
