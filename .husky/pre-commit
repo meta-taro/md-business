@@ -23,4 +23,8 @@ pnpm -w run typecheck
 echo "[pre-commit] tests..."
 pnpm -w run test:run
 
+echo "[pre-commit] scripts tests..."
+# リポ直下の設定（server.json の版など）を見るテスト。パッケージの test:run には含まれない
+pnpm -w run test:scripts
+
 echo "[pre-commit] OK"
