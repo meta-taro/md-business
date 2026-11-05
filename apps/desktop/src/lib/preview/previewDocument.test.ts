@@ -73,8 +73,8 @@ describe('buildPreviewDocument', () => {
   });
 
   // iframe にフォーカスがある状態の Ctrl+P は親 window へ伝播しないため、iframe 自身にも
-  // ショートカット処理を仕込む。Ctrl/Cmd+P はプレビュー自身を印刷（アプリ全体でなく）、
-  // Ctrl/Cmd+S は親へ postMessage して保存させる（iframe 内で保存できない穴を塞ぐ）。
+  // ショートカット処理を仕込む。Ctrl/Cmd+P・Ctrl/Cmd+S は親へ postMessage して、
+  // 親の PDF 出力・保存を走らせる（iframe 内で処理できない穴を塞ぐ）。
   it('iframe 内ショートカット処理スクリプトを埋め込む（keydown を横取り）', () => {
     const html = buildPreviewDocument(base);
     expect(html).toContain('<script>');
@@ -82,9 +82,12 @@ describe('buildPreviewDocument', () => {
     expect(html).toContain('preventDefault');
   });
 
-  it('Ctrl/Cmd+P は iframe 自身を印刷する（window.print）', () => {
+  // iframe 自身で印刷すると、保存名がアプリの題名（md-business.pdf）になる。保存名を
+  // 文書に合わせる処理は親が持っているので、親へ頼む。
+  it('Ctrl/Cmd+P は親へ PDF を頼む（iframe 自身では印刷しない）', () => {
     const html = buildPreviewDocument(base);
-    expect(html).toContain('window.print()');
+    expect(html).toContain("post('pdf')");
+    expect(html).not.toContain('window.print()');
   });
 
   it('Ctrl/Cmd+S は親へ保存を postMessage する（プロトコル source 付き）', () => {

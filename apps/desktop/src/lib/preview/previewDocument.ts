@@ -105,7 +105,7 @@ const PREVIEW_SHORTCUT_SCRIPT = `<script>
     var k = (e.key || '').toLowerCase();
     if (k === 'p') {
       e.preventDefault();
-      window.print();
+      post('pdf');
     } else if (k === 's') {
       e.preventDefault();
       post('save');

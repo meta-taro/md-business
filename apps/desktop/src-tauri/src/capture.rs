@@ -49,7 +49,7 @@ fn place(
 ///
 /// `html` はフロントが組み立てたプレビューそのもの。`spec` は寸法・倍率・形式。
 #[tauri::command]
-pub fn export_image(
+pub async fn export_image(
     app: tauri::AppHandle,
     root: String,
     rel_path: String,
@@ -57,18 +57,29 @@ pub fn export_image(
     spec: ShotSpec,
     name: Option<String>,
 ) -> Result<String, String> {
+    off_main(move || export_image_blocking(&app, &root, &rel_path, &html, &spec, name)).await
+}
+
+fn export_image_blocking(
+    app: &tauri::AppHandle,
+    root: &str,
+    rel_path: &str,
+    html: &str,
+    spec: &ShotSpec,
+    name: Option<String>,
+) -> Result<String, String> {
     // 撮る前に断れるものは断る。道具を立ち上げてから断ると原因が分かりにくい。
-    validate(&spec)?;
+    validate(spec)?;
     // 名前も撮る前に見る。100 枚の途中で名前だけを理由に止まると、
     // どこまで出たかを数え直すことになる。
     if let Some(name) = name.as_deref() {
         safe_file_stem(name)?;
     }
 
-    let bytes = shoot(&app, &html, &spec)?;
+    let bytes = shoot(app, html, spec)?;
     place(
-        Path::new(&root),
-        &rel_path,
+        Path::new(root),
+        rel_path,
         name.as_deref(),
         extension(&spec.format),
         &bytes,
@@ -81,18 +92,33 @@ pub fn export_image(
 /// 保存した PDF にはしおりが付かず、長い設計書だと目当ての節まで送り続けることになる。
 /// `name` は保存名（frontmatter の fileName から組んだもの）。使うのは名前の部分だけ。
 #[tauri::command]
-pub fn export_pdf(
+pub async fn export_pdf(
     app: tauri::AppHandle,
     root: String,
     rel_path: String,
     html: String,
     name: Option<String>,
 ) -> Result<String, String> {
-    if let Some(name) = name.as_deref() {
-        safe_file_stem(name)?;
-    }
-    let bytes = print(&app, &html)?;
-    place(Path::new(&root), &rel_path, name.as_deref(), "pdf", &bytes)
+    off_main(move || {
+        if let Some(name) = name.as_deref() {
+            safe_file_stem(name)?;
+        }
+        let bytes = print(&app, &html)?;
+        place(Path::new(&root), &rel_path, name.as_deref(), "pdf", &bytes)
+    })
+    .await
+}
+
+/// 作る処理を主スレッドの外で走らせる。
+///
+/// 非 async の command は主スレッドで走る。作るあいだ（WebView2 の用意に時間が掛かる
+/// 環境では数十秒）アプリの画面もメニューも止まり、外からの依頼にも答えられなくなる。
+async fn off_main(
+    job: impl FnOnce() -> Result<String, String> + Send + 'static,
+) -> Result<String, String> {
+    tauri::async_runtime::spawn_blocking(job)
+        .await
+        .map_err(|error| format!("書き出しが異常終了しました: {error}"))?
 }
 
 /// 裏で立てる WebView2 が使う作業場所。アプリの持ち物の中に置く。
@@ -128,6 +154,27 @@ fn print(_app: &tauri::AppHandle, _html: &str) -> Result<Vec<u8>, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // 作る処理が呼んだ側のスレッドを塞がないこと。塞ぐと、作っている間は
+    // 画面も外からの依頼も止まる。
+    #[test]
+    fn 作る処理は呼んだスレッドの外で走る() {
+        let caller = std::thread::current().id();
+        let ran_on = std::sync::Arc::new(std::sync::Mutex::new(None));
+        let seen = ran_on.clone();
+        let out = tauri::async_runtime::block_on(off_main(move || {
+            *seen.lock().unwrap() = Some(std::thread::current().id());
+            Ok("done".to_string())
+        }));
+        assert_eq!(out, Ok("done".to_string()));
+        assert_ne!(ran_on.lock().unwrap().unwrap(), caller);
+    }
+
+    #[test]
+    fn 作る処理の失敗はそのまま返る() {
+        let out = tauri::async_runtime::block_on(off_main(|| Err("だめ".to_string())));
+        assert_eq!(out, Err("だめ".to_string()));
+    }
     use std::path::PathBuf;
     use std::sync::atomic::{AtomicU32, Ordering};
 

@@ -24,6 +24,26 @@ export function pdfSaveName(preview: { pdfFileName?: string; documentTitle: stri
   return named ? named : preview.documentTitle.trim();
 }
 
+/** 置く側（Rust の safe_file_stem）が断る名前。断られると PDF ごと作れなくなる。 */
+const FORBIDDEN = /[<>:"|?*/\\\u0000-\u001f]/;
+const DEVICE_NAMES = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])$/i;
+const MAX_STEM_CHARS = 100;
+
+/**
+ * 直接作るときに置く名前。印刷の画面と同じ名前にする。
+ *
+ * タイトルは人が自由に書くので、区切り文字などファイル名にできない字を含むことがある。
+ * そのときは書き換えずに名前を渡さず、元の文書と同じ名前で置かせる
+ * （書き換えると、なぜその名前になったのかが分からない）。
+ */
+export function directPdfName(preview: { pdfFileName?: string; documentTitle: string }): string | null {
+  const name = pdfSaveName(preview);
+  if (name === '' || [...name].length > MAX_STEM_CHARS) return null;
+  if (FORBIDDEN.test(name) || name.endsWith('.')) return null;
+  if (DEVICE_NAMES.test(name.split('.')[0])) return null;
+  return name;
+}
+
 /** 裏の WebView2 で PDF を作れるのは Windows だけ（作る側が WebView2 の口を使うため）。 */
 export function canPrintDirectly(userAgent: string): boolean {
   return userAgent.includes('Windows');
