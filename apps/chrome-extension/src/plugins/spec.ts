@@ -8,7 +8,7 @@ import {
   type Spec,
 } from '@md-business/schema-spec';
 import validateSpec from '@md-business/schema-spec/validate';
-import { validateWithCompiled, renderMarkdownToHtml } from '@md-business/core';
+import { validateWithCompiled, renderMarkdownToHtml, type DocumentEdition } from '@md-business/core';
 import { renderSpecBody } from '@md-business/renderer-pdf';
 import { sanitizeViewerHtml } from '../shared/sanitizeHtml.js';
 import type { PreviewRenderResult, SchemaPlugin } from './types.js';
@@ -31,6 +31,12 @@ function withPreviewDefaults(data: Record<string, unknown>): Spec {
     safe['authors'] = [{ name: '' }];
   }
   return safe as unknown as Spec;
+}
+
+function bodyHtmlOf(markdownBody: string | undefined, edition: DocumentEdition): string {
+  return markdownBody
+    ? sanitizeViewerHtml(renderMarkdownToHtml(markdownBody, { hasFrontmatter: false, edition }))
+    : '';
 }
 
 export const specPlugin: SchemaPlugin<Spec> = {
@@ -63,18 +69,15 @@ export const specPlugin: SchemaPlugin<Spec> = {
     }
     return { ok: true, data: validation.data, warnings };
   },
-  render(frontmatter, markdownBody) {
+  render(frontmatter, markdownBody, edition = 'internal') {
     // Spec documents render the Markdown body as the chapter section beneath
     // the cover page. Body is converted via the core's CSP-safe MD→HTML
     // pipeline (unified — no eval / new Function()), then sanitized to allow
     // inline `<svg>` + image data URLs while dropping `<script>` / event
     // handlers / `javascript:` URLs. (XSS hardening for v0.2.0 spec viewer.)
-    const bodyHtml = markdownBody
-      ? sanitizeViewerHtml(renderMarkdownToHtml(markdownBody, { hasFrontmatter: false }))
-      : '';
-    return renderSpecBody(frontmatter, { bodyHtml });
+    return renderSpecBody(frontmatter, { bodyHtml: bodyHtmlOf(markdownBody, edition), edition });
   },
-  previewRender(frontmatter, markdownBody): PreviewRenderResult {
+  previewRender(frontmatter, markdownBody, edition = 'internal'): PreviewRenderResult {
     const normalized = normalizeSpecFrontmatter(frontmatter);
     const autofilled = autofillSpec(normalized.data);
     const warnings = translateSpecWarnings([
@@ -89,11 +92,9 @@ export const specPlugin: SchemaPlugin<Spec> = {
           message: translateSpecErrors(validation.errors)[i] ?? e.message,
         }));
     const safe = withPreviewDefaults(autofilled.data);
-    const bodyHtml = markdownBody
-      ? sanitizeViewerHtml(renderMarkdownToHtml(markdownBody, { hasFrontmatter: false }))
-      : '';
+    const bodyHtml = bodyHtmlOf(markdownBody, edition);
     try {
-      return { html: renderSpecBody(safe, { bodyHtml }), warnings, errors };
+      return { html: renderSpecBody(safe, { bodyHtml, edition }), warnings, errors };
     } catch (renderErr: unknown) {
       const reason = renderErr instanceof Error ? renderErr.message : String(renderErr);
       return { html: '', warnings, errors, fatal: `プレビューを描画できませんでした: ${reason}` };
@@ -102,7 +103,11 @@ export const specPlugin: SchemaPlugin<Spec> = {
   documentTitle(frontmatter) {
     return frontmatter.title || `基本設計書 ${frontmatter.documentNumber}`;
   },
-  pdfFileName(frontmatter) {
-    return renderSpecFileName(frontmatter, frontmatter.fileName);
+  pdfFileName(frontmatter, edition = 'internal') {
+    return renderSpecFileName(frontmatter, frontmatter.fileName, edition);
+  },
+  // 区分は文書の属性なので、社内の囲みが無くても提出版との差が出る。
+  editionAware() {
+    return true;
   },
 };

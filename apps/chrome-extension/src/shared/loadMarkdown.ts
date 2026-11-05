@@ -1,4 +1,9 @@
-import { describeFrontmatterError, parseMarkdown } from '@md-business/core';
+import {
+  describeFrontmatterError,
+  editionWarnings,
+  parseMarkdown,
+  type DocumentEdition,
+} from '@md-business/core';
 import { createDefaultRegistry, type SchemaPlugin, type PluginRegistry } from '../plugins/index.js';
 import { frontmatterHint } from './frontmatterHint.js';
 import type { ValidationError } from '@md-business/core';
@@ -27,6 +32,8 @@ export interface LoadMarkdownSuccess {
    * Japanese user-facing messages by the plugin.
    */
   warnings: string[];
+  /** The document differs between the internal and submission editions. */
+  editionAware: boolean;
 }
 
 export interface LoadMarkdownFailure {
@@ -43,6 +50,8 @@ export interface LoadMarkdownOptions {
   registry?: PluginRegistry;
   /** Explicit plugin id (overrides frontmatter detection). */
   pluginId?: string;
+  /** Which edition to build. Defaults to the internal edition. */
+  edition?: DocumentEdition;
 }
 
 /**
@@ -100,16 +109,22 @@ export function loadMarkdown(source: string, options: LoadMarkdownOptions = {}):
     };
   }
 
+  const edition = options.edition ?? 'internal';
+  const editionAware = plugin.editionAware?.(frontmatter, markdownBody) ?? false;
   const documentTitle = plugin.documentTitle?.(validated.data) ?? plugin.label;
-  const pdfFileName = plugin.pdfFileName?.(validated.data) ?? documentTitle;
+  const pdfFileName = plugin.pdfFileName?.(validated.data, edition) ?? documentTitle;
   return {
     ok: true,
-    bodyHtml: plugin.render(validated.data, markdownBody),
+    bodyHtml: plugin.render(validated.data, markdownBody, edition),
     stylesHref: plugin.stylesHref,
     documentTitle,
     pdfFileName,
     pluginId: plugin.id,
-    warnings: validated.warnings ?? [],
+    warnings: [
+      ...(validated.warnings ?? []),
+      ...(editionAware ? editionWarnings(markdownBody, edition) : []),
+    ],
+    editionAware,
   };
 }
 
@@ -127,6 +142,8 @@ export interface PreviewMarkdownSuccess {
   errors: ValidationError[];
   warnings: string[];
   fatal?: string;
+  /** The document differs between the internal and submission editions. */
+  editionAware: boolean;
 }
 
 export interface PreviewMarkdownFailure {
@@ -182,25 +199,30 @@ export function previewMarkdown(
   // Plugins that opt into permissive preview supply `previewRender`. Fall back
   // to the strict path when one is not available — older plugins still work
   // (they just block on validation errors).
+  const edition = options.edition ?? 'internal';
+  const editionAware = plugin.editionAware?.(frontmatter, markdownBody) ?? false;
+  const leaks = editionAware ? editionWarnings(markdownBody, edition) : [];
   if (plugin.previewRender) {
-    const result = plugin.previewRender(frontmatter, markdownBody);
+    const result = plugin.previewRender(frontmatter, markdownBody, edition);
     return {
       ok: true,
       bodyHtml: result.html,
       stylesHref: plugin.stylesHref,
       pluginId: plugin.id,
       errors: result.errors,
-      warnings: result.warnings,
+      warnings: [...result.warnings, ...leaks],
       ...(result.fatal ? { fatal: result.fatal } : {}),
+      editionAware,
     };
   }
   const validated = plugin.validate(frontmatter);
   return {
     ok: true,
-    bodyHtml: validated.ok ? plugin.render(validated.data, markdownBody) : '',
+    bodyHtml: validated.ok ? plugin.render(validated.data, markdownBody, edition) : '',
     stylesHref: plugin.stylesHref,
     pluginId: plugin.id,
     errors: validated.ok ? [] : validated.errors,
-    warnings: validated.warnings ?? [],
+    warnings: [...(validated.warnings ?? []), ...leaks],
+    editionAware,
   };
 }
