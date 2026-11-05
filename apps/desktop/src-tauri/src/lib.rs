@@ -102,6 +102,7 @@ pub fn run() {
             workspace::export_html,
             workspace::export_site,
             capture::export_image,
+            capture::export_pdf,
             capture_window::capture_window,
             image::read_image,
             watch::watch_workspace,

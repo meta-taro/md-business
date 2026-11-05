@@ -149,7 +149,7 @@
         autosave.toggle();
         return;
       case 'pdf':
-        pdfExport.run();
+        void pdfExport.run();
         return;
       case 'html':
         void htmlExport.run();
@@ -423,6 +423,20 @@
         title={imageNote(imageExport.result)}
       >
         {imageNote(imageExport.result)}
+      </span>
+    {/if}
+    {#if pdfExport.result !== null}
+      <span
+        class="export-note"
+        class:is-error={!pdfExport.result.ok}
+        role="status"
+        title={pdfExport.result.ok
+          ? t('action.pdfDone', { path: pdfExport.result.path })
+          : pdfExport.result.message}
+      >
+        {pdfExport.result.ok
+          ? t('action.pdfDone', { path: pdfExport.result.path })
+          : pdfExport.result.message}
       </span>
     {/if}
     {#if htmlExport.result !== null}

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { pdfSaveName, printWithTitle } from './printTitle';
+import { canPrintDirectly, pdfSaveName, printWithTitle } from './printTitle';
 
 function fakeFrame() {
   const listeners: Array<() => void> = [];
@@ -38,5 +38,13 @@ describe('保存名の選び方', () => {
     expect(pdfSaveName({ documentTitle: '見出し' })).toBe('見出し');
     expect(pdfSaveName({ pdfFileName: '', documentTitle: '見出し' })).toBe('見出し');
     expect(pdfSaveName({ pdfFileName: '  ', documentTitle: ' ' })).toBe('');
+  });
+});
+
+describe('PDF を直接作れる環境', () => {
+  it('Windows だけ直接作り、ほかの OS は印刷の画面へ回す', () => {
+    expect(canPrintDirectly('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Edg/130.0')).toBe(true);
+    expect(canPrintDirectly('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15')).toBe(false);
+    expect(canPrintDirectly('Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36')).toBe(false);
   });
 });

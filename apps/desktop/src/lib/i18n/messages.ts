@@ -32,6 +32,7 @@ export interface Messages {
   'action.html': string;
   'action.htmlTitle': string;
   'action.htmlDone': string;
+  'action.pdfDone': string;
   'action.image': string;
   'action.imageTitle': string;
   'action.imageDone': string;
@@ -748,6 +749,7 @@ const en: Messages = {
   'action.html': 'HTML',
   'action.htmlTitle': 'Export HTML (one file, saved next to the document)',
   'action.htmlDone': 'Exported {path}',
+  'action.pdfDone': 'Saved PDF to {path} (with bookmarks)',
   'action.image': 'Image',
   'action.imageTitle': 'Save this document as a PNG or JPEG image',
   'action.imageDone': 'Exported {path}',
@@ -1460,6 +1462,7 @@ const ja: Messages = {
   'action.html': 'HTML',
   'action.htmlTitle': 'HTML 出力（1 ファイル・文書と同じ場所へ書き出す）',
   'action.htmlDone': '{path} へ書き出しました',
+  'action.pdfDone': '{path} へ PDF を書き出しました（しおり付き）',
   'action.image': '画像',
   'action.imageTitle': 'この文書を PNG / JPEG の画像として書き出します',
   'action.imageDone': '{path} へ書き出しました',
@@ -2165,6 +2168,7 @@ const zh: Messages = {
   'action.html': 'HTML',
   'action.htmlTitle': '导出 HTML（单个文件・保存到文档所在位置）',
   'action.htmlDone': '已导出到 {path}',
+  'action.pdfDone': '已将 PDF 导出到 {path}（含书签）',
   'action.image': '图片',
   'action.imageTitle': '将此文档导出为 PNG / JPEG 图片',
   'action.imageDone': '已导出到 {path}',
@@ -2864,6 +2868,7 @@ const ko: Messages = {
   'action.html': 'HTML',
   'action.htmlTitle': 'HTML 내보내기 (한 파일 · 문서와 같은 위치에 저장)',
   'action.htmlDone': '{path}(으)로 내보냈습니다',
+  'action.pdfDone': 'PDF를 {path}(으)로 내보냈습니다(책갈피 포함)',
   'action.image': '이미지',
   'action.imageTitle': '이 문서를 PNG / JPEG 이미지로 내보냅니다',
   'action.imageDone': '{path}(으)로 내보냈습니다',
