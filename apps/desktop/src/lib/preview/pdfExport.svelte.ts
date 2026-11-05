@@ -81,6 +81,7 @@ class PdfExportController {
     }
 
     this.busy = true;
+    let failed = false;
     try {
       const written = await invoke<string>('export_pdf', {
         root,
@@ -92,9 +93,12 @@ class PdfExportController {
     } catch (e) {
       // Rust の Err(String) は reject 値として届く（Error とは限らない）。
       this.#notify({ ok: false, message: e instanceof Error ? e.message : String(e) });
+      failed = true;
     } finally {
       this.busy = false;
     }
+    // 裏で作れない環境でも、印刷の画面からなら保存できる。理由を出したうえで開く。
+    if (failed) await this.print();
   }
 
   /** 印刷の画面を開く。外から「印刷して」と頼まれたときは、こちらを使う。 */

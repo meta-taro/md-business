@@ -9,7 +9,7 @@
   import type { DocumentEdition, RevisionView } from '@md-business/core';
   import { frontmatterMessage } from '$lib/preview/frontmatterMessage';
   import { pdfExport } from '$lib/preview/pdfExport.svelte';
-  import { pdfSaveName, printWithTitle } from '$lib/preview/printTitle';
+  import { directPdfName, pdfSaveName, printWithTitle } from '$lib/preview/printTitle';
   import { htmlExport } from '$lib/preview/htmlExportController.svelte';
   import { imageExport } from '$lib/preview/imageExportController.svelte';
   import { previewReady, previewVisible, shouldRenderPreview } from '$lib/preview/previewGate';
@@ -522,7 +522,7 @@
   onMount(() => {
     pdfExport.register({
       source: () =>
-        preview?.ok ? { html: preview.srcdoc, name: preview.pdfFileName?.trim() || null } : null,
+        preview?.ok ? { html: preview.srcdoc, name: directPdfName(preview) } : null,
       print: async () => {
       const win = viewerFrame?.contentWindow;
       if (!win) return;

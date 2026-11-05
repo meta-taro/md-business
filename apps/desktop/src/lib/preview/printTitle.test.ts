@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { canPrintDirectly, pdfSaveName, printWithTitle } from './printTitle';
+import { canPrintDirectly, pdfSaveName, printWithTitle, directPdfName } from './printTitle';
 
 function fakeFrame() {
   const listeners: Array<() => void> = [];
@@ -46,5 +46,23 @@ describe('PDF を直接作れる環境', () => {
     expect(canPrintDirectly('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Edg/130.0')).toBe(true);
     expect(canPrintDirectly('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15')).toBe(false);
     expect(canPrintDirectly('Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36')).toBe(false);
+  });
+});
+
+describe('直接作るときの保存名', () => {
+  it('印刷の画面と同じく、スキーマが作った名前、無ければ文書タイトルにする', () => {
+    expect(directPdfName({ pdfFileName: 'A_1', documentTitle: 'A' })).toBe('A_1');
+    expect(directPdfName({ documentTitle: '基本設計書' })).toBe('基本設計書');
+  });
+
+  it('ファイル名にできないタイトルなら名前を渡さない（元の文書と同じ名前で置く）', () => {
+    expect(directPdfName({ documentTitle: '  ' })).toBeNull();
+    expect(directPdfName({ documentTitle: '請求書 2026/11' })).toBeNull();
+    expect(directPdfName({ documentTitle: 'a\\b' })).toBeNull();
+    expect(directPdfName({ documentTitle: '改\n行' })).toBeNull();
+    expect(directPdfName({ documentTitle: 'u0000' })).toBe('u0000');
+    expect(directPdfName({ documentTitle: '終わりが点.' })).toBeNull();
+    expect(directPdfName({ documentTitle: 'CON' })).toBeNull();
+    expect(directPdfName({ documentTitle: 'あ'.repeat(101) })).toBeNull();
   });
 });

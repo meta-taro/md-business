@@ -156,7 +156,7 @@
 
   // プレビュー iframe にフォーカスがある時の keydown は親へ伝播しない。iframe 側で横取りした
   // ショートカットは postMessage で届くので、source を検証してから同じ runAction に流す
-  // （Ctrl/Cmd+P は iframe 自身で print 済み。ここへ来るのは主に保存）。
+  // （Ctrl/Cmd+P もここへ来る。iframe 自身で印刷すると保存名がアプリの題名になるため）。
   function onMessage(event: MessageEvent): void {
     const action = resolvePreviewMessage(event.data);
     if (action === null) return;
