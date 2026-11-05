@@ -4,6 +4,16 @@ Changes to this app. Versions follow [Semantic Versioning](https://semver.org/).
 
 Japanese is the source of truth for this file; see [CHANGELOG.md](./CHANGELOG.md).
 
+## 0.34.0
+
+### Added
+
+- **Basic design documents can carry a classification** (such as 社外秘 or 社内限). Set `classification` (or `区分` / `機密区分`) in the frontmatter and it appears on the cover and at the top right of every page. Save names can include it with `{区分}` / `{classification}`.
+
+- **One document can now produce an internal edition and a submission edition.** Anything between `::: 社内` (or `::: internal`) and `:::` appears only in the internal edition and is dropped from the submission edition. Switch with the "社内版 / 提出版" button in the toolbar; the preview and the PDF, HTML and image exports all follow the selected edition. The submission edition is classified 提出用 by default, which `submissionClassification` overrides.
+
+- **The submission edition warns about source locations (such as `Service.php L12`) and commit hashes left outside those blocks.** Exporting is not blocked. An unclosed `::: 社内` is reported too.
+
 ## 0.33.2
 
 ### Fixed
