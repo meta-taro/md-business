@@ -1071,3 +1071,57 @@ describe('セルの注釈を持つ検証シート', () => {
     expect(text).toContain('#@ annot\trcccccccccccc\t結果\t控えにした行');
   });
 });
+
+/**
+ * 形式に合わない行 ID・重複した行 ID は、読み込みで黙って振り直される。読む・検査する
+ * 段階で知らせないと、利用者は保存して初めて（あるいは気づかないまま）参照が切れる。
+ */
+describe('振り直される行 ID', () => {
+  const BAD_IDS =
+    [
+      '#! md-business:test-spec-tsv/v1',
+      '#@ rowid _id',
+      'No.:number\t項目!\t結果:enum(OK|NG)\t_id',
+      '1\t新規登録\tOK\trow-1',
+      '2\t金額計算\tNG\traaaaaaaaaaaa',
+      '3\t帳票\tOK\traaaaaaaaaaaa',
+      '4\t追加分\tOK\t',
+    ].join('\n') + '\n';
+
+  it('read_tsv は形式違いと重複を行ごとに挙げる（空は挙げない）', async () => {
+    const s = new MemoryDocumentStore({ 'sheets/id.tsv': BAD_IDS });
+    const r = await readTsv(s, 'sheets/id.tsv');
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.issues.map((i) => [i.row, i.columnName, i.code])).toEqual([
+      [0, '_id', 'row_id_format'],
+      [2, '_id', 'row_id_duplicate'],
+    ]);
+  });
+
+  it('check_tsv も同じものを挙げる', async () => {
+    const s = new MemoryDocumentStore({ 'sheets/id.tsv': BAD_IDS });
+    const r = await checkTsv(s, {});
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.sheets[0]?.issues.map((i) => i.code)).toEqual([
+      'row_id_format',
+      'row_id_duplicate',
+    ]);
+  });
+
+  it('控えにした行があっても、表に出ている行の位置で挙げる', async () => {
+    const hiddenFirst = BAD_IDS.replace(
+      '#@ rowid _id',
+      '#@ rowid _id\n#@ hidden rcccccccccccc'
+    ).replace('1\t新規登録', '0\t控え\tOK\trcccccccccccc\n1\t新規登録');
+    const s = new MemoryDocumentStore({ 'sheets/id.tsv': hiddenFirst });
+    const r = await readTsv(s, 'sheets/id.tsv');
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.issues.map((i) => [i.row, i.code])).toEqual([
+      [0, 'row_id_format'],
+      [2, 'row_id_duplicate'],
+    ]);
+  });
+});

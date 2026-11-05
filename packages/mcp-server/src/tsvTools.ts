@@ -29,6 +29,7 @@ import {
   readAnnotations,
   readColumnLinks,
   readComputedColumns,
+  rowIdIssues,
   serializeTsv,
   splitHiddenRows,
   validateTsv,
@@ -187,6 +188,11 @@ interface LoadedTsv {
   /** 表から外した控え行。書き戻しで元の位置へ戻す。 */
   hidden: HiddenRow[];
   source: string;
+  /**
+   * 読み込みで振り直した行 ID（形式違い・重複）。行は表に出ている行の位置。
+   * 振り直した後の doc には元の値が残らないので、読み込みの時点で拾っておく。
+   */
+  idIssues: ValidationIssue[];
 }
 
 /**
@@ -240,8 +246,34 @@ async function load(store: DocumentStore, relative: string): Promise<LoadedTsv |
   }
   // 控えは行 ID で指すので、ID が出そろってから外す。外してしまえば行の指定・検証は
   // 控えを知らずに済み、表に出ていない行を書き換える手立ても無くなる。
-  const { doc, hidden } = splitHiddenRows(withRowIds(parsed));
-  return { relative, doc, tracksIds: hasRowIdColumn(parsed), hidden, source };
+  const identified = withRowIds(parsed);
+  const { doc, hidden } = splitHiddenRows(identified);
+  const idIssues = visibleIdIssues(rowIdIssues(parsed), identified.rowIds, doc.rowIds);
+  return { relative, doc, tracksIds: hasRowIdColumn(parsed), hidden, source, idIssues };
+}
+
+/**
+ * ファイル上の行位置で挙げた行 ID の違反を、表に出ている行の位置へ付け替える。
+ * 控えにした行の違反は落とす（read_tsv にも書き込みにも出てこない行なので指しようがない）。
+ */
+function visibleIdIssues(
+  issues: readonly ValidationIssue[],
+  fileRowIds: readonly string[],
+  visibleRowIds: readonly string[],
+): ValidationIssue[] {
+  const visibleAt = new Map(visibleRowIds.map((id, at) => [id, at]));
+  return issues.flatMap((issue) => {
+    const at = visibleAt.get(fileRowIds[issue.row] ?? '');
+    return at === undefined ? [] : [{ ...issue, row: at }];
+  });
+}
+
+/** 型の違反と行 ID の違反を、行優先の順に並べて 1 本にする。 */
+function withIdIssues(
+  issues: readonly ValidationIssue[],
+  idIssues: readonly ValidationIssue[],
+): ValidationIssue[] {
+  return [...issues, ...idIssues].sort((a, b) => a.row - b.row);
 }
 
 /**
@@ -589,7 +621,7 @@ export async function readTsv(
   store: DocumentStore,
   requestedPath: string,
 ): Promise<ReadTsvOk | ToolError> {
-  return withLoaded(store, requestedPath, async ({ relative, doc, tracksIds }) => ({
+  return withLoaded(store, requestedPath, async ({ relative, doc, tracksIds, idIssues }) => ({
     ok: true as const,
     path: relative,
     formatId: doc.formatId,
@@ -598,7 +630,7 @@ export async function readTsv(
     columns: doc.columns,
     rows: doc.rows,
     rowIds: tracksIds ? [...doc.rowIds] : [],
-    issues: validateTsv(doc, await choicesOf(store, relative, doc)),
+    issues: withIdIssues(validateTsv(doc, await choicesOf(store, relative, doc)), idIssues),
     linkIssues: await linkIssuesOf(store, relative, doc),
     annotations: annotationsOf(doc, tracksIds),
   }));
@@ -680,7 +712,10 @@ export async function checkTsv(
       continue;
     }
 
-    const issues = validateTsv(loaded.doc, await choicesOf(store, relative, loaded.doc));
+    const issues = withIdIssues(
+      validateTsv(loaded.doc, await choicesOf(store, relative, loaded.doc)),
+      loaded.idIssues,
+    );
     const linkIssues = await linkIssuesOf(store, relative, loaded.doc);
     totalIssues += issues.length + linkIssues.length;
     if (issues.length === 0 && linkIssues.length === 0) continue;

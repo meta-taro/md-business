@@ -3,7 +3,7 @@ export { parseTypedHeader } from './header.js';
 export { classifyLine } from './classify.js';
 export { parseTsv } from './parse.js';
 export { serializeTsv, serializeHeader } from './serialize.js';
-export { validateTsv } from './validate.js';
+export { rowIdIssues, validateTsv } from './validate.js';
 export {
   generateRowId,
   hasRowIdColumn,

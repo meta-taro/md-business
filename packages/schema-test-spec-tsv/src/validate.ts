@@ -1,5 +1,6 @@
 import type { EnumChoices } from './enumSource.js';
 import type { TsvDocument } from './parse.js';
+import { isRowId, rowIdColumnName } from './rowId.js';
 import type { ParsedHeader } from './types.js';
 
 /**
@@ -15,7 +16,9 @@ export type ValidationCode =
   | 'checkbox_value'
   | 'url_format'
   | 'extra_columns'
-  | 'short_row';
+  | 'short_row'
+  | 'row_id_format'
+  | 'row_id_duplicate';
 
 /**
  * 1 件のバリデーション違反。位置（データ行 / 列の 0 始まり index）と列名・コード・説明を持つ。
@@ -155,6 +158,10 @@ const MESSAGES: Record<ValidationCode, string> = {
   checkbox_value: 'チェックボックスは TRUE / FALSE / 空のいずれかです',
   url_format: 'http:// または https:// の URL にしてください',
   extra_columns: '列数を超えるセルがあります',
+  row_id_format:
+    '行 ID は r + 16 進 12 桁です。保存すると新しい ID に振り直され、この値を指す参照は切れます',
+  row_id_duplicate:
+    '行 ID が上の行と重複しています。保存すると新しい ID に振り直され、この値を指す参照は切れます',
   short_row: 'セルの中で改行して 1 行が割れている可能性があります（セル内改行は \n と書きます）',
 };
 
@@ -215,6 +222,8 @@ function splitRowStarts(rows: readonly string[][], columnCount: number): Set<num
  * - enum / date / datetime(ui) / number / checkbox / url は型ごとに値を検査。
  * - 行のセル数が列数を超えたら、最初の余剰セル位置に `extra_columns`（不足は許容）。
  * - 短い行が続いて繋ぐと列数ちょうどになる並びは、その先頭に `short_row`。
+ * - 行 ID 列があれば、形式に合わない値に `row_id_format`、2 度目以降に出た値に
+ *   `row_id_duplicate`。どちらも読み込みで黙って振り直される値なので、保存より前に知らせる。
  *
  * 位置は `row`（`doc.rows` の index）と `column`（`doc.columns` の index）で表す。
  *
@@ -225,6 +234,7 @@ export function validateTsv(doc: TsvDocument, choices?: EnumChoices): Validation
   const issues: ValidationIssue[] = [];
   const columnCount = doc.columns.length;
   const splitStarts = splitRowStarts(doc.rows, columnCount);
+  const idIssues = new Map(rowIdIssues(doc).map((issue) => [issue.row, issue]));
 
   doc.rows.forEach((row, rowIndex) => {
     const cellCount = Math.min(row.length, columnCount);
@@ -270,6 +280,9 @@ export function validateTsv(doc: TsvDocument, choices?: EnumChoices): Validation
       });
     }
 
+    const idIssue = idIssues.get(rowIndex);
+    if (idIssue !== undefined) issues.push(idIssue);
+
     if (row.length > columnCount) {
       issues.push({
         row: rowIndex,
@@ -282,4 +295,36 @@ export function validateTsv(doc: TsvDocument, choices?: EnumChoices): Validation
   });
 
   return issues;
+}
+
+/**
+ * 行 ID 列の値のうち、読み込み（`withRowIds`）で振り直されるものを挙げる。
+ *
+ * 振り直しの前のファイル（ID 列を抜く前の doc）に掛ける。抜いた後では元の値が残っていない。
+ * 空セルは挙げない。ID の無い行を手で足したときの正規の書き方で、採番されるのが期待どおり。
+ * ID 列を持たないシートでは何も返さない（ただの文字列列を ID とみなさない）。
+ */
+export function rowIdIssues(doc: TsvDocument): ValidationIssue[] {
+  const found: ValidationIssue[] = [];
+  const name = rowIdColumnName(
+    doc.directives,
+    doc.columns.map((column) => column.name),
+  );
+  const column = name === null ? -1 : doc.columns.findIndex((c) => c.name === name);
+  if (column < 0 || name === null) return found;
+
+  const seen = new Set<string>();
+  doc.rows.forEach((row, rowIndex) => {
+    const value = row[column] ?? '';
+    if (value === '') return;
+    const code: ValidationCode | null = !isRowId(value)
+      ? 'row_id_format'
+      : seen.has(value)
+        ? 'row_id_duplicate'
+        : null;
+    seen.add(value);
+    if (code === null) return;
+    found.push({ row: rowIndex, column, columnName: name, code, message: MESSAGES[code] });
+  });
+  return found;
 }
