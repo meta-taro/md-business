@@ -5,6 +5,7 @@ import remarkCjkFriendly from 'remark-cjk-friendly';
 import remarkCjkFriendlyGfmStrikethrough from 'remark-cjk-friendly-gfm-strikethrough';
 import remarkRehype from 'remark-rehype';
 import rehypeStringify from 'rehype-stringify';
+import GithubSlugger from 'github-slugger';
 import { splitFrontmatter } from './frontmatter.js';
 import { findInternalBlocks, stripInternalBlocks } from './edition.js';
 import type { DocumentEdition } from './edition.js';
@@ -397,6 +398,51 @@ function markInternalBlocks(body: string): string {
   return lines.join('\n');
 }
 
+/** 図の説明の頭にある番号（`図 2-1` / `表 3` / `Figure 1.2`）。 */
+const FIGURE_LABEL = /^(?:図|表|Figure|Fig\.|Table)\s*\d+(?:[-.‐－]\d+)*/;
+const HEADING = /^h[1-6]$/;
+
+/** id の元にする文字。改版の印の削除側は除く（印ありでも清書でも同じ id になる）。 */
+function anchorTextOf(node: HastNode): string {
+  if (node.type === 'text') return node.value ?? '';
+  if (node.tagName === 'del') return '';
+  if (node.properties?.['ariaHidden'] === 'true') return '';
+  return (node.children ?? []).map(anchorTextOf).join('');
+}
+
+/**
+ * 見出しと、説明の付いた図に id を付け、`[図 2-1 へ戻る](#図-2-1)` のようなリンクの行き先にする。
+ *
+ * 見出しの id は GitHub と同じ規則にする。GitHub で書いた目次のリンクがそのまま効く。
+ * 図は説明が番号で始まるなら番号だけ（`#図-2-1`）、そうでなければ説明の文字で指す。
+ * 説明の後半を書き直しても、番号で張ったリンクは切れない。
+ *
+ * 同じ id は文書の頭から順に枝番で分ける（見出しと図で 1 つの数え方を使う）。
+ * PDF も同じ id をリンクの行き先にするので、印刷しても文書の中で飛べる。
+ */
+function rehypeAnchors() {
+  return (tree: unknown): void => {
+    const slugger = new GithubSlugger();
+    const walk = (node: HastNode): void => {
+      if (node.type === 'element' && node.properties?.['id'] === undefined) {
+        const tag = node.tagName ?? '';
+        if (HEADING.test(tag)) {
+          node.properties = { ...node.properties, id: slugger.slug(anchorTextOf(node).trim()) };
+        } else if (tag === 'figure') {
+          const caption = (node.children ?? []).find((child) => child.tagName === 'figcaption');
+          const text = caption === undefined ? '' : anchorTextOf(caption).trim();
+          if (text !== '') {
+            const label = FIGURE_LABEL.exec(text)?.[0] ?? text;
+            node.properties = { ...node.properties, id: slugger.slug(label) };
+          }
+        }
+      }
+      for (const child of node.children ?? []) walk(child);
+    };
+    walk(tree as HastNode);
+  };
+}
+
 function buildProcessor(lang: string, rawHtml: boolean) {
   const backLabel = FOOTNOTE_BACK_LABEL[lang] ?? FOOTNOTE_BACK_LABEL['ja']!;
 
@@ -425,6 +471,7 @@ function buildProcessor(lang: string, rawHtml: boolean) {
     .use(rehypeImageCaptions)
     .use(rehypeInternalBlocks(INTERNAL_LABEL[lang] ?? INTERNAL_LABEL['ja']!))
     .use(rehypeRevisionMarks)
+    .use(rehypeAnchors)
     .use(rehypeStringify, { allowDangerousHtml: rawHtml });
 }
 

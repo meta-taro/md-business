@@ -27,7 +27,7 @@ describe('renderMarkdownToHtml — edition', () => {
 
   it('keeps headings and lists inside the box', () => {
     const html = render('::: 社内\n## 内部の節\n\n- a\n- b\n:::\n');
-    expect(html).toMatch(/<div class="mdb-internal">[\s\S]*<h2>内部の節<\/h2>[\s\S]*<li>a<\/li>[\s\S]*<\/div>/);
+    expect(html).toMatch(/<div class="mdb-internal">[\s\S]*<h2 id="内部の節">内部の節<\/h2>[\s\S]*<li>a<\/li>[\s\S]*<\/div>/);
   });
 
   it('runs an unclosed block to the end', () => {

@@ -30,7 +30,7 @@ describe('renderReleaseNotes — 更新ダイアログのリリースノート',
   it('Markdown を HTML にする', () => {
     // 素のまま出すと、記号（## や -）が本文に混ざったまま利用者に見える。
     const html = renderReleaseNotes(['## 変更点', '', '- 表の列寄せを指定できるようにした'].join('\n'));
-    expect(html).toContain('<h2>');
+    expect(html).toContain('<h2 id="変更点">');
     expect(html).toContain('<li>');
     expect(html).not.toContain('## 変更点');
   });

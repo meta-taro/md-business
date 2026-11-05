@@ -3,7 +3,7 @@ import { renderMarkdownToHtml } from '../src/markdownToHtml.js';
 
 describe('renderMarkdownToHtml — basic blocks', () => {
   it('converts an ATX heading', () => {
-    expect(renderMarkdownToHtml('# Hello', { hasFrontmatter: false })).toBe('<h1>Hello</h1>');
+    expect(renderMarkdownToHtml('# Hello', { hasFrontmatter: false })).toBe('<h1 id="hello">Hello</h1>');
   });
 
   it('converts paragraphs', () => {
@@ -92,14 +92,14 @@ describe('renderMarkdownToHtml — basic blocks', () => {
 describe('renderMarkdownToHtml — frontmatter handling', () => {
   it('strips frontmatter by default', () => {
     const src = '---\ntitle: x\n---\n\n# Body';
-    expect(renderMarkdownToHtml(src)).toBe('<h1>Body</h1>');
+    expect(renderMarkdownToHtml(src)).toBe('<h1 id="body">Body</h1>');
   });
 
   it('does not strip frontmatter when hasFrontmatter is false', () => {
     // When the caller already has a body-only string, we pass it through as-is.
     // The leading "---" then renders as a thematic break.
     const src = '# Heading';
-    expect(renderMarkdownToHtml(src, { hasFrontmatter: false })).toBe('<h1>Heading</h1>');
+    expect(renderMarkdownToHtml(src, { hasFrontmatter: false })).toBe('<h1 id="heading">Heading</h1>');
   });
 
   it('handles an empty body gracefully', () => {
@@ -237,7 +237,7 @@ describe('renderMarkdownToHtml — 図に添える説明', () => {
     const html = renderMarkdownToHtml('![構成図](./img.png "図 1 システム構成")', {
       hasFrontmatter: false,
     });
-    expect(html).toContain('<figure class="mdb-figure">');
+    expect(html).toContain('<figure class="mdb-figure" id="図-1">');
     expect(html).toContain('<figcaption class="mdb-figure__caption">図 1 システム構成</figcaption>');
     // 下に出す。上に出すと、読む順が「説明 → 図」になって図を探しに戻ることになる。
     expect(html.indexOf('<img')).toBeLessThan(html.indexOf('<figcaption'));
@@ -288,5 +288,52 @@ describe('renderMarkdownToHtml — 全角の約物に接する強調', () => {
   it('~~ の取り消し線も同じく効く', () => {
     const html = renderMarkdownToHtml('~~「旧」~~の手順。', { hasFrontmatter: false });
     expect(html).toContain('<del>「旧」</del>の手順。');
+  });
+});
+
+describe('renderMarkdownToHtml — 文書の中を指すリンク', () => {
+  const render = (md: string): string => renderMarkdownToHtml(md, { hasFrontmatter: false });
+
+  it('見出しに GitHub と同じ規則の id を付ける（日本語はそのまま残す）', () => {
+    const html = render('## 2. 画面設計\n\n### Login Flow\n');
+    expect(html).toContain('<h2 id="2-画面設計">2. 画面設計</h2>');
+    expect(html).toContain('<h3 id="login-flow">Login Flow</h3>');
+  });
+
+  it('同じ見出しが続いたら枝番で分ける', () => {
+    const html = render('## 概要\n\n## 概要\n');
+    expect(html).toContain('id="概要"');
+    expect(html).toContain('id="概要-1"');
+  });
+
+  it('「図 2-1」で始まる説明の図は、番号だけで指せる', () => {
+    const html = render('![構成](a.png "図 2-1 システム構成")\n\n[図 2-1 へ戻る](#図-2-1)\n');
+    expect(html).toContain('<figure class="mdb-figure" id="図-2-1">');
+    expect(html).toContain(`href="#${encodeURIComponent('図')}-2-1"`);
+  });
+
+  it('番号の無い説明の図は、説明の文字で指す', () => {
+    const html = render('![構成](a.png "全体の構成")\n');
+    expect(html).toContain('id="全体の構成"');
+  });
+
+  it('見出しと図の id がぶつかったら枝番で分ける', () => {
+    const html = render('## 図 1\n\n![a](a.png "図 1 構成")\n');
+    expect(html).toContain('<h2 id="図-1">');
+    expect(html).toContain('id="図-1-1"');
+  });
+
+  it('説明の無い画像には id を付けない（入れ物が無い）', () => {
+    expect(render('![a](a.png)\n')).not.toContain('id=');
+  });
+});
+
+describe('renderMarkdownToHtml — 改版の印と見出しの id', () => {
+  it('印ありでも清書でも、見出しの id は直したあとの文字で決まる', () => {
+    const md = '## {~~旧仕様~>新仕様~~}の概要\n';
+    const marked = renderMarkdownToHtml(md, { hasFrontmatter: false, revisions: 'marked' });
+    const clean = renderMarkdownToHtml(md, { hasFrontmatter: false, revisions: 'clean' });
+    expect(marked).toContain('id="新仕様の概要"');
+    expect(clean).toContain('id="新仕様の概要"');
   });
 });

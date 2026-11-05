@@ -131,7 +131,7 @@ describe('testSpecPlugin — render with body', () => {
       '# 検証手順\n\n| 項目 | 結果 |\n| --- | --- |\n| OK | OK |',
     );
     expect(html).toContain('mdb-test-spec__body');
-    expect(html).toContain('<h1>検証手順</h1>');
+    expect(html).toContain('<h1 id="検証手順">検証手順</h1>');
     expect(html).toContain('<table>');
   });
 
@@ -160,7 +160,7 @@ describe('testSpecPlugin — previewRender', () => {
     expect(result).toBeDefined();
     if (!result) return;
     expect(result.html).toContain('mdb-test-spec');
-    expect(result.html).toContain('<h1>下書き</h1>');
+    expect(result.html).toContain('<h1 id="下書き">下書き</h1>');
     expect(result.errors.length).toBeGreaterThan(0);
   });
 
@@ -251,7 +251,7 @@ describe('loadMarkdown — test-spec end-to-end', () => {
     expect(result.documentTitle).toBe('ログイン機能 検証シート');
     expect(result.bodyHtml).toContain('mdb-test-spec');
     expect(result.bodyHtml).toContain('mdb-test-spec__body');
-    expect(result.bodyHtml).toContain('<h1>検証手順</h1>');
+    expect(result.bodyHtml).toContain('<h1 id="検証手順">検証手順</h1>');
   });
 
   it('routes a Japanese-keyed test-spec via plugin.detect', () => {
@@ -267,6 +267,6 @@ describe('previewMarkdown — test-spec live editor', () => {
     const partial = `---\nschema: "test-spec/v1"\ntitle: "途中"\n文書番号: "TEST-X"\n---\n\n# 章1`;
     const result = previewMarkdown(partial);
     if (!result.ok) throw new Error('expected success');
-    expect(result.bodyHtml).toContain('<h1>章1</h1>');
+    expect(result.bodyHtml).toContain('<h1 id="章1">章1</h1>');
   });
 });
