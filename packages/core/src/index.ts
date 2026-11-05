@@ -40,6 +40,8 @@ export { serializeMarkdown } from './serialize.js';
 export { buildDocument } from './buildDocument.js';
 export type { BuildDocumentInput, BuildDocumentResult } from './buildDocument.js';
 export { renderMarkdownToHtml, type RenderMarkdownToHtmlOptions } from './markdownToHtml.js';
+export { findInternalBlocks, stripInternalBlocks, findSubmissionLeaks } from './edition.js';
+export type { InternalBlock, StripResult, SubmissionLeak, LeakKind } from './edition.js';
 // `validateWithCompiled` is tree-shake-safe for browser bundles (no Ajv runtime).
 // `validateWith` and `parseAndValidate` live in `./runtime` and pull in Ajv's
 // code-generation runtime, which uses `new Function()` and is MV3-CSP-unsafe.
