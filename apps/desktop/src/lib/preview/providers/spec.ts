@@ -56,7 +56,9 @@ export const specProvider = createSchemaPreview<Spec>({
   renderBody: (data, body, edition, revisions) =>
     renderSpecBody(data, {
       bodyHtml: body
-        ? sanitizeViewerHtml(renderMarkdownToHtml(body, { hasFrontmatter: false, edition, revisions }))
+        ? sanitizeViewerHtml(
+            renderMarkdownToHtml(body, { hasFrontmatter: false, edition, revisions, toc: data.showToc === true }),
+          )
         : '',
       edition,
     }),

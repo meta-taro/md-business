@@ -42,9 +42,10 @@ function bodyHtmlOf(
   markdownBody: string | undefined,
   edition: DocumentEdition,
   revisions: RevisionView,
+  toc: boolean,
 ): string {
   return markdownBody
-    ? sanitizeViewerHtml(renderMarkdownToHtml(markdownBody, { hasFrontmatter: false, edition, revisions }))
+    ? sanitizeViewerHtml(renderMarkdownToHtml(markdownBody, { hasFrontmatter: false, edition, revisions, toc }))
     : '';
 }
 
@@ -85,7 +86,7 @@ export const specPlugin: SchemaPlugin<Spec> = {
     // pipeline (unified — no eval / new Function()), then sanitized to allow
     // inline `<svg>` + image data URLs while dropping `<script>` / event
     // handlers / `javascript:` URLs. (XSS hardening for v0.2.0 spec viewer.)
-    return renderSpecBody(frontmatter, { bodyHtml: bodyHtmlOf(markdownBody, edition, revisions), edition });
+    return renderSpecBody(frontmatter, { bodyHtml: bodyHtmlOf(markdownBody, edition, revisions, frontmatter.showToc === true), edition });
   },
   previewRender(
     frontmatter,
@@ -107,7 +108,7 @@ export const specPlugin: SchemaPlugin<Spec> = {
           message: translateSpecErrors(validation.errors)[i] ?? e.message,
         }));
     const safe = withPreviewDefaults(autofilled.data);
-    const bodyHtml = bodyHtmlOf(markdownBody, edition, revisions);
+    const bodyHtml = bodyHtmlOf(markdownBody, edition, revisions, safe.showToc === true);
     try {
       return { html: renderSpecBody(safe, { bodyHtml, edition }), warnings, errors };
     } catch (renderErr: unknown) {

@@ -47,6 +47,8 @@ export const SPEC_JA_DICTIONARY: Dictionary = {
     分割ファイル: 'chapters',
     目次: 'toc',
     toc: 'toc',
+    目次表示: 'showToc',
+    showToc: 'showToc',
     テーマ: 'theme',
     theme: 'theme',
     テーマカラー: 'theme',

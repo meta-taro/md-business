@@ -600,8 +600,60 @@ th.mdb-changed::before {
   left: 0;
 }
 
+/*
+ * 読み上げ用のマーカー（`==文==` / `<mark>`）。蛍光ペンの色で塗る。
+ * 提出版では本文から外れるので、ここに来るのは社内版だけ。
+ */
+mark.mdb-mark {
+  background: #fef08a;
+  color: inherit;
+  padding: 0 0.1em;
+}
+
+/*
+ * 見出しから作った目次（`目次表示: true`）。深さは字下げで表す。
+ * 目次の項目は本文の見出しへのリンクなので、PDF でもそのページへ飛べる。
+ */
+nav.mdb-toc {
+  margin: 0 0 8mm;
+  padding: 4mm 5mm;
+  border: 0.3pt solid #d1d5db;
+  border-radius: 2mm;
+  break-inside: avoid;
+}
+
+.mdb-toc__head {
+  margin: 0 0 2mm;
+  font-weight: 700;
+}
+
+.mdb-toc__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.mdb-toc__item {
+  margin: 0.6mm 0;
+}
+
+.mdb-toc__item--2 {
+  padding-left: 1.2em;
+}
+
+.mdb-toc__item--3 {
+  padding-left: 2.4em;
+  font-size: 0.95em;
+}
+
+.mdb-toc__item a {
+  color: inherit;
+  text-decoration: none;
+}
+
 ins.mdb-ins,
 del.mdb-del,
+mark.mdb-mark,
 .mdb-changed::before {
   -webkit-print-color-adjust: exact;
   print-color-adjust: exact;

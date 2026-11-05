@@ -31,6 +31,8 @@ export interface Spec {
   chapters?: string[];
   /** `auto` derives chapters from Markdown headings; `manual` requires `chapters`. */
   toc?: TocMode;
+  /** 見出しから作った目次を文書の頭に出すか。省略時は出さない。 */
+  showToc?: boolean;
   /** Accent color preset name or `#rrggbb`. Same vocabulary as schema-invoice. */
   theme?: string;
   /** Optional template for the PDF save filename. */
