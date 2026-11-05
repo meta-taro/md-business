@@ -4,6 +4,16 @@ Changes to this app. Versions follow [Semantic Versioning](https://semver.org/).
 
 Japanese is the source of truth for this file; see [CHANGELOG.md](./CHANGELOG.md).
 
+## 0.36.1
+
+### Fixed
+
+- **[Export] → [PDF] sometimes did nothing.** The window froze while the PDF was being made, and MCP `export_pdf` timed out. The work now runs off the UI thread, so the window and MCP keep responding.
+
+- **A PDF saved with Ctrl+P was named "md-business.pdf" and had no bookmarks.** Ctrl+P now writes the same bookmarked PDF as [Export] → [PDF], named after `fileName` in the frontmatter.
+
+- **No PDF was made when the title contained characters not allowed in file names (such as `/`).** In that case the PDF takes the source document's name. If it still cannot be made in the background, the reason is shown and the print dialog opens.
+
 ## 0.36.0
 
 ### Added
