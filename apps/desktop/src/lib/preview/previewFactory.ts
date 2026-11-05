@@ -18,11 +18,13 @@
 import {
   validateWithCompiled,
   type CompiledValidator,
+  type DocumentEdition,
   type FrontmatterProblem,
   type ValidationError,
 } from '@md-business/core';
 import { buildPreviewDocument, type PreviewTheme } from './previewDocument';
 import { themeWarnings } from './themeWarning';
+import { editionWarnings } from './editionWarning';
 import type { PreviewProviderMeta } from './registry';
 
 /** normalize / autofill が返す非致命 warning の共通シェイプ。 */
@@ -52,7 +54,12 @@ export interface SchemaPreviewConfig<T> {
    * PDF の保存名（frontmatter の `fileName` 書式から作る）。Chrome 拡張と同じ処理を渡す。
    * 省略したスキーマは保存名を持たず、呼ぶ側が documentTitle を使う。
    */
-  pdfFileName?: (data: T) => string;
+  pdfFileName?: (data: T, edition: DocumentEdition) => string;
+  /**
+   * 社内版・提出版を選ばせるか。区分を持つ書式は常に、本文に社内の囲みを描く書式は
+   * 囲みがあるときだけ true を返す。省略した書式は版を持たない。
+   */
+  editionAware?: (data: T, body: string) => boolean;
   /**
    * ペイン見出しに出す表示名を文書ごとに上書きする（省略時は `meta.label`）。
    * invoice のように 1 スキーマで複数の文書種別（請求書 / 見積書 / 領収書）を
@@ -66,7 +73,7 @@ export interface SchemaPreviewConfig<T> {
    * データ駆動スキーマは frontmatter のみで描くため body を無視する（`(data) => …`
    * のままでも代入可能）。
    */
-  renderBody: (data: T, body: string) => string;
+  renderBody: (data: T, body: string, edition: DocumentEdition) => string;
   /** renderer-pdf の文書別 CSS（?raw インポート）。 */
   css: string;
 }
@@ -101,6 +108,8 @@ export interface PreviewOk {
   errors: string[];
   /** renderer 自体が throw した場合の最終手段メッセージ。 */
   fatal?: string;
+  /** 社内版・提出版を選べる文書か（選べないなら版の切り替えを出さない）。 */
+  editionAware?: boolean;
 }
 
 export interface PreviewNotApplicable {
@@ -139,6 +148,8 @@ export interface RenderPreviewOptions {
    * webview の中（`srcdoc`）へは渡さない。アプリと同じ入れ物で動かさないため。
    */
   rawHtml?: boolean;
+  /** 社内版（既定）か提出版か。提出版は社内の囲みを落とし、区分を提出用にする。 */
+  edition?: DocumentEdition;
 }
 
 export interface PreviewProvider extends PreviewProviderMeta {
@@ -165,7 +176,7 @@ export function createSchemaPreview<T>(config: SchemaPreviewConfig<T>): PreviewP
       body = '',
       options: RenderPreviewOptions = {},
     ): PreviewResult {
-      const { theme, shortcuts } = options;
+      const { theme, shortcuts, edition = 'internal' } = options;
       const cssHref = options.cssHref?.(meta.id);
       const style = { id: meta.id, css: config.css };
 
@@ -183,11 +194,13 @@ export function createSchemaPreview<T>(config: SchemaPreviewConfig<T>): PreviewP
       const safe = config.withPreviewDefaults(autofilled.data);
       const documentTitle = config.documentTitle(safe);
       const label = config.documentLabel?.(safe) ?? meta.label;
-      const pdfFileName = config.pdfFileName?.(safe);
+      const pdfFileName = config.pdfFileName?.(safe, edition);
+      const editionAware = config.editionAware?.(safe, body) ?? false;
+      if (editionAware) warnings.push(...editionWarnings(body, edition));
 
       let bodyHtml: string;
       try {
-        bodyHtml = config.renderBody(safe, body);
+        bodyHtml = config.renderBody(safe, body, edition);
       } catch (error: unknown) {
         return {
           ok: true,
@@ -204,6 +217,7 @@ export function createSchemaPreview<T>(config: SchemaPreviewConfig<T>): PreviewP
           label,
           warnings,
           errors,
+          editionAware,
           fatal: `プレビューを描画できませんでした: ${messageOf(error)}`,
         };
       }
@@ -224,6 +238,7 @@ export function createSchemaPreview<T>(config: SchemaPreviewConfig<T>): PreviewP
         label,
         warnings,
         errors,
+        editionAware,
       };
     },
   };

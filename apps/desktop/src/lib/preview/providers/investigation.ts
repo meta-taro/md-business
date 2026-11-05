@@ -14,7 +14,7 @@ import {
   type Investigation,
 } from '@md-business/schema-investigation';
 import validateInvestigation from '@md-business/schema-investigation/validate';
-import { renderMarkdownToHtml } from '@md-business/core';
+import { findInternalBlocks, renderMarkdownToHtml } from '@md-business/core';
 import { renderInvestigationBody } from '@md-business/renderer-pdf';
 import investigationCss from '@md-business/renderer-pdf/styles/investigation.css?raw';
 import { createSchemaPreview } from '../previewFactory';
@@ -56,10 +56,11 @@ export const investigationProvider = createSchemaPreview<Investigation>({
   withPreviewDefaults,
   pdfFileName: (data) => renderInvestigationFileName(data, data.fileName),
   documentTitle: (data) => data.title || `調査報告書 ${data.documentNumber ?? ''}`.trim(),
-  renderBody: (data, body) =>
+  editionAware: (_data, body) => findInternalBlocks(body).length > 0,
+  renderBody: (data, body, edition) =>
     renderInvestigationBody(data, {
       bodyHtml: body
-        ? sanitizeViewerHtml(renderMarkdownToHtml(body, { hasFrontmatter: false }))
+        ? sanitizeViewerHtml(renderMarkdownToHtml(body, { hasFrontmatter: false, edition }))
         : '',
       // デスクトップは根拠ファイルを開く先を持っている（プレビューのリンクを
       // 親側で受けて、同じフォルダの文書として開く）。

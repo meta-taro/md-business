@@ -13,6 +13,7 @@
  * 出力先は決めない。ここが返すのは中身だけで、どこへ書くかは Rust 側が
  * 元の文書の場所から決める（フロントに出力先を持たせない）。
  */
+import type { DocumentEdition } from '@md-business/core';
 import { renderPreview } from './renderPreview';
 
 /**
@@ -20,8 +21,12 @@ import { renderPreview } from './renderPreview';
  * （＝押せるボタンにしない）。
  *
  * 非同期なのはプレビューと同じ理由で、そのスキーマの描画一式を読んでから組むため。
+ * 版は画面で表示中のものを渡す（社内版を確かめて提出版が出る、を起こさない）。
  */
-export async function buildExportHtml(source: string): Promise<string | null> {
-  const result = await renderPreview(source, { theme: 'light', shortcuts: false });
+export async function buildExportHtml(
+  source: string,
+  edition: DocumentEdition = 'internal',
+): Promise<string | null> {
+  const result = await renderPreview(source, { theme: 'light', shortcuts: false, edition });
   return result.ok ? result.srcdoc : null;
 }

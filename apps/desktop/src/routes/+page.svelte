@@ -6,6 +6,7 @@
   import { livePreviewUrl, paneOrigin, sitePartView } from '$lib/preview/livePreview';
   import { previewRenderer } from '$lib/preview/previewRenderer.svelte';
   import type { PreviewResult } from '$lib/preview/previewFactory';
+  import type { DocumentEdition } from '@md-business/core';
   import { frontmatterMessage } from '$lib/preview/frontmatterMessage';
   import { pdfExport } from '$lib/preview/pdfExport.svelte';
   import { pdfSaveName, printWithTitle } from '$lib/preview/printTitle';
@@ -470,10 +471,13 @@
 
   let preview = $state<PreviewResult | null>(null);
   let previewGeneration = 0;
+  // 社内版・提出版。印刷はプレビューをそのまま刷るので、版はプレビューの段階で切り替える。
+  let edition = $state<DocumentEdition>('internal');
   $effect(() => {
     const render = previewRenderer.render;
     const source = previewSource;
     const theme = themeController.value;
+    const currentEdition = edition;
     // 組み立て一式は一度読み込むと面を切り替えても残る。残っているだけで組み直しが動くと、
     // 検証グリッドで 1 文字打つたびに誰も見ない HTML を本文全体から組み直すことになる。
     if (render === null || !shouldRenderPreview(paneState)) {
@@ -481,7 +485,7 @@
       return;
     }
     const generation = ++previewGeneration;
-    void render(source, { theme }).then((result) => {
+    void render(source, { theme, edition: currentEdition }).then((result) => {
       if (generation === previewGeneration) preview = result;
     });
   });
@@ -1070,6 +1074,12 @@
     imageExport.setReady(ready);
   });
 
+  // 書き出しも画面で表示中の版で組む。
+  $effect(() => {
+    htmlExport.edition = edition;
+    imageExport.edition = edition;
+  });
+
   // グリッド編集 → 正本ソースへ書き戻し、エディターと即同期する。
   // debouncedSource も即更新して doc を再導出し、グリッドを遅延なく反映する。
   // 併せて確定スナップショットを履歴へ積む（Ctrl+Z / Ctrl+Y で戻せるように）。
@@ -1653,6 +1663,19 @@
           title={t('page.sheetGridTitle')}
         >
           {t('page.sheetGridBtn')}
+        </button>
+      {/if}
+      {#if preview?.ok && preview.editionAware}
+        <button
+          type="button"
+          class="head-btn"
+          onclick={() => (edition = edition === 'internal' ? 'submission' : 'internal')}
+          aria-pressed={edition === 'submission'}
+          title={edition === 'internal'
+            ? t('page.editionToSubmissionTitle')
+            : t('page.editionToInternalTitle')}
+        >
+          {edition === 'internal' ? t('page.editionInternalBtn') : t('page.editionSubmissionBtn')}
         </button>
       {/if}
       {#if preview?.ok}
