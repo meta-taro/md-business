@@ -111,7 +111,8 @@ const rendered = render(collect());
 if (process.argv.includes('--check')) {
   let current = null;
   try {
-    current = readFileSync(OUT_PATH, 'utf8');
+    // Windows の checkout は改行が CRLF になる。中身が同じなら食い違いとみなさない。
+    current = readFileSync(OUT_PATH, 'utf8').replace(/\r\n/g, '\n');
   } catch {
     console.error(`焼き込みがまだありません: ${OUT_PATH}`);
     process.exit(1);

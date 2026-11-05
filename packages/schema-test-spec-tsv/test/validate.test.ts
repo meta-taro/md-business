@@ -245,3 +245,82 @@ describe('validateTsv', () => {
     expect(issues[1]).toMatchObject({ row: 0, column: 1, code: 'number_format' });
   });
 });
+
+/**
+ * 行 ID 列の値。読み込み（`withRowIds`）は形式に合わない値・重複した値を黙って
+ * 振り直す。振り直すと、その値を指していた参照（別シートの注釈・控え行など）が切れるため、
+ * 保存より前の検証で知らせる。空セルは手で足した行の正規の書き方なので知らせない。
+ */
+describe('validateTsv — row id column', () => {
+  const withIds = (rows: string[][]): TsvDocument => ({
+    formatId: '',
+    meta: {},
+    directives: ['rowid _id'],
+    columns: [col('項目', 'text'), col('_id', 'text')],
+    rows,
+  });
+
+  it('accepts well-formed, distinct ids and empty id cells', () => {
+    const d = withIds([
+      ['a', 'r0123456789ab'],
+      ['b', 'r0123456789ac'],
+      ['c', ''],
+      ['d'],
+    ]);
+    expect(validateTsv(d)).toEqual([]);
+  });
+
+  it('reports a value that is not r + 12 hex digits', () => {
+    const d = withIds([
+      ['a', 'row-1'],
+      ['b', 'R0123456789AB'],
+    ]);
+    expect(
+      validateTsv(d).map((i) => [i.row, i.column, i.columnName, i.code])
+    ).toEqual([
+      [0, 1, '_id', 'row_id_format'],
+      [1, 1, '_id', 'row_id_format'],
+    ]);
+  });
+
+  it('reports the second and later occurrences of a duplicated id', () => {
+    const d = withIds([
+      ['a', 'r0123456789ab'],
+      ['b', 'r0123456789ab'],
+      ['c', 'r0123456789ab'],
+    ]);
+    expect(validateTsv(d).map((i) => [i.row, i.code])).toEqual([
+      [1, 'row_id_duplicate'],
+      [2, 'row_id_duplicate'],
+    ]);
+  });
+
+  it('says in the message that saving will reassign the value', () => {
+    const [issue] = validateTsv(withIds([['a', 'x']]));
+    expect(issue?.message).toMatch(/振り直/);
+  });
+
+  it('finds the id column by its declared name', () => {
+    const d: TsvDocument = {
+      formatId: '',
+      meta: {},
+      directives: ['rowid 行ID'],
+      columns: [col('行ID', 'text'), col('項目', 'text')],
+      rows: [['bad', 'a']],
+    };
+    expect(validateTsv(d).map((i) => [i.column, i.code])).toEqual([
+      [0, 'row_id_format'],
+    ]);
+  });
+
+  it('does not treat an ordinary column as ids when no id column is declared', () => {
+    const d = doc(
+      [col('項目', 'text'), col('メモ', 'text')],
+      [
+        ['a', 'bad'],
+        ['b', 'bad'],
+      ]
+    );
+    expect(validateTsv(d)).toEqual([]);
+  });
+});
