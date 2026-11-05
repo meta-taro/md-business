@@ -9,6 +9,9 @@
  * 通るので、どの出口でも同じ範囲が消える。
  */
 
+/** 社内版（囲みを枠で出す）か、提出版（囲みを落とす）か。 */
+export type DocumentEdition = 'internal' | 'submission';
+
 export interface InternalBlock {
   /** 開きの行（0 始まり）。 */
   start: number;

@@ -5,6 +5,7 @@ import remarkRehype from 'remark-rehype';
 import rehypeStringify from 'rehype-stringify';
 import { splitFrontmatter } from './frontmatter.js';
 import { findInternalBlocks, stripInternalBlocks } from './edition.js';
+import type { DocumentEdition } from './edition.js';
 
 /**
  * Render a Markdown source string to an HTML fragment, frontmatter-stripped.
@@ -53,7 +54,7 @@ export interface RenderMarkdownToHtmlOptions {
    * `::: 社内` 〜 `:::` の囲みをどう出すか。既定の `internal` は「社内」の札を付けた
    * 枠で囲んで出し、`submission`（提出版）は囲みごと落とす。
    */
-  edition?: 'internal' | 'submission';
+  edition?: DocumentEdition;
 }
 
 /**
