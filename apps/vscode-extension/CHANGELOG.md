@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.0
+
+### Added
+
+- **Basic design documents show their classification** (such as 社外秘 or 社内限) on the cover and at the top right of every page, taken from `classification` (or `区分` / `機密区分`) in the frontmatter.
+- **`::: 社内` (or `::: internal`) blocks** are shown in the preview with a 社内 label. Producing the submission edition, which drops them, is done in the desktop app or the Chrome extension.
+
 ## 0.2.1
 
 ### Fixed

@@ -4,6 +4,8 @@ import remarkGfm from 'remark-gfm';
 import remarkRehype from 'remark-rehype';
 import rehypeStringify from 'rehype-stringify';
 import { splitFrontmatter } from './frontmatter.js';
+import { findInternalBlocks, stripInternalBlocks } from './edition.js';
+import type { DocumentEdition } from './edition.js';
 
 /**
  * Render a Markdown source string to an HTML fragment, frontmatter-stripped.
@@ -48,6 +50,11 @@ export interface RenderMarkdownToHtmlOptions {
    * （宣言はプロジェクトの中にあるので、中身を書いた側が自由に書ける）。
    */
   rawHtml?: boolean;
+  /**
+   * `::: 社内` 〜 `:::` の囲みをどう出すか。既定の `internal` は「社内」の札を付けた
+   * 枠で囲んで出し、`submission`（提出版）は囲みごと落とす。
+   */
+  edition?: DocumentEdition;
 }
 
 /**
@@ -76,6 +83,21 @@ const FOOTNOTE_BACK_LABEL: Record<string, string> = {
   zh: '返回注释 {n} 的引用处',
   ko: '주석 {n} 참조 위치로 돌아가기',
 };
+
+/** 社内の囲みに付ける札。 */
+const INTERNAL_LABEL: Record<string, string> = {
+  ja: '社内',
+  en: 'Internal',
+  zh: '内部',
+  ko: '사내',
+};
+
+/**
+ * 囲みの開き・閉じを、描いたあとで見つけるための目印の段落。
+ * 生の HTML は既定で落ちるので、本文の段階では HTML を差し込めない。
+ */
+const INTERNAL_OPEN_MARK = 'MDBINTERNALOPEN9f4c2e';
+const INTERNAL_CLOSE_MARK = 'MDBINTERNALCLOSE9f4c2e';
 
 /**
  * hast のうち、ここで触るぶんだけの形。型のためだけに `@types/hast` を足さない。
@@ -221,6 +243,62 @@ function rehypeImageCaptions() {
   };
 }
 
+function isMarkParagraph(node: HastNode, mark: string): boolean {
+  return node.type === 'element' && node.tagName === 'p' && textOf(node) === mark;
+}
+
+/**
+ * 目印の段落に挟まれた並びを「社内」の枠へ入れ替える。
+ * 目印は行頭の囲みからしか作らないので、最上位の並びだけを見れば足りる。
+ */
+function rehypeInternalBlocks(label: string) {
+  return () => (tree: unknown) => {
+    const root = tree as HastNode;
+    const out: HastNode[] = [];
+    let box: HastNode | null = null;
+
+    for (const node of root.children ?? []) {
+      if (isMarkParagraph(node, INTERNAL_OPEN_MARK)) {
+        box = {
+          type: 'element',
+          tagName: 'div',
+          properties: { className: ['mdb-internal'] },
+          children: [
+            {
+              type: 'element',
+              tagName: 'p',
+              properties: { className: ['mdb-internal__label'] },
+              children: [{ type: 'text', value: label }],
+            },
+          ],
+        };
+        out.push(box);
+        continue;
+      }
+      if (isMarkParagraph(node, INTERNAL_CLOSE_MARK)) {
+        box = null;
+        continue;
+      }
+      if (box !== null) box.children!.push(node);
+      else out.push(node);
+    }
+    root.children = out;
+  };
+}
+
+/** 囲みの開き・閉じの行を、前後を空けた目印の段落に置き換える。 */
+function markInternalBlocks(body: string): string {
+  const blocks = findInternalBlocks(body);
+  if (blocks.length === 0) return body;
+
+  const lines = body.split('\n');
+  for (const block of blocks) {
+    lines[block.start] = `\n${INTERNAL_OPEN_MARK}\n`;
+    if (block.closed) lines[block.end] = `\n${INTERNAL_CLOSE_MARK}\n`;
+  }
+  return lines.join('\n');
+}
+
 function buildProcessor(lang: string, rawHtml: boolean) {
   const backLabel = FOOTNOTE_BACK_LABEL[lang] ?? FOOTNOTE_BACK_LABEL['ja']!;
 
@@ -243,6 +321,7 @@ function buildProcessor(lang: string, rawHtml: boolean) {
     })
     .use(rehypeFootnotePopovers)
     .use(rehypeImageCaptions)
+    .use(rehypeInternalBlocks(INTERNAL_LABEL[lang] ?? INTERNAL_LABEL['ja']!))
     .use(rehypeStringify, { allowDangerousHtml: rawHtml });
 }
 
@@ -264,8 +343,10 @@ function processorFor(lang: string, rawHtml: boolean): ReturnType<typeof buildPr
 }
 
 export function renderMarkdownToHtml(src: string, options: RenderMarkdownToHtmlOptions = {}): string {
-  const { hasFrontmatter = true, lang = 'ja', rawHtml = false } = options;
-  const body = hasFrontmatter ? splitFrontmatter(src).body : src;
+  const { hasFrontmatter = true, lang = 'ja', rawHtml = false, edition = 'internal' } = options;
+  const raw = hasFrontmatter ? splitFrontmatter(src).body : src;
+  const body =
+    edition === 'submission' ? stripInternalBlocks(raw).text : markInternalBlocks(raw);
   const file = processorFor(lang, rawHtml).processSync(body);
   return String(file);
 }

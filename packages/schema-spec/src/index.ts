@@ -5,6 +5,8 @@ export type { NormalizeWarning, NormalizeResult } from './normalize.js';
 export { autofillSpec } from './autofill.js';
 export type { AutofillWarning, AutofillResult } from './autofill.js';
 export { renderSpecFileName } from './fileName.js';
+export { resolveClassification, DEFAULT_SUBMISSION_CLASSIFICATION } from './classification.js';
+export type { DocumentEdition } from '@md-business/core';
 export {
   translateSpecError,
   translateSpecErrors,

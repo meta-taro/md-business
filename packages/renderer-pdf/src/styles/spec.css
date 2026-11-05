@@ -9,6 +9,14 @@
 @page {
   size: A4 portrait;
   margin: 20mm 18mm 22mm 18mm;
+
+  /* 区分の文字は文書ごとに specTemplate.ts が content で入れる。ここは見た目だけ。 */
+  @top-right {
+    font-size: 8pt;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    color: #b91c1c;
+  }
 }
 
 /* 表紙ページは余白 0。`.mdb-spec__cover` 自体が左カラーバー + 内側 padding を
@@ -72,6 +80,17 @@ body {
   padding: 24mm 22mm 14mm 22mm;
   width: 100%;
   box-sizing: border-box;
+}
+
+.mdb-spec__classification {
+  float: right;
+  padding: 1.5mm 4mm;
+  font-size: 10pt;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: #b91c1c;
+  border: 1.2pt solid #b91c1c;
+  background: #ffffff;
 }
 
 .mdb-spec__status {
@@ -519,4 +538,21 @@ body {
   font-size: 9pt;
   line-height: 1.5;
   color: var(--mdb-color-muted);
+}
+
+/* 社内の囲み。社内版だけに出る（提出版では本文から落ちている）。 */
+.mdb-internal {
+  margin: 4mm 0;
+  padding: 2mm 4mm 1mm 4mm;
+  border: 1pt dashed #b45309;
+  background: #fffbeb;
+  break-inside: avoid;
+}
+
+.mdb-internal__label {
+  margin: 0 0 1mm 0;
+  font-size: 8pt;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: #b45309;
 }

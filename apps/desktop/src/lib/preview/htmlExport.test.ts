@@ -57,6 +57,13 @@ describe('buildExportHtml', () => {
     expect(html).toContain('見出し');
   });
 
+  // 画面で提出版を確かめて書き出したのに、社内の囲みが残って出るのを防ぐ。
+  it('渡された版で組む（提出版は社内の囲みを落とす）', async () => {
+    const doc = ['# 見出し', '', '::: 社内', '社内だけの話', ':::', ''].join('\n');
+    expect(await buildExportHtml(doc)).toContain('社内だけの話');
+    expect(await buildExportHtml(doc, 'submission')).not.toContain('社内だけの話');
+  });
+
   it('frontmatter が壊れていれば null（押せるボタンにしない）', async () => {
     await expect(buildExportHtml('---\n: : :\n---\n')).resolves.toBeNull();
   });

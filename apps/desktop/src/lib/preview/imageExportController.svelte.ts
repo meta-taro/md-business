@@ -13,6 +13,7 @@
  */
 import { invoke } from '@tauri-apps/api/core';
 import { browser } from '$app/environment';
+import type { DocumentEdition } from '@md-business/core';
 import { workspace } from '$lib/workspace/workspace.svelte';
 import { DEFAULT_ORDER, buildShotSpec, describeOutput, type ImageOrder } from './imageExport';
 import type { BatchFailureKind } from './batchMessage';
@@ -46,6 +47,8 @@ class ImageExportController {
   busy = $state<boolean>(false);
   /** 直近の結果。しばらくして自分で消える。 */
   result = $state<ImageExportResult | null>(null);
+  /** 画面で表示中の版。撮る中身も同じ版で組む。 */
+  edition = $state<DocumentEdition>('internal');
   /** 選んでいる注文（型・倍率・形式）。 */
   order = $state<ImageOrder>({ ...DEFAULT_ORDER });
   /** 選ぶ欄を開いているか。閉じている間は一覧を組まない。 */
@@ -126,7 +129,7 @@ class ImageExportController {
           zumen: { theme: 'light', render: renderZumenSvg, describe: (message) => t('zumen.failed', { detail: message }) },
           ink: CHART_INK.light,
         });
-        return buildExportHtml(composed);
+        return buildExportHtml(composed, this.edition);
       },
     };
   }

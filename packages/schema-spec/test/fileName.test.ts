@@ -97,3 +97,15 @@ describe('renderSpecFileName — sanitization', () => {
     expect(name).toBe('注文管理サブシステム');
   });
 });
+
+describe('renderSpecFileName — classification', () => {
+  it('substitutes {区分} and {classification}', () => {
+    const spec = buildSpec({ classification: '社外秘' });
+    expect(renderSpecFileName(spec, '{区分}_{文書番号}')).toBe('社外秘_SPEC-2026-001');
+    expect(renderSpecFileName(spec, '{classification}_{文書番号}')).toBe('社外秘_SPEC-2026-001');
+  });
+
+  it('drops the token when no classification is set', () => {
+    expect(renderSpecFileName(buildSpec(), '{区分}_{文書番号}')).toBe('SPEC-2026-001');
+  });
+});

@@ -8,7 +8,12 @@ import {
   type Investigation,
 } from '@md-business/schema-investigation';
 import validateInvestigation from '@md-business/schema-investigation/validate';
-import { validateWithCompiled, renderMarkdownToHtml } from '@md-business/core';
+import {
+  validateWithCompiled,
+  renderMarkdownToHtml,
+  findInternalBlocks,
+  type DocumentEdition,
+} from '@md-business/core';
 import { renderInvestigationBody } from '@md-business/renderer-pdf';
 import { sanitizeViewerHtml } from '../shared/sanitizeHtml.js';
 import type { PreviewRenderResult, SchemaPlugin } from './types.js';
@@ -39,9 +44,9 @@ function withPreviewDefaults(data: Record<string, unknown>): Investigation {
 
 // The viewer has no folder to open evidence files from, so evidence paths are
 // shown as code rather than links (renderInvestigationBody's default).
-function bodyHtmlOf(markdownBody: string | undefined): string {
+function bodyHtmlOf(markdownBody: string | undefined, edition: DocumentEdition): string {
   return markdownBody
-    ? sanitizeViewerHtml(renderMarkdownToHtml(markdownBody, { hasFrontmatter: false }))
+    ? sanitizeViewerHtml(renderMarkdownToHtml(markdownBody, { hasFrontmatter: false, edition }))
     : '';
 }
 
@@ -75,10 +80,10 @@ export const investigationPlugin: SchemaPlugin<Investigation> = {
     }
     return { ok: true, data: validation.data, warnings };
   },
-  render(frontmatter, markdownBody) {
-    return renderInvestigationBody(frontmatter, { bodyHtml: bodyHtmlOf(markdownBody) });
+  render(frontmatter, markdownBody, edition = 'internal') {
+    return renderInvestigationBody(frontmatter, { bodyHtml: bodyHtmlOf(markdownBody, edition) });
   },
-  previewRender(frontmatter, markdownBody): PreviewRenderResult {
+  previewRender(frontmatter, markdownBody, edition = 'internal'): PreviewRenderResult {
     const normalized = normalizeInvestigationFrontmatter(frontmatter);
     const autofilled = autofillInvestigation(normalized.data);
     const warnings = translateInvestigationWarnings([
@@ -90,7 +95,7 @@ export const investigationPlugin: SchemaPlugin<Investigation> = {
     const safe = withPreviewDefaults(autofilled.data);
     try {
       return {
-        html: renderInvestigationBody(safe, { bodyHtml: bodyHtmlOf(markdownBody) }),
+        html: renderInvestigationBody(safe, { bodyHtml: bodyHtmlOf(markdownBody, edition) }),
         warnings,
         errors,
       };
@@ -104,5 +109,9 @@ export const investigationPlugin: SchemaPlugin<Investigation> = {
   },
   pdfFileName(frontmatter) {
     return renderInvestigationFileName(frontmatter, frontmatter.fileName);
+  },
+  // 調査報告書は区分を持たないので、社内の囲みがあるときだけ版に差が出る。
+  editionAware(_frontmatter, markdownBody) {
+    return findInternalBlocks(markdownBody).length > 0;
   },
 };

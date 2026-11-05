@@ -15,7 +15,7 @@
  * 宣言していて、かつこの PC で人が 1 回許したプロジェクトを手元の待ち受けから出すときだけ
  * （画面の中の下見には渡らない）。
  */
-import { renderMarkdownToHtml } from '@md-business/core';
+import { editionWarnings, findInternalBlocks, renderMarkdownToHtml } from '@md-business/core';
 import { buildPreviewDocument } from '../previewDocument';
 import { sanitizeViewerHtml } from '../sanitizeHtml';
 import type { PreviewOk, PreviewStyle, RenderPreviewOptions } from '../previewFactory';
@@ -208,7 +208,10 @@ export function renderMarkdownFallback(
   // 属性も消えるので、通す意味が無くなる。ここを通ったものを動かしてよいかは、
   // 出す側（待ち受けが付ける実行の指示）が決める。
   const rawHtml = options.rawHtml === true;
-  const html = body ? renderMarkdownToHtml(body, { hasFrontmatter: false, rawHtml }) : '';
+  const edition = options.edition ?? 'internal';
+  const html = body ? renderMarkdownToHtml(body, { hasFrontmatter: false, rawHtml, edition }) : '';
+  // 社内の囲みを書いた文書だけ版を選ばせる。囲みの無い README に切り替えを出しても意味が無い。
+  const editionAware = findInternalBlocks(body).length > 0;
   const bodyHtml = rawHtml ? html : sanitizeViewerHtml(html);
   const documentTitle = titleFromBody(body);
 
@@ -225,7 +228,8 @@ export function renderMarkdownFallback(
     style: MARKDOWN_STYLE,
     documentTitle,
     label: 'Markdown',
-    warnings: [],
+    warnings: editionAware ? editionWarnings(body, edition) : [],
     errors: [],
+    editionAware,
   };
 }

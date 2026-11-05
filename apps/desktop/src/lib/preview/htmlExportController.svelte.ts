@@ -11,6 +11,7 @@
  */
 import { invoke } from '@tauri-apps/api/core';
 import { browser } from '$app/environment';
+import type { DocumentEdition } from '@md-business/core';
 import { workspace } from '$lib/workspace/workspace.svelte';
 
 /** 結果表示が自分で消えるまで。読めば用の済む知らせなので閉じる操作を増やさない。 */
@@ -26,6 +27,8 @@ class HtmlExportController {
   busy = $state<boolean>(false);
   /** 直近の結果。しばらくして自分で消える。 */
   result = $state<HtmlExportResult | null>(null);
+  /** 画面で表示中の版。書き出しも同じ版で組む。 */
+  edition = $state<DocumentEdition>('internal');
   #timer: ReturnType<typeof setTimeout> | null = null;
 
   /** プレビューの描画可否に追従して更新する（$effect から呼ぶ）。 */
@@ -69,7 +72,7 @@ class HtmlExportController {
       // 書き出す HTML は明るい配色で組む（buildExportHtml）。図の色もそちらに合わせる。
       ink: CHART_INK.light,
     });
-    const html = await buildExportHtml(source);
+    const html = await buildExportHtml(source, this.edition);
     // canExport を満たしていれば通常ここには来ない（プレビューが出ている＝組める）。
     if (html === null) return;
 

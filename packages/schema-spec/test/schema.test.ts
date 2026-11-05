@@ -82,6 +82,20 @@ describe('specSchema — happy path', () => {
   });
 });
 
+describe('specSchema — classification', () => {
+  it('accepts classification and submissionClassification as free text', () => {
+    const data = { ...buildSpec(), classification: '社外秘', submissionClassification: '提出用' };
+    const result = parseAndValidate<Spec>(toFrontmatter(data), specSchema);
+    expect(result.ok).toBe(true);
+  });
+
+  it('rejects a non-string classification', () => {
+    const data = { ...buildSpec(), classification: 3 };
+    const result = parseAndValidate<Spec>(toFrontmatter(data), specSchema);
+    expect(result.ok).toBe(false);
+  });
+});
+
 describe('specSchema — error cases', () => {
   it('rejects a wrong schemaVersion', () => {
     const data = buildSpec();

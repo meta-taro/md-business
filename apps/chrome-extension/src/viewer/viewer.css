@@ -126,6 +126,12 @@ body {
   border: 1px solid rgba(255, 255, 255, 0.4);
 }
 
+/* 提出版を出しているあいだは、社内版でないことが一目で分かるようにする。 */
+.mdb-toolbar__action--ghost[aria-pressed='true'] {
+  background: rgba(255, 255, 255, 0.18);
+  border-color: white;
+}
+
 .mdb-toolbar__action:hover {
   filter: brightness(1.08);
 }

@@ -1,4 +1,4 @@
-import type { ValidationError, ValidationResult } from '@md-business/core';
+import type { DocumentEdition, ValidationError, ValidationResult } from '@md-business/core';
 
 /**
  * Result of a permissive preview render — used by the live editor so that the
@@ -56,7 +56,7 @@ export interface SchemaPlugin<TFrontmatter = unknown> {
    * for schemas whose output includes prose — design docs, test specs, etc.
    * Data-driven schemas (invoice) ignore it.
    */
-  render(frontmatter: TFrontmatter, markdownBody?: string): string;
+  render(frontmatter: TFrontmatter, markdownBody?: string, edition?: DocumentEdition): string;
   /**
    * Permissive render used by the live editor preview pane. Unlike `validate()`
    * + `render()`, this path never throws and never blocks — it returns the
@@ -66,7 +66,11 @@ export interface SchemaPlugin<TFrontmatter = unknown> {
    * `markdownBody` is the post-frontmatter body text; ignored by data-driven
    * schemas.
    */
-  previewRender?(frontmatter: unknown, markdownBody?: string): PreviewRenderResult;
+  previewRender?(
+    frontmatter: unknown,
+    markdownBody?: string,
+    edition?: DocumentEdition,
+  ): PreviewRenderResult;
   /** Override the <title> of the generated viewer page. */
   documentTitle?(frontmatter: TFrontmatter): string;
   /**
@@ -75,5 +79,10 @@ export interface SchemaPlugin<TFrontmatter = unknown> {
    * dialog pre-fills the user's preferred name, then restores the tab title.
    * Falls back to `documentTitle()` when not provided.
    */
-  pdfFileName?(frontmatter: TFrontmatter): string;
+  pdfFileName?(frontmatter: TFrontmatter, edition?: DocumentEdition): string;
+  /**
+   * Whether this document has an internal and a submission edition worth
+   * switching between. The viewer only shows the edition toggle when true.
+   */
+  editionAware?(frontmatter: Record<string, unknown>, markdownBody: string): boolean;
 }

@@ -10,6 +10,9 @@ import {
   serializeMarkdown,
   buildDocument,
   validateWithCompiled,
+  editionWarnings,
+  stripInternalBlocks,
+  type DocumentEdition,
   type ValidationError,
 } from '@md-business/core';
 import { safeRelativePath } from './workspacePath.js';
@@ -44,14 +47,17 @@ export interface ReadDocumentOk {
   schema: string | null;
   /** frontmatter オブジェクト。 */
   frontmatter: Record<string, unknown>;
-  /** frontmatter を除いた Markdown 本文。 */
+  /** frontmatter を除いた Markdown 本文。提出版を指定したときは社内の囲みを落としたもの。 */
   body: string;
+  /** 提出版に残ると困るもの（ソースの場所など）。社内版では常に空。 */
+  warnings: string[];
 }
 
 /** ローカル文書を読み、frontmatter / body / 検出 schema を返す。 */
 export async function readDocument(
   store: DocumentStore,
   requestedPath: string,
+  edition: DocumentEdition = 'internal',
 ): Promise<ReadDocumentOk | ToolError> {
   const safe = safeRelativePath(requestedPath);
   if (!safe.ok) return { ok: false, error: safe.reason };
@@ -60,7 +66,14 @@ export async function readDocument(
   }
   const src = await store.read(safe.relative);
   const { data, body } = splitFrontmatter(src);
-  return { ok: true, path: safe.relative, schema: detectSchemaId(data), frontmatter: data, body };
+  return {
+    ok: true,
+    path: safe.relative,
+    schema: detectSchemaId(data),
+    frontmatter: data,
+    body: edition === 'submission' ? stripInternalBlocks(body).text : body,
+    warnings: editionWarnings(body, edition),
+  };
 }
 
 export interface ValidateDocumentOk {
@@ -72,12 +85,15 @@ export interface ValidateDocumentOk {
   valid: boolean;
   /** 検証エラー（valid:true なら空）。 */
   errors: ValidationError[];
+  /** 提出版に残ると困るもの。検証は止めない。社内版では常に空。 */
+  warnings: string[];
 }
 
 /** ローカル文書を検出スキーマで検証する。schema 未宣言/未知は valid:false + schema エラー。 */
 export async function validateDocument(
   store: DocumentStore,
   requestedPath: string,
+  edition: DocumentEdition = 'internal',
 ): Promise<ValidateDocumentOk | ToolError> {
   const safe = safeRelativePath(requestedPath);
   if (!safe.ok) return { ok: false, error: safe.reason };
@@ -85,7 +101,8 @@ export async function validateDocument(
     return { ok: false, error: `ファイルが見つかりません: ${safe.relative}` };
   }
   const src = await store.read(safe.relative);
-  const { data } = splitFrontmatter(src);
+  const { data, body } = splitFrontmatter(src);
+  const warnings = editionWarnings(body, edition);
   const schemaId = detectSchemaId(data);
   if (schemaId === null) {
     return {
@@ -94,6 +111,7 @@ export async function validateDocument(
       schema: null,
       valid: false,
       errors: schemaUndeclaredErrors(),
+      warnings,
     };
   }
   const entry = resolveSchema(schemaId);
@@ -103,9 +121,16 @@ export async function validateDocument(
   }
   const result = validateWithCompiled(data, entry.validate);
   if (result.ok) {
-    return { ok: true, path: safe.relative, schema: schemaId, valid: true, errors: [] };
+    return { ok: true, path: safe.relative, schema: schemaId, valid: true, errors: [], warnings };
   }
-  return { ok: true, path: safe.relative, schema: schemaId, valid: false, errors: result.errors };
+  return {
+    ok: true,
+    path: safe.relative,
+    schema: schemaId,
+    valid: false,
+    errors: result.errors,
+    warnings,
+  };
 }
 
 export interface CreateDocumentInput {

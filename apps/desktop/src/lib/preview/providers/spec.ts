@@ -47,14 +47,17 @@ export const specProvider = createSchemaPreview<Spec>({
   translateErrors: translateSpecErrors,
   translateWarnings: translateSpecWarnings,
   withPreviewDefaults,
-  pdfFileName: (data) => renderSpecFileName(data, data.fileName),
+  pdfFileName: (data, edition) => renderSpecFileName(data, data.fileName, edition),
+  // 区分が版で変わるので、社内の囲みが無くても版を選べる。
+  editionAware: () => true,
   documentTitle: (data) => data.title || `基本設計書 ${data.documentNumber ?? ''}`.trim(),
   // prose スキーマは Markdown 本文を HTML 化・sanitize して章セクションに描く。
-  renderBody: (data, body) =>
+  renderBody: (data, body, edition) =>
     renderSpecBody(data, {
       bodyHtml: body
-        ? sanitizeViewerHtml(renderMarkdownToHtml(body, { hasFrontmatter: false }))
+        ? sanitizeViewerHtml(renderMarkdownToHtml(body, { hasFrontmatter: false, edition }))
         : '',
+      edition,
     }),
   css: specCss,
 });

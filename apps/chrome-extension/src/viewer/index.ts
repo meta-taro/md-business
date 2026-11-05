@@ -8,6 +8,7 @@ import {
   type LoadMarkdownResult,
   type PreviewMarkdownResult,
 } from '../shared/loadMarkdown.js';
+import type { DocumentEdition } from '@md-business/core';
 import { composeFences } from '../shared/fences.js';
 import { renderMermaidInHtml } from '../shared/renderMermaid.js';
 import { STORAGE_KEY } from '../shared/storage.js';
@@ -34,6 +35,8 @@ interface ViewerState {
   source: string;
   pluginId?: string;
   mode: Mode;
+  /** Which edition the preview and the PDF are built as. */
+  edition: DocumentEdition;
   editor?: EditorView;
   /** Last successful permissive render — kept so PDF DL can reuse the styles href. */
   lastStylesHref?: string;
@@ -52,6 +55,7 @@ interface ViewerState {
 const state: ViewerState = {
   source: '',
   mode: 'preview',
+  edition: 'internal',
 };
 
 let previewTimer: ReturnType<typeof setTimeout> | null = null;
@@ -193,10 +197,7 @@ async function renderPreviewFromSource(): Promise<void> {
   const generation = ++previewGeneration;
   const source = await composeFences(state.source);
   if (generation !== previewGeneration) return;
-  const result: PreviewMarkdownResult = previewMarkdown(
-    source,
-    state.pluginId ? { pluginId: state.pluginId } : {},
-  );
+  const result: PreviewMarkdownResult = previewMarkdown(source, renderOptions());
   if (!result.ok) {
     setStatus({ title: result.reason, items: result.details ?? [] }, 'error');
     updateErrorBadge(0);
@@ -214,6 +215,26 @@ async function renderPreviewFromSource(): Promise<void> {
   updateIframeBody(renderedHtml);
   updateErrorBadge(result.errors.length);
   showWarnings(result.warnings);
+  updateEditionToggle(result.editionAware);
+}
+
+function renderOptions(): { pluginId?: string; edition: DocumentEdition } {
+  return state.pluginId
+    ? { pluginId: state.pluginId, edition: state.edition }
+    : { edition: state.edition };
+}
+
+// 版に差が出ない文書（請求書など）では、押しても何も変わらないボタンを出さない。
+function updateEditionToggle(editionAware: boolean): void {
+  const btn = document.getElementById('mdb-edition');
+  if (!btn) return;
+  btn.hidden = !editionAware;
+  const submission = state.edition === 'submission';
+  btn.textContent = submission ? '提出版' : '社内版';
+  btn.setAttribute('aria-pressed', String(submission));
+  btn.title = submission
+    ? '提出版を表示中。社内版に切り替える'
+    : '社内版を表示中。提出版に切り替える（::: 社内 の囲みを落とす。PDF も同じ版になる）';
 }
 
 function ensureIframeStylesheet(href: string): void {
@@ -387,7 +408,7 @@ async function handleSaveClick(saveAs: boolean): Promise<void> {
  */
 async function strictValidate(): Promise<LoadMarkdownResult> {
   const source = await composeFences(state.source);
-  return loadMarkdown(source, state.pluginId ? { pluginId: state.pluginId } : {});
+  return loadMarkdown(source, renderOptions());
 }
 
 async function handlePdfDownloadClick(): Promise<void> {
@@ -647,6 +668,11 @@ async function main(): Promise<void> {
     if (e.key.toLowerCase() !== 's') return;
     e.preventDefault();
     void handleSaveClick(e.shiftKey);
+  });
+
+  document.getElementById('mdb-edition')?.addEventListener('click', () => {
+    state.edition = state.edition === 'submission' ? 'internal' : 'submission';
+    void renderPreviewFromSource();
   });
 
   const reloadBtn = document.getElementById('mdb-reload');

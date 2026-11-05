@@ -1,3 +1,5 @@
+import type { DocumentEdition } from '@md-business/core';
+import { resolveClassification } from './classification.js';
 import type { Spec } from './types.js';
 
 /**
@@ -12,6 +14,7 @@ import type { Spec } from './types.js';
  *   {発行日YMD} {issueYMD}          — issueDate as YYYYMMDD
  *   {YMD}                           — today as YYYYMMDD (local time)
  *   {date} {今日}                   — today as YYYY-MM-DD
+ *   {区分} {classification}         — classification for the edition (提出版は提出用)
  *
  * Falls back to the default rule `基本設計書_{文書番号}_v{版}` when no
  * template is provided.
@@ -19,7 +22,12 @@ import type { Spec } from './types.js';
  * Windows-forbidden characters (/ \ : * ? " < > |) are replaced with `_`
  * after substitution so the resulting name is always safe to save.
  */
-export function renderSpecFileName(spec: Spec, template?: string): string {
+export function renderSpecFileName(
+  spec: Spec,
+  template?: string,
+  edition: DocumentEdition = 'internal',
+): string {
+  const classification = resolveClassification(spec, edition);
   const tpl = template?.trim() || '基本設計書_{文書番号}_v{版}';
   const now = todayLocal();
   const tokens: Record<string, string> = {
@@ -38,6 +46,8 @@ export function renderSpecFileName(spec: Spec, template?: string): string {
     'YMD': now.ymd,
     'date': now.iso,
     '今日': now.iso,
+    '区分': classification,
+    'classification': classification,
   };
   const rendered = tpl.replace(/\{([^}]+)\}/g, (_, raw: string) => {
     const key = raw.trim();
