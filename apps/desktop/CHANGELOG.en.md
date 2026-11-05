@@ -4,6 +4,18 @@ Changes to this app. Versions follow [Semantic Versioning](https://semver.org/).
 
 Japanese is the source of truth for this file; see [CHANGELOG.md](./CHANGELOG.md).
 
+## 0.36.0
+
+### Added
+
+- **On Windows, exported PDFs carry heading bookmarks.** Ctrl+P and [PDF] write the PDF next to the source document without going through the print dialog. The file name follows `fileName` in the frontmatter. Without an open folder, or on other systems, the print dialog opens as before.
+
+### Fixed
+
+- **The MCP endpoint is now `/md-business`**, because some environments rewrite the `/mcp` path and the connection failed. The server also reuses the port it had last time, so the config no longer has to be placed again after every launch. A `.mcp.json` placed by an earlier version should be placed again from "Place config in the open folder" on the MCP tab.
+
+- **Writes no longer fail when another process is in the middle of releasing a lock.**
+
 ## 0.35.0
 
 ### Added
