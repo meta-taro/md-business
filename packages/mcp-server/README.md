@@ -289,7 +289,7 @@ root 配下でも、以下は拒否する（OS を問わず同じ判定）。
 ## HTTP モード（アプリ組み込み）
 
 デスクトップアプリは `dist-sidecar/sidecar.cjs` を子プロセスとして起動し、AI
-クライアントは `http://127.0.0.1:<port>/mcp` へ bearer トークン付きで接続する。
+クライアントは `http://127.0.0.1:<port>/md-business` へ bearer トークン付きで接続する。
 
 ```bash
 node dist-sidecar/sidecar.cjs <workspace> [<接続情報の保存先>]

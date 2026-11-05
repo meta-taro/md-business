@@ -6,6 +6,7 @@ import { join, resolve } from 'node:path';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { startSidecar, type SidecarHandle } from './sidecar.js';
+import { STABLE_PORT_MAX, STABLE_PORT_MIN } from './sidecarState.js';
 
 /** サイドカーが listen した HTTP エンドポイントへ MCP クライアントを繋ぐ。 */
 async function connectMcp(url: string, token: string): Promise<Client> {
@@ -91,7 +92,7 @@ describe('startSidecar', () => {
       root: resolve(workspace),
     });
     // ready より前に URL を組めていないと親は接続先を知れない。
-    expect(handle.url).toContain(`:${handle.port}/mcp`);
+    expect(handle.url).toContain(`:${handle.port}/md-business`);
   });
 
   it('set-root で root を差し替え、受理を通知する', async () => {
@@ -158,7 +159,29 @@ describe('startSidecar', () => {
     expect(handle.portChanged).toBe(false);
   });
 
-  it('希望ポートが塞がっていれば OS 割当へ落として起動する', async () => {
+  it('希望ポートが空くのを少し待つ（前のサイドカーが降りきる前に立ち上がることがある）', async () => {
+    const occupant = await startSidecar({
+      root: other,
+      token: 'tok',
+      io: { input: new PassThrough(), write: () => {} },
+    });
+    const wanted = occupant.port;
+    setTimeout(() => void occupant.stop(), 100);
+
+    handle = await startSidecar({ root: workspace, token: 'tok', port: wanted, io: { input, write: out.write } });
+
+    expect(handle.port).toBe(wanted);
+    expect(handle.portChanged).toBe(false);
+  });
+
+  it('希望ポートが無ければ、一時ポートの帯の外から選ぶ', async () => {
+    // OS 割当の一時ポートは再起動や他の通信で塞がりやすく、次の起動で接続先が変わる。
+    handle = await startSidecar({ root: workspace, token: 'tok', io: { input, write: out.write } });
+    expect(handle.port).toBeGreaterThanOrEqual(STABLE_PORT_MIN);
+    expect(handle.port).toBeLessThanOrEqual(STABLE_PORT_MAX);
+  });
+
+  it('希望ポートが塞がっていれば別のポートへ落として起動する', async () => {
     // 他のアプリに取られていても MCP が起動しないのは困る。接続先が変わるだけに留める。
     const occupant = await startSidecar({
       root: other,
@@ -175,6 +198,8 @@ describe('startSidecar', () => {
       });
 
       expect(handle.port).not.toBe(occupant.port);
+      expect(handle.port).toBeGreaterThanOrEqual(STABLE_PORT_MIN);
+      expect(handle.port).toBeLessThanOrEqual(STABLE_PORT_MAX);
       expect(handle.portChanged).toBe(true);
     } finally {
       await occupant.stop();

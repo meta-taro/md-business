@@ -12,7 +12,8 @@
 import type { Readable } from 'node:stream';
 import type { ToolLogEntry } from './toolLog.js';
 import { FileDocumentStore } from './fileStore.js';
-import { startHttpServer } from './httpServer.js';
+import { startHttpServer, type HttpServerHandle } from './httpServer.js';
+import { pickStablePort } from './sidecarState.js';
 import { createGitRunner, type GitExec } from './gitRunner.js';
 import { createAppBridge } from './appBridge.js';
 import { createDesktopOpener } from './desktopOpener.js';
@@ -86,18 +87,9 @@ export async function startSidecar(options: StartSidecarOptions): Promise<Sideca
       toFile(entry);
     },
   };
-  // 前回と同じポートを希望しても、別のアプリに取られていることはある。そのときは
-  // 起動を諦めず OS 割当へ落とす（接続先が変わるだけで、機能は失われない）。
   const wanted = options.port ?? 0;
-  let portChanged = false;
-  let server;
-  try {
-    server = await startHttpServer({ ...base, port: wanted });
-  } catch (error) {
-    if (wanted === 0) throw error;
-    server = await startHttpServer({ ...base, port: 0 });
-    portChanged = true;
-  }
+  const server = await listenOnStablePort((port) => startHttpServer({ ...base, port }), wanted);
+  const portChanged = wanted !== 0 && server.port !== wanted;
 
   // チャンク境界は行境界と一致しないので、未完結分を持ち越しながら 1 行ずつ処理する。
   let pending = '';
@@ -144,4 +136,43 @@ export async function startSidecar(options: StartSidecarOptions): Promise<Sideca
       await server.close();
     },
   };
+}
+
+/** 希望したポートを待つ回数と間隔。前回のサイドカーが閉じ終わる前に次が立つことがある。 */
+const WANTED_PORT_ATTEMPTS = 4;
+const WANTED_PORT_RETRY_MS = 250;
+/** 範囲内から選び直す回数。尽きたら OS 割当へ落とす。 */
+const STABLE_PORT_ATTEMPTS = 5;
+
+const delay = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
+
+/**
+ * 次回も同じ番号を取りやすいポートで待ち受ける。
+ *
+ * 1. 前回のポートを希望していれば、少し待ちながら取り直す（閉じかけの前回が持っていることがある）
+ * 2. 取れなければ一時ポートの帯より下から選ぶ（OS 割当の番号は次回取れないことが多い）
+ * 3. それも取れなければ OS 割当で立てる（接続先が変わるだけで、起動は諦めない）
+ */
+async function listenOnStablePort(
+  listen: (port: number) => Promise<HttpServerHandle>,
+  wanted: number,
+): Promise<HttpServerHandle> {
+  if (wanted !== 0) {
+    for (let attempt = 0; attempt < WANTED_PORT_ATTEMPTS; attempt++) {
+      if (attempt > 0) await delay(WANTED_PORT_RETRY_MS);
+      try {
+        return await listen(wanted);
+      } catch {
+        // 使用中。間を置いて取り直す。
+      }
+    }
+  }
+  for (let attempt = 0; attempt < STABLE_PORT_ATTEMPTS; attempt++) {
+    try {
+      return await listen(pickStablePort(Math.random));
+    } catch {
+      // 偶然使用中・予約済みの番号に当たった。別の番号を選ぶ。
+    }
+  }
+  return listen(0);
 }

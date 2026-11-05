@@ -2,8 +2,11 @@ import { describe, expect, it } from 'vitest';
 import {
   isReusableToken,
   parseSidecarState,
+  pickStablePort,
   resolveSidecarIdentity,
   serializeSidecarState,
+  STABLE_PORT_MAX,
+  STABLE_PORT_MIN,
 } from './sidecarState.js';
 
 const TOKEN = 'a'.repeat(64);
@@ -66,5 +69,18 @@ describe('resolveSidecarIdentity', () => {
   it('保存が読めれば作業対象を引き継ぐ（接続設定を作り直させない）', () => {
     const result = resolveSidecarIdentity({ token: TOKEN, port: 51234 }, mint);
     expect(result).toEqual({ token: TOKEN, port: 51234, minted: false });
+  });
+});
+
+describe('pickStablePort', () => {
+  it('どの乱数でも一時ポートの帯（Windows / macOS / Linux）の外に収まる', () => {
+    for (const r of [0, 0.25, 0.5, 0.999999]) {
+      const port = pickStablePort(() => r);
+      expect(Number.isInteger(port)).toBe(true);
+      expect(port).toBeGreaterThanOrEqual(STABLE_PORT_MIN);
+      expect(port).toBeLessThanOrEqual(STABLE_PORT_MAX);
+    }
+    expect(STABLE_PORT_MIN).toBeGreaterThanOrEqual(1024);
+    expect(STABLE_PORT_MAX).toBeLessThan(32768);
   });
 });

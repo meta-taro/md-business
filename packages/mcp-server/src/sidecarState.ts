@@ -39,6 +39,24 @@ function isReusablePort(port: unknown): port is number {
   return typeof port === 'number' && Number.isInteger(port) && port >= 1024 && port <= 65535;
 }
 
+/**
+ * 新たにポートを選ぶときの範囲。
+ *
+ * OS に任せると一時ポート（Windows は 49152 以上、Linux は 32768 以上）が返る。一時ポートは
+ * 外向きの接続にも次々使われ、OS が予約して除外する帯もそこに入るので、次回の起動で
+ * 同じ番号が取れないことが多い。取れなければ接続先が変わり、利用者は設定を置き直すことになる。
+ * 一時ポートの帯より下から選び、次回も同じ番号を取りやすくする。
+ */
+export const STABLE_PORT_MIN = 20000;
+/** 新たにポートを選ぶときの範囲の上端（一時ポートの帯の手前）。 */
+export const STABLE_PORT_MAX = 32767;
+
+/** 範囲内のポートを 1 つ選ぶ。random は [0, 1) を返す関数（テストで固定できるよう外から渡す）。 */
+export function pickStablePort(random: () => number): number {
+  const span = STABLE_PORT_MAX - STABLE_PORT_MIN + 1;
+  return STABLE_PORT_MIN + Math.min(span - 1, Math.floor(random() * span));
+}
+
 /** 接続情報を保存用の文字列にする（人が開いても分かるよう整形して書く）。 */
 export function serializeSidecarState(state: SidecarState): string {
   return `${JSON.stringify(state, null, 2)}\n`;

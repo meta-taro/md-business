@@ -37,10 +37,17 @@ async function connect(url: string, token: string | null): Promise<Client> {
 }
 
 describe('startHttpServer / HTTP モード', () => {
-  it('OS 割当ポートで listen し、URL に /mcp を含む', async () => {
+  it('OS 割当ポートで listen し、/mcp で終わらない URL を返す', async () => {
+    // 末尾が /mcp の応答をループバック上で書き換えるソフトがあり、その機械では繋がらない。
     handle = await startHttpServer({ store: new MemoryDocumentStore(), token: TOKEN });
     expect(handle.port).toBeGreaterThan(0);
-    expect(handle.url).toBe(`http://127.0.0.1:${handle.port}/mcp`);
+    expect(handle.url).toBe(`http://127.0.0.1:${handle.port}/md-business`);
+  });
+
+  it('前の版が配った /mcp の接続先でも繋がる', async () => {
+    handle = await startHttpServer({ store: new MemoryDocumentStore(), token: TOKEN });
+    const client = await connect(`http://127.0.0.1:${handle.port}/mcp`, TOKEN);
+    expect((await client.listTools()).tools.length).toBeGreaterThan(0);
   });
 
   it('正しいトークンのクライアントはツール一覧を取得できる', async () => {

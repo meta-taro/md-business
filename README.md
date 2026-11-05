@@ -294,7 +294,7 @@ To let an AI agent edit those documents, point your MCP client at the server the
   "mcpServers": {
     "md-business": {
       "type": "http",
-      "url": "http://127.0.0.1:<PORT>/mcp",
+      "url": "http://127.0.0.1:<PORT>/md-business",
       "headers": { "Authorization": "Bearer <TOKEN>" }
     }
   }
