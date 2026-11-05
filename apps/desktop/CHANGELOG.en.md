@@ -4,6 +4,16 @@ Changes to this app. Versions follow [Semantic Versioning](https://semver.org/).
 
 Japanese is the source of truth for this file; see [CHANGELOG.md](./CHANGELOG.md).
 
+## 0.37.0
+
+### Added
+
+- **Basic design documents can show a table of contents.** Write `showToc: true` (or `目次表示: true`) in the frontmatter and the h1–h3 headings are listed at the top of the body. Each entry jumps to its heading, and the links work in the PDF. Without it, nothing changes.
+
+- **Text can be highlighted.** `==text==` (or `<mark>`) gets a background color that is printed in the PDF. Highlights are an internal aid, such as marking what to read aloud, so the submission edition removes them and keeps the text.
+
+- **Underline and text color.** `<u>underline</u>` and `<span style="color: blue">blue</span>` can be written in the body. Colors are accepted only as names, `#1a73e8` or `rgb(…)`; anything else, and any other tag, is still dropped. Both stay in the submission edition.
+
 ## 0.36.1
 
 ### Fixed

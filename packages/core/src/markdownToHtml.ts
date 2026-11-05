@@ -18,6 +18,8 @@ import {
   REVISION_INS_OPEN,
 } from './revisions.js';
 import type { RevisionView } from './revisions.js';
+import { remarkInlineMarks } from './inlineMarks.js';
+import { rehypeToc, TOC_LABEL } from './toc.js';
 
 /**
  * Render a Markdown source string to an HTML fragment, frontmatter-stripped.
@@ -73,6 +75,11 @@ export interface RenderMarkdownToHtmlOptions {
    * `clean` は印を外した清書にする。版（`edition`）とは別に選べる。
    */
   revisions?: RevisionView;
+  /**
+   * 見出し（h1〜h3）から目次を作って文書の頭に置くか。既定は置かない
+   * （目次を手で書いている文書もあるので、黙って増やさない）。
+   */
+  toc?: boolean;
 }
 
 /**
@@ -443,7 +450,15 @@ function rehypeAnchors() {
   };
 }
 
-function buildProcessor(lang: string, rawHtml: boolean) {
+interface ProcessorSettings {
+  lang: string;
+  rawHtml: boolean;
+  /** マーカー（`==…==` / `<mark>`）を出すか。提出版では外す。 */
+  highlight: boolean;
+  toc: boolean;
+}
+
+function buildProcessor({ lang, rawHtml, highlight, toc }: ProcessorSettings) {
   const backLabel = FOOTNOTE_BACK_LABEL[lang] ?? FOOTNOTE_BACK_LABEL['ja']!;
 
   return unified()
@@ -453,6 +468,7 @@ function buildProcessor(lang: string, rawHtml: boolean) {
     // 日本語では `**「重要」**です` が強調にならず、記号がそのまま刷られる。
     .use(remarkCjkFriendly)
     .use(remarkCjkFriendlyGfmStrikethrough)
+    .use(remarkInlineMarks({ highlight }))
     .use(remarkRehype, {
       allowDangerousHtml: rawHtml,
       footnoteLabel: FOOTNOTE_LABEL[lang] ?? FOOTNOTE_LABEL['ja']!,
@@ -472,22 +488,23 @@ function buildProcessor(lang: string, rawHtml: boolean) {
     .use(rehypeInternalBlocks(INTERNAL_LABEL[lang] ?? INTERNAL_LABEL['ja']!))
     .use(rehypeRevisionMarks)
     .use(rehypeAnchors)
+    .use(toc ? rehypeToc(TOC_LABEL[lang] ?? TOC_LABEL['ja']!, anchorTextOf) : () => undefined)
     .use(rehypeStringify, { allowDangerousHtml: rawHtml });
 }
 
 /**
- * 組み立てた processor を使い回す。見出しの文字列も生の HTML を通すかも
- * remark-rehype / rehype-stringify の設定なので、どちらが変わっても別の processor になる。
+ * 組み立てた processor を使い回す。見出しの文字列・生の HTML を通すか・マーカーの有無・
+ * 目次の有無はどれも組み立て時の設定なので、どれかが変わると別の processor になる。
  */
 const processors = new Map<string, ReturnType<typeof buildProcessor>>();
 
-function processorFor(lang: string, rawHtml: boolean): ReturnType<typeof buildProcessor> {
-  const language = lang in FOOTNOTE_LABEL ? lang : 'ja';
-  const key = `${language}:${rawHtml}`;
+function processorFor(settings: ProcessorSettings): ReturnType<typeof buildProcessor> {
+  const language = settings.lang in FOOTNOTE_LABEL ? settings.lang : 'ja';
+  const key = `${language}:${settings.rawHtml}:${settings.highlight}:${settings.toc}`;
   const cached = processors.get(key);
   if (cached !== undefined) return cached;
 
-  const built = buildProcessor(language, rawHtml);
+  const built = buildProcessor({ ...settings, lang: language });
   processors.set(key, built);
   return built;
 }
@@ -499,11 +516,12 @@ export function renderMarkdownToHtml(src: string, options: RenderMarkdownToHtmlO
     rawHtml = false,
     edition = 'internal',
     revisions = 'marked',
+    toc = false,
   } = options;
   const raw = hasFrontmatter ? splitFrontmatter(src).body : src;
   const edited =
     edition === 'submission' ? stripInternalBlocks(raw).text : markInternalBlocks(raw);
   const body = revisions === 'clean' ? acceptRevisions(edited) : markRevisions(edited);
-  const file = processorFor(lang, rawHtml).processSync(body);
+  const file = processorFor({ lang, rawHtml, highlight: edition !== 'submission', toc }).processSync(body);
   return String(file);
 }

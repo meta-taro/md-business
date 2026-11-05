@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.4.0
+
+### Added
+
+- **Basic design documents can show a table of contents** when the frontmatter has `showToc: true` (or `目次表示: true`).
+- **Highlights, underline and text color**: `==text==` or `<mark>`, `<u>`, and `<span style="color: …">` are shown in the preview.
+
 ## 0.3.0
 
 ### Added

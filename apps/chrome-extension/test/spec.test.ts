@@ -228,3 +228,38 @@ describe('previewMarkdown — spec live editor', () => {
     expect(result.bodyHtml).toContain('<h1 id="章1">章1</h1>');
   });
 });
+
+describe('specPlugin — 目次とマーカー', () => {
+  const base = {
+    schemaVersion: 'spec/v1',
+    documentNumber: 'SPEC-9',
+    title: 't',
+    version: '1.0.0',
+    issueDate: '2026-06-17',
+    status: 'draft',
+    authors: [{ name: 'X' }],
+  };
+  const BODY = ['# 概要', '', 'ここを==読む==。<span style="color: blue">青</span>', '', '## 構成'].join('\n');
+
+  it('目次表示: true で見出しの目次を出す（書かなければ出さない）', () => {
+    const on = specPlugin.validate({ ...base, 目次表示: true });
+    const off = specPlugin.validate(base);
+    if (!on.ok || !off.ok) throw new Error('expected ok');
+    expect(specPlugin.render(on.data, BODY)).toContain('href="#構成"');
+    expect(specPlugin.render(off.data, BODY)).not.toContain('class="mdb-toc"');
+  });
+
+  it('壊れた文書のプレビューでも目次の指定を守る', () => {
+    const r = specPlugin.previewRender!({ ...base, title: undefined, showToc: true }, BODY);
+    expect(r.html).toContain('class="mdb-toc"');
+  });
+
+  it('社内版はマーカーと文字色を残し、提出版はマーカーだけ外す', () => {
+    const r = specPlugin.validate(base);
+    if (!r.ok) throw new Error('expected ok');
+    const internal = specPlugin.render(r.data, BODY);
+    expect(internal).toContain('<mark class="mdb-mark">読む</mark>');
+    expect(internal).toMatch(/<span style="color: blue;?">青<\/span>/);
+    expect(specPlugin.render(r.data, BODY, 'submission')).not.toContain('<mark');
+  });
+});

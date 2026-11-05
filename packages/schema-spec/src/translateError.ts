@@ -28,6 +28,7 @@ const SPEC_FIELD_LABELS: Record<string, string> = {
   '/chapters': '章ファイル',
   '/chapters/N': '章ファイル[N+1]',
   '/toc': '目次',
+  '/showToc': '目次表示',
   '/theme': 'テーマ',
   '/fileName': 'ファイル名テンプレート',
 };

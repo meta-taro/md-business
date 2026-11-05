@@ -206,6 +206,12 @@ del.mdb-del {
   text-decoration-thickness: 0.08em;
   background: rgba(220, 38, 38, 0.12);
 }
+/* 読み上げ用のマーカー。提出版では本文から外れる。 */
+mark.mdb-mark {
+  background: #fef08a;
+  color: inherit;
+  padding: 0 0.1em;
+}
 /* 変わった段落の左に縦線。どこが変わったかを目で拾える。 */
 .mdb-changed { position: relative; }
 .mdb-changed::before {
@@ -224,6 +230,7 @@ th.mdb-changed::before { left: 0; }
 @media print {
   ins.mdb-ins,
   del.mdb-del,
+  mark.mdb-mark,
   .mdb-changed::before {
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;

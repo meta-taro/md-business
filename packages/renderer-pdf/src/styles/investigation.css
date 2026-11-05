@@ -685,8 +685,16 @@ body {
   left: 0;
 }
 
+/* 読み上げ用のマーカー。提出版では本文から外れる。 */
+.mdb-investigation__prose mark.mdb-mark {
+  background: #fef08a;
+  color: inherit;
+  padding: 0 0.1em;
+}
+
 .mdb-investigation__prose ins.mdb-ins,
 .mdb-investigation__prose del.mdb-del,
+.mdb-investigation__prose mark.mdb-mark,
 .mdb-investigation__prose .mdb-changed::before {
   -webkit-print-color-adjust: exact;
   print-color-adjust: exact;

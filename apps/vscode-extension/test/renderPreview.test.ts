@@ -53,4 +53,17 @@ describe('renderPreview', () => {
     );
     expect(root().querySelector('img')).toBeNull();
   });
+
+  it('shows the table of contents only when the spec asks for it, and keeps marks', () => {
+    const doc = (extra: string): string =>
+      template('spec/standard-ja.md').replace(/^---\r?\n/,`---\n${extra}`) +
+      '\n\nここを==読む==。<span style="color: blue">青</span>\n';
+    renderPreview(root(), doc('目次表示: true\n'), BASE);
+    expect(root().querySelector('nav.mdb-toc a')).not.toBeNull();
+    expect(root().querySelector('mark.mdb-mark')?.textContent).toBe('読む');
+    expect(root().querySelector('span[style*="color"]')?.textContent).toBe('青');
+
+    renderPreview(root(), doc(''), BASE);
+    expect(root().querySelector('nav.mdb-toc')).toBeNull();
+  });
 });
