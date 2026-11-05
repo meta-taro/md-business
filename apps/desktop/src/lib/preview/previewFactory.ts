@@ -16,6 +16,7 @@
  * sanitizer の移植を伴うため別扱いとする。
  */
 import {
+  editionWarnings,
   validateWithCompiled,
   type CompiledValidator,
   type DocumentEdition,
@@ -24,7 +25,6 @@ import {
 } from '@md-business/core';
 import { buildPreviewDocument, type PreviewTheme } from './previewDocument';
 import { themeWarnings } from './themeWarning';
-import { editionWarnings } from './editionWarning';
 import type { PreviewProviderMeta } from './registry';
 
 /** normalize / autofill が返す非致命 warning の共通シェイプ。 */

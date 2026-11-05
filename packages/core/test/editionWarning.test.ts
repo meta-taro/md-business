@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { editionWarnings } from './editionWarning';
+import { editionWarnings } from '../src/index.js';
 
 describe('editionWarnings', () => {
   it('社内版では何も言わない（社内版は全部載せるのが正しい）', () => {

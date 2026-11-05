@@ -15,8 +15,7 @@
  * 宣言していて、かつこの PC で人が 1 回許したプロジェクトを手元の待ち受けから出すときだけ
  * （画面の中の下見には渡らない）。
  */
-import { findInternalBlocks, renderMarkdownToHtml } from '@md-business/core';
-import { editionWarnings } from '../editionWarning';
+import { editionWarnings, findInternalBlocks, renderMarkdownToHtml } from '@md-business/core';
 import { buildPreviewDocument } from '../previewDocument';
 import { sanitizeViewerHtml } from '../sanitizeHtml';
 import type { PreviewOk, PreviewStyle, RenderPreviewOptions } from '../previewFactory';
