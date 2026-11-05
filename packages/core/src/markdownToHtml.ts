@@ -6,6 +6,15 @@ import rehypeStringify from 'rehype-stringify';
 import { splitFrontmatter } from './frontmatter.js';
 import { findInternalBlocks, stripInternalBlocks } from './edition.js';
 import type { DocumentEdition } from './edition.js';
+import {
+  acceptRevisions,
+  markRevisions,
+  REVISION_DEL_CLOSE,
+  REVISION_DEL_OPEN,
+  REVISION_INS_CLOSE,
+  REVISION_INS_OPEN,
+} from './revisions.js';
+import type { RevisionView } from './revisions.js';
 
 /**
  * Render a Markdown source string to an HTML fragment, frontmatter-stripped.
@@ -55,6 +64,12 @@ export interface RenderMarkdownToHtmlOptions {
    * 枠で囲んで出し、`submission`（提出版）は囲みごと落とす。
    */
   edition?: DocumentEdition;
+  /**
+   * 改版の印（`{++追加++}` `{--削除--}` `{~~前~>後~~}`）をどう出すか。既定の `marked` は
+   * 追加に下線・削除に取り消し線を付け、印のある段落の余白に縦線を引く。
+   * `clean` は印を外した清書にする。版（`edition`）とは別に選べる。
+   */
+  revisions?: RevisionView;
 }
 
 /**
@@ -287,6 +302,87 @@ function rehypeInternalBlocks(label: string) {
 }
 
 /** 囲みの開き・閉じの行を、前後を空けた目印の段落に置き換える。 */
+const REVISION_TAG: Record<string, { open: boolean; tagName: 'ins' | 'del' }> = {
+  [REVISION_INS_OPEN]: { open: true, tagName: 'ins' },
+  [REVISION_INS_CLOSE]: { open: false, tagName: 'ins' },
+  [REVISION_DEL_OPEN]: { open: true, tagName: 'del' },
+  [REVISION_DEL_CLOSE]: { open: false, tagName: 'del' },
+};
+const REVISION_SPLIT = new RegExp(
+  `([${REVISION_INS_OPEN}${REVISION_INS_CLOSE}${REVISION_DEL_OPEN}${REVISION_DEL_CLOSE}])`,
+);
+/** 余白に縦線を引く単位。印を含むいちばん内側の塊に付ける。 */
+const CHANGE_BAR_BLOCKS = new Set(['p', 'li', 'td', 'th', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'dt', 'dd']);
+
+/**
+ * 区切りの文字に挟まれた並びを `<ins>` / `<del>` へ入れ替える。
+ *
+ * 区切りは同じ親の並びの中で開いて閉じる。`{++**太字**++}` のように印が強調を包むと、
+ * 開きと閉じが強調の外側（兄弟の文字）に来るので、親の並びごと組み直す。
+ * 戻り値は、この並びに印が入ったか。
+ */
+function wrapRevisionChildren(node: HastNode): boolean {
+  if (node.children === undefined) return false;
+  let changed = false;
+  for (const child of node.children) {
+    if (child.type === 'element' && wrapRevisionChildren(child)) changed = true;
+  }
+
+  const root: HastNode[] = [];
+  const stack: HastNode[] = [];
+  const push = (item: HastNode): void => {
+    const top = stack[stack.length - 1];
+    if (top === undefined) root.push(item);
+    else top.children!.push(item);
+  };
+  let hasMarker = false;
+
+  for (const child of node.children) {
+    if (child.type !== 'text' || child.value === undefined || !REVISION_SPLIT.test(child.value)) {
+      push(child);
+      continue;
+    }
+    hasMarker = true;
+    for (const piece of child.value.split(REVISION_SPLIT)) {
+      const tag = REVISION_TAG[piece];
+      if (tag === undefined) {
+        if (piece !== '') push({ type: 'text', value: piece });
+      } else if (tag.open) {
+        const element: HastNode = {
+          type: 'element',
+          tagName: tag.tagName,
+          properties: { className: [tag.tagName === 'ins' ? 'mdb-ins' : 'mdb-del'] },
+          children: [],
+        };
+        push(element);
+        stack.push(element);
+      } else if (stack[stack.length - 1]?.tagName === tag.tagName) {
+        stack.pop();
+      }
+    }
+  }
+
+  if (hasMarker) {
+    node.children = root;
+    changed = true;
+  }
+  if (changed && node.tagName !== undefined && CHANGE_BAR_BLOCKS.has(node.tagName)) {
+    const properties = (node.properties ??= {});
+    const current = properties['className'];
+    const classes = Array.isArray(current) ? current : [];
+    if (!classes.includes('mdb-changed')) properties['className'] = [...classes, 'mdb-changed'];
+    // 縦線は内側の塊だけに引く。外側にも引くと、表の行やリストで二重になる。
+    return false;
+  }
+  return changed;
+}
+
+function rehypeRevisionMarks() {
+  return (tree: unknown) => {
+    wrapRevisionChildren(tree as HastNode);
+  };
+}
+
 function markInternalBlocks(body: string): string {
   const blocks = findInternalBlocks(body);
   if (blocks.length === 0) return body;
@@ -322,6 +418,7 @@ function buildProcessor(lang: string, rawHtml: boolean) {
     .use(rehypeFootnotePopovers)
     .use(rehypeImageCaptions)
     .use(rehypeInternalBlocks(INTERNAL_LABEL[lang] ?? INTERNAL_LABEL['ja']!))
+    .use(rehypeRevisionMarks)
     .use(rehypeStringify, { allowDangerousHtml: rawHtml });
 }
 
@@ -343,10 +440,17 @@ function processorFor(lang: string, rawHtml: boolean): ReturnType<typeof buildPr
 }
 
 export function renderMarkdownToHtml(src: string, options: RenderMarkdownToHtmlOptions = {}): string {
-  const { hasFrontmatter = true, lang = 'ja', rawHtml = false, edition = 'internal' } = options;
+  const {
+    hasFrontmatter = true,
+    lang = 'ja',
+    rawHtml = false,
+    edition = 'internal',
+    revisions = 'marked',
+  } = options;
   const raw = hasFrontmatter ? splitFrontmatter(src).body : src;
-  const body =
+  const edited =
     edition === 'submission' ? stripInternalBlocks(raw).text : markInternalBlocks(raw);
+  const body = revisions === 'clean' ? acceptRevisions(edited) : markRevisions(edited);
   const file = processorFor(lang, rawHtml).processSync(body);
   return String(file);
 }

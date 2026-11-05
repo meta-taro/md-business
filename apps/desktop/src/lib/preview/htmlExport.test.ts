@@ -68,3 +68,15 @@ describe('buildExportHtml', () => {
     await expect(buildExportHtml('---\n: : :\n---\n')).resolves.toBeNull();
   });
 });
+
+describe('buildExportHtml の改版の印', () => {
+  const MARKED = ['---', 'title: メモ', '---', '# メモ', '', '{~~旧~>新~~}の手順。'].join('\n');
+
+  it('画面で清書を選んでいれば、書き出しも清書になる', async () => {
+    const marked = await buildExportHtml(MARKED);
+    const clean = await buildExportHtml(MARKED, 'internal', 'clean');
+    expect(marked).toContain('<del class="mdb-del">旧</del>');
+    expect(clean).not.toContain('旧');
+    expect(clean).toContain('新の手順。');
+  });
+});

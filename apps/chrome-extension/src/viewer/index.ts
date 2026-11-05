@@ -8,7 +8,7 @@ import {
   type LoadMarkdownResult,
   type PreviewMarkdownResult,
 } from '../shared/loadMarkdown.js';
-import type { DocumentEdition } from '@md-business/core';
+import type { DocumentEdition, RevisionView } from '@md-business/core';
 import { composeFences } from '../shared/fences.js';
 import { renderMermaidInHtml } from '../shared/renderMermaid.js';
 import { STORAGE_KEY } from '../shared/storage.js';
@@ -37,6 +37,8 @@ interface ViewerState {
   mode: Mode;
   /** Which edition the preview and the PDF are built as. */
   edition: DocumentEdition;
+  /** Show revision marks or the clean copy. Independent of the edition; the PDF follows. */
+  revisions: RevisionView;
   editor?: EditorView;
   /** Last successful permissive render — kept so PDF DL can reuse the styles href. */
   lastStylesHref?: string;
@@ -56,6 +58,7 @@ const state: ViewerState = {
   source: '',
   mode: 'preview',
   edition: 'internal',
+  revisions: 'marked',
 };
 
 let previewTimer: ReturnType<typeof setTimeout> | null = null;
@@ -216,12 +219,12 @@ async function renderPreviewFromSource(): Promise<void> {
   updateErrorBadge(result.errors.length);
   showWarnings(result.warnings);
   updateEditionToggle(result.editionAware);
+  updateRevisionsToggle(result.revisionAware);
 }
 
-function renderOptions(): { pluginId?: string; edition: DocumentEdition } {
-  return state.pluginId
-    ? { pluginId: state.pluginId, edition: state.edition }
-    : { edition: state.edition };
+function renderOptions(): { pluginId?: string; edition: DocumentEdition; revisions: RevisionView } {
+  const base = { edition: state.edition, revisions: state.revisions };
+  return state.pluginId ? { pluginId: state.pluginId, ...base } : base;
 }
 
 // 版に差が出ない文書（請求書など）では、押しても何も変わらないボタンを出さない。
@@ -235,6 +238,19 @@ function updateEditionToggle(editionAware: boolean): void {
   btn.title = submission
     ? '提出版を表示中。社内版に切り替える'
     : '社内版を表示中。提出版に切り替える（::: 社内 の囲みを落とす。PDF も同じ版になる）';
+}
+
+// 改版の印が無い文書では、印あり・清書の切り替えを出さない。
+function updateRevisionsToggle(revisionAware: boolean): void {
+  const btn = document.getElementById('mdb-revisions');
+  if (!btn) return;
+  btn.hidden = !revisionAware;
+  const clean = state.revisions === 'clean';
+  btn.textContent = clean ? '清書' : '印あり';
+  btn.setAttribute('aria-pressed', String(clean));
+  btn.title = clean
+    ? '清書を表示中。改版の印を見せる'
+    : '改版の印を表示中。清書に切り替える（変更をすべて反映する。PDF も同じ形になる）';
 }
 
 function ensureIframeStylesheet(href: string): void {
@@ -672,6 +688,11 @@ async function main(): Promise<void> {
 
   document.getElementById('mdb-edition')?.addEventListener('click', () => {
     state.edition = state.edition === 'submission' ? 'internal' : 'submission';
+    void renderPreviewFromSource();
+  });
+
+  document.getElementById('mdb-revisions')?.addEventListener('click', () => {
+    state.revisions = state.revisions === 'clean' ? 'marked' : 'clean';
     void renderPreviewFromSource();
   });
 

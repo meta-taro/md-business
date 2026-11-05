@@ -15,7 +15,13 @@
  * 宣言していて、かつこの PC で人が 1 回許したプロジェクトを手元の待ち受けから出すときだけ
  * （画面の中の下見には渡らない）。
  */
-import { editionWarnings, findInternalBlocks, renderMarkdownToHtml } from '@md-business/core';
+import {
+  editionWarnings,
+  findInternalBlocks,
+  hasRevisionMarks,
+  renderMarkdownToHtml,
+  revisionHistoryWarnings,
+} from '@md-business/core';
 import { buildPreviewDocument } from '../previewDocument';
 import { sanitizeViewerHtml } from '../sanitizeHtml';
 import type { PreviewOk, PreviewStyle, RenderPreviewOptions } from '../previewFactory';
@@ -185,6 +191,44 @@ sup:hover .mdb-footnote__pop,
   /* 紙には重ねられない。本文は末尾の一覧に出ている。 */
   .mdb-footnote__pop { display: none; }
 }
+
+/* 改版の印。色だけに頼らず、白黒で刷っても下線・取り消し線・余白の縦線で読めるようにする。 */
+ins.mdb-ins {
+  text-decoration: underline;
+  text-decoration-color: #2563eb;
+  text-decoration-thickness: 0.08em;
+  text-underline-offset: 0.15em;
+  background: rgba(37, 99, 235, 0.14);
+}
+del.mdb-del {
+  text-decoration: line-through;
+  text-decoration-color: #dc2626;
+  text-decoration-thickness: 0.08em;
+  background: rgba(220, 38, 38, 0.12);
+}
+/* 変わった段落の左に縦線。どこが変わったかを目で拾える。 */
+.mdb-changed { position: relative; }
+.mdb-changed::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -12px;
+  width: 3px;
+  border-radius: 2px;
+  background: #6b7280;
+}
+li.mdb-changed::before { left: calc(-1.6em - 8px); }
+td.mdb-changed::before,
+th.mdb-changed::before { left: 0; }
+@media print {
+  ins.mdb-ins,
+  del.mdb-del,
+  .mdb-changed::before {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}
 `;
 
 /**
@@ -203,13 +247,17 @@ function titleFromBody(body: string): string {
 export function renderMarkdownFallback(
   body: string,
   options: RenderPreviewOptions = {},
+  frontmatter: Record<string, unknown> = {},
 ): PreviewOk {
   // rawHtml のときは sanitize しない。落とすと、web モードで書いた script も
   // 属性も消えるので、通す意味が無くなる。ここを通ったものを動かしてよいかは、
   // 出す側（待ち受けが付ける実行の指示）が決める。
   const rawHtml = options.rawHtml === true;
   const edition = options.edition ?? 'internal';
-  const html = body ? renderMarkdownToHtml(body, { hasFrontmatter: false, rawHtml, edition }) : '';
+  const revisions = options.revisions ?? 'marked';
+  const html = body
+    ? renderMarkdownToHtml(body, { hasFrontmatter: false, rawHtml, edition, revisions })
+    : '';
   // 社内の囲みを書いた文書だけ版を選ばせる。囲みの無い README に切り替えを出しても意味が無い。
   const editionAware = findInternalBlocks(body).length > 0;
   const bodyHtml = rawHtml ? html : sanitizeViewerHtml(html);
@@ -228,8 +276,13 @@ export function renderMarkdownFallback(
     style: MARKDOWN_STYLE,
     documentTitle,
     label: 'Markdown',
-    warnings: editionAware ? editionWarnings(body, edition) : [],
+    warnings: [
+      ...(editionAware ? editionWarnings(body, edition) : []),
+      ...revisionHistoryWarnings(frontmatter, body),
+    ],
     errors: [],
     editionAware,
+    revisionAware: hasRevisionMarks(body),
+    comparable: true,
   };
 }

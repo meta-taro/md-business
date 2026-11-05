@@ -522,6 +522,10 @@ export interface Messages {
   'page.editionSubmissionBtn': string;
   'page.editionToSubmissionTitle': string;
   'page.editionToInternalTitle': string;
+  'page.revisionsMarkedBtn': string;
+  'page.revisionsCleanBtn': string;
+  'page.revisionsToCleanTitle': string;
+  'page.revisionsToMarkedTitle': string;
   'page.previewHead': string;
   'page.previewTitle': string;
   'page.frontmatterHint': string;
@@ -1232,6 +1236,10 @@ const en: Messages = {
   'page.editionSubmissionBtn': 'Submission',
   'page.editionToSubmissionTitle': 'Showing the internal edition. Switch to the submission edition (drops ::: internal blocks; the PDF follows)',
   'page.editionToInternalTitle': 'Showing the submission edition. Switch back to the internal edition',
+  'page.revisionsMarkedBtn': 'Marked',
+  'page.revisionsCleanBtn': 'Clean',
+  'page.revisionsToCleanTitle': 'Showing revision marks. Switch to the clean copy (accepts every change; the PDF follows)',
+  'page.revisionsToMarkedTitle': 'Showing the clean copy. Show the revision marks again',
   'page.previewHead': 'Preview',
   'page.previewTitle': '{label} preview',
   'page.frontmatterHint': 'Check the frontmatter format (the top block enclosed by ---)',
@@ -1938,6 +1946,10 @@ const ja: Messages = {
   'page.editionSubmissionBtn': '提出版',
   'page.editionToSubmissionTitle': '社内版を表示中。提出版に切り替える（::: 社内 の囲みを落とす。PDF もこの版になる）',
   'page.editionToInternalTitle': '提出版を表示中。社内版に戻す',
+  'page.revisionsMarkedBtn': '印あり',
+  'page.revisionsCleanBtn': '清書',
+  'page.revisionsToCleanTitle': '改版の印を表示中。清書に切り替える（変更をすべて反映する。PDF もこの形になる）',
+  'page.revisionsToMarkedTitle': '清書を表示中。改版の印を見せる',
   'page.previewHead': 'プレビュー',
   'page.previewTitle': '{label}プレビュー',
   'page.frontmatterHint': 'frontmatter（--- で囲む先頭ブロック）の書式を確認してください',
@@ -2633,6 +2645,10 @@ const zh: Messages = {
   'page.editionSubmissionBtn': '提交版',
   'page.editionToSubmissionTitle': '正在显示内部版。切换到提交版（去掉 ::: 社内 区块，PDF 也随之变化）',
   'page.editionToInternalTitle': '正在显示提交版。切换回内部版',
+  'page.revisionsMarkedBtn': '带修订',
+  'page.revisionsCleanBtn': '清稿',
+  'page.revisionsToCleanTitle': '正在显示修订标记。切换到清稿（接受全部修改，PDF 也随之变化）',
+  'page.revisionsToMarkedTitle': '正在显示清稿。重新显示修订标记',
   'page.previewHead': '预览',
   'page.previewTitle': '{label}预览',
   'page.frontmatterHint': '请检查 frontmatter（由 --- 包围的开头块）的格式',
@@ -3331,6 +3347,10 @@ const ko: Messages = {
   'page.editionSubmissionBtn': '제출판',
   'page.editionToSubmissionTitle': '사내판을 표시 중. 제출판으로 전환(::: 社内 블록을 제외하며 PDF도 이 판으로 출력)',
   'page.editionToInternalTitle': '제출판을 표시 중. 사내판으로 되돌리기',
+  'page.revisionsMarkedBtn': '수정 표시',
+  'page.revisionsCleanBtn': '정서본',
+  'page.revisionsToCleanTitle': '수정 표시를 보는 중. 정서본으로 전환(모든 변경을 반영하며 PDF도 이 형태로 출력)',
+  'page.revisionsToMarkedTitle': '정서본을 보는 중. 수정 표시를 다시 보기',
   'page.previewHead': '미리보기',
   'page.previewTitle': '{label} 미리보기',
   'page.frontmatterHint': 'frontmatter(--- 로 감싼 첫 블록) 형식을 확인하세요',

@@ -57,10 +57,11 @@ export const investigationProvider = createSchemaPreview<Investigation>({
   pdfFileName: (data) => renderInvestigationFileName(data, data.fileName),
   documentTitle: (data) => data.title || `調査報告書 ${data.documentNumber ?? ''}`.trim(),
   editionAware: (_data, body) => findInternalBlocks(body).length > 0,
-  renderBody: (data, body, edition) =>
+  proseBody: true,
+  renderBody: (data, body, edition, revisions) =>
     renderInvestigationBody(data, {
       bodyHtml: body
-        ? sanitizeViewerHtml(renderMarkdownToHtml(body, { hasFrontmatter: false, edition }))
+        ? sanitizeViewerHtml(renderMarkdownToHtml(body, { hasFrontmatter: false, edition, revisions }))
         : '',
       // デスクトップは根拠ファイルを開く先を持っている（プレビューのリンクを
       // 親側で受けて、同じフォルダの文書として開く）。

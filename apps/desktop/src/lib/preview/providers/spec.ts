@@ -52,10 +52,11 @@ export const specProvider = createSchemaPreview<Spec>({
   editionAware: () => true,
   documentTitle: (data) => data.title || `基本設計書 ${data.documentNumber ?? ''}`.trim(),
   // prose スキーマは Markdown 本文を HTML 化・sanitize して章セクションに描く。
-  renderBody: (data, body, edition) =>
+  proseBody: true,
+  renderBody: (data, body, edition, revisions) =>
     renderSpecBody(data, {
       bodyHtml: body
-        ? sanitizeViewerHtml(renderMarkdownToHtml(body, { hasFrontmatter: false, edition }))
+        ? sanitizeViewerHtml(renderMarkdownToHtml(body, { hasFrontmatter: false, edition, revisions }))
         : '',
       edition,
     }),

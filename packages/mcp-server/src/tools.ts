@@ -11,6 +11,7 @@ import {
   buildDocument,
   validateWithCompiled,
   editionWarnings,
+  revisionHistoryWarnings,
   stripInternalBlocks,
   type DocumentEdition,
   type ValidationError,
@@ -49,8 +50,20 @@ export interface ReadDocumentOk {
   frontmatter: Record<string, unknown>;
   /** frontmatter を除いた Markdown 本文。提出版を指定したときは社内の囲みを落としたもの。 */
   body: string;
-  /** 提出版に残ると困るもの（ソースの場所など）。社内版では常に空。 */
+  /**
+   * 提出版に残ると困るもの（ソースの場所など。社内版では出ない）と、
+   * frontmatter の版が改版履歴の表に無いこと。
+   */
   warnings: string[];
+}
+
+/** 検証は止めないが、書き手に知らせたいこと。 */
+function documentWarnings(
+  frontmatter: Record<string, unknown>,
+  body: string,
+  edition: DocumentEdition,
+): string[] {
+  return [...editionWarnings(body, edition), ...revisionHistoryWarnings(frontmatter, body)];
 }
 
 /** ローカル文書を読み、frontmatter / body / 検出 schema を返す。 */
@@ -72,7 +85,7 @@ export async function readDocument(
     schema: detectSchemaId(data),
     frontmatter: data,
     body: edition === 'submission' ? stripInternalBlocks(body).text : body,
-    warnings: editionWarnings(body, edition),
+    warnings: documentWarnings(data, body, edition),
   };
 }
 
@@ -85,7 +98,7 @@ export interface ValidateDocumentOk {
   valid: boolean;
   /** 検証エラー（valid:true なら空）。 */
   errors: ValidationError[];
-  /** 提出版に残ると困るもの。検証は止めない。社内版では常に空。 */
+  /** 提出版に残ると困るものと、改版履歴に無い版。検証は止めない。 */
   warnings: string[];
 }
 
@@ -102,7 +115,7 @@ export async function validateDocument(
   }
   const src = await store.read(safe.relative);
   const { data, body } = splitFrontmatter(src);
-  const warnings = editionWarnings(body, edition);
+  const warnings = documentWarnings(data, body, edition);
   const schemaId = detectSchemaId(data);
   if (schemaId === null) {
     return {

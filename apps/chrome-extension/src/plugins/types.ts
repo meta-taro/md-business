@@ -1,4 +1,9 @@
-import type { DocumentEdition, ValidationError, ValidationResult } from '@md-business/core';
+import type {
+  DocumentEdition,
+  RevisionView,
+  ValidationError,
+  ValidationResult,
+} from '@md-business/core';
 
 /**
  * Result of a permissive preview render — used by the live editor so that the
@@ -56,7 +61,12 @@ export interface SchemaPlugin<TFrontmatter = unknown> {
    * for schemas whose output includes prose — design docs, test specs, etc.
    * Data-driven schemas (invoice) ignore it.
    */
-  render(frontmatter: TFrontmatter, markdownBody?: string, edition?: DocumentEdition): string;
+  render(
+    frontmatter: TFrontmatter,
+    markdownBody?: string,
+    edition?: DocumentEdition,
+    revisions?: RevisionView,
+  ): string;
   /**
    * Permissive render used by the live editor preview pane. Unlike `validate()`
    * + `render()`, this path never throws and never blocks — it returns the
@@ -70,6 +80,7 @@ export interface SchemaPlugin<TFrontmatter = unknown> {
     frontmatter: unknown,
     markdownBody?: string,
     edition?: DocumentEdition,
+    revisions?: RevisionView,
   ): PreviewRenderResult;
   /** Override the <title> of the generated viewer page. */
   documentTitle?(frontmatter: TFrontmatter): string;
@@ -85,4 +96,9 @@ export interface SchemaPlugin<TFrontmatter = unknown> {
    * switching between. The viewer only shows the edition toggle when true.
    */
   editionAware?(frontmatter: Record<string, unknown>, markdownBody: string): boolean;
+  /**
+   * Whether the Markdown body is rendered as prose. Only these schemas pick up
+   * revision marks (`{++added++}` etc.), so only they get the marked / clean toggle.
+   */
+  proseBody?: boolean;
 }

@@ -51,7 +51,7 @@ export async function renderPreview(
   if (!lazy) {
     // 業務スキーマ非該当は空表示にせず、GitHub のように素の Markdown を描く。
     // frontmatter が解析できた（＝描画対象になる）ケースのみここへ来る。
-    return renderMarkdownFallback(body, options);
+    return renderMarkdownFallback(body, options, frontmatter);
   }
 
   const provider = await lazy.load();
