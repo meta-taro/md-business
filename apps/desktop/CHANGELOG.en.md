@@ -4,6 +4,14 @@ Changes to this app. Versions follow [Semantic Versioning](https://semver.org/).
 
 Japanese is the source of truth for this file; see [CHANGELOG.md](./CHANGELOG.md).
 
+## 0.33.2
+
+### Fixed
+
+- **PDF pages 2 onward no longer carry the `tauri.localhost` URL, date and page number in their top and bottom margins.** The WebView writes these into the margins by default when printing; page 1 has no margin, so it stayed clean and the problem was easy to miss. Printing now places empty boxes in the top and bottom margins so the WebView leaves them alone. A document whose CSS defines its own margin boxes (a page number, for example) still gets them.
+
+- **Test-sheet validation now warns about row IDs that are malformed or duplicated.** Previously these were silently reassigned on save, breaking anything that pointed at the old value.
+
 ## 0.33.1
 
 ### Fixed
