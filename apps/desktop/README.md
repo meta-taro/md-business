@@ -32,7 +32,7 @@ md-business の**本命プロダクト**。業務文書（invoice / spec / test-
   "mcpServers": {
     "md-business": {
       "type": "http",
-      "url": "http://127.0.0.1:<port>/mcp",
+      "url": "http://127.0.0.1:<port>/md-business",
       "headers": { "Authorization": "Bearer <token>" }
     }
   }

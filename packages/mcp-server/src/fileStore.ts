@@ -193,8 +193,11 @@ export class FileDocumentStore implements DocumentStore {
         await (await open(lockFile, 'wx')).close();
         break;
       } catch (error) {
-        if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error;
-        if (await this.isStaleLock(lockFile)) {
+        const code = (error as NodeJS.ErrnoException).code;
+        // Windows では、相手が錠を消している最中に作ろうとすると EEXIST でなく EPERM が返る。
+        // 外れかけているだけなので、取られているものとして待つ。
+        if (code !== 'EEXIST' && code !== 'EPERM') throw error;
+        if (code === 'EEXIST' && (await this.isStaleLock(lockFile))) {
           await rm(lockFile, { force: true }).catch(() => undefined);
           continue;
         }

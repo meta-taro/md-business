@@ -283,7 +283,7 @@ md-business が目指すのは、**業務文書を AI agent が運用できる�
   "mcpServers": {
     "md-business": {
       "type": "http",
-      "url": "http://127.0.0.1:<PORT>/mcp",
+      "url": "http://127.0.0.1:<PORT>/md-business",
       "headers": { "Authorization": "Bearer <TOKEN>" }
     }
   }

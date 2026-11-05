@@ -99,7 +99,7 @@ describe('サイドカーのバンドル', () => {
     expect(typeof ready['port']).toBe('number');
     // トークンは起動ごとに発行される。親はこれを読めた場合だけ接続できる。
     expect(String(ready['token']).length).toBeGreaterThanOrEqual(32);
-    expect(String(ready['url'])).toContain(`127.0.0.1:${String(ready['port'])}/mcp`);
+    expect(String(ready['url'])).toContain(`127.0.0.1:${String(ready['port'])}/md-business`);
 
     child.stdin.write(`${JSON.stringify({ type: 'set-root', root: other })}\n`);
     const rootEvent = await waitForEvent(child, (e) => e['type'] === 'root');

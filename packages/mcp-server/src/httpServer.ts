@@ -2,7 +2,7 @@
  * MCP サーバーの HTTP モード（組み込みアプリからの spawn 用）。
  * -----------------------------------------------------------------------------
  * デスクトップアプリが子プロセスとして起動し、ローカルの AI クライアントが
- * `http://127.0.0.1:<port>/mcp` + bearer トークンで接続する。多重防御：
+ * `http://127.0.0.1:<port>/md-business` + bearer トークンで接続する。多重防御：
  *   1. 127.0.0.1 のみに bind（外部ホストは到達不可）
  *   2. トランスポート内蔵の DNS リバインディング保護（allowedHosts）
  *   3. 起動ごとランダム bearer トークンの照合（httpAuth）
@@ -20,8 +20,16 @@ import { isAuthorized } from './httpAuth.js';
 
 /** 既定の bind ホスト（ループバック固定）。 */
 const LOOPBACK = '127.0.0.1';
-/** MCP エンドポイントのパス。 */
-const MCP_PATH = '/mcp';
+/**
+ * MCP エンドポイントのパス。
+ *
+ * 末尾が `/mcp` のパスは、一部のセキュリティソフトがループバックの応答まで書き換え、
+ * 本文が壊れて届く（content-length が消え、区切られていない chunked として渡る）。
+ * 利用者が止められるものではないので、パスの側を避ける。
+ */
+const MCP_PATH = '/md-business';
+/** 以前の版が書き出した接続設定（`/mcp`）も、置き直すまでは使えるように受け付ける。 */
+const LEGACY_MCP_PATH = '/mcp';
 
 /** startHttpServer の設定。 */
 export interface StartHttpServerOptions {
@@ -76,7 +84,7 @@ export async function startHttpServer(options: StartHttpServerOptions): Promise<
   async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise<void> {
     // パス以外（/ や /favicon.ico 等）は 404。クエリは無視してパスだけ見る。
     const path = (req.url ?? '').split('?')[0];
-    if (path !== MCP_PATH) {
+    if (path !== MCP_PATH && path !== LEGACY_MCP_PATH) {
       respondError(res, 404, 'not found');
       return;
     }
