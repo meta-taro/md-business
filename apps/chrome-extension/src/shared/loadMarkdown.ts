@@ -10,6 +10,12 @@ import {
 } from '@md-business/core';
 import { createDefaultRegistry, type SchemaPlugin, type PluginRegistry } from '../plugins/index.js';
 import { frontmatterHint } from './frontmatterHint.js';
+import {
+  TEST_SPEC_TSV_PLUGIN_ID,
+  TEST_SPEC_TSV_STYLES_HREF,
+  isTestSpecTsv,
+  renderTestSpecTsv,
+} from './tsv.js';
 import type { ValidationError } from '@md-business/core';
 
 export interface LoadedDocument {
@@ -75,6 +81,20 @@ export interface LoadMarkdownOptions {
  * Pure (no DOM access) — safe to unit test in node.
  */
 export function loadMarkdown(source: string, options: LoadMarkdownOptions = {}): LoadMarkdownResult {
+  if (isTestSpecTsv(source)) {
+    const tsv = renderTestSpecTsv(source);
+    return {
+      ok: true,
+      bodyHtml: tsv.bodyHtml,
+      stylesHref: TEST_SPEC_TSV_STYLES_HREF,
+      documentTitle: tsv.documentTitle,
+      pdfFileName: tsv.pdfFileName,
+      pluginId: TEST_SPEC_TSV_PLUGIN_ID,
+      warnings: [],
+      editionAware: false,
+      revisionAware: false,
+    };
+  }
   const registry = options.registry ?? createDefaultRegistry();
 
   let frontmatter: Record<string, unknown>;
@@ -183,6 +203,18 @@ export function previewMarkdown(
   source: string,
   options: LoadMarkdownOptions = {},
 ): PreviewMarkdownResult {
+  if (isTestSpecTsv(source)) {
+    return {
+      ok: true,
+      bodyHtml: renderTestSpecTsv(source).bodyHtml,
+      stylesHref: TEST_SPEC_TSV_STYLES_HREF,
+      pluginId: TEST_SPEC_TSV_PLUGIN_ID,
+      errors: [],
+      warnings: [],
+      editionAware: false,
+      revisionAware: false,
+    };
+  }
   const registry = options.registry ?? createDefaultRegistry();
 
   let frontmatter: Record<string, unknown>;

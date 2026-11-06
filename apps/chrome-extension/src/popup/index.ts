@@ -1,6 +1,7 @@
 import '../shared/polyfills.js';
 import { createDefaultRegistry } from '../plugins/index.js';
 import { STORAGE_KEY, type ViewerPayload } from '../shared/storage.js';
+import { isOpenableFileName } from '../shared/tsv.js';
 
 const registry = createDefaultRegistry();
 
@@ -63,8 +64,8 @@ async function openViewerWithSource(source: string, filename: string, explicitPl
 
 async function handleFile(file: File): Promise<void> {
   clearError();
-  if (!/\.(md|markdown)$/i.test(file.name) && file.type !== 'text/markdown') {
-    showError('Markdown (.md) ファイルを選択してください。');
+  if (!isOpenableFileName(file.name) && file.type !== 'text/markdown') {
+    showError('Markdown (.md) か検証シート (.tsv) を選択してください。');
     return;
   }
   const source = await file.text();

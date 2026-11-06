@@ -23,7 +23,7 @@ async function copySchemaCss() {
   const stylesDir = resolve(ROOT, '..', '..', 'packages', 'renderer-pdf', 'src', 'styles');
   const destDir = resolve(DIST, 'styles');
   await ensureDir(destDir);
-  for (const file of ['invoice.css', 'spec.css', 'test-spec.css', 'db-spec.css', 'nosql-db-spec.css', 'api-spec.css', 'investigation.css']) {
+  for (const file of ['invoice.css', 'spec.css', 'test-spec.css', 'db-spec.css', 'nosql-db-spec.css', 'api-spec.css', 'investigation.css', 'test-spec-tsv.css']) {
     await copyFile(resolve(stylesDir, file), resolve(destDir, file));
     console.log(`[post-build] copied ${file}`);
   }
@@ -132,14 +132,14 @@ const STARTER_TEMPLATES = [
     schema: 'invoice',
     category: '適格請求書',
     file: 'standard.md',
-    label: '英語フィールド名・標準請求書',
+    label: '英語キー・標準請求書（出力は日本語）',
     description: '英語キー（invoiceNumber / issuer / items …）の標準スタイル。',
   },
   {
     schema: 'invoice',
     category: '適格請求書',
     file: 'inbound-eligible.md',
-    label: '英語フィールド名・軽減税率（8%）込み',
+    label: '英語キー・軽減税率（8%）込み（出力は日本語）',
     description: '8% 軽減税率対象品目を含む適格請求書サンプル。',
   },
   {
@@ -157,11 +157,19 @@ const STARTER_TEMPLATES = [
     description: '8 章 / Mermaid 図 / 表を含む数ページの基本設計書サンプル。日本語キー（文書番号 / 作成者 / レビュアー …）。',
   },
   {
+    // 検証シートの本則は TSV。拡張では表として見て PDF にするだけで、編集はデスクトップアプリで行う。
+    schema: 'test-spec',
+    category: '検証シート',
+    file: 'standard-ja.tsv',
+    label: '検証シート（TSV・推奨）',
+    description: '1 行 1 項目の表で書く検証シート。結果（OK / NG / 保留）で行に色が付く。表のまま PDF に出せる。編集はデスクトップアプリのグリッドで。',
+  },
+  {
     schema: 'test-spec',
     category: '検証シート',
     file: 'standard-ja.md',
-    label: '日本語フィールド名・検証シート（ログイン機能サンプル）',
-    description: '列定義（プルダウン / 日付 / 数値）と検証手順表を含む検証シート。Google Sheets 連携 + GitHub 自動同期に対応。日本語キー。',
+    label: '検証シート（Markdown・Google Sheets 連携用）',
+    description: '列定義（プルダウン / 日付 / 数値）と検証手順表を含む Markdown 版。Google Sheets 連携 + GitHub 自動同期に使う。日本語キー。',
   },
   {
     schema: 'api-spec',
