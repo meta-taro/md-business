@@ -199,3 +199,21 @@ export function writeLayoutDirectives(
 
   return [...kept, ...lines];
 }
+
+/**
+ * 書き戻すべきレイアウト宣言。読んだときと同じなら null（書かない）。
+ *
+ * 書くと保存の経路を通り、行 ID 列の付与などファイル全体が整形し直される。
+ * レイアウトを実際に変えていないのにそれが起きると、開いて眺めただけでファイルが変わる。
+ */
+export function layoutDirectivesToPersist(
+  directives: readonly string[],
+  layout: GridLayout,
+  defaults: LayoutDefaults,
+  rowIds: readonly string[],
+): string[] | null {
+  const next = writeLayoutDirectives(directives, layout, defaults, rowIds);
+  // 並びだけが違うのは変更ではない（書き戻すとレイアウト行が末尾へ寄る）。
+  const sorted = (lines: readonly string[]): string => [...lines].sort().join('\n');
+  return sorted(next) === sorted(directives) ? null : next;
+}

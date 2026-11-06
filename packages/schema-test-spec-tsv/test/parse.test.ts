@@ -96,6 +96,14 @@ describe('parseTsv', () => {
     expect(doc.meta).toEqual({});
   });
 
+  it('keeps a free comment line verbatim so a save can write it back', () => {
+    const text = ['#! md-business:test-spec-tsv/v1', '# 台帳（架空の見本）。refs は説明', '#  字下げも残す', '項目', 'A'].join('\n');
+
+    const doc = parseTsv(text);
+
+    expect(doc.comments).toEqual([' 台帳（架空の見本）。refs は説明', '  字下げも残す']);
+  });
+
   it('yields an empty formatId when there is no magic line', () => {
     const text = ['項目\t結果', 'A\t〇'].join('\n');
 

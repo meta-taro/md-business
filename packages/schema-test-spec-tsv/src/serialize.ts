@@ -74,7 +74,8 @@ export function serializeHeader(header: ParsedHeader): string {
 /**
  * {@link TsvDocument} をカスタム TSV テキストへ整形する。
  *
- * 出力順は `#!` マジック → `#` メタ → `#@` ディレクティブ → 型付きヘッダ → データ行。
+ * 出力順は `#!` マジック → `#` 注記 → `#` メタ → `#@` ディレクティブ → 型付きヘッダ → データ行。
+ * 注記は元の位置を持たないので、マジック行の直後にまとめる（雛形も見出しの注記をそこに置く）。
  * 末尾に改行は付けない（ファイル書き出し層で付与する想定の純テキスト）。
  */
 export function serializeTsv(doc: TsvDocument): string {
@@ -82,6 +83,10 @@ export function serializeTsv(doc: TsvDocument): string {
 
   if (doc.formatId !== '') {
     lines.push(`#! ${doc.formatId}`);
+  }
+
+  for (const comment of doc.comments ?? []) {
+    lines.push(`#${comment}`);
   }
 
   for (const [key, value] of Object.entries(doc.meta)) {

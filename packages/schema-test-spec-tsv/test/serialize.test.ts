@@ -77,6 +77,20 @@ describe('serializeTsv', () => {
 });
 
 describe('serialize ⇄ parse round-trip', () => {
+  it('writes free comment lines back right after the magic line', () => {
+    const text = [
+      '#! md-business:test-spec-tsv/v1',
+      '# 台帳（架空の見本）。refs は説明',
+      '# タイトル: 台帳',
+      '#@ freeze 1',
+      '項目\t結果',
+      'A\t〇',
+    ].join('\n');
+
+    expect(serializeTsv(parseTsv(text))).toBe(text);
+  });
+
+
   it('restores a full document', () => {
     const doc = makeDoc({
       formatId: 'md-business:test-spec-tsv/v1',
