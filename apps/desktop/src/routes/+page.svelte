@@ -23,6 +23,7 @@
     type ViewportName,
   } from '$lib/preview/viewport';
   import { findHeadingOffset } from '$lib/editor/headingAnchor';
+  import { resolveShareJump } from '$lib/workspace/shareJump';
   import { debounce } from '$lib/util/debounce';
   import type {
     CellLink,
@@ -1209,6 +1210,26 @@
     }
     editorCaret = { offset, seq: (editorCaretSeq += 1) };
   }
+
+  // 共有リンクが行を指していたら、開いた文書の中でそこへ移る。
+  // 検証シートかどうかは開いた直後の本文で判定する（debounce 前の判定は前の文書のまま）。
+  $effect(() => {
+    const request = workspace.shareJump;
+    if (request === null) return;
+    untrack(() => {
+      workspace.shareJump = null;
+      const text = workspace.source;
+      const jump = resolveShareJump(text, isTsvSource(text), request);
+      if (jump === null) return;
+      if (jump.kind === 'row') {
+        gridJump = { column: jump.column, value: jump.value, seq: (gridJumpSeq += 1) };
+      } else if (jump.kind === 'caret') {
+        editorCaret = { offset: jump.offset, seq: (editorCaretSeq += 1) };
+      } else {
+        workspace.reportError(t('page.shareLineMissing', { line: jump.line }));
+      }
+    });
+  });
 
   // ── 検証グリッドの全画面 ──
   // 検証中はエディター/プレビュー分割が邪魔なので、分割を畳んでグリッドを全幅にする。

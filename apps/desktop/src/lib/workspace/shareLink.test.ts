@@ -12,6 +12,17 @@ describe('buildShareLink', () => {
     expect(link).toBe('md-business://open?repo=github.com/o/r&path=a.tsv');
   });
 
+  it('行と行 ID を添えられる', () => {
+    const link = buildShareLink({
+      repo: 'github.com/o/r',
+      path: 'a.tsv',
+      ref: null,
+      line: 12,
+      id: 'r1b2c838a2314',
+    });
+    expect(link).toBe('md-business://open?repo=github.com/o/r&path=a.tsv&line=12&id=r1b2c838a2314');
+  });
+
   it('そのままでは意味が変わる文字は逃がす', () => {
     const link = buildShareLink({ repo: 'github.com/o/r', path: 'docs/a b&c.tsv', ref: null });
     expect(link).toBe('md-business://open?repo=github.com/o/r&path=docs/a%20b%26c.tsv');
@@ -98,6 +109,32 @@ describe('parseShareLink', () => {
   it('リポジトリ名にホストと名前が揃っていなければ受け取らない', () => {
     expect(parseShareLink('md-business://open?repo=github.com&path=a.tsv')).toBeNull();
     expect(parseShareLink('md-business://open?repo=github.com/../o/r&path=a.tsv')).toBeNull();
+  });
+
+  it('行と行 ID を読む', () => {
+    const got = parseShareLink('md-business://open?repo=github.com/o/r&path=a.tsv&line=12&id=r1b2c838a2314');
+    expect(got).toEqual({ repo: 'github.com/o/r', path: 'a.tsv', ref: null, line: 12, id: 'r1b2c838a2314' });
+  });
+
+  it('行と行 ID を添えたリンクも元に戻せる', () => {
+    const target = { repo: 'github.com/o/r', path: 'a.tsv', ref: 'main', line: 3, id: 'r0123456789ab' };
+    expect(parseShareLink(buildShareLink(target))).toEqual(target);
+  });
+
+  it('行番号として読めないものは、行を落として受け取る', () => {
+    for (const line of ['0', '-1', '1.5', 'abc', '', '1e3', '99999999999']) {
+      const got = parseShareLink(`md-business://open?repo=github.com/o/r&path=a.tsv&line=${line}`);
+      expect(got, line).toEqual({ repo: 'github.com/o/r', path: 'a.tsv', ref: null });
+    }
+  });
+
+  it('行 ID の形でないものは、ID を落として受け取る', () => {
+    for (const id of ['abc', 'r123', 'R1B2C838A2314', 'r1b2c838a2314x', '../x']) {
+      const got = parseShareLink(
+        `md-business://open?repo=github.com/o/r&path=a.tsv&id=${encodeURIComponent(id)}`,
+      );
+      expect(got, id).toEqual({ repo: 'github.com/o/r', path: 'a.tsv', ref: null });
+    }
   });
 
   it('ブランチ名として無理のあるものは、名前を落として受け取る', () => {
