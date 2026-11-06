@@ -10,6 +10,7 @@ import {
 } from '../shared/loadMarkdown.js';
 import type { DocumentEdition, RevisionView } from '@md-business/core';
 import { composeFences } from '../shared/fences.js';
+import { isOpenableFileName, isTestSpecTsv } from '../shared/tsv.js';
 import { renderMermaidInHtml } from '../shared/renderMermaid.js';
 import { STORAGE_KEY } from '../shared/storage.js';
 import { createPrintFrame } from './printFrame.js';
@@ -192,13 +193,18 @@ function updateIframeBody(html: string): void {
   if (host) host.innerHTML = html;
 }
 
+// 検証シートには図・データの囲みが無い。セルの文字が囲みに見えても書き換えない。
+async function composeSource(source: string): Promise<string> {
+  return isTestSpecTsv(source) ? source : composeFences(source);
+}
+
 // Composing fences is async, so a slow pass can finish after a newer one.
 // Only the latest pass may paint.
 let previewGeneration = 0;
 
 async function renderPreviewFromSource(): Promise<void> {
   const generation = ++previewGeneration;
-  const source = await composeFences(state.source);
+  const source = await composeSource(state.source);
   if (generation !== previewGeneration) return;
   const result: PreviewMarkdownResult = previewMarkdown(source, renderOptions());
   if (!result.ok) {
@@ -313,8 +319,8 @@ function setMode(next: Mode): void {
 }
 
 async function swapDocument(file: File): Promise<void> {
-  if (!/\.(md|markdown)$/i.test(file.name) && file.type !== 'text/markdown') {
-    setStatus('Markdown (.md) ファイルを選択してください。', 'error');
+  if (!isOpenableFileName(file.name) && file.type !== 'text/markdown') {
+    setStatus('Markdown (.md) か検証シート (.tsv) を選択してください。', 'error');
     return;
   }
   const source = await file.text();
@@ -423,7 +429,7 @@ async function handleSaveClick(saveAs: boolean): Promise<void> {
  * `LoadMarkdownResult` when valid, or an error structure for the banner.
  */
 async function strictValidate(): Promise<LoadMarkdownResult> {
-  const source = await composeFences(state.source);
+  const source = await composeSource(state.source);
   return loadMarkdown(source, renderOptions());
 }
 

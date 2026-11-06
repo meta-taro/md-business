@@ -1,6 +1,6 @@
 {
   "name": "@md-business/chrome-extension",
-  "version": "0.10.0",
+  "version": "0.11.0",
   "private": true,
   "description": "Markdown-first business document viewer for Chrome — open a .md file as an invoice, design spec, test spec, API/DB spec or investigation report and save it as PDF. Mermaid and architecture diagrams supported.",
   "license": "MIT",
@@ -31,6 +31,7 @@
     "@md-business/schema-nosql-db-spec": "workspace:*",
     "@md-business/schema-spec": "workspace:*",
     "@md-business/schema-test-spec": "workspace:*",
+    "@md-business/schema-test-spec-tsv": "workspace:*",
     "@metataro/zumen": "^0.7.0",
     "buffer": "^6.0.3",
     "codemirror": "^6.0.2",
