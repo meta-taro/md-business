@@ -4,6 +4,12 @@ Changes to this app. Versions follow [Semantic Versioning](https://semver.org/).
 
 Japanese is the source of truth for this file; see [CHANGELOG.md](./CHANGELOG.md).
 
+## 0.38.0
+
+### Added
+
+- **Share links can point at a line in the document.** Add `line=<number>` to `md-business://open?...` to move to that line, or `id=<row id>` on a test sheet to move to that row. When both are given the row id wins, so the link survives rows being added or reordered. On a test sheet a line number is looked up through the row id on that line of the file, so hidden rows and filters never send you to a different row. If the line or row isn't there, the file still opens and says so.
+
 ## 0.37.0
 
 ### Added
