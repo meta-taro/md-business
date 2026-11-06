@@ -16,6 +16,7 @@
  */
 
 import { unusableSegmentReason } from '@md-business/core';
+import { isRowId } from '@md-business/schema-test-spec-tsv';
 
 /** 共有リンクが運ぶ中身。 */
 export interface ShareTarget {
@@ -25,6 +26,13 @@ export interface ShareTarget {
   path: string;
   /** 共有した人が見ていたブランチ。分からなければ null。切り替えには使わない。 */
   ref: string | null;
+  /**
+   * 指したい物理行（1 始まり）。行 ID があればそちらを優先する。
+   * 行は前に 1 行足されるだけでずれるので、ID を振れない文書のための逃げ道。
+   */
+  line?: number;
+  /** 検証シートの行 ID（`_id` 列の値）。行の増減でずれないので、行番号より先に使う。 */
+  id?: string;
 }
 
 /** リポジトリを開いている手元のフォルダ 1 つ分。 */
@@ -85,10 +93,23 @@ function isSafeRef(ref: string): boolean {
   return /^[A-Za-z0-9][A-Za-z0-9._/-]*$/.test(ref) && !ref.includes('..');
 }
 
+/**
+ * 行番号として読める値か。正の整数を 10 進の数字だけで書いたものに限る。
+ *
+ * `Number()` に任せると `1e3` や `0x10` も数になり、送った人が書いていない行へ飛ぶ。
+ * 桁の上限は、どんな文書でも届かない大きさで切っておく（大きな数を後段へ流さない）。
+ */
+function parseLine(raw: string | null): number | null {
+  if (raw === null || !/^[1-9][0-9]{0,8}$/.test(raw)) return null;
+  return Number(raw);
+}
+
 /** 共有リンクの文字列を作る。 */
 export function buildShareLink(target: ShareTarget): string {
   const parts = [`repo=${encodeValue(target.repo)}`, `path=${encodeValue(target.path)}`];
   if (target.ref !== null && target.ref !== '') parts.push(`ref=${encodeValue(target.ref)}`);
+  if (target.line !== undefined) parts.push(`line=${target.line}`);
+  if (target.id !== undefined) parts.push(`id=${encodeValue(target.id)}`);
   return `${SCHEME}://${ACTION}?${parts.join('&')}`;
 }
 
@@ -118,7 +139,13 @@ export function parseShareLink(raw: string): ShareTarget | null {
 
   const rawRef = url.searchParams.get('ref');
   const ref = rawRef !== null && isSafeRef(rawRef) ? rawRef : null;
-  return { repo, path, ref };
+  const target: ShareTarget = { repo, path, ref };
+  // 行と ID は「開いた後どこを見せるか」の添え書き。読めなければ落として、文書だけは開く。
+  const line = parseLine(url.searchParams.get('line'));
+  if (line !== null) target.line = line;
+  const id = url.searchParams.get('id');
+  if (id !== null && isRowId(id)) target.id = id;
+  return target;
 }
 
 /**

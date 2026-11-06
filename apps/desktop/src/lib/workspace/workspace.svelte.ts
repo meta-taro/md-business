@@ -334,6 +334,12 @@ class WorkspaceStore {
    */
   shareNotice = $state<string | null>(null);
   /**
+   * 共有リンクが指した行。開いた文書の中での移動は画面側（グリッド・エディター）が持つので、
+   * ここでは頼まれた位置だけを渡す。同じ行を続けて指されても動くよう、連番を添える。
+   */
+  shareJump = $state<{ line?: number; id?: string; seq: number } | null>(null);
+  private shareJumpSeq = 0;
+  /**
    * 外から渡されたファイルが、開いたことのないフォルダの中にあったときの問い合わせ。
    *
    * 断らずに聞くのは、断ってもファイルは開きたいままで、利用者はフォルダを自分で辿ることに
@@ -666,6 +672,10 @@ class WorkspaceStore {
     }
     this.expanded = withAncestorsExpanded(this.expanded, found.relPath);
     await this.select(found.relPath);
+    if (this.activePath !== found.relPath) return;
+    if (target.line !== undefined || target.id !== undefined) {
+      this.shareJump = { line: target.line, id: target.id, seq: (this.shareJumpSeq += 1) };
+    }
   }
 
   /**
