@@ -39,12 +39,13 @@ const BUILD_DIR = resolve(REPO_ROOT, 'apps/desktop/build');
  * had a single window; opening more than one put the window API on the startup
  * path, which the shell now needs before it can decide what to restore. The
  * revision-mark and version-compare controls (labels in four languages) took it
- * to 430 KB; no renderer code is in the entry graph. It is
+ * to 430 KB, and the paper-orientation toggle to 440 KB; no renderer code is in
+ * the entry graph. It is
  * never raised to let a renderer through — the headroom above the shell is kept
  * smaller than the smallest schema validator (~15 KB), so one of those landing
  * in the entry graph still trips the check.
  */
-const BUDGET_BYTES = 430 * 1024;
+const BUDGET_BYTES = 440 * 1024;
 
 const LINK_TAG = /<link\b[^>]*>/gi;
 const HREF_ATTR = /href=["']([^"']+)["']/i;
