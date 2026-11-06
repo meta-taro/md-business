@@ -38,7 +38,9 @@ export function renderSheetPreview(
   source: string,
   options: RenderPreviewOptions = {},
 ): PreviewOk {
-  const doc = buildSheetPrintDoc(loadGridDoc(source).doc, { fallbackTitle: FALLBACK_TITLE });
+  const sheet = buildSheetPrintDoc(loadGridDoc(source).doc, { fallbackTitle: FALLBACK_TITLE });
+  const doc =
+    options.orientation === undefined ? sheet : { ...sheet, orientation: options.orientation };
 
   return {
     ok: true,
@@ -53,6 +55,7 @@ export function renderSheetPreview(
     style: TEST_SPEC_TSV_STYLE,
     documentTitle: doc.title,
     label: FALLBACK_TITLE,
+    orientationAware: true,
     warnings: [],
     errors: [],
   };

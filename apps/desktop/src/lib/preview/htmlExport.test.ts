@@ -80,3 +80,14 @@ describe('buildExportHtml の改版の印', () => {
     expect(clean).toContain('新の手順。');
   });
 });
+
+describe('buildExportHtml の用紙の向き', () => {
+  const SHEET = ['#! md-business:test-spec-tsv/v1', '項目', '開く'].join('\n');
+
+  it('検証シートは表示中の向きで書き出す', async () => {
+    expect(await buildExportHtml(SHEET)).toContain('data-orientation="landscape"');
+    expect(await buildExportHtml(SHEET, 'internal', 'marked', 'portrait')).toContain(
+      '@page{size:A4 portrait}',
+    );
+  });
+});

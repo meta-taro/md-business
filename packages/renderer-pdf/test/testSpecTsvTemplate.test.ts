@@ -171,3 +171,22 @@ describe('renderTestSpecTsvBody – cell annotations', () => {
     expect(html).toContain('>1</sup><sup class="mdb-tsv-sheet__ref">2</sup>');
   });
 });
+
+describe('renderTestSpecTsvBody の用紙の向き', () => {
+  it('既定は横で、@page を上書きしない', () => {
+    const html = renderTestSpecTsvBody(standardTsvSheet());
+    expect(html).toContain('data-orientation="landscape"');
+    expect(html).not.toContain('@page');
+  });
+
+  it('縦を指定すると @page を縦に上書きする', () => {
+    const html = renderTestSpecTsvBody(standardTsvSheet({ orientation: 'portrait' }));
+    expect(html).toContain('data-orientation="portrait"');
+    expect(html).toContain('@page{size:A4 portrait}');
+  });
+
+  it('上書きは表より前に置く（印刷が始まる前に用紙が決まる）', () => {
+    const html = renderTestSpecTsvBody(standardTsvSheet({ orientation: 'portrait' }));
+    expect(html.indexOf('@page')).toBeLessThan(html.indexOf('<table'));
+  });
+});

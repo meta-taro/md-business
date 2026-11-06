@@ -17,6 +17,7 @@ export {
   renderTestSpecTsvBody,
   type TestSpecTsvPrintColumn,
   type TestSpecTsvPrintDoc,
+  type TestSpecTsvOrientation,
   type TestSpecTsvPrintRow,
 } from './testSpecTsvTemplate.js';
 export {

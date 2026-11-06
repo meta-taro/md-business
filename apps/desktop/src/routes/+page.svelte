@@ -7,6 +7,7 @@
   import { previewRenderer } from '$lib/preview/previewRenderer.svelte';
   import type { PreviewResult } from '$lib/preview/previewFactory';
   import type { DocumentEdition, RevisionView } from '@md-business/core';
+  import type { TestSpecTsvOrientation } from '@md-business/renderer-pdf';
   import { frontmatterMessage } from '$lib/preview/frontmatterMessage';
   import { pdfExport } from '$lib/preview/pdfExport.svelte';
   import { directPdfName, pdfSaveName, printWithTitle } from '$lib/preview/printTitle';
@@ -496,12 +497,15 @@
   let edition = $state<DocumentEdition>('internal');
   // 改版の印を見せるか清書にするか。版とは別の軸で、これもプレビューの段階で切り替える。
   let revisions = $state<RevisionView>('marked');
+  // 用紙の縦横。検証シートだけが読む。表は横に長いことが多いので既定は横。
+  let orientation = $state<TestSpecTsvOrientation>('landscape');
   $effect(() => {
     const render = previewRenderer.render;
     const source = previewSource;
     const theme = themeController.value;
     const currentEdition = edition;
     const currentRevisions = revisions;
+    const currentOrientation = orientation;
     // 組み立て一式は一度読み込むと面を切り替えても残る。残っているだけで組み直しが動くと、
     // 検証グリッドで 1 文字打つたびに誰も見ない HTML を本文全体から組み直すことになる。
     if (render === null || !shouldRenderPreview(paneState)) {
@@ -509,7 +513,12 @@
       return;
     }
     const generation = ++previewGeneration;
-    void render(source, { theme, edition: currentEdition, revisions: currentRevisions }).then((result) => {
+    void render(source, {
+      theme,
+      edition: currentEdition,
+      revisions: currentRevisions,
+      orientation: currentOrientation,
+    }).then((result) => {
       if (generation === previewGeneration) preview = result;
     });
   });
@@ -1098,6 +1107,8 @@
     imageExport.edition = edition;
     htmlExport.revisions = revisions;
     imageExport.revisions = revisions;
+    htmlExport.orientation = orientation;
+    imageExport.orientation = orientation;
     htmlExport.compareWith = proseCompareWith;
     imageExport.compareWith = proseCompareWith;
   });
@@ -1751,6 +1762,21 @@
             {/if}
           {/if}
         {/if}
+      {/if}
+      {#if preview?.ok && preview.orientationAware}
+        <button
+          type="button"
+          class="head-btn"
+          onclick={() => (orientation = orientation === 'landscape' ? 'portrait' : 'landscape')}
+          aria-pressed={orientation === 'portrait'}
+          title={orientation === 'landscape'
+            ? t('page.orientationToPortraitTitle')
+            : t('page.orientationToLandscapeTitle')}
+        >
+          {orientation === 'landscape'
+            ? t('page.orientationLandscapeBtn')
+            : t('page.orientationPortraitBtn')}
+        </button>
       {/if}
       {#if preview?.ok && preview.revisionAware}
         <button

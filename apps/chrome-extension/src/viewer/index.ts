@@ -9,6 +9,7 @@ import {
   type PreviewMarkdownResult,
 } from '../shared/loadMarkdown.js';
 import type { DocumentEdition, RevisionView } from '@md-business/core';
+import type { TestSpecTsvOrientation } from '@md-business/renderer-pdf';
 import { composeFences } from '../shared/fences.js';
 import { isOpenableFileName, isTestSpecTsv } from '../shared/tsv.js';
 import { renderMermaidInHtml } from '../shared/renderMermaid.js';
@@ -40,6 +41,8 @@ interface ViewerState {
   edition: DocumentEdition;
   /** Show revision marks or the clean copy. Independent of the edition; the PDF follows. */
   revisions: RevisionView;
+  /** Paper orientation for test-spec sheets. The preview width and the PDF follow. */
+  orientation: TestSpecTsvOrientation;
   editor?: EditorView;
   /** Last successful permissive render — kept so PDF DL can reuse the styles href. */
   lastStylesHref?: string;
@@ -60,6 +63,7 @@ const state: ViewerState = {
   mode: 'preview',
   edition: 'internal',
   revisions: 'marked',
+  orientation: 'landscape',
 };
 
 let previewTimer: ReturnType<typeof setTimeout> | null = null;
@@ -172,6 +176,9 @@ function bootstrapIframe(stylesHref: string): void {
   html, body { margin: 0; background: #e5e7eb; }
   body { padding: 20px; }
   .mdb-preview-host { background: white; box-shadow: 0 2px 12px rgba(0,0,0,0.15); padding: 18mm 16mm; max-width: 178mm; margin: 0 auto; }
+  /* 検証シートは用紙の向きに合わせて版面の幅を変える（余白は CSS の @page と揃える）。 */
+  .mdb-preview-host:has(.mdb-tsv-sheet[data-orientation="landscape"]) { padding: 14mm 12mm; max-width: 273mm; }
+  .mdb-preview-host:has(.mdb-tsv-sheet[data-orientation="portrait"]) { padding: 14mm 12mm; max-width: 186mm; }
 </style>
 </head>
 <body>
@@ -226,10 +233,16 @@ async function renderPreviewFromSource(): Promise<void> {
   showWarnings(result.warnings);
   updateEditionToggle(result.editionAware);
   updateRevisionsToggle(result.revisionAware);
+  updateOrientationToggle(result.orientationAware);
 }
 
-function renderOptions(): { pluginId?: string; edition: DocumentEdition; revisions: RevisionView } {
-  const base = { edition: state.edition, revisions: state.revisions };
+function renderOptions(): {
+  pluginId?: string;
+  edition: DocumentEdition;
+  revisions: RevisionView;
+  orientation: TestSpecTsvOrientation;
+} {
+  const base = { edition: state.edition, revisions: state.revisions, orientation: state.orientation };
   return state.pluginId ? { pluginId: state.pluginId, ...base } : base;
 }
 
@@ -257,6 +270,19 @@ function updateRevisionsToggle(revisionAware: boolean): void {
   btn.title = clean
     ? '清書を表示中。改版の印を見せる'
     : '改版の印を表示中。清書に切り替える（変更をすべて反映する。PDF も同じ形になる）';
+}
+
+// 用紙の向きを選べるのは検証シートだけ。Markdown の文書は各スキーマが向きを決めている。
+function updateOrientationToggle(orientationAware: boolean): void {
+  const btn = document.getElementById('mdb-orientation');
+  if (!btn) return;
+  btn.hidden = !orientationAware;
+  const portrait = state.orientation === 'portrait';
+  btn.textContent = portrait ? '縦' : '横';
+  btn.setAttribute('aria-pressed', String(portrait));
+  btn.title = portrait
+    ? 'A4 縦で表示中。横に切り替える（PDF も同じ向きになる）'
+    : 'A4 横で表示中。縦に切り替える（PDF も同じ向きになる）';
 }
 
 function ensureIframeStylesheet(href: string): void {
@@ -699,6 +725,11 @@ async function main(): Promise<void> {
 
   document.getElementById('mdb-revisions')?.addEventListener('click', () => {
     state.revisions = state.revisions === 'clean' ? 'marked' : 'clean';
+    void renderPreviewFromSource();
+  });
+
+  document.getElementById('mdb-orientation')?.addEventListener('click', () => {
+    state.orientation = state.orientation === 'portrait' ? 'landscape' : 'portrait';
     void renderPreviewFromSource();
   });
 
