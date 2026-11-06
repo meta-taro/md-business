@@ -1,0 +1,21 @@
+#! md-business:test-spec-tsv/v1
+# タイトル: 共有リンクで行番号・行 ID を指す（デスクトップ）
+# 文書番号: TEST-md-business-023
+# 対象: meta-taro/md-business@feat/desktop-link-line
+# 行き先: md-business-desktop
+# 版: 0.38.0
+# ステータス: 未実施
+# 前提: デスクトップアプリ 0.38.0 を Windows で動かし、md-business リポジトリの複製を一度開いてあること
+# 凡例: 結果は OK / NG / 保留 / 未実施 から選択。未入力セルは空のまま（—/N/A で埋めない）。
+#@ rowid _id
+#@ note 結果 列を埋めてよいのは、実物を動かして目で見た人だけ。AI は書かない（ビルド通過・テスト green は実施ではない）。
+#@ note このシートはリリースの関門ではない。未実施の行が残ったままリリースしてよい。
+#@ note リンクの読み取り・不正な値の扱い・行番号から行 ID への読み替えは自動テストで見ている。ここに残すのは OS からリンクを開いて実物を見ないと判断できないものだけ。
+#@ note NG の行は 関連Issue 列に起票した Issue の URL を入れる。
+#@ style 結果 OK=#e7f6ec NG=#fcebec 保留=#fdf3e2
+#@ colwidth 0=48 1=88 2=240 3=280 4=260 5=120 6=160 7=200
+No.:number!	区分	項目!	手順:multiline!	期待結果:multiline!	結果:enum(OK|NG|保留|未実施)!	関連Issue:url	備考:multiline	_id
+1	検証シート	id= のリンクで、その行が選ばれた状態で開く	1. 検証シートを開き、任意の行の _id を控える\n2. エクスプローラーのアドレス欄などで md-business://open?repo=github.com/meta-taro/md-business&path=docs/test-specs/022-desktop-mark-toc.tsv&id=<控えた ID> を開く	アプリが前に出て、その検証シートが表で開き、控えた行が選ばれている	未実施			r66fcf6ebd469
+2	検証シート	line= だけのリンクでも、ファイルのその行にある行へ移る	1. 022-desktop-mark-toc.tsv の 20 行目の行を「控え」にしておく\n2. 行 1 のリンクの id= を line=21 に替えて開く	ファイルの 21 行目にある行（No. 4）が選ばれている。控えにした行の分ずれて別の行へは移らない	未実施			r64fa75a9685a
+3	Markdown	line= のリンクで、エディターのその行の頭にカーソルが来る	1. 行 1 のリンクの path を README.md、id= を line=10 に替えて開く	README.md が開き、エディターの 10 行目の頭にカーソルがあって、その行が見えている	未実施			r4c810469a5e9
+4	知らせ	無い行を指すと、開いたうえで知らせる	1. 行 3 のリンクの line= を 99999 に替えて開く	README.md は開き、「99999 行目は見つかりませんでした」と出る	未実施			r5e0935a8ba70

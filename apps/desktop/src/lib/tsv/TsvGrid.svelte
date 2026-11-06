@@ -18,13 +18,13 @@
   import type { ComputedCounts, EnumChoices, IdentifiedTsv } from '@md-business/schema-test-spec-tsv';
   import {
     applyComputed,
-    findRowsByCell,
     lockedColumns,
     readComputedColumns,
     readMarks,
     validateTsv,
   } from '@md-business/schema-test-spec-tsv';
   import { isMarked, toggleMarks } from './gridMarks';
+  import { findJumpRows } from './gridJump';
   import type { CellMark } from '$lib/presence/cellMarks';
   import {
     addAnnotation,
@@ -1453,7 +1453,7 @@
   // 同じシートの中で、列の値が一致する行へ移動する。
   // 見つからないときに黙って動かないと、リンクが壊れているのか値がまだ無いのか分からない。
   function jumpToRow(column: string, value: string): void {
-    const found = findRowsByCell(doc, column, value);
+    const found = findJumpRows(doc, column, value);
     if (found.column < 0) {
       notify(t('grid.jumpNoColumn', { column }));
       return;
