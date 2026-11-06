@@ -6,8 +6,10 @@
 [![pnpm](https://img.shields.io/badge/pnpm-required-F69220.svg)](https://pnpm.io/)
 [![Chrome Web Store](https://img.shields.io/badge/Chrome%20Web%20Store-published-4285F4.svg)](https://chromewebstore.google.com/detail/lmdplkkfmgapnhombimeohjliinifgjh)
 [![VS Code Marketplace](https://img.shields.io/badge/VS%20Code%20Marketplace-published-007ACC.svg)](https://marketplace.visualstudio.com/items?itemName=meta-taro.md-business-vscode)
+[![Open VSX](https://img.shields.io/badge/Open%20VSX-published-C160EF.svg)](https://open-vsx.org/extension/meta-taro/md-business-vscode)
+[![MCP Registry](https://img.shields.io/badge/MCP%20Registry-io.github.meta--taro%2Fmd--business-555.svg)](https://registry.modelcontextprotocol.io/v0/servers?search=io.github.meta-taro/md-business)
 
-**[⬇ Download the desktop app](https://meta-taro.github.io/md-business/download/)** (Windows / macOS) — installers, no build step. Or add the [Chrome extension](https://chromewebstore.google.com/detail/lmdplkkfmgapnhombimeohjliinifgjh) to read and print Markdown business documents in the browser, or the [VS Code extension](https://marketplace.visualstudio.com/items?itemName=meta-taro.md-business-vscode) to validate and preview them where you write code.
+**[⬇ Download the desktop app](https://meta-taro.github.io/md-business/download/)** (Windows / macOS) — installers, no build step. Or add the [Chrome extension](https://chromewebstore.google.com/detail/lmdplkkfmgapnhombimeohjliinifgjh) to read and print Markdown business documents in the browser, or the [VS Code extension](https://marketplace.visualstudio.com/items?itemName=meta-taro.md-business-vscode) to validate and preview them where you write code (also on [Open VSX](https://open-vsx.org/extension/meta-taro/md-business-vscode) for VSCodium, Cursor and other editors).
 
 > **English** | [日本語](./README.ja.md)
 
