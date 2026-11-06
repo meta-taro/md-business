@@ -46,3 +46,18 @@ describe('検証シート（カスタム TSV）のプレビュー', () => {
     expect(r.srcdoc).toContain('<link rel="stylesheet" href="../styles/test-spec-tsv.css">');
   });
 });
+
+describe('検証シートの用紙の向き', () => {
+  it('既定は A4 横で、向きを切り替えられることを知らせる', () => {
+    const r = renderSheetPreview(sheet([HEADER, '1\t開く\tOK']));
+    expect(r.srcdoc).toContain('data-orientation="landscape"');
+    expect(r.srcdoc).not.toContain('@page{size:A4 portrait}');
+    expect(r.orientationAware).toBe(true);
+  });
+
+  it('縦を指定すると A4 縦で刷る', () => {
+    const r = renderSheetPreview(sheet([HEADER, '1\t開く\tOK']), { orientation: 'portrait' });
+    expect(r.srcdoc).toContain('data-orientation="portrait"');
+    expect(r.srcdoc).toContain('@page{size:A4 portrait}');
+  });
+});

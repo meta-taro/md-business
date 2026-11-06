@@ -14,6 +14,7 @@
  * 元の文書の場所から決める（フロントに出力先を持たせない）。
  */
 import type { DocumentEdition, RevisionView } from '@md-business/core';
+import type { TestSpecTsvOrientation } from '@md-business/renderer-pdf';
 import { renderPreview } from './renderPreview';
 
 /**
@@ -22,17 +23,20 @@ import { renderPreview } from './renderPreview';
  *
  * 非同期なのはプレビューと同じ理由で、そのスキーマの描画一式を読んでから組むため。
  * 版と改版の印の見せ方は画面で表示中のものを渡す（社内版を確かめて提出版が出る、を起こさない）。
+ * 用紙の向きも同じで、検証シートだけが読む。
  */
 export async function buildExportHtml(
   source: string,
   edition: DocumentEdition = 'internal',
   revisions: RevisionView = 'marked',
+  orientation: TestSpecTsvOrientation = 'landscape',
 ): Promise<string | null> {
   const result = await renderPreview(source, {
     theme: 'light',
     shortcuts: false,
     edition,
     revisions,
+    orientation,
   });
   return result.ok ? result.srcdoc : null;
 }

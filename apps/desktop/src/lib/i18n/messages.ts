@@ -527,6 +527,10 @@ export interface Messages {
   'page.revisionsCleanBtn': string;
   'page.revisionsToCleanTitle': string;
   'page.revisionsToMarkedTitle': string;
+  'page.orientationLandscapeBtn': string;
+  'page.orientationPortraitBtn': string;
+  'page.orientationToPortraitTitle': string;
+  'page.orientationToLandscapeTitle': string;
   'page.previewHead': string;
   'page.previewTitle': string;
   'page.frontmatterHint': string;
@@ -1243,6 +1247,10 @@ const en: Messages = {
   'page.revisionsCleanBtn': 'Clean',
   'page.revisionsToCleanTitle': 'Showing revision marks. Switch to the clean copy (accepts every change; the PDF follows)',
   'page.revisionsToMarkedTitle': 'Showing the clean copy. Show the revision marks again',
+  'page.orientationLandscapeBtn': 'Landscape',
+  'page.orientationPortraitBtn': 'Portrait',
+  'page.orientationToPortraitTitle': 'Showing A4 landscape. Switch to portrait (the PDF follows)',
+  'page.orientationToLandscapeTitle': 'Showing A4 portrait. Switch to landscape (the PDF follows)',
   'page.previewHead': 'Preview',
   'page.previewTitle': '{label} preview',
   'page.frontmatterHint': 'Check the frontmatter format (the top block enclosed by ---)',
@@ -1955,6 +1963,10 @@ const ja: Messages = {
   'page.revisionsCleanBtn': '清書',
   'page.revisionsToCleanTitle': '改版の印を表示中。清書に切り替える（変更をすべて反映する。PDF もこの形になる）',
   'page.revisionsToMarkedTitle': '清書を表示中。改版の印を見せる',
+  'page.orientationLandscapeBtn': '横',
+  'page.orientationPortraitBtn': '縦',
+  'page.orientationToPortraitTitle': 'A4 横で表示中。縦に切り替える（PDF も同じ向きになる）',
+  'page.orientationToLandscapeTitle': 'A4 縦で表示中。横に切り替える（PDF も同じ向きになる）',
   'page.previewHead': 'プレビュー',
   'page.previewTitle': '{label}プレビュー',
   'page.frontmatterHint': 'frontmatter（--- で囲む先頭ブロック）の書式を確認してください',
@@ -2656,6 +2668,10 @@ const zh: Messages = {
   'page.revisionsCleanBtn': '清稿',
   'page.revisionsToCleanTitle': '正在显示修订标记。切换到清稿（接受全部修改，PDF 也随之变化）',
   'page.revisionsToMarkedTitle': '正在显示清稿。重新显示修订标记',
+  'page.orientationLandscapeBtn': '横向',
+  'page.orientationPortraitBtn': '纵向',
+  'page.orientationToPortraitTitle': '正在以 A4 横向显示。切换为纵向（PDF 方向相同）',
+  'page.orientationToLandscapeTitle': '正在以 A4 纵向显示。切换为横向（PDF 方向相同）',
   'page.previewHead': '预览',
   'page.previewTitle': '{label}预览',
   'page.frontmatterHint': '请检查 frontmatter（由 --- 包围的开头块）的格式',
@@ -3360,6 +3376,10 @@ const ko: Messages = {
   'page.revisionsCleanBtn': '정서본',
   'page.revisionsToCleanTitle': '수정 표시를 보는 중. 정서본으로 전환(모든 변경을 반영하며 PDF도 이 형태로 출력)',
   'page.revisionsToMarkedTitle': '정서본을 보는 중. 수정 표시를 다시 보기',
+  'page.orientationLandscapeBtn': '가로',
+  'page.orientationPortraitBtn': '세로',
+  'page.orientationToPortraitTitle': 'A4 가로로 보는 중. 세로로 전환 (PDF도 같은 방향)',
+  'page.orientationToLandscapeTitle': 'A4 세로로 보는 중. 가로로 전환 (PDF도 같은 방향)',
   'page.previewHead': '미리보기',
   'page.previewTitle': '{label} 미리보기',
   'page.frontmatterHint': 'frontmatter(--- 로 감싼 첫 블록) 형식을 확인하세요',

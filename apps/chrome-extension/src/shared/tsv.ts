@@ -17,6 +17,7 @@ import {
 } from '@md-business/schema-test-spec-tsv';
 import {
   renderTestSpecTsvBody,
+  type TestSpecTsvOrientation,
   type TestSpecTsvPrintDoc,
   type TestSpecTsvPrintRow,
 } from '@md-business/renderer-pdf';
@@ -58,8 +59,16 @@ export interface RenderedTsv {
   pdfFileName: string;
 }
 
+export interface RenderTestSpecTsvOptions {
+  /** 用紙の向き。省略で横。 */
+  orientation?: TestSpecTsvOrientation;
+}
+
 /** 検証シートを表の HTML にする。純関数（DOM を触らない）。 */
-export function renderTestSpecTsv(source: string): RenderedTsv {
+export function renderTestSpecTsv(
+  source: string,
+  options: RenderTestSpecTsvOptions = {},
+): RenderedTsv {
   const parsed = parseTsv(stripBom(source).replace(/\r\n/g, '\n'));
   // withRowIds が ID 列を外す。持ち回りの rowIds は表に出さないのでここで捨てる。
   const { doc } = splitHiddenRows(withRowIds(parsed));
@@ -84,6 +93,7 @@ export function renderTestSpecTsv(source: string): RenderedTsv {
     notes: readNotes(doc.directives),
     columns: names.map((name) => ({ name })),
     rows,
+    ...(options.orientation === undefined ? {} : { orientation: options.orientation }),
   };
 
   const numberKey = NUMBER_KEYS.find((key) => (doc.meta[key] ?? '') !== '');

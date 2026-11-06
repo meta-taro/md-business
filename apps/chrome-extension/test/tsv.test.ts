@@ -89,3 +89,27 @@ describe('検証シート（TSV）の表示', () => {
     expect(result.bodyHtml).toContain('待つ');
   });
 });
+
+describe('検証シート（TSV）の用紙の向き', () => {
+  it('既定は横で、縦を選べる', () => {
+    const landscape = previewMarkdown(SHEET);
+    const portrait = previewMarkdown(SHEET, { orientation: 'portrait' });
+    if (!landscape.ok || !portrait.ok) throw new Error('preview failed');
+    expect(landscape.bodyHtml).toContain('data-orientation="landscape"');
+    expect(portrait.bodyHtml).toContain('@page{size:A4 portrait}');
+  });
+
+  it('PDF 出力も選んだ向きで組む', () => {
+    const result = loadMarkdown(SHEET, { orientation: 'portrait' });
+    if (!result.ok) throw new Error(result.reason);
+    expect(result.bodyHtml).toContain('data-orientation="portrait"');
+  });
+
+  it('向きを選べるのは検証シートだけ', () => {
+    const tsv = previewMarkdown(SHEET);
+    const md = previewMarkdown('---\nschema: spec/v1\n---\n# x\n');
+    if (!tsv.ok) throw new Error('preview failed');
+    expect(tsv.orientationAware).toBe(true);
+    expect(md.ok && md.orientationAware).toBe(false);
+  });
+});

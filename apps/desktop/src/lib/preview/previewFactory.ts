@@ -26,6 +26,7 @@ import {
   type RevisionView,
   type ValidationError,
 } from '@md-business/core';
+import type { TestSpecTsvOrientation } from '@md-business/renderer-pdf';
 import { buildPreviewDocument, type PreviewTheme } from './previewDocument';
 import { themeWarnings } from './themeWarning';
 import type { PreviewProviderMeta } from './registry';
@@ -125,6 +126,8 @@ export interface PreviewOk {
   editionAware?: boolean;
   /** 改版の印がある文書か（無ければ「印あり / 清書」の切り替えを出さない）。 */
   revisionAware?: boolean;
+  /** 用紙の縦横を選べる文書か（検証シートだけ）。表示側はこれが真のときだけ切り替えを出す。 */
+  orientationAware?: boolean;
   /** 前の版と比べて印を付けられる文書か（本文を地の文で書く文書。表や帳票は比べない）。 */
   comparable?: boolean;
 }
@@ -169,6 +172,8 @@ export interface RenderPreviewOptions {
   edition?: DocumentEdition;
   /** 改版の印を見せるか（既定）、印を外した清書にするか。社内版・提出版とは独立に選ぶ。 */
   revisions?: RevisionView;
+  /** 用紙の向き。検証シートだけが読む。省略で横。 */
+  orientation?: TestSpecTsvOrientation;
 }
 
 export interface PreviewProvider extends PreviewProviderMeta {
