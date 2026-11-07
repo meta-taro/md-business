@@ -20,7 +20,12 @@ import {
   normalizeForSave,
   deriveSuggestedFileName,
   buildBackupRecord,
+  readSheetEncoding,
+  restoreSheetEncoding,
+  type SaveKind,
+  type SheetEncoding,
 } from './localSave.js';
+import { decorateSheet, SHEET_EDIT_CSS } from './sheetEditor.js';
 
 const PDF_GUIDE_SKIP_KEY = 'mdb:pdf-guide-skip';
 const PREVIEW_DEBOUNCE_MS = 200;
@@ -56,6 +61,8 @@ interface ViewerState {
    * picker reappears next session).
    */
   fileHandle?: FileSystemFileHandle;
+  /** 検証シートを開いたときの改行と BOM。書き戻すときに戻す。 */
+  sheetEncoding: SheetEncoding;
 }
 
 const state: ViewerState = {
@@ -64,6 +71,7 @@ const state: ViewerState = {
   edition: 'internal',
   revisions: 'marked',
   orientation: 'landscape',
+  sheetEncoding: { bom: false, eol: '\n' },
 };
 
 let previewTimer: ReturnType<typeof setTimeout> | null = null;
@@ -179,6 +187,7 @@ function bootstrapIframe(stylesHref: string): void {
   /* 検証シートは用紙の向きに合わせて版面の幅を変える（余白は CSS の @page と揃える）。 */
   .mdb-preview-host:has(.mdb-tsv-sheet[data-orientation="landscape"]) { padding: 14mm 12mm; max-width: 273mm; }
   .mdb-preview-host:has(.mdb-tsv-sheet[data-orientation="portrait"]) { padding: 14mm 12mm; max-width: 186mm; }
+  ${SHEET_EDIT_CSS}
 </style>
 </head>
 <body>
@@ -197,7 +206,28 @@ function bootstrapIframe(stylesHref: string): void {
 function updateIframeBody(html: string): void {
   const iframe = document.getElementById('mdb-preview') as HTMLIFrameElement | null;
   const host = iframe?.contentDocument?.getElementById('mdb-preview-host');
-  if (host) host.innerHTML = html;
+  if (!host) return;
+  host.innerHTML = html;
+  if (isTestSpecTsv(state.source)) {
+    decorateSheet(host, { getSource: () => state.source, commit: applySheetEdit });
+  }
+}
+
+/**
+ * 表の上で直した結果をエディタへ入れる。エディタ側の取り消し（Ctrl+Z）で戻せるように、
+ * 状態を直接書き換えずにエディタの変更として通す。表は待たずに描き直す（打った値がすぐ見える）。
+ */
+function applySheetEdit(next: string): void {
+  const editor = state.editor;
+  if (editor) {
+    editor.dispatch({ changes: { from: 0, to: editor.state.doc.length, insert: next } });
+  }
+  state.source = next;
+  if (previewTimer !== null) {
+    globalThis.clearTimeout(previewTimer);
+    previewTimer = null;
+  }
+  void renderPreviewFromSource();
 }
 
 // 検証シートには図・データの囲みが無い。セルの文字が囲みに見えても書き換えない。
@@ -364,8 +394,11 @@ function hasFileSystemAccess(): boolean {
   return typeof (globalThis as unknown as { showSaveFilePicker?: unknown }).showSaveFilePicker === 'function';
 }
 
-async function pickSaveHandle(suggestedName: string): Promise<FileSystemFileHandle | null> {
-  const opts = buildSavePickerOptions(suggestedName);
+async function pickSaveHandle(
+  suggestedName: string,
+  kind: SaveKind,
+): Promise<FileSystemFileHandle | null> {
+  const opts = buildSavePickerOptions(suggestedName, kind);
   try {
     const picker = (globalThis as unknown as {
       showSaveFilePicker: (o: SavePickerOptionsBrowser) => Promise<FileSystemFileHandle>;
@@ -416,12 +449,13 @@ async function handleSaveClick(saveAs: boolean): Promise<void> {
     return;
   }
 
+  const kind: SaveKind = isTestSpecTsv(state.source) ? 'tsv' : 'markdown';
   const suggested = deriveSuggestedFileName(
-    state.fileName ? { existingName: state.fileName } : {},
+    state.fileName ? { existingName: state.fileName, kind } : { kind },
   );
   let handle = state.fileHandle;
   if (saveAs || !handle) {
-    const picked = await pickSaveHandle(suggested);
+    const picked = await pickSaveHandle(suggested, kind);
     if (!picked) return; // user cancelled
     handle = picked;
   }
@@ -431,9 +465,13 @@ async function handleSaveClick(saveAs: boolean): Promise<void> {
   // recoverable via DevTools / restore tooling.
   snapshotPreviousContentToBackup();
 
-  const normalized = normalizeForSave(state.source);
+  // 検証シートは開いたときの改行と BOM のまま書く。エディタの中身は LF のまま触らない。
+  const normalized =
+    kind === 'tsv' ? state.source : normalizeForSave(state.source);
+  const written =
+    kind === 'tsv' ? restoreSheetEncoding(normalized, state.sheetEncoding) : normalized;
   try {
-    await writeMarkdownTo(handle, normalized);
+    await writeMarkdownTo(handle, written);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     setStatus(`保存に失敗しました: ${message}`, 'error');
@@ -688,6 +726,7 @@ async function main(): Promise<void> {
     return;
   }
   state.source = payload.source;
+  state.sheetEncoding = readSheetEncoding(payload.source);
   if (payload.pluginId) state.pluginId = payload.pluginId;
   if (payload.filename) state.fileName = payload.filename;
 
