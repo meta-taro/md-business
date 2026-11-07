@@ -112,6 +112,24 @@ describe('saveGridDoc', () => {
     expect(saveGridDoc(doc, { hidden }, withHidden)).toBe(withHidden);
   });
 
+  it('人が書いた注記の行は保存しても消えない', () => {
+    const source = [
+      '#! md-business:test-spec-tsv/v1',
+      '# 台帳（架空の見本）。refs は説明',
+      '# タイトル: 受発注 検証シート',
+      `#@ rowid ${ROW_ID_COLUMN}`,
+      `項目\t結果\t${ROW_ID_COLUMN}`,
+      `ログイン\tOK\t${A}`,
+    ].join('\n');
+    const { doc, hidden } = loadGridDoc(source);
+    const edited = { ...doc, rows: [['ログアウト', 'OK']] };
+
+    expect(saveGridDoc(edited, { hidden }, source).split('\n').slice(0, 2)).toEqual([
+      '#! md-business:test-spec-tsv/v1',
+      '# 台帳（架空の見本）。refs は説明',
+    ]);
+  });
+
   it('ID 列を持たないシートは保存時に ID 列が付く', () => {
     const source = ['#! md-business:test-spec-tsv/v1', '項目', 'ログイン'].join('\n');
     const { doc, hidden } = loadGridDoc(source);

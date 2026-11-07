@@ -9,8 +9,13 @@ import type { ParsedHeader } from './types.js';
 export interface TsvDocument {
   /** `#!` マジック行のフォーマット識別子（例 `md-business:test-spec-tsv/v1`）。無ければ空文字。 */
   formatId: string;
-  /** `#` メタ行の `キー: 値`（コロンを含まない行は無視。同一キーは後勝ち）。 */
+  /** `#` メタ行の `キー: 値`（同一キーは後勝ち）。 */
   meta: Record<string, string>;
+  /**
+   * コロンを含まない `#` 行（人が書いた注記）。`#` の後ろを空白ごとそのまま持つ。
+   * 持たないと、表で開いて保存しただけで人の書いた説明が消える。無ければ省く。
+   */
+  comments?: string[];
   /** `#@` ディレクティブ行（`#@` を剥がし trim した生文字列。詳細パースは別ブロック）。 */
   directives: string[];
   /** 最初の `data` 行＝型付きヘッダを解釈した列定義。 */
@@ -37,7 +42,7 @@ function splitPhysicalLines(text: string): string[] {
  *
  * 各物理行を {@link classifyLine} で判別し、種類ごとに処理する:
  * - `magic`: `#!` を剥がして formatId に（最初の 1 本のみ採用）。
- * - `meta`: `#` を剥がし最初の `:` で `キー: 値` に分割（コロン無しは無視）。
+ * - `meta`: `#` を剥がし最初の `:` で `キー: 値` に分割（コロン無しは comments へ）。
  * - `directive`: `#@` を剥がして生文字列を収集。
  * - `data`: 最初の行を {@link parseTypedHeader} で列定義に、以降を tab 分割 + {@link unescapeCell}。
  * - `blank`: 読み飛ばす。
@@ -45,6 +50,7 @@ function splitPhysicalLines(text: string): string[] {
 export function parseTsv(text: string): TsvDocument {
   let formatId = '';
   const meta: Record<string, string> = {};
+  const comments: string[] = [];
   const directives: string[] = [];
   let columns: ParsedHeader[] = [];
   const rows: string[][] = [];
@@ -77,6 +83,8 @@ export function parseTsv(text: string): TsvDocument {
           const key = body.slice(0, colon).trim();
           const value = body.slice(colon + 1).trim();
           meta[key] = value;
+        } else {
+          comments.push(line.slice(1));
         }
         break;
       }
@@ -94,5 +102,7 @@ export function parseTsv(text: string): TsvDocument {
     }
   }
 
-  return { formatId, meta, directives, columns, rows };
+  const doc: TsvDocument = { formatId, meta, directives, columns, rows };
+  if (comments.length > 0) doc.comments = comments;
+  return doc;
 }

@@ -93,7 +93,7 @@
   import { keepsNativeContextMenu } from './gridContextMenu';
   import {
     readLayout,
-    writeLayoutDirectives,
+    layoutDirectivesToPersist,
     type LayoutDefaults,
     type GridLayout,
   } from './gridLayoutDirectives';
@@ -813,7 +813,8 @@
       colAligns,
       rowHeights: rowHeights.slice(0, doc.rows.length),
     };
-    const directives = writeLayoutDirectives(doc.directives, layout, layoutDefaults(), doc.rowIds);
+    const directives = layoutDirectivesToPersist(doc.directives, layout, layoutDefaults(), doc.rowIds);
+    if (directives === null) return;
     onChange({ ...doc, directives });
   }
   // テーブル全幅＝行番号列 + 各列幅の合計（fixed レイアウトで横スクロール可能に）。

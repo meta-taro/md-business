@@ -3,6 +3,7 @@ import type { ColOverflowMode } from './gridColumnMode';
 import {
   readLayout,
   writeLayoutDirectives,
+  layoutDirectivesToPersist,
   type LayoutDefaults,
   type GridLayout,
 } from './gridLayoutDirectives';
@@ -173,5 +174,27 @@ describe('writeLayoutDirectives', () => {
     // 先頭に 1 行挿した状態で読み直す。
     const after = readLayout(directives, [id(99), ...ids(3)], defaults);
     expect(after.rowHeights).toEqual([30, 30, 48, 30]);
+  });
+});
+
+describe('layoutDirectivesToPersist', () => {
+  it('読んだレイアウトのままなら書かない（開いただけでファイルが変わらない）', () => {
+    const directives = ['style 結果 〇=#e6f4ea', 'colwidth 0=200', 'colmode 1=overflow'];
+    const layout = readLayout(directives, ids(2), defaults);
+    expect(layoutDirectivesToPersist(directives, layout, defaults, ids(2))).toBeNull();
+  });
+
+  it('宣言の並びが書き戻しと違うだけなら書かない', () => {
+    const directives = ['colmode 1=overflow', 'style 結果 〇=#e6f4ea', 'colwidth 0=200'];
+    const layout = readLayout(directives, ids(2), defaults);
+    expect(layoutDirectivesToPersist(directives, layout, defaults, ids(2))).toBeNull();
+  });
+
+  it('レイアウトが変わったときだけ新しい宣言を返す', () => {
+    const directives = ['colwidth 0=200'];
+    const layout = { ...readLayout(directives, ids(2), defaults), colWidths: [240, 88, 256] };
+    expect(layoutDirectivesToPersist(directives, layout, defaults, ids(2))).toEqual([
+      'colwidth 0=240',
+    ]);
   });
 });
