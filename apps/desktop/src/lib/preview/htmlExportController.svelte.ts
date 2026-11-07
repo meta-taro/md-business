@@ -12,6 +12,7 @@
 import { invoke } from '@tauri-apps/api/core';
 import { browser } from '$app/environment';
 import type { DocumentEdition, RevisionView } from '@md-business/core';
+import type { TestSpecTsvOrientation } from '@md-business/renderer-pdf';
 import { workspace } from '$lib/workspace/workspace.svelte';
 
 /** 結果表示が自分で消えるまで。読めば用の済む知らせなので閉じる操作を増やさない。 */
@@ -30,6 +31,7 @@ class HtmlExportController {
   /** 画面で表示中の版。書き出しも同じ版で組む。 */
   edition = $state<DocumentEdition>('internal');
   revisions = $state<RevisionView>('marked');
+  orientation = $state<TestSpecTsvOrientation>('landscape');
   /** 前の版と比べているときはその版の中身。書き出しも画面と同じく印を付けて組む。 */
   compareWith = $state<string | null>(null);
   #timer: ReturnType<typeof setTimeout> | null = null;
@@ -76,7 +78,7 @@ class HtmlExportController {
       // 書き出す HTML は明るい配色で組む（buildExportHtml）。図の色もそちらに合わせる。
       ink: CHART_INK.light,
     });
-    const html = await buildExportHtml(source, this.edition, this.revisions);
+    const html = await buildExportHtml(source, this.edition, this.revisions, this.orientation);
     // canExport を満たしていれば通常ここには来ない（プレビューが出ている＝組める）。
     if (html === null) return;
 

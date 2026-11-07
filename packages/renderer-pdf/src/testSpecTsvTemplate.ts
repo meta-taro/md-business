@@ -60,7 +60,12 @@ export interface TestSpecTsvPrintDoc {
   rows: TestSpecTsvPrintRow[];
   /** セルの注釈を番号順に。無ければ省略してよい。 */
   annotations?: TestSpecTsvPrintAnnotation[];
+  /** 用紙の向き。省略で横（列が多いシートが大半のため）。 */
+  orientation?: TestSpecTsvOrientation;
 }
+
+/** 用紙の向き。 */
+export type TestSpecTsvOrientation = 'portrait' | 'landscape';
 
 /** インライン style へ流してよい色の形。任意文字列を通すと CSS を差し込まれる。 */
 const HEX_COLOR = /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i;
@@ -223,8 +228,14 @@ export function renderTestSpecTsvBody(doc: TestSpecTsvPrintDoc): string {
     </table>
   `;
 
+  const orientation = doc.orientation === 'portrait' ? 'portrait' : 'landscape';
+  // 既定の横は CSS 側の @page が持つ。縦のときだけ本文の先頭で上書きする
+  // （CSS を 2 本持つと、余白などを直すたびに両方を揃えることになる）。
+  const pageOverride =
+    orientation === 'portrait' ? '<style>@page{size:A4 portrait}</style>' : '';
+
   return `
-    <article class="mdb-tsv-sheet">
+    ${pageOverride}<article class="mdb-tsv-sheet" data-orientation="${orientation}">
       ${head}
       ${body}
       ${renderAnnotations(doc)}

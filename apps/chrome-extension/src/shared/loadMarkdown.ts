@@ -17,6 +17,7 @@ import {
   renderTestSpecTsv,
 } from './tsv.js';
 import type { ValidationError } from '@md-business/core';
+import type { TestSpecTsvOrientation } from '@md-business/renderer-pdf';
 
 export interface LoadedDocument {
   plugin: SchemaPlugin;
@@ -46,6 +47,8 @@ export interface LoadMarkdownSuccess {
   editionAware: boolean;
   /** The body has revision marks, so marked / clean differ. */
   revisionAware: boolean;
+  /** The paper orientation can be chosen (test-spec sheets only). */
+  orientationAware: boolean;
 }
 
 export interface LoadMarkdownFailure {
@@ -66,6 +69,8 @@ export interface LoadMarkdownOptions {
   edition?: DocumentEdition;
   /** Show revision marks (default) or build the clean copy. Independent of the edition. */
   revisions?: RevisionView;
+  /** Paper orientation for test-spec sheets. Defaults to landscape. */
+  orientation?: TestSpecTsvOrientation;
 }
 
 /**
@@ -82,7 +87,7 @@ export interface LoadMarkdownOptions {
  */
 export function loadMarkdown(source: string, options: LoadMarkdownOptions = {}): LoadMarkdownResult {
   if (isTestSpecTsv(source)) {
-    const tsv = renderTestSpecTsv(source);
+    const tsv = renderTestSpecTsv(source, options);
     return {
       ok: true,
       bodyHtml: tsv.bodyHtml,
@@ -93,6 +98,7 @@ export function loadMarkdown(source: string, options: LoadMarkdownOptions = {}):
       warnings: [],
       editionAware: false,
       revisionAware: false,
+      orientationAware: true,
     };
   }
   const registry = options.registry ?? createDefaultRegistry();
@@ -158,6 +164,7 @@ export function loadMarkdown(source: string, options: LoadMarkdownOptions = {}):
     ],
     editionAware,
     revisionAware,
+    orientationAware: false,
   };
 }
 
@@ -179,6 +186,8 @@ export interface PreviewMarkdownSuccess {
   editionAware: boolean;
   /** The body has revision marks, so marked / clean differ. */
   revisionAware: boolean;
+  /** The paper orientation can be chosen (test-spec sheets only). */
+  orientationAware: boolean;
 }
 
 export interface PreviewMarkdownFailure {
@@ -206,13 +215,14 @@ export function previewMarkdown(
   if (isTestSpecTsv(source)) {
     return {
       ok: true,
-      bodyHtml: renderTestSpecTsv(source).bodyHtml,
+      bodyHtml: renderTestSpecTsv(source, options).bodyHtml,
       stylesHref: TEST_SPEC_TSV_STYLES_HREF,
       pluginId: TEST_SPEC_TSV_PLUGIN_ID,
       errors: [],
       warnings: [],
       editionAware: false,
       revisionAware: false,
+      orientationAware: true,
     };
   }
   const registry = options.registry ?? createDefaultRegistry();
@@ -267,6 +277,7 @@ export function previewMarkdown(
       ...(result.fatal ? { fatal: result.fatal } : {}),
       editionAware,
       revisionAware,
+      orientationAware: false,
     };
   }
   const validated = plugin.validate(frontmatter);
@@ -279,5 +290,6 @@ export function previewMarkdown(
     warnings: [...(validated.warnings ?? []), ...leaks],
     editionAware,
     revisionAware,
+    orientationAware: false,
   };
 }

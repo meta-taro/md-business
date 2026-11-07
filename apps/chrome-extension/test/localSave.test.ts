@@ -5,6 +5,8 @@ import {
   deriveSuggestedFileName,
   buildBackupRecord,
   BACKUP_STORAGE_KEY,
+  readSheetEncoding,
+  restoreSheetEncoding,
 } from '../src/viewer/localSave.js';
 
 describe('buildSavePickerOptions — File System Access API options', () => {
@@ -101,5 +103,35 @@ describe('buildBackupRecord — pre-overwrite snapshot for localStorage', () => 
     const record = buildBackupRecord(src, 'login.md', 0);
     const parsed = JSON.parse(record.payload) as { src: string };
     expect(parsed.src).toBe(src);
+  });
+});
+
+describe('検証シート（.tsv）の保存', () => {
+  it('TSV の保存は .tsv を提案する', () => {
+    const opts = buildSavePickerOptions('login.tsv', 'tsv');
+    expect(opts.suggestedName).toBe('login.tsv');
+    expect(opts.types?.[0]?.accept).toEqual({ 'text/tab-separated-values': ['.tsv'] });
+  });
+
+  it('TSV の保存名は拡張子を .tsv にそろえる', () => {
+    expect(deriveSuggestedFileName({ existingName: 'login.txt', kind: 'tsv' })).toBe('login.tsv');
+    expect(deriveSuggestedFileName({ kind: 'tsv' })).toBe('untitled.tsv');
+  });
+
+  it('開いたときの改行と BOM に戻して書く', () => {
+    const lf = '#! md-business:test-spec-tsv/v1\n項目\nA\n';
+    expect(restoreSheetEncoding(lf, { bom: true, eol: '\r\n' })).toBe(
+      '﻿#! md-business:test-spec-tsv/v1\r\n項目\r\nA\r\n',
+    );
+    expect(restoreSheetEncoding(lf, { bom: false, eol: '\n' })).toBe(lf);
+  });
+
+  it('元の BOM を二重に付けない', () => {
+    expect(restoreSheetEncoding('﻿a\n', { bom: true, eol: '\n' })).toBe('﻿a\n');
+  });
+
+  it('開いた中身から改行と BOM を読む', () => {
+    expect(readSheetEncoding('﻿a\r\nb')).toEqual({ bom: true, eol: '\r\n' });
+    expect(readSheetEncoding('a\nb')).toEqual({ bom: false, eol: '\n' });
   });
 });

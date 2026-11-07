@@ -9,6 +9,7 @@ import {
   type PreviewMarkdownResult,
 } from '../shared/loadMarkdown.js';
 import type { DocumentEdition, RevisionView } from '@md-business/core';
+import type { TestSpecTsvOrientation } from '@md-business/renderer-pdf';
 import { composeFences } from '../shared/fences.js';
 import { isOpenableFileName, isTestSpecTsv } from '../shared/tsv.js';
 import { renderMermaidInHtml } from '../shared/renderMermaid.js';
@@ -19,7 +20,12 @@ import {
   normalizeForSave,
   deriveSuggestedFileName,
   buildBackupRecord,
+  readSheetEncoding,
+  restoreSheetEncoding,
+  type SaveKind,
+  type SheetEncoding,
 } from './localSave.js';
+import { decorateSheet, SHEET_EDIT_CSS } from './sheetEditor.js';
 
 const PDF_GUIDE_SKIP_KEY = 'mdb:pdf-guide-skip';
 const PREVIEW_DEBOUNCE_MS = 200;
@@ -40,6 +46,8 @@ interface ViewerState {
   edition: DocumentEdition;
   /** Show revision marks or the clean copy. Independent of the edition; the PDF follows. */
   revisions: RevisionView;
+  /** Paper orientation for test-spec sheets. The preview width and the PDF follow. */
+  orientation: TestSpecTsvOrientation;
   editor?: EditorView;
   /** Last successful permissive render — kept so PDF DL can reuse the styles href. */
   lastStylesHref?: string;
@@ -53,6 +61,8 @@ interface ViewerState {
    * picker reappears next session).
    */
   fileHandle?: FileSystemFileHandle;
+  /** 検証シートを開いたときの改行と BOM。書き戻すときに戻す。 */
+  sheetEncoding: SheetEncoding;
 }
 
 const state: ViewerState = {
@@ -60,6 +70,8 @@ const state: ViewerState = {
   mode: 'preview',
   edition: 'internal',
   revisions: 'marked',
+  orientation: 'landscape',
+  sheetEncoding: { bom: false, eol: '\n' },
 };
 
 let previewTimer: ReturnType<typeof setTimeout> | null = null;
@@ -172,6 +184,10 @@ function bootstrapIframe(stylesHref: string): void {
   html, body { margin: 0; background: #e5e7eb; }
   body { padding: 20px; }
   .mdb-preview-host { background: white; box-shadow: 0 2px 12px rgba(0,0,0,0.15); padding: 18mm 16mm; max-width: 178mm; margin: 0 auto; }
+  /* 検証シートは用紙の向きに合わせて版面の幅を変える（余白は CSS の @page と揃える）。 */
+  .mdb-preview-host:has(.mdb-tsv-sheet[data-orientation="landscape"]) { padding: 14mm 12mm; max-width: 273mm; }
+  .mdb-preview-host:has(.mdb-tsv-sheet[data-orientation="portrait"]) { padding: 14mm 12mm; max-width: 186mm; }
+  ${SHEET_EDIT_CSS}
 </style>
 </head>
 <body>
@@ -190,7 +206,28 @@ function bootstrapIframe(stylesHref: string): void {
 function updateIframeBody(html: string): void {
   const iframe = document.getElementById('mdb-preview') as HTMLIFrameElement | null;
   const host = iframe?.contentDocument?.getElementById('mdb-preview-host');
-  if (host) host.innerHTML = html;
+  if (!host) return;
+  host.innerHTML = html;
+  if (isTestSpecTsv(state.source)) {
+    decorateSheet(host, { getSource: () => state.source, commit: applySheetEdit });
+  }
+}
+
+/**
+ * 表の上で直した結果をエディタへ入れる。エディタ側の取り消し（Ctrl+Z）で戻せるように、
+ * 状態を直接書き換えずにエディタの変更として通す。表は待たずに描き直す（打った値がすぐ見える）。
+ */
+function applySheetEdit(next: string): void {
+  const editor = state.editor;
+  if (editor) {
+    editor.dispatch({ changes: { from: 0, to: editor.state.doc.length, insert: next } });
+  }
+  state.source = next;
+  if (previewTimer !== null) {
+    globalThis.clearTimeout(previewTimer);
+    previewTimer = null;
+  }
+  void renderPreviewFromSource();
 }
 
 // 検証シートには図・データの囲みが無い。セルの文字が囲みに見えても書き換えない。
@@ -226,10 +263,16 @@ async function renderPreviewFromSource(): Promise<void> {
   showWarnings(result.warnings);
   updateEditionToggle(result.editionAware);
   updateRevisionsToggle(result.revisionAware);
+  updateOrientationToggle(result.orientationAware);
 }
 
-function renderOptions(): { pluginId?: string; edition: DocumentEdition; revisions: RevisionView } {
-  const base = { edition: state.edition, revisions: state.revisions };
+function renderOptions(): {
+  pluginId?: string;
+  edition: DocumentEdition;
+  revisions: RevisionView;
+  orientation: TestSpecTsvOrientation;
+} {
+  const base = { edition: state.edition, revisions: state.revisions, orientation: state.orientation };
   return state.pluginId ? { pluginId: state.pluginId, ...base } : base;
 }
 
@@ -257,6 +300,19 @@ function updateRevisionsToggle(revisionAware: boolean): void {
   btn.title = clean
     ? '清書を表示中。改版の印を見せる'
     : '改版の印を表示中。清書に切り替える（変更をすべて反映する。PDF も同じ形になる）';
+}
+
+// 用紙の向きを選べるのは検証シートだけ。Markdown の文書は各スキーマが向きを決めている。
+function updateOrientationToggle(orientationAware: boolean): void {
+  const btn = document.getElementById('mdb-orientation');
+  if (!btn) return;
+  btn.hidden = !orientationAware;
+  const portrait = state.orientation === 'portrait';
+  btn.textContent = portrait ? '縦' : '横';
+  btn.setAttribute('aria-pressed', String(portrait));
+  btn.title = portrait
+    ? 'A4 縦で表示中。横に切り替える（PDF も同じ向きになる）'
+    : 'A4 横で表示中。縦に切り替える（PDF も同じ向きになる）';
 }
 
 function ensureIframeStylesheet(href: string): void {
@@ -338,8 +394,11 @@ function hasFileSystemAccess(): boolean {
   return typeof (globalThis as unknown as { showSaveFilePicker?: unknown }).showSaveFilePicker === 'function';
 }
 
-async function pickSaveHandle(suggestedName: string): Promise<FileSystemFileHandle | null> {
-  const opts = buildSavePickerOptions(suggestedName);
+async function pickSaveHandle(
+  suggestedName: string,
+  kind: SaveKind,
+): Promise<FileSystemFileHandle | null> {
+  const opts = buildSavePickerOptions(suggestedName, kind);
   try {
     const picker = (globalThis as unknown as {
       showSaveFilePicker: (o: SavePickerOptionsBrowser) => Promise<FileSystemFileHandle>;
@@ -390,12 +449,13 @@ async function handleSaveClick(saveAs: boolean): Promise<void> {
     return;
   }
 
+  const kind: SaveKind = isTestSpecTsv(state.source) ? 'tsv' : 'markdown';
   const suggested = deriveSuggestedFileName(
-    state.fileName ? { existingName: state.fileName } : {},
+    state.fileName ? { existingName: state.fileName, kind } : { kind },
   );
   let handle = state.fileHandle;
   if (saveAs || !handle) {
-    const picked = await pickSaveHandle(suggested);
+    const picked = await pickSaveHandle(suggested, kind);
     if (!picked) return; // user cancelled
     handle = picked;
   }
@@ -405,9 +465,13 @@ async function handleSaveClick(saveAs: boolean): Promise<void> {
   // recoverable via DevTools / restore tooling.
   snapshotPreviousContentToBackup();
 
-  const normalized = normalizeForSave(state.source);
+  // 検証シートは開いたときの改行と BOM のまま書く。エディタの中身は LF のまま触らない。
+  const normalized =
+    kind === 'tsv' ? state.source : normalizeForSave(state.source);
+  const written =
+    kind === 'tsv' ? restoreSheetEncoding(normalized, state.sheetEncoding) : normalized;
   try {
-    await writeMarkdownTo(handle, normalized);
+    await writeMarkdownTo(handle, written);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     setStatus(`保存に失敗しました: ${message}`, 'error');
@@ -662,6 +726,7 @@ async function main(): Promise<void> {
     return;
   }
   state.source = payload.source;
+  state.sheetEncoding = readSheetEncoding(payload.source);
   if (payload.pluginId) state.pluginId = payload.pluginId;
   if (payload.filename) state.fileName = payload.filename;
 
@@ -699,6 +764,11 @@ async function main(): Promise<void> {
 
   document.getElementById('mdb-revisions')?.addEventListener('click', () => {
     state.revisions = state.revisions === 'clean' ? 'marked' : 'clean';
+    void renderPreviewFromSource();
+  });
+
+  document.getElementById('mdb-orientation')?.addEventListener('click', () => {
+    state.orientation = state.orientation === 'portrait' ? 'landscape' : 'portrait';
     void renderPreviewFromSource();
   });
 
