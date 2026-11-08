@@ -45,7 +45,7 @@ async function loadDocument(
   const cached = documents.get(key);
   if (cached !== undefined) return cached;
   const { renderPreview } = await import("$lib/preview/renderPreview");
-  const result = await renderPreview(source, { theme, shortcuts: false });
+  const result = await renderPreview(source, { theme, shortcuts: false, fileName: path });
   const thumbnail: Thumbnail = result.ok
     ? { type: "document", srcdoc: result.srcdoc }
     : { type: "none" };
