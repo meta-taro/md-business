@@ -10,6 +10,7 @@
  */
 import { describeFrontmatterError, emphasisWarnings, parseMarkdown } from '@md-business/core';
 import { isTsvSource } from '../tsv/detect';
+import { isTsvFileName } from './providers/plainTsv';
 import { resolveProvider } from './registry';
 import { LAZY_PROVIDERS } from './providers/lazy';
 import { renderMarkdownFallback } from './providers/markdownFallback';
@@ -28,6 +29,11 @@ export async function renderPreview(
   if (isTsvSource(source)) {
     const { renderSheetPreview } = await import('./providers/testSpecTsv');
     return renderSheetPreview(source, options);
+  }
+  // 宣言の無い .tsv は、Markdown として読ませると列がつぶれる。素の表で描く。
+  if (isTsvFileName(options.fileName)) {
+    const { renderPlainTsvPreview } = await import('./providers/plainTsv');
+    return renderPlainTsvPreview(source, options);
   }
 
   let frontmatter: Record<string, unknown>;

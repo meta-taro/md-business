@@ -174,6 +174,11 @@ export interface RenderPreviewOptions {
   revisions?: RevisionView;
   /** 用紙の向き。検証シートだけが読む。省略で横。 */
   orientation?: TestSpecTsvOrientation;
+  /**
+   * 開いているファイルの名前。宣言の無い `.tsv` を見分けるのに使う（中身だけでは
+   * Markdown と区別できない）。省略すると中身だけで振り分ける。
+   */
+  fileName?: string;
 }
 
 export interface PreviewProvider extends PreviewProviderMeta {

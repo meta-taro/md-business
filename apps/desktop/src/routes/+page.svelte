@@ -518,6 +518,7 @@
       edition: currentEdition,
       revisions: currentRevisions,
       orientation: currentOrientation,
+      fileName: workspace.activePath ?? undefined,
     }).then((result) => {
       if (generation === previewGeneration) preview = result;
     });

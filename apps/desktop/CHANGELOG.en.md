@@ -4,6 +4,16 @@ Changes to this app. Versions follow [Semantic Versioning](https://semver.org/).
 
 Japanese is the source of truth for this file; see [CHANGELOG.md](./CHANGELOG.md).
 
+## 0.39.0
+
+### Added
+
+- **A `.tsv` without the format line previews as a table.** A `.tsv` whose first line isn't `#! md-business:test-spec-tsv/v1` used to be read as Markdown, which collapsed its columns. It now shows as a plain table with the first line as headers. The file is not rewritten.
+
+### Fixed
+
+- **Saving a test sheet from the grid no longer drops note lines starting with `#`.** They are written back right after the first line. Layout declarations (column widths and so on) are no longer rewritten when they haven't changed.
+
 ## 0.38.0
 
 ### Added
