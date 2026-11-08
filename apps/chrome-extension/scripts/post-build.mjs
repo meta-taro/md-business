@@ -126,20 +126,20 @@ const STARTER_TEMPLATES = [
     category: '適格請求書',
     file: 'standard-ja.md',
     label: '日本語フィールド名・適格請求書（推奨）',
-    description: '日本語キー（請求書番号 / 発行元 / 品目 …）の最新スタイル。3 品目 + 振込先 + 印影。',
+    description: '日本語の項目名（請求書番号 / 発行元 / 品目 …）の最新スタイル。3 品目 + 振込先 + 印影。',
   },
   {
     schema: 'invoice',
     category: '適格請求書',
     file: 'standard.md',
-    label: '英語キー・標準請求書（出力は日本語）',
-    description: '英語キー（invoiceNumber / issuer / items …）の標準スタイル。',
+    label: '英語フィールド名・標準請求書（出力は日本語）',
+    description: '項目名を英語（invoiceNumber / issuer / items …）で書く標準スタイル。',
   },
   {
     schema: 'invoice',
     category: '適格請求書',
     file: 'inbound-eligible.md',
-    label: '英語キー・軽減税率（8%）込み（出力は日本語）',
+    label: '英語フィールド名・軽減税率（8%）込み（出力は日本語）',
     description: '8% 軽減税率対象品目を含む適格請求書サンプル。',
   },
   {
@@ -154,7 +154,7 @@ const STARTER_TEMPLATES = [
     category: '基本設計書',
     file: 'standard-ja.md',
     label: '日本語フィールド名・基本設計書（EC 注文管理サブシステム）',
-    description: '8 章 / Mermaid 図 / 表を含む数ページの基本設計書サンプル。日本語キー（文書番号 / 作成者 / レビュアー …）。',
+    description: '8 章 / Mermaid 図 / 表を含む数ページの基本設計書サンプル。日本語の項目名（文書番号 / 作成者 / レビュアー …）。',
   },
   {
     // 検証シートの本則は TSV。拡張では表として見て PDF にするだけで、編集はデスクトップアプリで行う。
@@ -169,21 +169,21 @@ const STARTER_TEMPLATES = [
     category: '検証シート',
     file: 'standard-ja.md',
     label: '検証シート（Markdown・Google Sheets 連携用）',
-    description: '列定義（プルダウン / 日付 / 数値）と検証手順表を含む Markdown 版。Google Sheets 連携 + GitHub 自動同期に使う。日本語キー。',
+    description: '列定義（プルダウン / 日付 / 数値）と検証手順表を含む Markdown 版。Google Sheets 連携 + GitHub 自動同期に使う。項目名は日本語。',
   },
   {
     schema: 'api-spec',
     category: 'API 詳細設計書',
     file: 'standard-ja.md',
     label: '日本語フィールド名・API 詳細設計書（受発注サブシステム）',
-    description: 'エンドポイント・リクエスト / レスポンス・エラーコードを表で並べる API 詳細設計書サンプル。日本語キー。',
+    description: 'エンドポイント・リクエスト / レスポンス・エラーコードを表で並べる API 詳細設計書サンプル。項目名は日本語。',
   },
   {
     schema: 'investigation',
     category: '調査報告書',
     file: 'standard-ja.md',
     label: '日本語フィールド名・調査報告書（ログイン失敗の調査）',
-    description: '対象ファイル・使用ツール・所見（根拠つき）を並べる調査報告書サンプル。日本語キー。',
+    description: '対象ファイル・使用ツール・所見（根拠つき）を並べる調査報告書サンプル。項目名は日本語。',
   },
 ];
 
