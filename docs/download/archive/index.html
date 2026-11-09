@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>過去の版 — md-business デスクトップアプリ</title>
+<meta name="description" content="md-business デスクトップアプリの過去の版の一覧。版ごとに公開日と対応する OS を並べ、その版のインストーラを落とせるダウンロードページへ案内する。">
+<link rel="canonical" href="https://meta-taro.github.io/md-business/download/archive/">
+<link rel="icon" type="image/png" sizes="32x32" href="../../assets/favicon-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="../../assets/favicon-16.png">
+<link rel="apple-touch-icon" href="../../assets/favicon-128.png">
+<link rel="stylesheet" href="../../assets/style.css">
+<style>
+  .archive td.date { color: var(--muted); white-space: nowrap; }
+  .archive td.os { font-size: 0.9rem; color: var(--muted); }
+  .archive td.links { white-space: nowrap; }
+  .spin { color: var(--muted); }
+</style>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    { "@type": "ListItem", "position": 1, "name": "md-business", "item": "https://meta-taro.github.io/md-business/ja/" },
+    { "@type": "ListItem", "position": 2, "name": "ダウンロード", "item": "https://meta-taro.github.io/md-business/download/" },
+    { "@type": "ListItem", "position": 3, "name": "過去の版", "item": "https://meta-taro.github.io/md-business/download/archive/" }
+  ]
+}
+</script>
+</head>
+<body>
+
+<header class="doc-header">
+  <div class="crumbs"><a href="../../ja/">md-business</a> / <a href="../">ダウンロード</a> / 過去の版</div>
+  <h1>過去の版</h1>
+  <div class="meta">デスクトップアプリのこれまでの版です。ふだんは<a href="../">最新版</a>を使ってください。不具合を見比べたいときや、前の版へ戻したいときに使います</div>
+</header>
+
+<main class="doc">
+  <section>
+    <p id="note" class="spin">リリースの一覧を読み込んでいます…</p>
+    <table class="archive" id="table" hidden>
+      <thead><tr><th>版</th><th>公開日</th><th>対応 OS</th><th></th></tr></thead>
+      <tbody id="body"></tbody>
+    </table>
+    <p style="margin-top:16px">
+      <a href="https://github.com/meta-taro/md-business/releases">GitHub Releases ページを開く →</a>
+    </p>
+    <p class="pin-help">
+      前の版を入れても、起動したときに新しい版があれば更新の案内が出ます。
+      案内で「後で」を押せば、その版のまま使えます。
+    </p>
+  </section>
+</main>
+
+<footer>
+  &copy; meta-taro · MIT License · <a href="https://github.com/meta-taro/md-business">github.com/meta-taro/md-business</a>
+</footer>
+
+<script type="module">
+  import { archiveEntries, releasesApiUrl } from '../../assets/release-archive.mjs';
+
+  const REPO = 'meta-taro/md-business';
+  const note = document.getElementById('note');
+
+  function cell(text, cls) {
+    const td = document.createElement('td');
+    if (cls) td.className = cls;
+    td.textContent = text;
+    return td;
+  }
+
+  function link(href, text) {
+    const a = document.createElement('a');
+    a.href = href;
+    a.textContent = text;
+    return a;
+  }
+
+  async function load() {
+    const all = [];
+    // 版は 100 件を超えうるので、空のページが返るまで引く（上限は念のため 10 ページ）。
+    for (let page = 1; page <= 10; page++) {
+      const res = await fetch(releasesApiUrl(REPO, page), { headers: { Accept: 'application/vnd.github+json' } });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const batch = await res.json();
+      all.push(...batch);
+      if (batch.length < 100) break;
+    }
+    return archiveEntries(all);
+  }
+
+  try {
+    const entries = await load();
+    const body = document.getElementById('body');
+    entries.forEach(function (e, i) {
+      const tr = document.createElement('tr');
+      tr.appendChild(cell(i === 0 ? e.version + '（最新）' : e.version));
+      tr.appendChild(cell(e.date, 'date'));
+      tr.appendChild(cell(e.platforms.join(' / '), 'os'));
+      const links = document.createElement('td');
+      links.className = 'links';
+      links.appendChild(link(e.downloadHref, 'ダウンロード'));
+      links.appendChild(document.createTextNode(' · '));
+      links.appendChild(link(e.releaseUrl, '変更点'));
+      tr.appendChild(links);
+      body.appendChild(tr);
+    });
+    note.textContent = entries.length + ' 件の版があります。';
+    note.className = '';
+    document.getElementById('table').hidden = false;
+  } catch (err) {
+    note.textContent = '一覧を自動取得できませんでした。下のリンクから GitHub Releases ページを開いてください。';
+  }
+</script>
+
+</body>
+</html>
