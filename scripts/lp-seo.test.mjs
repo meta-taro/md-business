@@ -102,3 +102,16 @@ test('ロードマップのページがあり、日英どちらのトップか�
   assert.match(readFileSync(join(DOCS, 'ja', 'index.html'), 'utf8'), /href="\.\.\/roadmap\/"/);
   assert.match(readFileSync(join(DOCS, 'index.html'), 'utf8'), /href="roadmap\/"/);
 });
+
+test('事例のページが 2 本あり、どれも使うもの・見つかるもの・直し方を持ち、日本語のトップから辿れる', () => {
+  const ja = readFileSync(join(DOCS, 'ja', 'index.html'), 'utf8');
+  assert.match(ja, /href="\.\.\/cases\/"/);
+  const index = readFileSync(join(DOCS, 'cases', 'index.html'), 'utf8');
+  for (const slug of ['web-form-failure', 'spec-sheet-gap']) {
+    const file = join(DOCS, 'cases', slug, 'index.html');
+    assert.ok(existsSync(file), `cases/${slug}/index.html が無い`);
+    assert.match(index, new RegExp(`href="${slug}/"`));
+    const body = text(readFileSync(file, 'utf8'));
+    for (const label of ['使うもの', '見つかるもの', '直し方']) assert.ok(body.includes(label), `${slug} に ${label} が無い`);
+  }
+});

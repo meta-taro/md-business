@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>申込フォームが一部の人だけ送れない — md-business の事例</title>
+<meta name="description" content="通信の記録（HAR）とサーバーのログを AI エージェントに読ませ、申込フォームの送信失敗の原因を、根拠付きの調査報告書にまとめるまで。架空のデータによる事例。">
+<link rel="canonical" href="https://meta-taro.github.io/md-business/cases/web-form-failure/">
+<link rel="icon" type="image/png" sizes="32x32" href="../../assets/favicon-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="../../assets/favicon-16.png">
+<link rel="apple-touch-icon" href="../../assets/favicon-128.png">
+<link rel="stylesheet" href="../../assets/style.css">
+<style>
+  .summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin: 0; }
+  .summary div { border: 1px solid var(--line); border-radius: 8px; padding: 12px 16px; }
+  .summary dt { font-weight: 600; }
+  .summary dd { margin: 6px 0 0; color: var(--muted); font-size: 0.95rem; }
+</style>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    { "@type": "ListItem", "position": 1, "name": "md-business", "item": "https://meta-taro.github.io/md-business/ja/" },
+    { "@type": "ListItem", "position": 2, "name": "事例", "item": "https://meta-taro.github.io/md-business/cases/" },
+    { "@type": "ListItem", "position": 3, "name": "申込フォームが一部の人だけ送れない", "item": "https://meta-taro.github.io/md-business/cases/web-form-failure/" }
+  ]
+}
+</script>
+</head>
+<body>
+
+<header class="doc-header">
+  <div class="crumbs"><a href="../../ja/">md-business</a> / <a href="../">事例</a> / 申込フォーム</div>
+  <h1>申込フォームが一部の人だけ送れない</h1>
+  <div class="meta">架空の事例です。会社・人・数字はすべて作りものです</div>
+</header>
+
+<main class="doc">
+
+<section>
+  <dl class="summary">
+    <div><dt>使うもの</dt><dd>利用者のブラウザで保存した通信の記録（.har）、Web サーバーとアプリのログ、MCP の read_har・search_lines・build_timeline・save_evidence、調査報告書の書式</dd></div>
+    <div><dt>見つかるもの</dt><dd>添付ファイルが 1MB を超えると、アプリに届く前に手前のサーバーが 413 で断っている。フォームの説明は「5MB まで」</dd></div>
+    <div><dt>直し方</dt><dd>手前のサーバーの上限をフォームの説明と揃える。揃えるまでの間は、フォーム側で 1MB を超えたら送る前に知らせる</dd></div>
+  </dl>
+</section>
+
+<section>
+  <h2>起きていたこと</h2>
+  <p>ある会社の資料請求フォームで、「送信を押すと『送信できませんでした』と出る」という問い合わせが週に数件届いていた。
+    社内で試すと送れる。届いた問い合わせの多くには、名刺や見積書の画像が添付されていた。</p>
+</section>
+
+<section>
+  <h2>1. 失敗した往復を特定する</h2>
+  <p>問い合わせてきた人に、ブラウザの開発者ツールで通信の記録（.har）を保存して送ってもらった。
+    エージェントは <code>read_har</code> で全文を開かずに概況だけを読む。</p>
+<pre><code>件数 38 / ステータス別 200: 36, 304: 1, 413: 1
+遅い順 1 位  POST /api/inquiries  413  1.2 秒  要求本文 3.4MB</code></pre>
+  <p>その 1 件を index で指して中身を読むと、応答の <code>Server</code> がアプリのものではなく、
+    本文はアプリのエラー画面ではない短い HTML だった。アプリまで届いていない。
+    Cookie や Authorization は、読んだ時点で伏せ字になっている。</p>
+</section>
+
+<section>
+  <h2>2. ログで裏を取る</h2>
+  <p>Web サーバーとアプリのログは数十万行ある。エージェントは全文を読まず、<code>search_lines</code> で当たりを付ける。</p>
+<pre><code>proxy-error.log:18342  client intended to send too large body: 3565158 bytes</code></pre>
+  <p>同じ時刻のアプリのログに、この要求は 1 行も無い。2 本のログを <code>build_timeline</code> で時刻順に混ぜると、
+    断られた要求の前後でアプリ側が何も受け取っていないことが、出どころと行番号付きで並ぶ。
+    過去 30 日を数えると、413 は 23 件で、すべて 1MB を超える添付だった。</p>
+</section>
+
+<section>
+  <h2>3. 根拠を残して報告書にする</h2>
+  <p>報告書から指せるよう、<code>save_evidence</code> で抜粋を保存する。HAR の 1 件が <code>evidence/EV-001.md</code>、
+    2 本のログを並べた区間が <code>evidence/EV-002.md</code> になる。会話の中だけにある抜粋は、後から確かめられないので根拠にしない。</p>
+  <p>報告書は調査報告書の書式（<code>investigation/v1</code>）で書く。所見ごとに根拠を指す。</p>
+<pre><code>所見:
+  - 番号: F-01
+    要約: 1MB を超える添付付きの送信が、アプリに届く前に 413 で断られている
+    深刻度: 高
+    根拠:
+      - evidence/EV-001.md
+      - evidence/EV-002.md
+  - 番号: F-02
+    要約: フォームの説明は「5MB まで」で、手前のサーバーの上限（1MB）と食い違っている
+    深刻度: 中
+    根拠:
+      - evidence/EV-002.md</code></pre>
+  <p>エージェントが書くときに書式の検査が走る。根拠を 1 つも指していない所見は、深刻度にかかわらずそこで落ちる。</p>
+</section>
+
+<section>
+  <h2>4. 直す</h2>
+  <ul>
+    <li>手前のサーバーの上限を、フォームが約束している 5MB に揃える。</li>
+    <li>揃えるまでの間は、フォームが送る前にファイルの大きさを見て、超えていればその場で知らせる。</li>
+    <li>社内で再現しなかったのは、試した人が小さな画像しか使っていなかったため。検証シートに「1MB を超える添付」の行を足す。</li>
+  </ul>
+</section>
+
+<section>
+  <h2>この流れで変わること</h2>
+  <p>調べた人の頭の中にしか無かった「なぜそう言えるか」が、報告書と根拠のファイルとして Git に残る。
+    次に同じ問い合わせが来たとき、読む人は会話の履歴ではなく、報告書の所見から根拠をたどれる。</p>
+  <p><a href="../">ほかの事例</a> · <a href="../../manual/ja/">使い方</a> · <a href="../../download/">デスクトップアプリを落とす</a></p>
+</section>
+
+</main>
+
+<footer>
+  &copy; meta-taro · MIT License · <a href="https://github.com/meta-taro/md-business">github.com/meta-taro/md-business</a>
+</footer>
+
+</body>
+</html>

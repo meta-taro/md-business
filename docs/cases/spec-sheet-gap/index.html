@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>仕様は変わったのに、検証シートが古いまま — md-business の事例</title>
+<meta name="description" content="基本設計書の版を上げたのに改版履歴と検証シートが追いついていない状態を、検査で拾って直すまで。検証シートの結果は人が付ける。架空のデータによる事例。">
+<link rel="canonical" href="https://meta-taro.github.io/md-business/cases/spec-sheet-gap/">
+<link rel="icon" type="image/png" sizes="32x32" href="../../assets/favicon-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="../../assets/favicon-16.png">
+<link rel="apple-touch-icon" href="../../assets/favicon-128.png">
+<link rel="stylesheet" href="../../assets/style.css">
+<style>
+  .summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin: 0; }
+  .summary div { border: 1px solid var(--line); border-radius: 8px; padding: 12px 16px; }
+  .summary dt { font-weight: 600; }
+  .summary dd { margin: 6px 0 0; color: var(--muted); font-size: 0.95rem; }
+</style>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    { "@type": "ListItem", "position": 1, "name": "md-business", "item": "https://meta-taro.github.io/md-business/ja/" },
+    { "@type": "ListItem", "position": 2, "name": "事例", "item": "https://meta-taro.github.io/md-business/cases/" },
+    { "@type": "ListItem", "position": 3, "name": "仕様は変わったのに、検証シートが古いまま", "item": "https://meta-taro.github.io/md-business/cases/spec-sheet-gap/" }
+  ]
+}
+</script>
+</head>
+<body>
+
+<header class="doc-header">
+  <div class="crumbs"><a href="../../ja/">md-business</a> / <a href="../">事例</a> / 仕様と検証シート</div>
+  <h1>仕様は変わったのに、検証シートが古いまま</h1>
+  <div class="meta">架空の事例です。会社・人・数字はすべて作りものです</div>
+</header>
+
+<main class="doc">
+
+<section>
+  <dl class="summary">
+    <div><dt>使うもの</dt><dd>基本設計書（spec/v1）と検証シート（TSV）、改版履歴の検査、MCP の validate_document・read_tsv・append_tsv_row・update_tsv_row、デスクトップアプリの表編集</dd></div>
+    <div><dt>見つかるもの</dt><dd>設計書の版は 1.3 なのに、改版履歴の表は 1.2 で止まっている。1.3 で足した受入条件に対応する行が、検証シートに無い</dd></div>
+    <div><dt>直し方</dt><dd>改版履歴に 1.3 の行を足し、検証シートに新しい条件の行を足す。結果の列は空けたまま渡し、実施した人が付ける</dd></div>
+  </dl>
+</section>
+
+<section>
+  <h2>起きていたこと</h2>
+  <p>ある予約サービスの基本設計書で、キャンセル期限を「前日まで」から「前日 18 時まで」に変えた。
+    設計書の frontmatter の版は 1.3 に上がったが、改版履歴の表と検証シートはそのままだった。
+    検証シートは前の条件のまま全行 OK になっていて、見た目には何の問題も無い。</p>
+</section>
+
+<section>
+  <h2>1. 版と改版履歴の食い違いを拾う</h2>
+  <p>エージェントが <code>validate_document</code> で設計書を検査すると、書式は合っているが警告が 1 件出る。</p>
+<pre><code>版 1.3 が改版履歴の表にありません。版を上げたら、履歴にその版の行を足してください。</code></pre>
+  <p>版を上げたことは frontmatter に、何を変えたかは本文に、それぞれ書かれている。
+    抜けていたのは、その 2 つを結ぶ履歴の 1 行だった。エージェントは差分から変更点を拾い、履歴に 1.3 の行を足す。
+    修正の印（<code>{~~前日まで~>前日 18 時まで~~}</code>）を残しておけば、相手に出す版で何が変わったかを見せられる。</p>
+</section>
+
+<section>
+  <h2>2. 検証シートの抜けを探す</h2>
+  <p><code>read_tsv</code> で検証シートを読むと、キャンセル期限の行は「前日に取り消せる」を確かめる 1 行だけだった。
+    新しい条件で境目になる「前日 17 時 59 分は取り消せる」「前日 18 時 00 分は取り消せない」の行が無い。</p>
+  <p>エージェントは <code>append_tsv_row</code> で 2 行を足し、古い行の期待結果を <code>update_tsv_row</code> で直す。
+    直す行は行番号ではなく行 ID で指す。読んでから書くまでの間に、誰かが表の途中へ 1 行挿していても、別の行を書き換えずに済む。</p>
+<pre><code>区分        項目              期待結果                 結果
+キャンセル  前日 17:59 に取消  取り消せる。返金される   未実施
+キャンセル  前日 18:00 に取消  取り消せない旨が出る     未実施</code></pre>
+</section>
+
+<section>
+  <h2>3. 結果は人が付ける</h2>
+  <p>足した行の結果は <strong>未実施</strong> のまま渡す。コードを読んで問題が無さそうでも、自動テストが通っていても、
+    それは実施ではない。実施する人がデスクトップアプリで検証シートを表として開き、実際に操作して結果を選ぶ。
+    結果の列はプルダウンで、OK は緑、NG は赤に塗り分けられる。</p>
+  <p>シートは素の TSV なので、どの行を誰の手で足したかは Git の差分にそのまま出る。</p>
+</section>
+
+<section>
+  <h2>この流れで変わること</h2>
+  <p>「設計書は直したが、検証シートは誰も見ていない」が、警告と差分として表に出る。
+    全行 OK の古いシートが「確かめ済み」に見え続けることが無くなる。</p>
+  <p><a href="../">ほかの事例</a> · <a href="../../manual/ja/">使い方</a> · <a href="../../download/">デスクトップアプリを落とす</a></p>
+</section>
+
+</main>
+
+<footer>
+  &copy; meta-taro · MIT License · <a href="https://github.com/meta-taro/md-business">github.com/meta-taro/md-business</a>
+</footer>
+
+</body>
+</html>
