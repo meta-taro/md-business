@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://meta-taro.github.io/md-business/sitemap.xml

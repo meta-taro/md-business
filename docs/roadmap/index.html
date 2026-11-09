@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ロードマップ — md-business</title>
+<meta name="description" content="md-business がこれまでに作ったもの、いま作っているもの、次に作るもの、続けるか止めるかを決める条件、そして作らないと決めているもの。">
+<link rel="canonical" href="https://meta-taro.github.io/md-business/roadmap/">
+<link rel="icon" type="image/png" sizes="32x32" href="../assets/favicon-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="../assets/favicon-16.png">
+<link rel="apple-touch-icon" href="../assets/favicon-128.png">
+<link rel="stylesheet" href="../assets/style.css">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    { "@type": "ListItem", "position": 1, "name": "md-business", "item": "https://meta-taro.github.io/md-business/ja/" },
+    { "@type": "ListItem", "position": 2, "name": "ロードマップ", "item": "https://meta-taro.github.io/md-business/roadmap/" }
+  ]
+}
+</script>
+</head>
+<body>
+
+<header class="doc-header">
+  <div class="crumbs"><a href="../ja/">md-business</a> / ロードマップ</div>
+  <h1>ロードマップ</h1>
+  <div class="meta">版の番号ではなく、何が出来て何がまだかで並べています。日付の約束はしません。
+    細かな変更は <a href="https://github.com/meta-taro/md-business/releases">リリースの一覧</a>、
+    進行中の話は <a href="https://github.com/meta-taro/md-business/issues">Issue</a> にあります</div>
+</header>
+
+<main class="doc">
+
+<section>
+  <h2>済み</h2>
+  <ul>
+    <li><strong>文書の形。</strong>請求書・基本設計書・検証シート（Markdown と TSV）・API 設計書・DB 設計書（RDB と NoSQL）を、JSON Schema で検査できる形で書ける。</li>
+    <li><strong>デスクトップアプリ。</strong>Windows（x64 / ARM64）と macOS。編集・プレビュー・PDF 出力・検証シートの表編集（並べ替えと絞り込みを含む）・全文検索・自動更新。</li>
+    <li><strong>AI エージェントとの接続。</strong>アプリに MCP サーバーが入っている。エージェントは文書を探し、読み、作り、検査し、検証シートを 1 行ずつ直せる。書き換えはその場で画面に出る。</li>
+    <li><strong>提出物としての体裁。</strong>目次・見出しと図の参照・PDF のしおり・社外秘などの区分・社内版と提出版の作り分け。</li>
+    <li><strong>直したところを追う。</strong>前の版との比較・修正履歴の書き方（CriticMarkup）・改訂履歴の抜けの検査・行を指す共有リンク。</li>
+    <li><strong>ほかの入口。</strong>Chrome 拡張と VS Code 拡張で同じファイルをプレビューできる。</li>
+  </ul>
+</section>
+
+<section>
+  <h2>いま</h2>
+  <ul>
+    <li><strong>同じ文書を複数人で開く。</strong>最初の段として、同じファイルを開いている相手がどの行・どのセルにいるかを画面に出す。この段は文書を書き換えない。</li>
+    <li><strong>このサイト。</strong>何が出来るかを、実際の文書の例で見られるようにする。</li>
+  </ul>
+</section>
+
+<section>
+  <h2>次</h2>
+  <ul>
+    <li><strong>同時編集。</strong>居場所が安定したら、Markdown の同時編集、続いて検証シートの行単位の同時編集。正本はファイルと Git のままにし、同時編集は開いている間だけの状態にする。</li>
+    <li><strong>VS Code 拡張で文書を一覧する。</strong>ワークスペースにある業務文書を種別ごとに並べる。</li>
+    <li><strong>インストーラへの署名。</strong>いまは起動時に「発行元不明」の警告が出る。</li>
+  </ul>
+</section>
+
+<section>
+  <h2>その後</h2>
+  <ul>
+    <li><strong>調べ物の材料を増やす。</strong>通信の記録やログに加えて、パケットキャプチャや画像を AI が根拠として読めるようにする。</li>
+    <li><strong>Google Sheets との往復。</strong>Workspace アドオンの審査が通り次第、Marketplace から入れられるようにする。</li>
+  </ul>
+</section>
+
+<section>
+  <h2>止めどころ</h2>
+  <p>次に進むか、ここで止めるかは、次の条件で決めます。</p>
+  <ul>
+    <li><strong>続ける</strong>: 実際の業務文書がこの形で書かれ、直され、提出されている。不具合や要望が使った人から届いている。</li>
+    <li><strong>止める・削る</strong>: 機能を足しても使われていない。あるいは、足したことで今ある文書の読み書きが壊れる。今ある文書を壊さないことを、新しい機能より優先します。</li>
+    <li><strong>形を変えない</strong>: 書いた文書がそのまま読めなくなる変更はしません。形を変えるときは版を分け、古い形も読めるようにします。</li>
+  </ul>
+</section>
+
+<section>
+  <h2>作らないもの</h2>
+  <ul>
+    <li><strong>サーバーとアカウント。</strong>文書は手元のディスクと Git リポジトリにだけ置く。どこかへ預ける仕組みは作らない。</li>
+    <li><strong>勝手に外へ出す機能。</strong>Web への公開や外部への投稿は、人が操作して行う。頼まれれば手段は用意するが、そのときも資格情報は OS の資格情報ストアに置き、Git には入れない。</li>
+    <li><strong>独自の保存形式。</strong>正本は Markdown と TSV のまま。アプリが無くても読めることを守る。</li>
+  </ul>
+</section>
+
+</main>
+
+<footer>
+  &copy; meta-taro · MIT License · <a href="https://github.com/meta-taro/md-business">github.com/meta-taro/md-business</a>
+</footer>
+
+</body>
+</html>

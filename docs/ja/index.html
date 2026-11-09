@@ -26,6 +26,81 @@
 <link rel="icon" type="image/png" sizes="16x16" href="../assets/favicon-16.png">
 <link rel="apple-touch-icon" href="../assets/favicon-128.png">
 <link rel="stylesheet" href="../assets/style.css">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "md-business",
+  "url": "https://meta-taro.github.io/md-business/ja/",
+  "description": "請求書・基本設計書・検証シート・API 設計書・DB 設計書・調査報告書を、JSON Schema で検査できる Markdown として書く。人は PDF と Sheets で読み、AI エージェントは内蔵の MCP サーバーを通じて同じファイルを読んで直す。",
+  "applicationCategory": "BusinessApplication",
+  "operatingSystem": "Windows, macOS",
+  "offers": {
+    "@type": "Offer",
+    "price": "0",
+    "priceCurrency": "JPY"
+  },
+  "downloadUrl": "https://meta-taro.github.io/md-business/download/",
+  "softwareHelp": "https://meta-taro.github.io/md-business/manual/ja/",
+  "screenshot": "https://meta-taro.github.io/md-business/screenshots/desktop-invoice.png",
+  "license": "https://opensource.org/licenses/MIT",
+  "inLanguage": "ja",
+  "author": {
+    "@type": "Organization",
+    "name": "meta-taro",
+    "url": "https://github.com/meta-taro"
+  }
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "inLanguage": "ja",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "md-business とは何ですか",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "md-business は、請求書・基本設計書・検証シート・API 設計書・DB 設計書・調査報告書などの業務文書を、JSON Schema で検査できる Markdown ファイルとして書くためのオープンソース（MIT）の道具一式です。人は PDF や Google Sheets で読み、AI エージェントはデスクトップアプリに入っている MCP サーバーを通じて同じファイルを読み、直し、検査します。"
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "無料ですか",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "無料です。MIT ライセンスで、アカウントも有料プランもありません。"
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "デスクトップアプリはどの OS で動きますか",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Windows（x64 と ARM64）と macOS で動きます。macOS は 1 本で Apple シリコンと Intel の両方に対応しています。"
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "文書はどこに保存されますか",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "自分の PC のディスクで、ふつうは Git リポジトリの中です。md-business にはサーバーが無いので、文書がどこかへ送られることはありません。"
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "AI エージェントからはどう使いますか",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "デスクトップアプリが MCP サーバーを起動します。Claude Code などのエージェントがそこへ繋ぐと、文書を探す・読む・作る・検査する・直すことができ、検証シートは 1 行ずつ書き換えられます。書き換えはその場でアプリの画面に出ます。"
+      }
+    }
+  ]
+}
+</script>
 </head>
 <body>
 
@@ -294,6 +369,22 @@ PDF・Sheets・Chrome・デスクトップ ← 人が実際に読む形</code></
 </section>
 
 <section>
+  <h2>よくある質問</h2>
+  <dl class="faq">
+    <dt>md-business とは何ですか</dt>
+    <dd>md-business は、請求書・基本設計書・検証シート・API 設計書・DB 設計書・調査報告書などの業務文書を、JSON Schema で検査できる Markdown ファイルとして書くためのオープンソース（MIT）の道具一式です。人は PDF や Google Sheets で読み、AI エージェントはデスクトップアプリに入っている MCP サーバーを通じて同じファイルを読み、直し、検査します。</dd>
+    <dt>無料ですか</dt>
+    <dd>無料です。MIT ライセンスで、アカウントも有料プランもありません。</dd>
+    <dt>デスクトップアプリはどの OS で動きますか</dt>
+    <dd>Windows（x64 と ARM64）と macOS で動きます。macOS は 1 本で Apple シリコンと Intel の両方に対応しています。</dd>
+    <dt>文書はどこに保存されますか</dt>
+    <dd>自分の PC のディスクで、ふつうは Git リポジトリの中です。md-business にはサーバーが無いので、文書がどこかへ送られることはありません。</dd>
+    <dt>AI エージェントからはどう使いますか</dt>
+    <dd>デスクトップアプリが MCP サーバーを起動します。Claude Code などのエージェントがそこへ繋ぐと、文書を探す・読む・作る・検査する・直すことができ、検証シートは 1 行ずつ書き換えられます。書き換えはその場でアプリの画面に出ます。</dd>
+  </dl>
+</section>
+
+<section>
   <h2>そのほか</h2>
   <ul>
     <li><a href="../download/">デスクトップアプリのダウンロード</a></li>
@@ -302,6 +393,8 @@ PDF・Sheets・Chrome・デスクトップ ← 人が実際に読む形</code></
     <li><a href="https://github.com/meta-taro/md-business/blob/main/README.ja.md">README（日本語）</a> · <a href="https://github.com/meta-taro/md-business/blob/main/README.md">README (English)</a></li>
     <li><a href="https://github.com/meta-taro/md-business/issues">不具合を知らせる</a></li>
     <li><a href="https://meta-taro.github.io/zumen/">zumen</a> — <code>zumen</code> の囲みを描いている作図ツール</li>
+    <li><a href="../roadmap/">ロードマップ</a> — 済み・いま・次と、作らないもの</li>
+    <li><a href="../cases/">事例</a> — 調べ物の報告書づくりと、仕様と検証シートの食い違いを、架空のデータで追う</li>
     <li><a href="../privacy/">プライバシーポリシー</a> · <a href="../license/">ライセンス（MIT）</a></li>
   </ul>
 </section>

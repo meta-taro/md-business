@@ -1,0 +1,25 @@
+# md-business
+
+> Open-source (MIT) tools for writing business documents — invoices, specifications, test sheets, API and database designs, investigation reports — as Markdown files checked against JSON Schema. People read them as PDF or Google Sheets; AI agents read, edit and validate the same file through the MCP server built into the desktop app.
+
+Documents stay on the user's disk, usually in a Git repository. There is no server and no account. The desktop app runs on Windows (x64 and ARM64) and macOS. A Chrome extension and a VS Code extension preview the same files.
+
+## Pages
+
+- [Overview (English)](https://meta-taro.github.io/md-business/): what md-business is, the document types it supports, and what is not done yet
+- [概要（日本語）](https://meta-taro.github.io/md-business/ja/): the same overview in Japanese
+- [Download](https://meta-taro.github.io/md-business/download/): the latest desktop installer for each OS and CPU
+- [Past versions](https://meta-taro.github.io/md-business/download/archive/): every released version of the desktop app
+- [User guide](https://meta-taro.github.io/md-business/manual/): how to open, edit, validate and export documents
+- [操作マニュアル](https://meta-taro.github.io/md-business/manual/ja/): the user guide in Japanese
+- [ロードマップ](https://meta-taro.github.io/md-business/roadmap/): what is done, in progress and next, the conditions for continuing or stopping, and what will not be built (Japanese)
+- [事例](https://meta-taro.github.io/md-business/cases/): worked examples with made-up data (Japanese)
+- [申込フォームが一部の人だけ送れない](https://meta-taro.github.io/md-business/cases/web-form-failure/): an AI agent reads a HAR file and server logs and writes an investigation report whose findings point at saved evidence (Japanese)
+- [仕様は変わったのに、検証シートが古いまま](https://meta-taro.github.io/md-business/cases/spec-sheet-gap/): a version bump missing from the revision history is caught, and rows are added to the TSV test sheet; results are left for a person to fill in (Japanese)
+- [Privacy policy](https://meta-taro.github.io/md-business/privacy/)
+
+## Source
+
+- [Repository](https://github.com/meta-taro/md-business): source, schemas, templates and issues
+- [README](https://github.com/meta-taro/md-business/blob/main/README.md)
+- [Format specifications](https://github.com/meta-taro/md-business/tree/main/docs/spec): the invoice, spec, test-spec and TSV test-sheet formats
