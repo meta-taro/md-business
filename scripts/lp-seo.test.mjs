@@ -96,3 +96,9 @@ test('llms.txt は製品名で始まり、指しているサイト内のペー�
     assert.ok(existsSync(join(DOCS, rel, rel.endsWith('/') || rel === '' ? 'index.html' : '')), `無いページ: ${u}`);
   }
 });
+
+test('ロードマップのページがあり、日英どちらのトップからも辿れる', () => {
+  assert.ok(existsSync(join(DOCS, 'roadmap', 'index.html')), 'roadmap/index.html が無い');
+  assert.match(readFileSync(join(DOCS, 'ja', 'index.html'), 'utf8'), /href="\.\.\/roadmap\/"/);
+  assert.match(readFileSync(join(DOCS, 'index.html'), 'utf8'), /href="roadmap\/"/);
+});

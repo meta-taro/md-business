@@ -12,6 +12,7 @@ Documents stay on the user's disk, usually in a Git repository. There is no serv
 - [Past versions](https://meta-taro.github.io/md-business/download/archive/): every released version of the desktop app
 - [User guide](https://meta-taro.github.io/md-business/manual/): how to open, edit, validate and export documents
 - [操作マニュアル](https://meta-taro.github.io/md-business/manual/ja/): the user guide in Japanese
+- [ロードマップ](https://meta-taro.github.io/md-business/roadmap/): what is done, in progress and next, the conditions for continuing or stopping, and what will not be built (Japanese)
 - [Privacy policy](https://meta-taro.github.io/md-business/privacy/)
 
 ## Source
