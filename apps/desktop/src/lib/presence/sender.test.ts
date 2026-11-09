@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createFakeHub } from './fakeGateway';
 import type { PresenceUpdate } from './gateway';
 import { applyUpdate, visiblePeers, type PeerTable } from './peers';
-import { createPresenceSender } from './sender';
+import { createPresenceSender, MIN_SEND_INTERVAL_MS } from './sender';
 
 const md = (line: number) => ({ kind: 'markdown', branch: 'main', line }) as const;
 const A = 'github.com/o/r#a.md';
@@ -24,8 +24,32 @@ describe('createPresenceSender', () => {
     const sender = createPresenceSender(hub.join('me'), 'R');
     sender.move(A, md(1));
     sender.move(A, md(1));
+    expect(received.map((u) => u.place)).toEqual([md(1)]);
+    vi.advanceTimersByTime(MIN_SEND_INTERVAL_MS);
     sender.move(A, md(2));
     expect(received.map((u) => u.place)).toEqual([md(1), md(2)]);
+    sender.dispose();
+  });
+
+  it('holds back a burst of moves to a few per second and sends the last one', () => {
+    const sender = createPresenceSender(hub.join('me'), 'R');
+    for (let line = 1; line <= 20; line++) {
+      sender.move(A, md(line));
+      vi.advanceTimersByTime(10);
+    }
+    expect(received.length).toBeLessThanOrEqual(1 + Math.ceil(200 / MIN_SEND_INTERVAL_MS));
+    vi.advanceTimersByTime(MIN_SEND_INTERVAL_MS);
+    expect(received.at(-1)?.place).toEqual(md(20));
+    sender.dispose();
+  });
+
+  it('does not let a held-back move go out after the document was closed', () => {
+    const sender = createPresenceSender(hub.join('me'), 'R');
+    sender.move(A, md(1));
+    sender.move(A, md(2));
+    sender.move(A, null);
+    vi.advanceTimersByTime(MIN_SEND_INTERVAL_MS * 2);
+    expect(received.map((u) => u.place)).toEqual([md(1), null]);
     sender.dispose();
   });
 
