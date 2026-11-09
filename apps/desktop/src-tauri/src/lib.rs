@@ -7,6 +7,8 @@ pub mod capture_window_logic;
 #[cfg(windows)]
 mod capture_window_win;
 mod deep_link;
+mod desk;
+mod desk_logic;
 mod fileinfo;
 mod git;
 mod image;
@@ -60,6 +62,8 @@ pub fn run() {
         .manage(open_arg::PendingOpen::default())
         // 共有リンクで頼まれた文書（同上）。
         .manage(deep_link::PendingLink::default())
+        // 割符の机への書き口（プロセスに 1 本。繋がっていない間は空）。
+        .manage(desk::DeskState::default())
         .setup(|app| {
             // 自動アップデータはデスクトップのみ対応。AppHandle 確定後に登録する。
             #[cfg(desktop)]
@@ -67,6 +71,8 @@ pub fn run() {
                 .plugin(tauri_plugin_updater::Builder::new().build())?;
             // MCP は付加機能。起動に失敗しても劣化表示に留め、setup は成功させる。
             mcp::start(app.handle(), MAIN_WINDOW);
+            // 割符の机への線。割符が無い PC では繋がらないまま待つだけ。
+            desk::start(app.handle());
             // 起動引数で開くよう頼まれていれば預かる（画面ができてから取りに来る）。
             open_arg::remember_startup_args(app.handle());
             #[cfg(desktop)]
@@ -107,6 +113,7 @@ pub fn run() {
             image::read_image,
             watch::watch_workspace,
             watch::unwatch_workspace,
+            desk::desk_write,
             git::git_status,
             git::git_branches,
             git::git_switch,
