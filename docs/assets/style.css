@@ -257,3 +257,6 @@ figure.hero-shot { margin: 0 0 40px; }
 .pair p { margin: 0; color: var(--muted); font-size: 0.95rem; }
 @media (max-width: 34rem) { .pair { flex-direction: column; } }
 section p.note { color: var(--muted); font-size: 0.9rem; }
+.faq dt { font-weight: 600; margin-top: 20px; }
+.faq dt:first-child { margin-top: 0; }
+.faq dd { margin: 6px 0 0; color: var(--muted); }

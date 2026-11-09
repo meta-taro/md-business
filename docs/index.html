@@ -26,6 +26,81 @@
 <link rel="icon" type="image/png" sizes="16x16" href="assets/favicon-16.png">
 <link rel="apple-touch-icon" href="assets/favicon-128.png">
 <link rel="stylesheet" href="assets/style.css">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "md-business",
+  "url": "https://meta-taro.github.io/md-business/",
+  "description": "Write invoices, specifications, test sheets, API and database designs and investigation reports as Markdown checked against JSON Schema. People read PDF and Sheets; AI agents read, edit and validate the same file through the built-in MCP server.",
+  "applicationCategory": "BusinessApplication",
+  "operatingSystem": "Windows, macOS",
+  "offers": {
+    "@type": "Offer",
+    "price": "0",
+    "priceCurrency": "USD"
+  },
+  "downloadUrl": "https://meta-taro.github.io/md-business/download/",
+  "softwareHelp": "https://meta-taro.github.io/md-business/manual/",
+  "screenshot": "https://meta-taro.github.io/md-business/screenshots/desktop-invoice.png",
+  "license": "https://opensource.org/licenses/MIT",
+  "inLanguage": "en",
+  "author": {
+    "@type": "Organization",
+    "name": "meta-taro",
+    "url": "https://github.com/meta-taro"
+  }
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "inLanguage": "en",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "What is md-business?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "md-business is an open-source (MIT) set of tools for writing business documents such as invoices, specifications, test sheets, API and database designs and investigation reports as Markdown files checked against JSON Schema. People read them as PDF or Google Sheets; AI agents read, edit and validate the same file through the MCP server built into the desktop app."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Is it free?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Yes. It is MIT-licensed, and there is no account and no paid plan."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Which operating systems does the desktop app run on?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Windows (x64 and ARM64) and macOS. One macOS download covers both Apple silicon and Intel Macs."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Where are my documents stored?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "On your own disk, usually inside a Git repository. md-business has no server, so your documents are not uploaded anywhere."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "How does an AI agent work with the documents?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "The desktop app runs an MCP server. An agent such as Claude Code connects to it and can search, read, create, validate and update documents, and change test sheets one row at a time. Each change appears in the app as it is made."
+      }
+    }
+  ]
+}
+</script>
 </head>
 <body>
 
@@ -294,6 +369,22 @@ PDF · Sheets · Chrome · desktop  ← how people actually read it</code></pre>
     <li><strong>The schemas are Japan-first.</strong> The invoice follows the Japanese qualified-invoice rules; other tax regimes are not modelled.</li>
     <li><strong>There is no server and no account.</strong> Files stay on your disk and in your Git repository. That is deliberate — but it also means there is nothing to share a document from except the repository itself.</li>
   </ul>
+</section>
+
+<section>
+  <h2>Questions</h2>
+  <dl class="faq">
+    <dt>What is md-business?</dt>
+    <dd>md-business is an open-source (MIT) set of tools for writing business documents such as invoices, specifications, test sheets, API and database designs and investigation reports as Markdown files checked against JSON Schema. People read them as PDF or Google Sheets; AI agents read, edit and validate the same file through the MCP server built into the desktop app.</dd>
+    <dt>Is it free?</dt>
+    <dd>Yes. It is MIT-licensed, and there is no account and no paid plan.</dd>
+    <dt>Which operating systems does the desktop app run on?</dt>
+    <dd>Windows (x64 and ARM64) and macOS. One macOS download covers both Apple silicon and Intel Macs.</dd>
+    <dt>Where are my documents stored?</dt>
+    <dd>On your own disk, usually inside a Git repository. md-business has no server, so your documents are not uploaded anywhere.</dd>
+    <dt>How does an AI agent work with the documents?</dt>
+    <dd>The desktop app runs an MCP server. An agent such as Claude Code connects to it and can search, read, create, validate and update documents, and change test sheets one row at a time. Each change appears in the app as it is made.</dd>
+  </dl>
 </section>
 
 <section>
