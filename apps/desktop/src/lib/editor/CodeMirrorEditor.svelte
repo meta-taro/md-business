@@ -13,6 +13,8 @@
     value: string;
     onChange: (value: string) => void;
     onSync?: (info: EditorFocusInfo) => void;
+    /** カーソルのある行（1 始まり）が変わったとき。相手へ送る居場所に使う。 */
+    onCursor?: (line: number) => void;
     /** 参考データ（.json / .xml）を開いている間は編集させない。 */
     readOnly?: boolean;
     /**
@@ -25,7 +27,7 @@
     /** 同じ文書を開いている相手の居場所（行ごとの印）。 */
     peerMarks?: readonly LineMark[];
   }
-  const { value, onChange, onSync, readOnly = false, caret = null, peerMarks = [] }: Props = $props();
+  const { value, onChange, onSync, onCursor, readOnly = false, caret = null, peerMarks = [] }: Props = $props();
 
   let host = $state<HTMLDivElement | null>(null);
   let editor: MarkdownEditorHandle | undefined;
@@ -37,6 +39,7 @@
       doc: value,
       onChange,
       onSync,
+      onCursor,
       readOnly,
       // Ctrl/Cmd+F で共通 SearchBar をエディター対象で開く。
       onFind: () => search.openFor('editor'),

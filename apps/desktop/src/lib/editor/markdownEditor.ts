@@ -7,8 +7,8 @@
  * 継承される（右ペインの iframe と違い刻印不要）。よって light/dark 2 種は
  * CSS 変数の解決結果として無コストで両対応する。
  *
- * DOM 依存のため単体テストは持たず（happy-dom では CodeMirror のレイアウト前提が
- * 崩れやすい）、tauri dev / vite build で実機検証する。編集イベントの間引き
+ * レイアウトは DOM 前提が崩れやすいので tauri dev / vite build で実機検証し、単体テストは
+ * レイアウトに依らない選択の通知だけを jsdom で持つ。編集イベントの間引き
  * （debounce）は純ロジックとして別途 TDD 済み（[[debounce]]）。
  */
 import { Compartment, EditorState, Prec, type Extension } from '@codemirror/state';
@@ -38,6 +38,11 @@ export interface MarkdownEditorOptions {
    * 親側（+page）がこの行の文言をプレビューで検索して位置合わせする（[[scrollSync]]）。
    */
   onSync?: (info: EditorFocusInfo) => void;
+  /**
+   * カーソルのある行（1 始まり）が変わるたびに呼ばれる。スクロールでは発火しない
+   * （相手へ送る居場所はカーソルで決まり、眺めているだけの位置は送らない）。
+   */
+  onCursor?: (line: number) => void;
   /**
    * Mod+F（Ctrl/Cmd+F）が押されたとき呼ばれる。CodeMirror 既定の検索パネルを使わず、
    * アプリ共通の SearchBar を開くための橋。未指定なら既定の検索キー無効化のみ。
@@ -212,7 +217,7 @@ function readOnlyExtension(flag: boolean): Extension {
 }
 
 export function createMarkdownEditor(options: MarkdownEditorOptions): MarkdownEditorHandle {
-  const { parent, doc, onChange, onSync, onFind, readOnly = false } = options;
+  const { parent, doc, onChange, onSync, onCursor, onFind, readOnly = false } = options;
   const readOnlyCompartment = new Compartment();
 
   // プログラム更新（setDoc）中は onChange を抑止し、外部差し替え→再描画の
@@ -221,6 +226,8 @@ export function createMarkdownEditor(options: MarkdownEditorOptions): MarkdownEd
 
   // view 生成後に代入。updateListener が構築中に発火しても TDZ に触れないよう前方宣言。
   let scroller: HTMLElement | null = null;
+  // 同じ行の中でカーソルが動いても居場所は変わらないので、行が変わったときだけ知らせる。
+  let cursorLine = 0;
 
   // フォーカス行＋スクロール寸法を親へ渡す共通処理。focusLine は 1 始まり。
   const emit = (focusLine: number): void => {
@@ -238,9 +245,13 @@ export function createMarkdownEditor(options: MarkdownEditorOptions): MarkdownEd
       onChange(update.state.doc.toString());
     }
     // カーソル移動（選択変更）のたびにカーソル行を親へ通知。プログラム更新中は除く。
-    if (update.selectionSet && !settingDoc && onSync) {
-      const head = update.state.selection.main.head;
-      emit(update.state.doc.lineAt(head).number);
+    if (update.selectionSet && !settingDoc) {
+      const line = update.state.doc.lineAt(update.state.selection.main.head).number;
+      if (onSync) emit(line);
+      if (onCursor && line !== cursorLine) {
+        cursorLine = line;
+        onCursor(line);
+      }
     }
   });
 

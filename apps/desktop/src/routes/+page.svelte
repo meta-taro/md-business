@@ -57,6 +57,15 @@
   import { planSheetExpansion, type SheetExpansion } from '$lib/tsv/sheetExpand';
   import { shortHash, type GitLogEntry } from '$lib/git/gitStatus';
   import { invoke } from '@tauri-apps/api/core';
+  import { git } from '$lib/git/git.svelte';
+  import { createPagePresence } from '$lib/presence/pagePresence';
+  import { connectDesk } from '$lib/presence/deskBridge';
+  import { tauriDeskBridge } from '$lib/presence/tauriDeskBridge';
+  import { documentName, type GitRemote } from '$lib/presence/documentName';
+  import { loadRemotes } from '$lib/presence/gitRemotes';
+  import { markdownPlace, repoRelativePath, tsvPlace, type GridCell } from '$lib/presence/pageBinding';
+  import { lineMarks } from '$lib/presence/lineMarks';
+  import { cellMarks } from '$lib/presence/cellMarks';
   import TsvGrid from '$lib/tsv/TsvGrid.svelte';
   import DataTreeView from '$lib/data/DataTreeView.svelte';
   import ImageView from '$lib/image/ImageView.svelte';
@@ -566,6 +575,7 @@
     }));
   });
   onDestroy(() => {
+    presence?.dispose();
     pdfExport.unregister();
     search.unregister('preview');
     if (scrollRaf !== 0) cancelAnimationFrame(scrollRaf);
@@ -626,6 +636,43 @@
     isTsv ? perf.measure('parse', () => loadGridDoc(debouncedSource, { reveal: revealHidden, without: filteredIds, order: sortOrder })) : null,
   );
   const tsvDoc = $derived(tsvGrid?.doc ?? null);
+
+  // 居場所: 同じリポの同じ文書を開いている相手を、行・セルの印で見せる。
+  // 置き先の無いフォルダ（git でない・remote が無い）では文書に名前が付かず、何も送らない。
+  const presence = browser ? createPagePresence((onGateway) => connectDesk(tauriDeskBridge, onGateway)) : null;
+  let remotes = $state<GitRemote[]>([]);
+  let peerTick = $state(0);
+  $effect(() => {
+    const root = workspace.root;
+    remotes = [];
+    if (!root) return;
+    let stale = false;
+    void loadRemotes(root).then((found) => {
+      if (!stale) remotes = found;
+    });
+    return () => {
+      stale = true;
+    };
+  });
+  $effect(() => presence?.onChange(() => peerTick++));
+  $effect(() => {
+    const path = workspace.activePath;
+    presence?.open(path ? documentName(remotes, repoRelativePath(git.status.prefix, path)) : null);
+  });
+  const peers = $derived.by(() => {
+    void peerTick;
+    return presence?.peers(git.branch ?? '') ?? [];
+  });
+  const editorPeerMarks = $derived(lineMarks(peers, source.split('\n').length));
+  const gridPeerMarks = $derived(
+    tsvDoc ? cellMarks(peers, tsvDoc.rowIds, tsvDoc.columns.map((c) => c.name), tsvDoc.rows.length) : [],
+  );
+  function moveToCell(cell: GridCell): void {
+    if (!tsvDoc) return;
+    const arranged = filteredIds.size > 0 || sortOrder !== undefined || revealHidden;
+    const shape = { rowIds: tsvDoc.rowIds, columns: tsvDoc.columns.map((c) => c.name), rowCount: tsvDoc.rows.length, arranged };
+    presence?.moveTo(tsvPlace(git.branch, shape, cell));
+  }
   // 検証シート以外へ移ったら下見を畳む。畳まないと、次にシートを開いたとき
   // 表ではなく紙の版面から始まる。
   $effect(() => {
@@ -1434,6 +1481,8 @@
         onSync={handleEditorSync}
         readOnly={dataDoc !== null || sitePart}
         caret={editorCaret}
+        onCursor={(line) => presence?.moveTo(markdownPlace(git.branch, line))}
+        peerMarks={editorPeerMarks}
       />
     {/await}
     <SearchBar pane="editor" />
@@ -1682,6 +1731,8 @@
           compare={comparison}
           sheetKey={workspace.activePath}
           onToggleBlame={() => (blameOn = !blameOn)}
+          peerMarks={gridPeerMarks}
+          onActiveCell={moveToCell}
         />
         {/key}
       </div>

@@ -253,6 +253,8 @@
     onColumnFilter?: (col: number, condition: ColumnCondition | null) => void;
     /** 同じ表を開いている相手の居場所（セルごと）。文書は書き換えず、枠と名前だけ出す。 */
     peerMarks?: readonly CellMark[];
+    /** 選択セル（focus 角）が動いたら呼ぶ。居場所を相手へ伝えるのに使う。 */
+    onActiveCell?: (cell: { row: number; col: number }) => void;
   }
 
   let {
@@ -283,6 +285,7 @@
     conditions = new Map(),
     onColumnFilter,
     peerMarks = [],
+    onActiveCell,
   }: Props = $props();
 
   // 前に見ていた位置。組み立て時に 1 度だけ読み、今の表の大きさへ収める。
@@ -1167,6 +1170,10 @@
   );
   // アクティブセル＝範囲の focus 角（input 化・フォーカス・行操作の対象はここ）。
   const activeCell = $derived(selection.focus);
+  $effect(() => {
+    const { row, col } = activeCell;
+    untrack(() => onActiveCell?.({ row, col }));
+  });
   let mode = $state<GridMode>('nav');
   // ユーザーが一度でもグリッドに触れたか。マウント時にフォーカスを勝手に奪わないためのガード。
   let engaged = $state(false);

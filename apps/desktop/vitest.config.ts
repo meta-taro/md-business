@@ -1,9 +1,12 @@
+import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vitest/config';
 
 // Phase 1b では純ロジック（テーマ解決など）だけを vitest で検証する。
 // Svelte コンポーネント / ルーンは svelte-check + vite build を品質ゲートにするため、
 // ここでは SvelteKit プラグインを噛ませず素の node 環境でユニットテストを回す。
 export default defineConfig({
+  // SvelteKit の `$lib` だけは素の vitest でも解けるようにする（エディター部品が使う）。
+  resolve: { alias: { $lib: fileURLToPath(new URL('./src/lib', import.meta.url)) } },
   test: {
     environment: 'node',
     // 既定の 5 秒では足りないテストがある。プレビューの遅延読み込みを確かめるテストは
