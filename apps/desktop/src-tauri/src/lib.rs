@@ -116,6 +116,7 @@ pub fn run() {
             desk::desk_write,
             git::git_status,
             git::git_branches,
+            git::git_remote_urls,
             git::git_switch,
             git::git_switch_create,
             git::git_commit,

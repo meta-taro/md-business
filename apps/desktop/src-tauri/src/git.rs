@@ -625,6 +625,56 @@ pub fn git_remotes_impl(root: &Path) -> Vec<String> {
     }
 }
 
+/// 居場所の文書名に使う remote の名前と URL。
+#[derive(Serialize, Debug, Clone, PartialEq, Eq)]
+pub struct GitRemoteUrl {
+    pub name: String,
+    pub url: String,
+}
+
+/// `git remote -v` の出力から fetch 側の URL を拾う。URL に埋まった資格情報は落とす
+/// （画面は名前を組むのに host と path しか使わないので、持ち出す理由が無い）。
+pub fn parse_remote_urls(stdout: &str) -> Vec<GitRemoteUrl> {
+    stdout
+        .lines()
+        .filter_map(|line| {
+            let (name, rest) = line.split_once('\t')?;
+            let url = rest.strip_suffix(" (fetch)")?;
+            Some(GitRemoteUrl { name: name.trim().to_string(), url: strip_userinfo(url.trim()) })
+        })
+        .filter(|r| !r.name.is_empty() && !r.url.is_empty())
+        .collect()
+}
+
+/// `scheme://user:pass@host/...` の `user:pass@` を外す。scheme の無い形（`git@host:o/r`）は
+/// ユーザー名しか持たないのでそのまま返す。
+fn strip_userinfo(url: &str) -> String {
+    let Some((scheme, rest)) = url.split_once("://") else {
+        return url.to_string();
+    };
+    let authority_end = rest.find('/').unwrap_or(rest.len());
+    match rest[..authority_end].rfind('@') {
+        Some(at) => format!("{scheme}://{}", &rest[at + 1..]),
+        None => url.to_string(),
+    }
+}
+
+/// 設定済み remote の名前と URL。失敗・非リポジトリは空。
+pub fn git_remote_urls_impl(root: &Path) -> Vec<GitRemoteUrl> {
+    match run_git(root, &["remote", "-v"]) {
+        Some(s) => parse_remote_urls(&s),
+        None => Vec::new(),
+    }
+}
+
+/// フロントから `invoke("git_remote_urls", { root })` で呼ぶラッパ。
+#[tauri::command]
+pub async fn git_remote_urls(root: String) -> Vec<GitRemoteUrl> {
+    tauri::async_runtime::spawn_blocking(move || git_remote_urls_impl(Path::new(&root)))
+        .await
+        .unwrap_or_default()
+}
+
 /// ブランチを作って切り替える（`switch -c`）。既にある名前なら git が失敗し、その理由を返す。
 /// 名前は git を呼ぶ前に検証する（先頭 '-' はオプション注入になる）。
 pub fn git_switch_create_impl(root: &Path, branch: &str) -> Result<GitStatus, String> {
@@ -2429,6 +2479,38 @@ c
         assert!(git_remotes_impl(&dir).is_empty(), "足す前は空");
         run_git_result(&dir, &["remote", "add", "origin", "."]).expect("remote add");
         assert_eq!(git_remotes_impl(&dir), vec!["origin".to_string()]);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn remote_の_url_を_fetch_側から拾い資格情報を落とす() {
+        let out = "origin\thttps://u:tok@github.com/o/r.git (fetch)\n\
+                   origin\thttps://u:tok@github.com/o/r.git (push)\n\
+                   up\tgit@gitlab.com:g/r.git (fetch)\n";
+        assert_eq!(
+            parse_remote_urls(out),
+            vec![
+                GitRemoteUrl { name: "origin".into(), url: "https://github.com/o/r.git".into() },
+                GitRemoteUrl { name: "up".into(), url: "git@gitlab.com:g/r.git".into() },
+            ]
+        );
+    }
+
+    #[test]
+    fn 資格情報の無い_url_はそのまま() {
+        assert_eq!(strip_userinfo("https://github.com/o/r"), "https://github.com/o/r");
+        assert_eq!(strip_userinfo("ssh://git@host/a@b"), "ssh://host/a@b");
+    }
+
+    #[test]
+    fn リモートの_url_を読む() {
+        let dir = temp_repo("gitremurl");
+        assert!(git_remote_urls_impl(&dir).is_empty(), "足す前は空");
+        run_git_result(&dir, &["remote", "add", "origin", "https://example.com/o/r.git"]).expect("remote add");
+        assert_eq!(
+            git_remote_urls_impl(&dir),
+            vec![GitRemoteUrl { name: "origin".into(), url: "https://example.com/o/r.git".into() }]
+        );
         let _ = std::fs::remove_dir_all(&dir);
     }
 
