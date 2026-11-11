@@ -90,6 +90,38 @@ describe('startHttpServer / HTTP モード', () => {
     expect(tools.map((t) => t.name)).toContain('git_status');
   });
 
+  it('ある席の遅い呼びの間も、別の席の軽い呼びはすぐ返る', async () => {
+    // 一覧を引くところで止まる倉庫。search_documents はここで待ち続ける。
+    let release: () => void = () => undefined;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    class StalledStore extends MemoryDocumentStore {
+      override async list(): Promise<string[]> {
+        await gate;
+        return super.list();
+      }
+    }
+    handle = await startHttpServer({ store: new StalledStore(), token: TOKEN });
+    const seatA = await connect(handle.url, TOKEN);
+    const seatB = await connect(handle.url, TOKEN);
+
+    let slowDone = false;
+    const slow = seatA.callTool({ name: 'search_documents', arguments: {} }).then((r) => {
+      slowDone = true;
+      return r;
+    });
+    // 詰まっていると軽い呼びも返らないので、時間切れを待たずに 2 秒で見切る。
+    const stalled = new Promise<'stalled'>((resolve) => setTimeout(() => resolve('stalled'), 2_000));
+    const quick = await Promise.race([seatB.callTool({ name: 'list_schemas', arguments: {} }), stalled]);
+    expect(quick).not.toBe('stalled');
+    expect((quick as CallToolResult).isError ?? false).toBe(false);
+    expect(slowDone).toBe(false);
+
+    release();
+    await slow;
+  });
+
   it('トークン無しのクライアントは 401 で拒否される', async () => {
     handle = await startHttpServer({ store: new MemoryDocumentStore(), token: TOKEN });
     await expect(connect(handle.url, null)).rejects.toThrow();
