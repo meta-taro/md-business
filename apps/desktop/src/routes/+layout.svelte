@@ -27,6 +27,7 @@
   import { updater } from '$lib/update/updater.svelte';
   import { mcp } from '$lib/mcp/mcp.svelte';
   import { fileChangeFromLog, parseLogEvent } from '$lib/mcp/mcpLog';
+  import { createAgentCursor, parseAgent, type AgentCursor } from '$lib/agent/agentCursor';
   import {
     parseRequestEvent,
     planCloseRequest,
@@ -182,6 +183,9 @@
    * 依頼元は応答を待っているので、断る場合も必ず理由を返す。印刷ダイアログは閉じるまで
    * 戻らないため、応答は開く前に済ませる（保存操作そのものは利用者が行う）。
    */
+  // AI が窓の中で指す・押す・話すためのカーソル。初めて頼まれたときに重ねる。
+  let agentCursor: AgentCursor | null = null;
+
   async function handleMcpRequest(payload: unknown): Promise<void> {
     const request = parseRequestEvent(payload);
     if (request === null) return;
@@ -227,6 +231,18 @@
       } catch (error) {
         await respond(false, typeof error === 'string' ? error : '窓を撮れませんでした');
       }
+      return;
+    }
+    // 窓の中でカーソルを動かす依頼。できなかった理由は依頼元が次の手を決められる言葉で返る。
+    if (request.action === 'screen') {
+      const parsed = parseAgent(request.agent);
+      if (!parsed.ok) {
+        await respond(false, parsed.error);
+        return;
+      }
+      agentCursor ??= createAgentCursor({ doc: document });
+      const result = await agentCursor.run(parsed.agent);
+      await respond(result.ok, result.ok ? null : result.error);
       return;
     }
     // ここから先は対象を伴う依頼だけ（parseRequestEvent が保証している）。
@@ -396,6 +412,8 @@
       unlistenOpenRequest?.();
       unlistenLinkRequest?.();
       unlistenMcp?.();
+      agentCursor?.destroy();
+      agentCursor = null;
     };
   });
 </script>

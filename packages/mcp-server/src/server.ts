@@ -44,6 +44,7 @@ import {
   WEB_MODE_DECLARATION_TEXT,
 } from './webMode.js';
 import { parseWindowShot } from './windowShot.js';
+import { AGENT_ACTIONS, AGENT_MAX_TEXT, parseAgentAction } from './agentAction.js';
 import { listSiteFiles, readSiteFile, writeSiteFile } from './siteFiles.js';
 import { buildToolLogEntry, type ToolLogEntry, type ToolResultLike } from './toolLog.js';
 
@@ -149,6 +150,7 @@ const APP_ONLY_TOOLS: ReadonlySet<string> = new Set([
   'close_document',
   'web_mode_status',
   'capture_window',
+  'screen',
   'export_pdf',
 ]);
 
@@ -173,7 +175,9 @@ const OPEN_LINE = `
  */
 const SCREEN_WITH_APP = `- **出来上がりは capture_window で見る**。部品を読んで在ることを確かめても、
   それが利用者の見ている場所に出ているとは限らない。同じ形の部品が 2 か所にあれば、
-  直したのは見えていない側かもしれない。**直したと言う前に撮って確かめる**。`;
+  直したのは見えていない側かもしれない。**直したと言う前に撮って確かめる**。
+- 利用者に場所を教えるときは **screen** で指す。窓の中のカーソルが動くだけで、
+  利用者のマウスは奪わない。承認や保存のような、人が決める操作を代わりに押さない。`;
 
 /** アプリを介していないとき。見えないことと、見えるようにする道の両方を言う。 */
 const SCREEN_WITHOUT_APP = `- この接続はアプリを介していないので、**画面を見る口が無い**。部品を読んで在ることを
@@ -1268,6 +1272,34 @@ export function createServer(store: DocumentStore, options: CreateServerOptions 
             },
           ],
         };
+      },
+    );
+
+    server.registerTool(
+      'screen',
+      {
+        description:
+          'デスクトップアプリの窓の中にエージェント用のカーソルを出して、場所を指す・押してみせる・入力欄に打つ・吹き出しで話す。動くのは窓の中の絵だけで、利用者のマウスやキーボードは奪わない。対象は画面に見えている文字で指す（完全一致 → 前方一致 → 部分一致の順で、見えているものだけ）。承認・保存・送信のような、人が決める操作は押さない。',
+        inputSchema: {
+          action: z
+            .enum(AGENT_ACTIONS)
+            .describe('point=指す / click=押す / type=打つ / go=アプリ内の場所へ移る / say=話す / filter=絞り込む'),
+          target: z.string().max(AGENT_MAX_TEXT).optional().describe('対象の、画面に見えている文字（point / click / type で必須）'),
+          message: z.string().max(AGENT_MAX_TEXT).optional().describe('吹き出しに出す言葉（say で必須）'),
+          value: z.string().max(AGENT_MAX_TEXT).optional().describe('打つ値・絞り込む値（type で必須）'),
+          hash: z.string().max(AGENT_MAX_TEXT).optional().describe('移る先。# で始まるアプリ内の場所だけ（go で必須）'),
+          seconds: z.number().min(1).max(60).optional().describe('吹き出しを出しておく秒数（既定は文の長さから決める）'),
+        },
+      },
+      async (args) => {
+        const parsed = parseAgentAction(args as Record<string, unknown>);
+        if (!parsed.ok) {
+          emit('screen', undefined, parsed);
+          return jsonResult(parsed, true);
+        }
+        const result = await app.request({ action: 'screen', agent: parsed.agent });
+        emit('screen', undefined, result);
+        return jsonResult(result.ok ? { ok: true as const } : result, !result.ok);
       },
     );
 

@@ -132,6 +132,10 @@ const USE_CASES: readonly UseCase[] = [
     tools: ['list_open_documents', 'capture_window', 'close_document', 'export_pdf'],
   },
   {
+    want: '利用者の画面で場所を指して見せる・代わりに押してみせる（マウスは奪わない）',
+    tools: ['screen', 'capture_window'],
+  },
+  {
     want: '変更を確かめてコミットする（push は人がする）',
     tools: ['git_status', 'git_diff', 'git_commit'],
   },

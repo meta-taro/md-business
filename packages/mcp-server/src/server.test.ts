@@ -1567,3 +1567,71 @@ describe('createServer / capture_window ツール', () => {
     expect(parse(res).isError).toBe(true);
   });
 });
+
+describe('createServer / screen ツール', () => {
+  function fakeApp(result: { ok: true; data?: unknown } | { ok: false; error: string }) {
+    const requests: { action: string; agent?: unknown }[] = [];
+    return {
+      requests,
+      request: async (req: { action: string; agent?: unknown }) => {
+        requests.push(req);
+        return result;
+      },
+      settle: () => {},
+    };
+  }
+
+  async function connectWithApp(app: ReturnType<typeof fakeApp>): Promise<Client> {
+    const server = createServer(new MemoryDocumentStore(), {
+      app: app as unknown as Parameters<typeof createServer>[1] extends { app?: infer A }
+        ? NonNullable<A>
+        : never,
+    });
+    const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+    const client = new Client({ name: 'test-client', version: '0.0.0' });
+    await Promise.all([client.connect(clientTransport), server.connect(serverTransport)]);
+    return client;
+  }
+
+  it('アプリとの連絡手段が無ければ公開しない', async () => {
+    const client = await connect(new MemoryDocumentStore());
+    const { tools } = await client.listTools();
+    expect(tools.map((t) => t.name)).not.toContain('screen');
+  });
+
+  it('押す依頼を、見えている文字のままアプリへ渡す', async () => {
+    const app = fakeApp({ ok: true });
+    const client = await connectWithApp(app);
+    const res = (await client.callTool({
+      name: 'screen',
+      arguments: { action: 'click', target: 'MCP', message: 'ここを開きます' },
+    })) as CallToolResult;
+    expect(res.isError).not.toBe(true);
+    expect(app.requests).toEqual([
+      { action: 'screen', agent: { action: 'click', target: 'MCP', message: 'ここを開きます' } },
+    ]);
+  });
+
+  it('形の合わない依頼はアプリへ送らずに断る', async () => {
+    const app = fakeApp({ ok: true });
+    const client = await connectWithApp(app);
+    const res = (await client.callTool({
+      name: 'screen',
+      arguments: { action: 'go', hash: 'https://example.com' },
+    })) as CallToolResult;
+    expect(parse(res).isError).toBe(true);
+    expect(app.requests).toEqual([]);
+  });
+
+  it('見つからなかった・窓が無かった理由はそのまま返す', async () => {
+    const app = fakeApp({ ok: false, error: '「保存」が画面に見つかりません' });
+    const client = await connectWithApp(app);
+    const res = (await client.callTool({
+      name: 'screen',
+      arguments: { action: 'click', target: '保存' },
+    })) as CallToolResult;
+    const { text, isError } = parse(res);
+    expect(isError).toBe(true);
+    expect(text).toMatchObject({ ok: false, error: '「保存」が画面に見つかりません' });
+  });
+});

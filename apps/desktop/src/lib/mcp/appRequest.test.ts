@@ -54,6 +54,23 @@ describe('parseRequestEvent', () => {
     });
   });
 
+  it('カーソルへの依頼は動作ごと受け取る', () => {
+    const agent = { action: 'click', target: 'MCP' };
+    expect(parseRequestEvent({ id: 'req-8', action: 'screen', agent })).toEqual({
+      id: 'req-8',
+      action: 'screen',
+      agent,
+    });
+  });
+
+  it('動作の無いカーソルへの依頼は読み飛ばさず、空のまま渡す', () => {
+    // 落とすと依頼元は時間切れまで待つ。中身の誤りは画面側で言葉にして返す。
+    expect(parseRequestEvent({ id: 'req-9', action: 'screen', agent: 'click' })).toEqual({
+      id: 'req-9',
+      action: 'screen',
+    });
+  });
+
   it('閉じる依頼は対象を伴う', () => {
     expect(parseRequestEvent({ id: 'req-4', action: 'close-document', path: 'a.md' })).toEqual({
       id: 'req-4',

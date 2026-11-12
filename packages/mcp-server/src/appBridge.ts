@@ -8,6 +8,7 @@
  * 応答が返らない可能性は常にある（アプリが落ちた・画面が固まった）。待ち続けると
  * ツールが返らなくなるので、必ず時間切れで打ち切る。
  */
+import type { AgentAction } from './agentAction.js';
 import type { RequestEvent, ResponseCommand } from './control.js';
 
 /** アプリへ頼む操作。 */
@@ -18,11 +19,14 @@ export interface AppRequest {
     | 'close-document'
     | 'list-documents'
     | 'trust-status'
-    | 'capture-window';
+    | 'capture-window'
+    | 'screen';
   /** 対象のワークスペース相対パス。一覧のように対象を持たない依頼では省く。 */
   path?: string;
   /** 撮る画像の長辺の上限。撮る依頼のときだけ載せる。 */
   maxEdge?: number;
+  /** カーソルに頼む動作。screen のときだけ載せる。 */
+  agent?: AgentAction;
 }
 
 /** 依頼の結果。失敗理由はそのまま利用者へ見せられる日本語で返す。 */
@@ -74,6 +78,7 @@ export function createAppBridge(options: CreateAppBridgeOptions): AppBridge {
           action: req.action,
           ...(req.path !== undefined ? { path: req.path } : {}),
           ...(req.maxEdge !== undefined ? { maxEdge: req.maxEdge } : {}),
+          ...(req.agent !== undefined ? { agent: req.agent } : {}),
         });
       });
     },
