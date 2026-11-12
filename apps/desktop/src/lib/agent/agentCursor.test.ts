@@ -79,4 +79,18 @@ describe('createAgentCursor', () => {
     ]);
     expect(order).toEqual(['B', 'A']);
   });
+
+  it('話す: 対象を省くと、直前に指した場所の脇に出す', async () => {
+    // 窓の中央に出すと、指した場所と言葉が離れて何の話か分からなくなる。
+    document.body.innerHTML = '<button>保存</button>';
+    const button = document.querySelector('button')!;
+    button.getBoundingClientRect = () => new DOMRect(100, 300, 100, 30);
+    const cursor = setup();
+    await cursor.run({ action: 'point', target: '保存' });
+    await cursor.run({ action: 'say', message: 'ここです' });
+    const bubble = document.querySelector<HTMLElement>('[data-agent-bubble]')!;
+    // jsdom では吹き出しの高さが 0 なので、対象の上 10px（GAP）に来る。
+    expect(bubble.style.top).toBe('290px');
+    cursor.destroy();
+  });
 });

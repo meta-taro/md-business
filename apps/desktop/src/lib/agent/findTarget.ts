@@ -64,6 +64,11 @@ export function findTarget(
   const candidates = [...root.querySelectorAll<HTMLElement>(CANDIDATES)]
     // カーソル自身の吹き出しの × を指してしまわないよう外す。
     .filter((el) => el.closest('[data-agent-overlay]') === null && visible(el))
-    .map((el) => ({ name: accessibleName(el), el }));
+    // 説明（title など）を持つ要素も、見えている文字で呼べるよう両方を名前として並べる。
+    .flatMap((el) => {
+      const name = accessibleName(el);
+      const text = normalize(el.textContent ?? '');
+      return text === '' || text === name ? [{ name, el }] : [{ name, el }, { name: text, el }];
+    });
   return pickTarget(candidates, query)?.el ?? null;
 }

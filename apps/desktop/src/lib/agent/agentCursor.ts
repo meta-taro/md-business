@@ -110,6 +110,8 @@ export function createAgentCursor(options: AgentCursorOptions): AgentCursor {
   let bubbleTimer: ReturnType<typeof setTimeout> | undefined;
   let highlight: HTMLElement | null = null;
   let highlightTimer: ReturnType<typeof setTimeout> | undefined;
+  /** 直前に指した場所。カーソルが見えている間だけ、対象を省いた「話す」の置き場にする。 */
+  let lastRect: Rect | null = null;
 
   function viewSize(): { width: number; height: number } {
     return { width: view?.innerWidth ?? 0, height: view?.innerHeight ?? 0 };
@@ -118,7 +120,10 @@ export function createAgentCursor(options: AgentCursorOptions): AgentCursor {
   function keepAlive(): void {
     cursor.style.opacity = '1';
     clearTimeout(idleTimer);
-    idleTimer = setTimeout(() => (cursor.style.opacity = '0'), IDLE_HIDE_MS);
+    idleTimer = setTimeout(() => {
+      cursor.style.opacity = '0';
+      lastRect = null;
+    }, IDLE_HIDE_MS);
   }
 
   async function moveTo(x: number, y: number): Promise<void> {
@@ -204,6 +209,7 @@ export function createAgentCursor(options: AgentCursorOptions): AgentCursor {
     const rect = toRect(el.getBoundingClientRect());
     const anchor = bubbleAnchor(rect);
     await moveTo(anchor.x, anchor.y);
+    lastRect = rect;
     showHighlight(rect);
     if (agent.message) showBubble(agent.message, rect, agent.seconds);
     return rect;
@@ -249,7 +255,9 @@ export function createAgentCursor(options: AgentCursorOptions): AgentCursor {
           await pointAt(el, agent);
           return { ok: true };
         }
-        showBubble(agent.message, centerRect(), agent.seconds);
+        // 指した直後なら、その脇に出す。中央に出すと言葉と場所が離れて何の話か分からない。
+        if (lastRect !== null) keepAlive();
+        showBubble(agent.message, lastRect ?? centerRect(), agent.seconds);
         return { ok: true };
       }
       case 'point':

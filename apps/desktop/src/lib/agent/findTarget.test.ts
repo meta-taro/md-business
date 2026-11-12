@@ -57,4 +57,16 @@ describe('findTarget', () => {
     document.body.innerHTML = '<span>MCP</span>';
     expect(findTarget(document, 'MCP', () => true)).toBeNull();
   });
+
+  it('説明（title）を持つボタンも、見えている文字で指せる', () => {
+    // 人は画面の文字で呼ぶ。説明が付いているだけで見つからないと、依頼元は言い直しようがない。
+    document.body.innerHTML = '<button title="スマートフォンの幅で表示">スマホ幅</button>';
+    expect(findTarget(document, 'スマホ幅', () => true)?.textContent).toBe('スマホ幅');
+  });
+
+  it('見えている文字の完全一致は、説明の部分一致より先に選ぶ', () => {
+    document.body.innerHTML =
+      '<button id="a" title="保存して閉じる">完了</button><button id="b">保存</button>';
+    expect(findTarget(document, '保存', () => true)?.id).toBe('b');
+  });
 });
