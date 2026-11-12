@@ -10,6 +10,7 @@
  * として返す — パイプは途中で切れるし、親子でバージョンがずれることもある。制御
  * チャネルの不調でサーバー本体を落とさないための約束。
  */
+import type { AgentAction } from './agentAction.js';
 import type { ToolLogEntry } from './toolLog.js';
 
 /** ワークスペース root の差し替え。アプリ側のフォルダ切り替えに追従する。 */
@@ -143,6 +144,8 @@ export interface RootEvent {
  * 持っていて、この路からは尋ねられるだけで、与えることはできない。
  *
  * `capture-window` はアプリの窓を撮る依頼。画面はアプリにしかない。
+ *
+ * `screen` は窓の中のエージェントカーソルを動かす依頼。OS のマウスには触れない。
  */
 export interface RequestEvent {
   type: 'request';
@@ -154,11 +157,14 @@ export interface RequestEvent {
     | 'close-document'
     | 'list-documents'
     | 'trust-status'
-    | 'capture-window';
+    | 'capture-window'
+    | 'screen';
   /** 対象のワークスペース相対パス。一覧のように対象を持たない依頼では省く。 */
   path?: string;
   /** 撮る画像の長辺の上限。撮る依頼のときだけ載せる。 */
   maxEdge?: number;
+  /** カーソルに頼む動作。screen のときだけ載せる。 */
+  agent?: AgentAction;
 }
 
 /** 制御チャネル上の異常（コマンド解釈失敗など）。サーバー本体は動き続ける。 */

@@ -326,6 +326,7 @@ fn read_events(
                     action,
                     path,
                     max_edge,
+                    agent,
                 }) => {
                     // 実際に処理できるのは画面側だけ。応答は mcp_respond で返ってくる。
                     let mut payload = serde_json::json!({ "id": id, "action": action });
@@ -334,6 +335,9 @@ fn read_events(
                     }
                     if let (Some(edge), Some(map)) = (max_edge, payload.as_object_mut()) {
                         map.insert("maxEdge".to_string(), serde_json::json!(edge));
+                    }
+                    if let (Some(agent), Some(map)) = (agent, payload.as_object_mut()) {
+                        map.insert("agent".to_string(), agent);
                     }
                     let _ = app.emit_to(label, REQUEST_EVENT, payload);
                 }

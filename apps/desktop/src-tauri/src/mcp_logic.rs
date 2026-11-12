@@ -30,6 +30,8 @@ pub enum SidecarEvent {
         path: Option<String>,
         /// 撮る画像の長辺の上限。撮る依頼のときだけ入る。
         max_edge: Option<u32>,
+        /// 画面のカーソルに頼む動作。screen の依頼のときだけ入る。中身は画面側が解釈する。
+        agent: Option<serde_json::Value>,
     },
     /// サイドカー側の異常。サーバー本体は動き続ける前提。
     Error { message: String },
@@ -81,6 +83,7 @@ pub fn parse_sidecar_line(line: &str) -> Option<SidecarEvent> {
                 .get("maxEdge")
                 .and_then(|v| v.as_u64())
                 .and_then(|v| u32::try_from(v).ok()),
+            agent: value.get("agent").filter(|v| v.is_object()).cloned(),
         }),
         "error" => Some(SidecarEvent::Error {
             message: value.get("message")?.as_str()?.to_string(),
@@ -699,6 +702,7 @@ mod tests {
                 action: "export-pdf".to_string(),
                 path: Some("invoices/INV-1.md".to_string()),
                 max_edge: None,
+                agent: None,
             })
         );
     }
@@ -714,6 +718,23 @@ mod tests {
                 action: "capture-window".to_string(),
                 path: None,
                 max_edge: Some(800),
+                agent: None,
+            })
+        );
+    }
+
+    #[test]
+    fn カーソルへの依頼は動作ごと画面へ通す() {
+        assert_eq!(
+            parse_sidecar_line(
+                r#"{"type":"request","id":"a","action":"screen","agent":{"action":"click","target":"MCP"}}"#
+            ),
+            Some(SidecarEvent::Request {
+                id: "a".to_string(),
+                action: "screen".to_string(),
+                path: None,
+                max_edge: None,
+                agent: Some(serde_json::json!({ "action": "click", "target": "MCP" })),
             })
         );
     }
@@ -752,6 +773,7 @@ mod tests {
                 action: "list-documents".to_string(),
                 path: None,
                 max_edge: None,
+                agent: None,
             })
         );
     }
