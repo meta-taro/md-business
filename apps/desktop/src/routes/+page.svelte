@@ -59,7 +59,6 @@
   import { invoke } from '@tauri-apps/api/core';
   import { git } from '$lib/git/git.svelte';
   import { createPagePresence } from '$lib/presence/pagePresence';
-  import RoomPicker from '$lib/presence/RoomPicker.svelte';
   import { connectDesk } from '$lib/presence/deskBridge';
   import { tauriDeskBridge } from '$lib/presence/tauriDeskBridge';
   import { documentName, type GitRemote } from '$lib/presence/documentName';
@@ -126,6 +125,8 @@
   // 静的に読むと、まだ何も開いていない段階でこれを読み終わるまで窓が出ない。
   // 読み始めるのはここ（画面を組み立てる前）だが、待たずに先へ進む点が静的 import と違う。
   const editorComponent = import('$lib/editor/CodeMirrorEditor.svelte').then((m) => m.default);
+  // 部屋の選択は最初の描画に要らないので後から読む（起動時の読み込み量に入れない）。
+  const roomPicker = import('$lib/presence/RoomPicker.svelte').then((m) => m.default);
 
   // 中央 = 左右 2 分割（DESIGN §6）。左＝Markdown エディター（CodeMirror 6）、
   // 右＝ビューワー（renderer-pdf の HTML を iframe 隔離）。
@@ -1472,7 +1473,9 @@
   <section class="pane editor" aria-label={t('page.editorPaneLabel')}>
     <div class="pane-head">
       {t('page.editorHead')}
-      {#if presence}<RoomPicker {presence} tick={peerTick} />{/if}
+      {#if presence}
+        {#await roomPicker then RoomPicker}<RoomPicker {presence} tick={peerTick} />{/await}
+      {/if}
     </div>
     <!-- 読み終わるまでは枠だけ置く。ここで高さを持たせないと、届いた瞬間に
          右のプレビューごと位置がずれる。 -->
