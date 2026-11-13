@@ -5,7 +5,7 @@ import {
   decodeRoomsLine,
   encodePresenceLine,
   ROOMS_LINE,
-  SEAT_LINE,
+  seatLine,
   SUBSCRIBE_LINE,
 } from './deskLine';
 import type { Place } from './place';
@@ -41,7 +41,12 @@ describe('encodePresenceLine', () => {
   });
 
   it('場所が上限を超えるときは送らない', () => {
-    const long: Place = { kind: 'tsv', branch: 'b', rowId: 'r', column: 'c'.repeat(600) };
+    const long: Place = {
+      kind: 'tsv',
+      branch: 'b',
+      rowId: 'r',
+      column: 'c'.repeat(600),
+    };
     expect(encodePresenceLine('a.md', long, 'ROOM')).toBeNull();
   });
 
@@ -50,9 +55,29 @@ describe('encodePresenceLine', () => {
   });
 });
 
-describe('SEAT_LINE', () => {
-  it('机に名乗る 1 行', () => {
-    expect(JSON.parse(SEAT_LINE)).toEqual({ 型: 'listen', 場所: 'md-business' });
+describe('seatLine', () => {
+  const place = (line: string) => JSON.parse(line).場所 as string;
+
+  it('機械の名前を添えて名乗る（別の PC の md-business と見分けるため）', () => {
+    expect(JSON.parse(seatLine('desk-a'))).toEqual({
+      型: 'listen',
+      場所: 'md-business（desk-a）',
+    });
+  });
+
+  it('機械の名前が分からなければ名前だけで名乗る', () => {
+    expect(place(seatLine(null))).toBe('md-business');
+    expect(place(seatLine('  '))).toBe('md-business');
+  });
+
+  it('前後の空白と制御文字を落とす', () => {
+    expect(place(seatLine(' a	b '))).toBe('md-business（ab）');
+  });
+
+  it('机の名乗りの上限（32 文字）に収めて括弧は閉じる', () => {
+    const got = place(seatLine('あ'.repeat(40)));
+    expect([...got]).toHaveLength(32);
+    expect(got.endsWith('）')).toBe(true);
   });
 });
 
@@ -67,18 +92,43 @@ describe('decodeDeskLine', () => {
 
   it('相手の居場所を読む', () => {
     const update = decodeDeskLine(
-      heard({ 誰: 'B さん', 文書: 'a.md', 場所: '{"branch":"main","line":3}', room: 'ROOM' }),
+      heard({
+        誰: 'B さん',
+        文書: 'a.md',
+        場所: '{"branch":"main","line":3}',
+        room: 'ROOM',
+      }),
     );
-    expect(update).toEqual({ who: 'B さん', document: 'a.md', place, room: 'ROOM' });
+    expect(update).toEqual({
+      who: 'B さん',
+      document: 'a.md',
+      place,
+      room: 'ROOM',
+    });
   });
 
   it('場所が空なら閉じた', () => {
     const update = decodeDeskLine(heard({ 誰: 'B', 文書: 'a.md', 場所: '', room: 'ROOM' }));
-    expect(update).toEqual({ who: 'B', document: 'a.md', place: null, room: 'ROOM' });
+    expect(update).toEqual({
+      who: 'B',
+      document: 'a.md',
+      place: null,
+      room: 'ROOM',
+    });
   });
 
   it('居場所以外の行は無視する', () => {
-    expect(decodeDeskLine(JSON.stringify({ 型: 'heard', id: 1, from: 'B', body: 'x', at: '10:00' }))).toBeNull();
+    expect(
+      decodeDeskLine(
+        JSON.stringify({
+          型: 'heard',
+          id: 1,
+          from: 'B',
+          body: 'x',
+          at: '10:00',
+        }),
+      ),
+    ).toBeNull();
     expect(decodeDeskLine(JSON.stringify({ 型: 'left', 名前: 'B' }))).toBeNull();
   });
 
@@ -106,8 +156,20 @@ describe('部屋の一覧', () => {
     const line = JSON.stringify({
       型: '部屋たち',
       部屋: [
-        { id: 'A'.repeat(26), 名前: '開発', 人数: 3, 主催か: true, 見ているか: true },
-        { id: 'B'.repeat(26), 名前: null, 人数: 1, 主催か: false, 見ているか: false },
+        {
+          id: 'A'.repeat(26),
+          名前: '開発',
+          人数: 3,
+          主催か: true,
+          見ているか: true,
+        },
+        {
+          id: 'B'.repeat(26),
+          名前: null,
+          人数: 1,
+          主催か: false,
+          見ているか: false,
+        },
       ],
     });
     expect(decodeRoomsLine(line)).toEqual([
@@ -117,7 +179,10 @@ describe('部屋の一覧', () => {
   });
 
   it('形の合わない部屋は飛ばし、一覧でない行は null', () => {
-    const line = JSON.stringify({ 型: '部屋たち', 部屋: [{ id: '', 名前: 'x', 人数: 1 }, { 名前: 'y' }] });
+    const line = JSON.stringify({
+      型: '部屋たち',
+      部屋: [{ id: '', 名前: 'x', 人数: 1 }, { 名前: 'y' }],
+    });
     expect(decodeRoomsLine(line)).toEqual([]);
     expect(decodeRoomsLine(JSON.stringify({ 型: '居場所' }))).toBeNull();
     expect(decodeRoomsLine(JSON.stringify({ 型: '部屋たち' }))).toBeNull();
