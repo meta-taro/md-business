@@ -15,6 +15,7 @@ import type { RequestEvent, ResponseCommand } from './control.js';
 export interface AppRequest {
   action:
     | 'export-pdf'
+    | 'save-pdf'
     | 'open-document'
     | 'close-document'
     | 'list-documents'
@@ -27,6 +28,8 @@ export interface AppRequest {
   maxEdge?: number;
   /** カーソルに頼む動作。screen のときだけ載せる。 */
   agent?: AgentAction;
+  /** この依頼だけ応答を待つ上限を変える。アプリへは送らない。 */
+  timeoutMs?: number;
 }
 
 /** 依頼の結果。失敗理由はそのまま利用者へ見せられる日本語で返す。 */
@@ -62,7 +65,7 @@ export function createAppBridge(options: CreateAppBridgeOptions): AppBridge {
         const timer = setTimeout(() => {
           pending.delete(id);
           resolve({ ok: false, error: 'アプリから応答がありません（画面が開いているか確認してください）' });
-        }, timeoutMs);
+        }, req.timeoutMs ?? timeoutMs);
         // タイマーがイベントループを引き止めると、サーバーが終了できなくなる。
         timer.unref?.();
 

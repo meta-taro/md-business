@@ -70,18 +70,29 @@ class PdfExportController {
   /** Top bar の [PDF] / Ctrl+P から呼ぶ。作れる環境なら直接作り、無理なら印刷の画面を開く。 */
   async run(): Promise<void> {
     if (!this.canExport) return;
-    const host = this.#host;
-    const root = workspace.root;
-    const relPath = workspace.activePath;
-    const direct = browser && canPrintDirectly(navigator.userAgent);
-    const source = host?.source() ?? null;
-    if (!direct || root === null || relPath === null || source === null) {
+    if (this.#directInputs() === null) {
       await this.print();
       return;
     }
+    const result = await this.save();
+    // 裏で作れない環境でも、印刷の画面からなら保存できる。理由を出したうえで開く。
+    if (!result.ok) await this.print();
+  }
+
+  /**
+   * 印刷の画面を通さずに PDF を文書の隣へ書く。外から「ファイルにして」と頼まれたときに使う。
+   * 頼んだ側は画面の前にいないことがあるので、作れなければ印刷の画面へは逃がさず理由を返す。
+   */
+  async save(): Promise<PdfExportResult> {
+    if (!this.canExport) return { ok: false, message: 'プレビューが表示されていません' };
+    const inputs = this.#directInputs();
+    if (inputs === null) {
+      return { ok: false, message: 'この環境では PDF をファイルへ直接書き出せません（Windows 版のみ）' };
+    }
+    const { root, relPath, source } = inputs;
 
     this.busy = true;
-    let failed = false;
+    let result: PdfExportResult;
     try {
       const written = await invoke<string>('export_pdf', {
         root,
@@ -89,16 +100,25 @@ class PdfExportController {
         html: source.html,
         name: source.name,
       });
-      this.#notify({ ok: true, path: written });
+      result = { ok: true, path: written };
     } catch (e) {
       // Rust の Err(String) は reject 値として届く（Error とは限らない）。
-      this.#notify({ ok: false, message: e instanceof Error ? e.message : String(e) });
-      failed = true;
+      result = { ok: false, message: e instanceof Error ? e.message : String(e) };
     } finally {
       this.busy = false;
     }
-    // 裏で作れない環境でも、印刷の画面からなら保存できる。理由を出したうえで開く。
-    if (failed) await this.print();
+    this.#notify(result);
+    return result;
+  }
+
+  /** 裏で PDF を作るのに要るもの。作れない環境か、書く元が揃っていなければ null。 */
+  #directInputs(): { root: string; relPath: string; source: PdfSource } | null {
+    if (!browser || !canPrintDirectly(navigator.userAgent)) return null;
+    const root = workspace.root;
+    const relPath = workspace.activePath;
+    const source = this.#host?.source() ?? null;
+    if (root === null || relPath === null || source === null) return null;
+    return { root, relPath, source };
   }
 
   /** 印刷の画面を開く。外から「印刷して」と頼まれたときは、こちらを使う。 */
