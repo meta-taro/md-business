@@ -16,9 +16,21 @@ export interface PresenceUpdate {
   room: string;
 }
 
+/** 自分が入っている部屋。名前の無い部屋は画面で番号を付けて見せる。 */
+export interface DeskRoom {
+  id: string;
+  name: string | null;
+  members: number;
+}
+
 export interface PresenceGateway {
   /** 自分の居場所を送る。null は「閉じた」。room は必ず指す（運び役の既定に頼らない）。 */
   send(document: string, place: Place | null, room: string): void;
   /** 相手の居場所を受け取る。戻り値で受け取りをやめる。 */
   subscribe(listener: (update: PresenceUpdate) => void): () => void;
+  /** 部屋の一覧を聞く。答えは onRooms へ届く。 */
+  askRooms(): void;
+  onRooms(listener: (rooms: DeskRoom[]) => void): () => void;
+  /** 運び役に断られた理由を受け取る（入っていない部屋を指した等）。 */
+  onDenied(listener: (why: string) => void): () => void;
 }

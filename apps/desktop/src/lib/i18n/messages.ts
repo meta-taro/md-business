@@ -17,6 +17,10 @@ export interface Messages {
   // 同時編集の居場所
   'presence.otherBranch': string;
   'presence.mayShift': string;
+  'presence.room': string;
+  'presence.notSharing': string;
+  'presence.roomN': string;
+  'presence.denied': string;
   // 上のメニュー行
   'menu.bar': string;
   'menu.file': string;
@@ -741,6 +745,10 @@ const en: Messages = {
   'common.close': 'Close',
   'presence.otherBranch': 'on another branch',
   'presence.mayShift': 'position may shift (this table has no row IDs)',
+  'presence.room': 'Room to share your position with',
+  'presence.notSharing': 'Not sharing',
+  'presence.roomN': 'Room {n}',
+  'presence.denied': 'Not shared: {why}',
   'menu.bar': 'Menu bar',
   'menu.file': 'File',
   'menu.export': 'Export',
@@ -1459,6 +1467,10 @@ const ja: Messages = {
   'common.close': '閉じる',
   'presence.otherBranch': '別のブランチ',
   'presence.mayShift': '位置がずれることがある（行 ID の無い表）',
+  'presence.room': '居場所を共有する部屋',
+  'presence.notSharing': '共有しない',
+  'presence.roomN': 'ルーム {n}',
+  'presence.denied': '共有できません: {why}',
   'menu.bar': 'メニュー',
   'menu.file': 'ファイル',
   'menu.export': '書き出し',
@@ -2170,6 +2182,10 @@ const zh: Messages = {
   'common.close': '关闭',
   'presence.otherBranch': '其他分支',
   'presence.mayShift': '位置可能有偏差（此表没有行 ID）',
+  'presence.room': '共享位置的房间',
+  'presence.notSharing': '不共享',
+  'presence.roomN': '房间 {n}',
+  'presence.denied': '无法共享: {why}',
   'menu.bar': '菜单栏',
   'menu.file': '文件',
   'menu.export': '导出',
@@ -2875,6 +2891,10 @@ const ko: Messages = {
   'common.close': '닫기',
   'presence.otherBranch': '다른 브랜치',
   'presence.mayShift': '위치가 어긋날 수 있음 (행 ID가 없는 표)',
+  'presence.room': '위치를 공유할 방',
+  'presence.notSharing': '공유 안 함',
+  'presence.roomN': '방 {n}',
+  'presence.denied': '공유할 수 없음: {why}',
   'menu.bar': '메뉴',
   'menu.file': '파일',
   'menu.export': '내보내기',
