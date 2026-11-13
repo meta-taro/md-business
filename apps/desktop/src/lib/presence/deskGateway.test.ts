@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createDeskGateway, type DeskTransport } from './deskGateway';
-import { SUBSCRIBE_LINE } from './deskLine';
-import type { PresenceUpdate } from './gateway';
+import { ROOMS_LINE, SUBSCRIBE_LINE } from './deskLine';
+import type { DeskRoom, PresenceUpdate } from './gateway';
 
 function fakeTransport() {
   const written: string[] = [];
@@ -65,5 +65,27 @@ describe('createDeskGateway', () => {
     t.deliver(JSON.stringify({ 型: '居場所', 誰: 'B', 文書: 'a.md', 場所: '', room: 'ROOM' }));
     expect(got).toEqual([]);
     expect(t.listenerCount()).toBe(0);
+  });
+
+  it('部屋の一覧を聞いて、届いた一覧を渡す', () => {
+    const t = fakeTransport();
+    const gateway = createDeskGateway(t.transport);
+    const got: DeskRoom[][] = [];
+    gateway.onRooms((rooms) => got.push(rooms));
+    gateway.askRooms();
+    expect(t.written.at(-1)).toBe(ROOMS_LINE);
+    t.deliver(JSON.stringify({ 型: '部屋たち', 部屋: [{ id: 'R1', 名前: null, 人数: 2 }] }));
+    expect(got).toEqual([[{ id: 'R1', name: null, members: 2 }]]);
+  });
+
+  it('机に断られた理由を渡す', () => {
+    const t = fakeTransport();
+    const gateway = createDeskGateway(t.transport);
+    const got: string[] = [];
+    const stop = gateway.onDenied((why) => got.push(why));
+    t.deliver(JSON.stringify({ 型: 'denied', why: 'その部屋に居ません' }));
+    stop();
+    t.deliver(JSON.stringify({ 型: 'denied', why: '二度目' }));
+    expect(got).toEqual(['その部屋に居ません']);
   });
 });

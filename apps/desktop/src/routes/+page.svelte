@@ -59,6 +59,7 @@
   import { invoke } from '@tauri-apps/api/core';
   import { git } from '$lib/git/git.svelte';
   import { createPagePresence } from '$lib/presence/pagePresence';
+  import RoomPicker from '$lib/presence/RoomPicker.svelte';
   import { connectDesk } from '$lib/presence/deskBridge';
   import { tauriDeskBridge } from '$lib/presence/tauriDeskBridge';
   import { documentName, type GitRemote } from '$lib/presence/documentName';
@@ -1469,7 +1470,10 @@
   style="--split-cols: {dividerColumns(splitRatio)}"
 >
   <section class="pane editor" aria-label={t('page.editorPaneLabel')}>
-    <div class="pane-head">{t('page.editorHead')}</div>
+    <div class="pane-head">
+      {t('page.editorHead')}
+      {#if presence}<RoomPicker {presence} tick={peerTick} />{/if}
+    </div>
     <!-- 読み終わるまでは枠だけ置く。ここで高さを持たせないと、届いた瞬間に
          右のプレビューごと位置がずれる。 -->
     {#await editorComponent}

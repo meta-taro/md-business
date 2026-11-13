@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { decodeDeskLine, encodePresenceLine, SUBSCRIBE_LINE } from './deskLine';
+import {
+  decodeDeniedLine,
+  decodeDeskLine,
+  decodeRoomsLine,
+  encodePresenceLine,
+  ROOMS_LINE,
+  SUBSCRIBE_LINE,
+} from './deskLine';
 import type { Place } from './place';
 
 const place: Place = { kind: 'markdown', branch: 'main', line: 3 };
@@ -80,5 +87,45 @@ describe('decodeDeskLine', () => {
     expect(decodeDeskLine(heard({ 誰: 'B', 文書: '', 場所: '', room: 'R' }))).toBeNull();
     expect(decodeDeskLine(heard({ 誰: 'B', 文書: 'a.md', 場所: 1, room: 'R' }))).toBeNull();
     expect(decodeDeskLine(heard({ 誰: 'B', 文書: 'a.md', 場所: '{"x":1}', room: 'R' }))).toBeNull();
+  });
+});
+
+describe('部屋の一覧', () => {
+  it('一覧を聞く 1 行', () => {
+    expect(JSON.parse(ROOMS_LINE)).toEqual({ 型: '部屋たち' });
+  });
+
+  it('机が返す一覧を読む（名前の無い部屋は null のまま）', () => {
+    const line = JSON.stringify({
+      型: '部屋たち',
+      部屋: [
+        { id: 'A'.repeat(26), 名前: '開発', 人数: 3, 主催か: true, 見ているか: true },
+        { id: 'B'.repeat(26), 名前: null, 人数: 1, 主催か: false, 見ているか: false },
+      ],
+    });
+    expect(decodeRoomsLine(line)).toEqual([
+      { id: 'A'.repeat(26), name: '開発', members: 3 },
+      { id: 'B'.repeat(26), name: null, members: 1 },
+    ]);
+  });
+
+  it('形の合わない部屋は飛ばし、一覧でない行は null', () => {
+    const line = JSON.stringify({ 型: '部屋たち', 部屋: [{ id: '', 名前: 'x', 人数: 1 }, { 名前: 'y' }] });
+    expect(decodeRoomsLine(line)).toEqual([]);
+    expect(decodeRoomsLine(JSON.stringify({ 型: '居場所' }))).toBeNull();
+    expect(decodeRoomsLine(JSON.stringify({ 型: '部屋たち' }))).toBeNull();
+    expect(decodeRoomsLine('壊れた')).toBeNull();
+  });
+});
+
+describe('decodeDeniedLine', () => {
+  it('断られた理由を読む', () => {
+    expect(decodeDeniedLine(JSON.stringify({ 型: 'denied', why: 'その部屋に居ません' }))).toBe('その部屋に居ません');
+  });
+
+  it('断りでない行・理由の無い行は null', () => {
+    expect(decodeDeniedLine(JSON.stringify({ 型: '部屋たち', 部屋: [] }))).toBeNull();
+    expect(decodeDeniedLine(JSON.stringify({ 型: 'denied' }))).toBeNull();
+    expect(decodeDeniedLine('{')).toBeNull();
   });
 });
