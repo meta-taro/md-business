@@ -292,6 +292,12 @@
       await respond(false, 'プレビューを印刷できる状態になりませんでした');
       return;
     }
+    // ファイルにしてと頼まれたときだけ、印刷の画面を通さず文書の隣へ書く。
+    if (request.action === 'save-pdf') {
+      const saved = await pdfExport.save();
+      await respond(saved.ok, saved.ok ? null : saved.message, saved.ok ? { written: saved.path } : null);
+      return;
+    }
     await respond(true);
     // 外から頼まれた印刷は、これまでどおり印刷の画面を開く（勝手にフォルダへ書かない）。
     void pdfExport.print();

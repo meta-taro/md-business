@@ -861,12 +861,13 @@ describe('createServer / git ツール', () => {
 describe('createServer / export_pdf ツール', () => {
   /** 依頼を控え、決まった結果を返すアプリ側の代役。 */
   function fakeApp(result: { ok: true; data?: unknown } | { ok: false; error: string }) {
-    const requests: { action: string; path?: string; maxEdge?: number }[] = [];
+    const requests: { action: string; path?: string; maxEdge?: number; timeoutMs?: number }[] = [];
     return {
       requests,
       request: async (req: {
         action:
           | 'export-pdf'
+          | 'save-pdf'
           | 'open-document'
           | 'close-document'
           | 'list-documents'
@@ -874,6 +875,7 @@ describe('createServer / export_pdf ツール', () => {
           | 'capture-window';
         path?: string;
         maxEdge?: number;
+        timeoutMs?: number;
       }) => {
         requests.push(req);
         return result;
@@ -923,6 +925,44 @@ describe('createServer / export_pdf ツール', () => {
     const { text, isError } = parse(res);
     expect(isError).toBe(true);
     expect(text).toMatchObject({ ok: false, error: 'プレビューが未表示です' });
+  });
+
+  it('save_pdf は印刷の画面を通さずに PDF を書かせ、書いた先を返す', async () => {
+    const app = fakeApp({ ok: true, data: { written: 'invoices/INV-1.pdf' } });
+    const client = await connectWithApp(app);
+    const res = (await client.callTool({
+      name: 'save_pdf',
+      arguments: { path: 'invoices/INV-1.md' },
+    })) as CallToolResult;
+    const { text, isError } = parse(res);
+    expect(isError).toBe(false);
+    expect(text).toEqual({ ok: true, path: 'invoices/INV-1.md', written: 'invoices/INV-1.pdf' });
+    expect(app.requests).toHaveLength(1);
+    expect(app.requests[0]).toMatchObject({ action: 'save-pdf', path: 'invoices/INV-1.md' });
+    // 作るのに時間が掛かるので、画面を開くだけの依頼より長く待つ。
+    expect(app.requests[0]?.timeoutMs).toBeGreaterThan(20_000);
+  });
+
+  it('save_pdf はアプリが書いた先を返さなければ失敗として返す', async () => {
+    // 書いた先が分からないまま ok を返すと、呼んだ側はファイルを探しに行けない。
+    const app = fakeApp({ ok: true });
+    const client = await connectWithApp(app);
+    const res = (await client.callTool({
+      name: 'save_pdf',
+      arguments: { path: 'invoices/INV-1.md' },
+    })) as CallToolResult;
+    expect(parse(res).isError).toBe(true);
+  });
+
+  it('save_pdf もワークスペース外のパスはアプリへ渡さない', async () => {
+    const app = fakeApp({ ok: true, data: { written: 'x.pdf' } });
+    const client = await connectWithApp(app);
+    const res = (await client.callTool({
+      name: 'save_pdf',
+      arguments: { path: '../secret.md' },
+    })) as CallToolResult;
+    expect(parse(res).isError).toBe(true);
+    expect(app.requests).toEqual([]);
   });
 
   it('ワークスペース外のパスはアプリへ渡さない', async () => {
