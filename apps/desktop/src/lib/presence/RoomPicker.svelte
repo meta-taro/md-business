@@ -56,7 +56,10 @@
     display: inline-flex;
     align-items: center;
     gap: var(--space-2);
+    min-width: 0;
+    flex-shrink: 1;
     margin-left: auto;
+    white-space: nowrap;
     text-transform: none;
     letter-spacing: normal;
   }
@@ -73,6 +76,7 @@
   }
 
   .room-denied {
+    min-width: 0;
     max-width: 220px;
     overflow: hidden;
     text-overflow: ellipsis;

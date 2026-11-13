@@ -5,6 +5,7 @@ import {
   decodeRoomsLine,
   encodePresenceLine,
   ROOMS_LINE,
+  SEAT_LINE,
   SUBSCRIBE_LINE,
 } from './deskLine';
 import type { Place } from './place';
@@ -46,6 +47,12 @@ describe('encodePresenceLine', () => {
 
   it('部屋を指さないときは送らない（画面が見ている部屋へ流れてしまう）', () => {
     expect(encodePresenceLine('a.md', place, '')).toBeNull();
+  });
+});
+
+describe('SEAT_LINE', () => {
+  it('机に名乗る 1 行', () => {
+    expect(JSON.parse(SEAT_LINE)).toEqual({ 型: 'listen', 場所: 'md-business' });
   });
 });
 

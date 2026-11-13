@@ -11,6 +11,7 @@ import {
   decodeRoomsLine,
   encodePresenceLine,
   ROOMS_LINE,
+  SEAT_LINE,
   SUBSCRIBE_LINE,
 } from './deskLine';
 import type { PresenceGateway } from './gateway';
@@ -23,6 +24,7 @@ export interface DeskTransport {
 }
 
 export function createDeskGateway(transport: DeskTransport): PresenceGateway {
+  transport.write(SEAT_LINE);
   transport.write(SUBSCRIBE_LINE);
   return {
     send(document, place, room) {

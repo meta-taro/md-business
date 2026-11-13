@@ -12,7 +12,13 @@ import type { DeskRoom, PresenceUpdate } from './gateway';
 import { MAX_NAME_BYTES } from './documentName';
 import { decodePlace, encodePlace, type Place } from './place';
 
-/** 相手の居場所を流してもらう 1 行。机へ繋いだら最初に送る。 */
+/**
+ * 机に名乗る 1 行。机は名乗っていない線からの居場所を断るので、繋いだら最初に送る。
+ * 名乗りは線ごとなので、繋ぎ直すたびに送り直す。
+ */
+export const SEAT_LINE = JSON.stringify({ 型: 'listen', 場所: 'md-business' });
+
+/** 相手の居場所を流してもらう 1 行。名乗った直後に送る。 */
 export const SUBSCRIBE_LINE = JSON.stringify({ 型: '居場所を聞く' });
 
 /** 自分が入っている部屋の一覧を聞く 1 行。 */
