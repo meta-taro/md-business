@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createDeskGateway, type DeskTransport } from './deskGateway';
-import { ROOMS_LINE, SUBSCRIBE_LINE } from './deskLine';
+import { ROOMS_LINE, SEAT_LINE, SUBSCRIBE_LINE } from './deskLine';
 import type { DeskRoom, PresenceUpdate } from './gateway';
 
 function fakeTransport() {
@@ -20,17 +20,17 @@ function fakeTransport() {
 }
 
 describe('createDeskGateway', () => {
-  it('繋いだら最初に相手の居場所を聞く', () => {
+  it('繋いだら名乗ってから相手の居場所を聞く（名乗らない線の居場所は机が断る）', () => {
     const t = fakeTransport();
     createDeskGateway(t.transport);
-    expect(t.written).toEqual([SUBSCRIBE_LINE]);
+    expect(t.written).toEqual([SEAT_LINE, SUBSCRIBE_LINE]);
   });
 
   it('自分の居場所を 1 行にして机へ書く', () => {
     const t = fakeTransport();
     const gateway = createDeskGateway(t.transport);
     gateway.send('a.md', { kind: 'markdown', branch: 'main', line: 3 }, 'ROOM');
-    expect(JSON.parse(t.written[1])).toEqual({
+    expect(JSON.parse(t.written[2])).toEqual({
       型: '居場所',
       文書: 'a.md',
       場所: '{"branch":"main","line":3}',
@@ -43,7 +43,7 @@ describe('createDeskGateway', () => {
     const gateway = createDeskGateway(t.transport);
     gateway.send('', null, 'ROOM');
     gateway.send('a.md', null, '');
-    expect(t.written).toEqual([SUBSCRIBE_LINE]);
+    expect(t.written).toEqual([SEAT_LINE, SUBSCRIBE_LINE]);
   });
 
   it('机から届いた居場所を受け手へ渡し、それ以外の行は渡さない', () => {

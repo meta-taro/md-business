@@ -47,7 +47,7 @@ describe('connectDesk', () => {
     emit('desk-connected', true);
     await flush();
     expect(gateways).toHaveLength(1);
-    expect(JSON.parse(written[0] as string)).toEqual({ 型: '居場所を聞く' });
+    expect(written.map((l) => JSON.parse(l).型)).toEqual(['listen', '居場所を聞く']);
   });
 
   it('受け取りを始める前に繋がっていた線も拾う', async () => {
@@ -57,7 +57,7 @@ describe('connectDesk', () => {
     await flush();
     expect(gateways).toHaveLength(1);
     expect(gateways[0]).not.toBeNull();
-    expect(JSON.parse(written[0] as string)).toEqual({ 型: '居場所を聞く' });
+    expect(written.map((l) => JSON.parse(l).型)).toEqual(['listen', '居場所を聞く']);
   });
 
   it('聞いている間に繋がった知らせが来ても出入口を二重に作らない', async () => {
