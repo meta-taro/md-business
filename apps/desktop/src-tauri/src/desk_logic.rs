@@ -79,6 +79,12 @@ pub fn frame_outgoing(line: &str) -> Option<String> {
     Some(format!("{line}\n"))
 }
 
+/// OS が返した機械の名前を整える。空なら名前は分からない。
+pub fn machine_name(raw: &str) -> Option<String> {
+    let name = raw.trim();
+    (!name.is_empty()).then(|| name.to_string())
+}
+
 /// 机から届くバイト列を行に切り出す。上限を超えた行は次の改行まで読み捨てる。
 #[derive(Debug, Default)]
 pub struct LineSplitter {
@@ -119,6 +125,21 @@ impl LineSplitter {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // ── machine_name ─────────────────────────────────────────────────────
+
+    #[test]
+    fn machine_name_trims() {
+        assert_eq!(machine_name("  desk-a
+"), Some("desk-a".to_string()));
+    }
+
+    #[test]
+    fn machine_name_empty_is_none() {
+        assert_eq!(machine_name(""), None);
+        assert_eq!(machine_name(" 
+"), None);
+    }
 
     // ── desk_address ─────────────────────────────────────────────────────
 

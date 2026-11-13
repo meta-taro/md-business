@@ -1,9 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import { connectDesk, type DeskBridge } from './deskBridge';
+import { seatLine } from './deskLine';
 import type { PresenceGateway, PresenceUpdate } from './gateway';
 
 /** Tauri の invoke / listen の代わり。届いた事象を手で流し込める。 */
-function fakeBridge(options: { failWrite?: boolean; connected?: boolean } = {}) {
+function fakeBridge(
+  options: {
+    failWrite?: boolean;
+    connected?: boolean;
+    machine?: string | null;
+  } = {},
+) {
   const written: string[] = [];
   const handlers = new Map<string, Set<(payload: unknown) => void>>();
   const bridge: DeskBridge = {
@@ -20,6 +27,9 @@ function fakeBridge(options: { failWrite?: boolean; connected?: boolean } = {}) 
     async connected() {
       return options.connected ?? false;
     },
+    async machine() {
+      return options.machine ?? null;
+    },
   };
   const emit = (event: string, payload: unknown) => {
     for (const handler of handlers.get(event) ?? []) handler(payload);
@@ -28,7 +38,13 @@ function fakeBridge(options: { failWrite?: boolean; connected?: boolean } = {}) 
   return { bridge, written, emit, listening };
 }
 
-const heard = JSON.stringify({ 型: '居場所', 誰: 'B', 文書: 'a.md', 場所: '', room: 'R' });
+const heard = JSON.stringify({
+  型: '居場所',
+  誰: 'B',
+  文書: 'a.md',
+  場所: '',
+  room: 'R',
+});
 const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
 
 describe('connectDesk', () => {
@@ -48,6 +64,23 @@ describe('connectDesk', () => {
     await flush();
     expect(gateways).toHaveLength(1);
     expect(written.map((l) => JSON.parse(l).型)).toEqual(['listen', '居場所を聞く']);
+  });
+
+  it('この機械の名前を添えて名乗る', async () => {
+    const { bridge, written, emit } = fakeBridge({ machine: 'desk-a' });
+    await connectDesk(bridge, () => {});
+    emit('desk-connected', true);
+    expect(written[0]).toBe(seatLine('desk-a'));
+  });
+
+  it('機械の名前を聞けなくても名乗る', async () => {
+    const { bridge, written, emit } = fakeBridge();
+    bridge.machine = async () => {
+      throw new Error('no');
+    };
+    await connectDesk(bridge, () => {});
+    emit('desk-connected', true);
+    expect(written[0]).toBe(seatLine(null));
   });
 
   it('受け取りを始める前に繋がっていた線も拾う', async () => {

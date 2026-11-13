@@ -115,6 +115,7 @@ pub fn run() {
             watch::unwatch_workspace,
             desk::desk_write,
             desk::desk_connected,
+            desk::desk_machine,
             git::git_status,
             git::git_branches,
             git::git_remote_urls,

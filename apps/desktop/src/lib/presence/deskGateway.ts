@@ -11,7 +11,7 @@ import {
   decodeRoomsLine,
   encodePresenceLine,
   ROOMS_LINE,
-  SEAT_LINE,
+  seatLine,
   SUBSCRIBE_LINE,
 } from './deskLine';
 import type { PresenceGateway } from './gateway';
@@ -23,8 +23,8 @@ export interface DeskTransport {
   onLine(listener: (line: string) => void): () => void;
 }
 
-export function createDeskGateway(transport: DeskTransport): PresenceGateway {
-  transport.write(SEAT_LINE);
+export function createDeskGateway(transport: DeskTransport, machine: string | null): PresenceGateway {
+  transport.write(seatLine(machine));
   transport.write(SUBSCRIBE_LINE);
   return {
     send(document, place, room) {
