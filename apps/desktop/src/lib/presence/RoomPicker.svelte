@@ -1,6 +1,7 @@
 <script lang="ts">
   // 居場所を共有する部屋を選ぶ。既定は「共有しない」で、選ぶまで何も送らない。
   // 一覧は机が持っているので、開くたびに聞き直す（部屋は割符側で増減する）。
+  // クリックでは focus より先に一覧が開くことがあるので、押した時点でも聞く。
   import { t } from '$lib/i18n/i18n.svelte';
   import type { PagePresence } from './pagePresence';
 
@@ -36,6 +37,7 @@
     aria-label={t('presence.room')}
     title={t('presence.room')}
     value={room ?? ''}
+    onpointerdown={() => presence.askRooms()}
     onfocus={() => presence.askRooms()}
     onchange={onChange}
   >
