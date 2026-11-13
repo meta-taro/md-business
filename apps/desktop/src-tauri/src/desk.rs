@@ -45,6 +45,13 @@ pub async fn desk_write(state: State<'_, DeskState>, line: String) -> Result<(),
     Ok(())
 }
 
+/// いま机に繋がっているか。起動直後の `desk-connected` は画面が受け取りを始める前に
+/// 出てしまうので、画面は受け取りを始めたあとでこれを 1 度聞いて取りこぼしを拾う。
+#[tauri::command]
+pub async fn desk_connected(state: State<'_, DeskState>) -> Result<bool, String> {
+    Ok(state.writer.lock().await.is_some())
+}
+
 /// 机への線を張り続ける。起動時に 1 度だけ呼ぶ。
 pub fn start(app: &AppHandle) {
     let app = app.clone();

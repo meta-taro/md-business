@@ -3,7 +3,7 @@ import { connectDesk, type DeskBridge } from './deskBridge';
 import type { PresenceGateway, PresenceUpdate } from './gateway';
 
 /** Tauri の invoke / listen の代わり。届いた事象を手で流し込める。 */
-function fakeBridge(options: { failWrite?: boolean } = {}) {
+function fakeBridge(options: { failWrite?: boolean; connected?: boolean } = {}) {
   const written: string[] = [];
   const handlers = new Map<string, Set<(payload: unknown) => void>>();
   const bridge: DeskBridge = {
@@ -16,6 +16,9 @@ function fakeBridge(options: { failWrite?: boolean } = {}) {
       set.add(handler);
       handlers.set(event, set);
       return () => set.delete(handler);
+    },
+    async connected() {
+      return options.connected ?? false;
     },
   };
   const emit = (event: string, payload: unknown) => {
@@ -45,6 +48,43 @@ describe('connectDesk', () => {
     await flush();
     expect(gateways).toHaveLength(1);
     expect(JSON.parse(written[0] as string)).toEqual({ 型: '居場所を聞く' });
+  });
+
+  it('受け取りを始める前に繋がっていた線も拾う', async () => {
+    const { bridge, written } = fakeBridge({ connected: true });
+    const gateways: (PresenceGateway | null)[] = [];
+    await connectDesk(bridge, (g) => gateways.push(g));
+    await flush();
+    expect(gateways).toHaveLength(1);
+    expect(gateways[0]).not.toBeNull();
+    expect(JSON.parse(written[0] as string)).toEqual({ 型: '居場所を聞く' });
+  });
+
+  it('聞いている間に繋がった知らせが来ても出入口を二重に作らない', async () => {
+    const { bridge, emit } = fakeBridge({ connected: true });
+    const gateways: (PresenceGateway | null)[] = [];
+    const ask = bridge.connected.bind(bridge);
+    bridge.connected = async () => {
+      emit('desk-connected', true);
+      return ask();
+    };
+    await connectDesk(bridge, (g) => gateways.push(g));
+    await flush();
+    expect(gateways).toHaveLength(1);
+  });
+
+  it('聞いている間に切れたら、古い返事で出入口を作らない', async () => {
+    const { bridge, emit } = fakeBridge({ connected: true });
+    const gateways: (PresenceGateway | null)[] = [];
+    const ask = bridge.connected.bind(bridge);
+    bridge.connected = async () => {
+      const answer = await ask();
+      emit('desk-connected', false);
+      return answer;
+    };
+    await connectDesk(bridge, (g) => gateways.push(g));
+    await flush();
+    expect(gateways).toEqual([null]);
   });
 
   it('届いた行を居場所として渡す', async () => {

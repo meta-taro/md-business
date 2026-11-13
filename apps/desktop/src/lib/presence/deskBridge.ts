@@ -3,6 +3,8 @@
  *
  * 線は本体側で切れては繋ぎ直されるので、繋がるたびに出入口を作り直して渡し
  * （聞く宣言は線ごとに要る）、切れたら null を渡す。前の線の出入口には行を流さない。
+ * 本体は起動直後に繋がることが多く、その知らせは画面が受け取りを始める前に出てしまう。
+ * だから受け取りを始めたあとで「いま繋がっているか」を 1 度聞いて、取りこぼしを拾う。
  * Tauri の口は DeskBridge として受け取り、ここ自体は Tauri に依存しない。
  */
 
@@ -13,6 +15,8 @@ import type { PresenceGateway } from './gateway';
 export interface DeskBridge {
   write(line: string): Promise<void>;
   listen(event: string, handler: (payload: unknown) => void): Promise<() => void>;
+  /** いま机に繋がっているか。 */
+  connected(): Promise<boolean>;
 }
 
 /** 線の出入口の移り変わりを onGateway へ渡し続ける。戻り値でやめる。 */
@@ -27,9 +31,12 @@ export async function connectDesk(
     if (typeof payload !== 'string') return;
     for (const listener of lineListeners) listener(payload);
   });
-  const unlistenConnected = await bridge.listen('desk-connected', (payload) => {
+  // 知らせを受けた回数。聞いている間に知らせが来たら、聞いた返事はもう古い。
+  let changes = 0;
+
+  function apply(connected: boolean): void {
     lineListeners = new Set();
-    if (payload !== true) {
+    if (!connected) {
       onGateway(null);
       return;
     }
@@ -44,7 +51,16 @@ export async function connectDesk(
         },
       }),
     );
+  }
+
+  const unlistenConnected = await bridge.listen('desk-connected', (payload) => {
+    changes += 1;
+    apply(payload === true);
   });
+
+  const asked = changes;
+  const connected = await bridge.connected().catch(() => false);
+  if (connected && changes === asked) apply(true);
 
   return () => {
     unlistenLine();
