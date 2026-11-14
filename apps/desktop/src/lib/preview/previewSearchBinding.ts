@@ -57,10 +57,13 @@ interface DomMatch {
  * @param getFrame 現在のプレビュー iframe を返すゲッター（srcdoc 再生成で contentDocument が
  *   差し替わるため、実行のたびに最新を取り直す）
  * @param report 件数・現在位置（0 始まり）をストアへ返すコールバック（search.report）
+ * @param reveal 当たった所を見せる別の手段。true を返したら縦スクロールはしない
+ *   （本のように読む画面は横に並べてめくるので、縦に送っても何も動かない）
  */
 export function createPreviewSearchBinding(
   getFrame: () => HTMLIFrameElement | undefined,
   report: (count: number, current: number) => void,
+  reveal?: (el: Element) => boolean,
 ): SearchBinding {
   let matches: DomMatch[] = [];
   let current = -1;
@@ -136,6 +139,8 @@ export function createPreviewSearchBinding(
   // 現在マッチを画面中央付近へスクロールする（プログラム scroll＝scrollSync の追従とは独立）。
   function scrollToCurrent(): void {
     if (current < 0 || current >= matches.length) return;
+    const parent = matches[current].node.parentElement;
+    if (parent && reveal?.(parent)) return;
     const doc = frameDoc();
     const win = getFrame()?.contentWindow;
     const scroller = doc?.scrollingElement;

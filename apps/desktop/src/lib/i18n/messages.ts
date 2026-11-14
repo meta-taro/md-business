@@ -467,6 +467,10 @@ export interface Messages {
   'page.gridRestoreTitle': string;
   'page.gridFullscreenBtn': string;
   'page.gridRestoreBtn': string;
+  'page.previewBookTitle': string;
+  'page.previewScrollTitle': string;
+  'page.previewBookBtn': string;
+  'page.previewScrollBtn': string;
   'page.previewFullscreenTitle': string;
   'page.previewRestoreTitle': string;
   'page.previewFullscreenBtn': string;
@@ -1192,6 +1196,10 @@ const en: Messages = {
   'page.gridRestoreTitle': 'Back to split view (Esc)',
   'page.gridFullscreenBtn': '⤢ Fullscreen',
   'page.gridRestoreBtn': '↙ Back to split',
+  'page.previewBookTitle': 'Read as a book: turn pages with ← → or a click',
+  'page.previewScrollTitle': 'Back to the scrolling view',
+  'page.previewBookBtn': '📖 Book',
+  'page.previewScrollBtn': '↕ Scroll',
   'page.previewFullscreenTitle': 'Show preview fullscreen',
   'page.previewRestoreTitle': 'Back to split view (Esc)',
   'page.previewFullscreenBtn': '⤢ Fullscreen',
@@ -1912,6 +1920,10 @@ const ja: Messages = {
   'page.gridRestoreTitle': '分割表示に戻す（Esc）',
   'page.gridFullscreenBtn': '⤢ 全画面',
   'page.gridRestoreBtn': '↙ 分割に戻す',
+  'page.previewBookTitle': '本のように読む（← → やクリックでめくる）',
+  'page.previewScrollTitle': '縦に流れる表示へ戻す',
+  'page.previewBookBtn': '📖 本',
+  'page.previewScrollBtn': '↕ 縦',
   'page.previewFullscreenTitle': 'プレビューを全画面表示',
   'page.previewRestoreTitle': '分割表示に戻す（Esc）',
   'page.previewFullscreenBtn': '⤢ 全画面',
@@ -2621,6 +2633,10 @@ const zh: Messages = {
   'page.gridRestoreTitle': '返回分屏视图（Esc）',
   'page.gridFullscreenBtn': '⤢ 全屏',
   'page.gridRestoreBtn': '↙ 返回分屏',
+  'page.previewBookTitle': '像书一样阅读（用 ← → 或点击翻页）',
+  'page.previewScrollTitle': '回到纵向滚动显示',
+  'page.previewBookBtn': '📖 书本',
+  'page.previewScrollBtn': '↕ 滚动',
   'page.previewFullscreenTitle': '全屏显示预览',
   'page.previewRestoreTitle': '返回分屏视图（Esc）',
   'page.previewFullscreenBtn': '⤢ 全屏',
@@ -3333,6 +3349,10 @@ const ko: Messages = {
   'page.gridRestoreTitle': '분할 보기로 복귀 (Esc)',
   'page.gridFullscreenBtn': '⤢ 전체 화면',
   'page.gridRestoreBtn': '↙ 분할로 복귀',
+  'page.previewBookTitle': '책처럼 읽기 (← → 또는 클릭으로 넘기기)',
+  'page.previewScrollTitle': '세로 스크롤 보기로 돌아가기',
+  'page.previewBookBtn': '📖 책',
+  'page.previewScrollBtn': '↕ 스크롤',
   'page.previewFullscreenTitle': '미리보기 전체 화면',
   'page.previewRestoreTitle': '분할 보기로 복귀 (Esc)',
   'page.previewFullscreenBtn': '⤢ 전체 화면',
