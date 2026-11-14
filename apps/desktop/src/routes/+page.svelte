@@ -17,6 +17,8 @@
   import { resolvePreviewLink } from '$lib/preview/previewLink';
   import { MAX_ZOOM, MIN_ZOOM, formatZoom, matchZoomShortcut } from '$lib/preview/previewZoom';
   import { previewZoom } from '$lib/preview/previewZoomState.svelte';
+  import { bookMode } from '$lib/preview/bookModeState.svelte';
+  import { attachBookReader, type BookReader } from '$lib/preview/bookReader';
   import {
     frameWidth,
     nextViewport,
@@ -206,6 +208,8 @@
   }
 
   function applyPreviewScroll(): void {
+    // 本のように読んでいる間は縦に送る先が無い。読む位置は bookReader が持つ。
+    if (bookReader) return;
     const info = lastFocus;
     const doc = viewerFrame?.contentDocument;
     const win = viewerFrame?.contentWindow;
@@ -321,7 +325,30 @@
       '--preview-zoom',
       String(previewZoom.value),
     );
+    bookReader?.refresh(previewZoom.value);
   }
+
+  // 本のように読む画面。文書は編集のたびに組み直されるので、そのたびに付け直す。
+  // 読んでいたページは組み直しをまたいで持ち越す（書きながら読み返すとき、毎回 1 ページ目へ戻らない）。
+  let bookReader: BookReader | null = null;
+  let lastBookPage = 0;
+
+  function syncBookReader(): void {
+    bookReader?.destroy();
+    bookReader = null;
+    const doc = viewerFrame?.contentDocument;
+    if (!bookMode.value || !doc?.body) return;
+    bookReader = attachBookReader(doc, {
+      zoom: previewZoom.value,
+      initialPage: lastBookPage,
+      onPage: (state) => (lastBookPage = state.page),
+    });
+  }
+
+  $effect(() => {
+    void bookMode.value;
+    syncBookReader();
+  });
 
   $effect(() => {
     void previewZoom.value;
@@ -343,6 +370,7 @@
       win.addEventListener('click', handlePreviewLinkClick);
     }
     applyPreviewZoom();
+    syncBookReader();
     applyPreviewScroll();
     // srcdoc 再生成でハイライト（CSS.highlights）が失われるため、プレビュー検索が開いたまま
     // なら新しいドキュメントへ貼り直す（開いていない／別対象なら refresh は no-op）。
@@ -565,7 +593,18 @@
     });
     // プレビュー iframe の検索を共通ストアへ登録（getter で現在の iframe を都度取り直す＝
     // srcdoc 再生成で contentDocument が差し替わっても最新へ届く）。
-    search.register('preview', createPreviewSearchBinding(() => viewerFrame, search.report));
+    search.register(
+      'preview',
+      createPreviewSearchBinding(
+        () => viewerFrame,
+        search.report,
+        (el) => {
+          if (!bookReader) return false;
+          bookReader.showElement(el);
+          return true;
+        },
+      ),
+    );
     // 文書の形は診断タブを開いたときだけ取りに行く（毎編集で数えると計測へ混ざるため）。
     perf.setProbe(() => ({
       rows: tsvDoc?.rows.length ?? 0,
@@ -580,6 +619,7 @@
     presence?.dispose();
     pdfExport.unregister();
     search.unregister('preview');
+    bookReader?.destroy();
     if (scrollRaf !== 0) cancelAnimationFrame(scrollRaf);
     if (followRaf !== 0) cancelAnimationFrame(followRaf);
   });
@@ -1887,6 +1927,16 @@
             aria-label={t('page.previewZoomInTitle')}>+</button
           >
         </span>
+        <!-- 本のようにめくって読む。縦に流す画面と切り替えるだけで、文書は組み直さない。 -->
+        <button
+          type="button"
+          class="head-btn"
+          onclick={() => bookMode.toggle()}
+          aria-pressed={bookMode.value}
+          title={bookMode.value ? t('page.previewScrollTitle') : t('page.previewBookTitle')}
+        >
+          {bookMode.value ? t('page.previewScrollBtn') : t('page.previewBookBtn')}
+        </button>
       {/if}
       <!-- 見る面だけにする。作っている最中は書く手が別（エージェント）なので、
            こちらは広く見えているほうが役に立つ。 -->
