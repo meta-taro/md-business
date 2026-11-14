@@ -75,6 +75,17 @@ describe('renderMarkdownToHtml — 決めた形のタグだけ通す', () => {
     expect(render('<u>閉じない')).toBe('<p>閉じない</p>');
   });
 
+  it('<ruby> はルビにする（提出版でも残す）', () => {
+    const src = '<ruby>漢字<rp>(</rp><rt>かんじ</rt><rp>)</rp></ruby>を読む';
+    const html = '<p><ruby>漢字<rp>(</rp><rt>かんじ</rt><rp>)</rp></ruby>を読む</p>';
+    expect(render(src)).toBe(html);
+    expect(render(src, 'submission')).toBe(html);
+  });
+
+  it('ルビの属性は通さない（中の文字は残す）', () => {
+    expect(render('<ruby onclick="x()">字<rt>じ</rt></ruby>')).toBe('<p>字<rt>じ</rt></p>');
+  });
+
   it('入れ子にできる', () => {
     expect(render('<u><span style="color:red">赤い下線</span></u>')).toBe(
       '<p><u><span style="color: red">赤い下線</span></u></p>',
