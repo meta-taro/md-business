@@ -1,6 +1,6 @@
 [package]
 name = "md-business-desktop"
-version = "0.39.0"
+version = "0.40.0"
 description = "md-business desktop app (Tauri 2 + SvelteKit)"
 authors = ["meta-taro"]
 license = "MIT"
@@ -47,6 +47,7 @@ base64 = "0.22"
 tokio = { version = "1", features = ["net", "io-util", "time", "sync"] }
 
 # 画像出力は OS ごとに撮る口が違う。Windows は WebView2 の DevTools Protocol を叩く。
+# Registry / Shell は「プログラムから開く」の候補に載せる登録に使う（file_assoc.rs）。
 # どちらも Tauri が既に連れてきているものなので、配布物は増えない。
 [target.'cfg(windows)'.dependencies]
 webview2-com = "0.38"
@@ -57,6 +58,8 @@ windows = { version = "0.61", features = [
   "Win32_System_Com",
   "Win32_System_WindowsProgramming",
   "Win32_System_LibraryLoader",
+  "Win32_System_Registry",
+  "Win32_UI_Shell",
   "Win32_UI_WindowsAndMessaging",
 ] }
 

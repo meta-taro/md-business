@@ -161,3 +161,21 @@ describe('buildPreviewDocument — 印刷の余白', () => {
     expect(buildPreviewDocument({ ...base, cssHref: 'site.css' })).toMatch(marginBoxes);
   });
 });
+
+describe('buildPreviewDocument — 本のように読む画面', () => {
+  it('アプリの中の画面には段組みの決まりを入れておく（切り替えは html の class だけで済む）', () => {
+    const html = buildPreviewDocument({ bodyHtml: '<p>a</p>', css: '' });
+    expect(html).toContain('html.mdb-book');
+    expect(html).toMatch(/@media screen \{[^]*html\.mdb-book body \{[^]*column-count: var\(--book-columns/);
+  });
+
+  it('最初から本の形にはしない', () => {
+    const html = buildPreviewDocument({ bodyHtml: '<p>a</p>', css: '' });
+    expect(html).not.toMatch(/<html[^>]*class=/);
+  });
+
+  it('アプリの外へ出す HTML には入れない', () => {
+    const html = buildPreviewDocument({ bodyHtml: '<p>a</p>', css: '', shortcuts: false });
+    expect(html).not.toContain('mdb-book');
+  });
+});

@@ -1,0 +1,19 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "bundle": {
+    "fileAssociations": [
+      {
+        "ext": ["md"],
+        "name": "Markdown",
+        "role": "Editor",
+        "rank": "Alternate"
+      },
+      {
+        "ext": ["tsv"],
+        "name": "TSV",
+        "role": "Editor",
+        "rank": "Alternate"
+      }
+    ]
+  }
+}
