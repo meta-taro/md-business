@@ -1,8 +1,9 @@
 /**
- * 文中の飾り（マーカー・下線・文字色）を、決めた形のものだけ要素にする。
+ * 文中の飾り（マーカー・下線・ルビ・文字色）を、決めた形のものだけ要素にする。
  *
  * 本文の生の HTML は既定で落とす。全部を通せば script も通るので、通すのは
- * `<mark>` `<u>` と、文字色だけを指定した `<span style="color:…">` に限る。
+ * `<mark>` `<u>` `<ruby>` `<rt>` `<rp>`（どれも属性なし）と、文字色だけを指定した
+ * `<span style="color:…">` に限る。
  * 色の値は形を確かめてから書き直す（`expression(...)` や `url(...)` を通さない）。
  *
  * `==文==` は読み上げ用の印として使われる。社内で使う印なので、
@@ -19,12 +20,12 @@ interface MdNode {
 
 /** 決めた形の飾りを表す節。`data.hName` を見て remark-rehype が要素にする。 */
 const INLINE_TYPE = 'mdbInline';
-type InlineKind = 'mark' | 'u' | 'color';
+type InlineKind = 'mark' | 'u' | 'ruby' | 'rt' | 'rp' | 'color';
 
-const OPEN_SIMPLE = /^<(u|mark)\s*>$/i;
+const OPEN_SIMPLE = /^<(u|mark|ruby|rt|rp)\s*>$/i;
 const OPEN_SPAN = /^<span\s+style\s*=\s*(["'])\s*color\s*:\s*([^;"']+?)\s*;?\s*\1\s*>$/i;
-const OPEN_ANY = /^<(u|mark|span)(?:\s[^>]*)?>$/i;
-const CLOSE = /^<\/(u|mark|span)\s*>$/i;
+const OPEN_ANY = /^<(u|mark|ruby|rt|rp|span)(?:\s[^>]*)?>$/i;
+const CLOSE = /^<\/(u|mark|ruby|rt|rp|span)\s*>$/i;
 
 /** 色として受ける形。名前・#16 進・rgb()/rgba() だけ。 */
 const COLOR =
@@ -34,9 +35,9 @@ function inlineNode(kind: InlineKind, color?: string): MdNode {
   const hast =
     kind === 'mark'
       ? { hName: 'mark', hProperties: { className: ['mdb-mark'] } }
-      : kind === 'u'
-        ? { hName: 'u' }
-        : { hName: 'span', hProperties: { style: `color: ${color}` } };
+      : kind === 'color'
+        ? { hName: 'span', hProperties: { style: `color: ${color}` } }
+        : { hName: kind };
   return { type: INLINE_TYPE, data: { ...hast, mdbKind: kind }, children: [] };
 }
 

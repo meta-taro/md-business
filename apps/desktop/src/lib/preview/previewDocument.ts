@@ -134,6 +134,46 @@ const PREVIEW_SHORTCUT_SCRIPT = `<script>
 const PREVIEW_ZOOM_STYLE = '<style>@media screen { html { zoom: var(--preview-zoom, 1); } }</style>';
 
 /**
+ * 本のように読む画面（見開き）。`<html class="mdb-book">` のときだけ効く。
+ *
+ * 本文を CSS の段組みで割り、1 段を 1 ページとして横へ並べ、変形でずらしてめくる。
+ * 寸法はすべて親（bookReader）が px で変数に入れる。`vh` を使わないのは、倍率（zoom）を
+ * 掛けた文書の中では `vh` が窓の高さとずれるため。
+ *
+ * 文書の CSS は body に幅や余白を付けていることがあるので、ここだけ `!important` で上書きする。
+ * 切り替えは class だけで済むので、モードを変えても srcdoc を組み直さない（読んでいた位置が残る）。
+ * 画面の上だけに効かせる（印刷＝PDF は今までどおり縦に流す）。
+ */
+const BOOK_STYLE = `<style>@media screen {
+html.mdb-book { overflow: hidden !important; }
+html.mdb-book body {
+  box-sizing: border-box !important;
+  margin: 0 !important;
+  width: auto !important;
+  max-width: none !important;
+  height: var(--book-height) !important;
+  padding: var(--book-pad-y) var(--book-pad-x) !important;
+  column-count: var(--book-columns);
+  column-gap: var(--book-gap);
+  column-fill: auto;
+  overflow: visible !important;
+  transform: translateX(calc(var(--book-shift, 0) * -1px));
+  transition: transform .28s ease;
+}
+html.mdb-book pre, html.mdb-book table, html.mdb-book figure, html.mdb-book .mermaid { break-inside: avoid; }
+html.mdb-book img, html.mdb-book svg, html.mdb-book video, html.mdb-book canvas {
+  max-width: 100%;
+  max-height: calc(var(--book-height) - var(--book-pad-y) * 2);
+  object-fit: contain;
+  break-inside: avoid;
+}
+html.mdb-book .mdb-book-page {
+  position: fixed; left: 50%; bottom: 6px; transform: translateX(-50%);
+  font: 12px/1.4 system-ui, sans-serif; opacity: .55; pointer-events: none;
+}
+}</style>`;
+
+/**
  * 印刷のとき、上下の余白へ空の欄を置く。
  *
  * WebView の印刷は、余白に日時・題・URL（`tauri.localhost`）・ページ番号を自分で刷り込む。
@@ -172,7 +212,8 @@ export function buildPreviewDocument(input: PreviewDocumentInput): string {
 <style>:root { color-scheme: ${escapeHtml(theme)}; }</style>
 ${PRINT_MARGIN_STYLE}
 ${style}${shortcuts ? `
-${PREVIEW_ZOOM_STYLE}` : ''}
+${PREVIEW_ZOOM_STYLE}
+${BOOK_STYLE}` : ''}
 </head>
 <body>
 ${bodyHtml}${script}
