@@ -4,6 +4,20 @@ Changes to this app. Versions follow [Semantic Versioning](https://semver.org/).
 
 Japanese is the source of truth for this file; see [CHANGELOG.md](./CHANGELOG.md).
 
+## 0.40.0
+
+### Added
+
+- **The preview can be read like a book.** Toggle it with "📖 Book" in the preview header. A wide landscape window shows two facing pages, otherwise one page at a time. Turn pages with ← → / PageUp・PageDown / Space, by clicking the left or right half, with the wheel, or by swiping. Tables, figures and code blocks are not split across pages. PDF export stays portrait A4.
+
+- **Ruby annotations are drawn in the body.** `<ruby>東京<rt>Tokyo</rt></ruby>` (with or without `<rp>`) now shows the reading above the base text in the preview, PDF and submission copy. Before, the text ran together as "東京Tokyo". Tags with attributes are still dropped.
+
+- **md-business appears under "Open with" in Explorer / Finder** for `.md` and `.tsv`. Your default app is not changed. On Windows it is listed after the app has been started once.
+
+- **On a PC running Warifu, you can see where others are in the same document.** Pick a room in the editor pane header to send your cursor line and selected table cell to that room; other people's positions are marked on editor lines and table cells. The default is "Don't share", and nothing is sent until you pick a room.
+
+- **AI can point, click and talk with a cursor inside the window.** MCP connected through the app gains `screen`, which lets the AI point at controls, press them, and explain with a speech bubble. The cursor moves only inside the window and never touches the OS mouse or keyboard.
+
 ## 0.39.0
 
 ### Added
