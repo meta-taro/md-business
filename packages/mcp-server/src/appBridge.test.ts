@@ -114,6 +114,22 @@ describe('createAppBridge', () => {
     }
   });
 
+  it('依頼ごとに待つ上限を延ばせる', async () => {
+    // PDF を作る依頼は、裏で WebView2 を立てるぶん画面を開く依頼より長く掛かる。
+    vi.useFakeTimers();
+    try {
+      const { sent, bridge } = setup(50);
+      const promise = bridge.request({ action: 'save-pdf', path: 'a.md', timeoutMs: 500 });
+      await vi.advanceTimersByTimeAsync(100);
+      bridge.settle({ type: 'response', id: sent[0]?.id ?? '', ok: true, data: { written: 'a.pdf' } });
+      await expect(promise).resolves.toEqual({ ok: true, data: { written: 'a.pdf' } });
+      // 待ち時間は送らない（アプリ側の知ることではない）。
+      expect(sent[0]).not.toHaveProperty('timeoutMs');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('時間切れの後に届いた応答は捨てる', async () => {
     vi.useFakeTimers();
     try {

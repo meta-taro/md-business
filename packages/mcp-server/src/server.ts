@@ -32,7 +32,7 @@ import { searchDocuments } from './search.js';
 import type { SearchQuery } from './search.js';
 import { gitStatus, gitDiff, gitCommit } from './gitTools.js';
 import type { GitCommitInput, GitRunner } from './gitTools.js';
-import type { AppBridge } from './appBridge.js';
+import type { AppBridge, AppRequestResult } from './appBridge.js';
 import type { DesktopOpenResult, DesktopOpener } from './desktopOpener.js';
 import { safeRelativePath } from './workspacePath.js';
 import { parseProjectConfig, PROJECT_CONFIG_FILENAME } from '@md-business/core';
@@ -144,6 +144,25 @@ ${screen}
 - スキーマ宣言（frontmatter の \`schema\` / TSV 1 行目の \`#!\` 行）は書き換えない。`;
 }
 
+/**
+ * PDF を書き出す依頼を待つ上限。裏で描画し直してから書くので、画面を開く依頼より長く掛かる。
+ * 既定の 20 秒では大きな文書で書き終わる前に打ち切ってしまうため、別に持つ。
+ */
+const SAVE_PDF_TIMEOUT_MS = 120_000;
+
+/** アプリの応答を save_pdf の戻り値にする。書いた先が返らなければ書けていない扱いにする。 */
+function toSavePdfResult(
+  result: AppRequestResult,
+  path: string,
+): { ok: true; path: string; written: string } | { ok: false; error: string } {
+  if (!result.ok) return result;
+  const written = (result.data as { written?: unknown } | undefined)?.written;
+  if (typeof written !== 'string' || written === '') {
+    return { ok: false, error: 'アプリが書き出した先を返しませんでした' };
+  }
+  return { ok: true, path, written };
+}
+
 /** アプリの中から繋いだときだけ公開するツール。 */
 const APP_ONLY_TOOLS: ReadonlySet<string> = new Set([
   'list_open_documents',
@@ -152,6 +171,7 @@ const APP_ONLY_TOOLS: ReadonlySet<string> = new Set([
   'capture_window',
   'screen',
   'export_pdf',
+  'save_pdf',
 ]);
 
 /**
@@ -1322,6 +1342,35 @@ export function createServer(store: DocumentStore, options: CreateServerOptions 
         const result = await app.request({ action: 'export-pdf', path: safe.relative });
         const r = result.ok ? { ok: true as const, path: safe.relative } : result;
         emit('export_pdf', safe.relative, r);
+        return jsonResult(r, !r.ok);
+      },
+    );
+
+    server.registerTool(
+      'save_pdf',
+      {
+        description:
+          '対象文書を PDF にして、文書と同じフォルダへ同じ名前（拡張子 .pdf）で書き出す。印刷ダイアログは出さない。' +
+          '書き出した PDF のワークスペース相対パスを written で返す。出力先は選べない（別の場所が要るなら書き出した後に移す）。' +
+          '目次付きの PDF を作るので数十秒かかることがある。Windows 版のアプリでのみ動く。',
+        inputSchema: {
+          path: z.string().describe('PDF にするワークスペース相対パス'),
+        },
+      },
+      async ({ path }) => {
+        const safe = safeRelativePath(path);
+        if (!safe.ok) {
+          const r = { ok: false as const, error: safe.reason };
+          emit('save_pdf', path, r);
+          return jsonResult(r, true);
+        }
+        const result = await app.request({
+          action: 'save-pdf',
+          path: safe.relative,
+          timeoutMs: SAVE_PDF_TIMEOUT_MS,
+        });
+        const r = toSavePdfResult(result, safe.relative);
+        emit('save_pdf', safe.relative, r);
         return jsonResult(r, !r.ok);
       },
     );

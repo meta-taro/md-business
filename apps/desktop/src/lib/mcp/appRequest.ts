@@ -11,6 +11,7 @@
 /** サーバーから届く依頼の種類。 */
 export type AppRequestAction =
   | 'export-pdf'
+  | 'save-pdf'
   | 'open-document'
   | 'close-document'
   | 'list-documents'
@@ -20,6 +21,7 @@ export type AppRequestAction =
 
 const ACTIONS: readonly string[] = [
   'export-pdf',
+  'save-pdf',
   'open-document',
   'close-document',
   'list-documents',

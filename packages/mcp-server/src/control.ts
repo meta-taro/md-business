@@ -137,7 +137,8 @@ export interface RootEvent {
  * アプリ画面でしかできない操作の依頼。
  *
  * サーバー側には画面が無い。対象文書を開くところ（`open-document`）と、そのうえで
- * 印刷ダイアログを出すところ（`export-pdf`）、開いている文書の一覧
+ * 印刷ダイアログを出すところ（`export-pdf`）、印刷の画面を通さず PDF を文書の隣へ
+ * 書くところ（`save-pdf`）、開いている文書の一覧
  * （`list-documents`）と閉じるところ（`close-document`）をアプリに任せる。
  *
  * `trust-status` は「このフォルダで script を動かしてよいか」の照会。許可はアプリだけが
@@ -153,6 +154,7 @@ export interface RequestEvent {
   id: string;
   action:
     | 'export-pdf'
+    | 'save-pdf'
     | 'open-document'
     | 'close-document'
     | 'list-documents'

@@ -8,6 +8,14 @@ describe('parseRequestEvent', () => {
     ).toEqual({ id: 'req-1', action: 'export-pdf', path: 'invoices/INV-1.md' });
   });
 
+  it('PDF をファイルへ書き出す依頼も読み取る', () => {
+    expect(
+      parseRequestEvent({ id: 'req-5', action: 'save-pdf', path: 'invoices/INV-1.md' }),
+    ).toEqual({ id: 'req-5', action: 'save-pdf', path: 'invoices/INV-1.md' });
+    // 書き出す対象が無ければ、どれを PDF にするか決められない。
+    expect(parseRequestEvent({ id: 'req-6', action: 'save-pdf' })).toBeNull();
+  });
+
   it('文書を開く依頼も読み取る', () => {
     expect(
       parseRequestEvent({ id: 'req-2', action: 'open-document', path: 'specs/design.md' }),

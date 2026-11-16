@@ -129,7 +129,7 @@ const USE_CASES: readonly UseCase[] = [
   },
   {
     want: '利用者の画面で何が開いているかを見て、確かめる・閉じる・PDF にする',
-    tools: ['list_open_documents', 'capture_window', 'close_document', 'export_pdf'],
+    tools: ['list_open_documents', 'capture_window', 'close_document', 'export_pdf', 'save_pdf'],
   },
   {
     want: '利用者の画面で場所を指して見せる・代わりに押してみせる（マウスは奪わない）',
