@@ -15,8 +15,18 @@ import { decodePlace, encodePlace, type Place } from './place';
 /**
  * 机に名乗る 1 行。机は名乗っていない線からの居場所を断るので、繋いだら最初に送る。
  * 名乗りは線ごとなので、繋ぎ直すたびに送り直す。
+ * 別の PC の md-business と見分けられるよう機械の名前を添え、上限に収まるよう機械の名前の側を切る。
  */
-export const SEAT_LINE = JSON.stringify({ 型: 'listen', 場所: 'md-business' });
+export function seatLine(machine: string | null): string {
+  const cleaned = [...(machine ?? '').replace(CONTROL_ALL, '').trim()];
+  const room = MAX_SEAT_CHARS - [...APP_NAME].length - 2;
+  const name = cleaned.length === 0 ? APP_NAME : `${APP_NAME}（${cleaned.slice(0, room).join('')}）`;
+  return JSON.stringify({ 型: 'listen', 場所: name });
+}
+
+const APP_NAME = 'md-business';
+/** 机が受ける名乗りの長さ（文字数）。 */
+const MAX_SEAT_CHARS = 32;
 
 /** 相手の居場所を流してもらう 1 行。名乗った直後に送る。 */
 export const SUBSCRIBE_LINE = JSON.stringify({ 型: '居場所を聞く' });
@@ -26,6 +36,7 @@ export const ROOMS_LINE = JSON.stringify({ 型: '部屋たち' });
 
 // eslint-disable-next-line no-control-regex
 const CONTROL = /[\u0000-\u001f\u007f]/;
+const CONTROL_ALL = new RegExp(CONTROL.source, 'g');
 
 function fitsDesk(text: string): boolean {
   return new TextEncoder().encode(text).length <= MAX_NAME_BYTES && !CONTROL.test(text);
