@@ -9,6 +9,8 @@ mod capture_window_win;
 mod deep_link;
 mod desk;
 mod desk_logic;
+#[cfg(any(windows, test))]
+mod file_assoc;
 mod fileinfo;
 mod git;
 mod image;
@@ -75,6 +77,9 @@ pub fn run() {
             desk::start(app.handle());
             // 起動引数で開くよう頼まれていれば預かる（画面ができてから取りに来る）。
             open_arg::remember_startup_args(app.handle());
+            // 「プログラムから開く」の候補に載せる（開発ビルドでは何もしない）。
+            #[cfg(windows)]
+            file_assoc::register();
             #[cfg(desktop)]
             {
                 use tauri_plugin_deep_link::DeepLinkExt;
@@ -173,6 +178,16 @@ pub fn run() {
         .build(tauri::generate_context!())
         .expect("error while running tauri application")
         .run(|app, event| {
+            // mac は Finder から開くよう頼まれたファイルが、起動引数ではなくこのイベントで届く。
+            // 受け取った先は起動引数と同じ口へ回す（種類の絞り込みもそちらが持つ）。
+            #[cfg(target_os = "macos")]
+            if let tauri::RunEvent::Opened { urls } = &event {
+                for url in urls {
+                    if let Ok(path) = url.to_file_path() {
+                        open_arg::remember(app, &path.to_string_lossy());
+                    }
+                }
+            }
             // 終了時に外へ出したものを畳む。放置すると子プロセスが孤児として残り、
             // ブラウザ表示の待ち受けもポートを掴んだままになりうる。
             if let tauri::RunEvent::Exit = event {
