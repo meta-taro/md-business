@@ -17,6 +17,8 @@ export interface DeskBridge {
   listen(event: string, handler: (payload: unknown) => void): Promise<() => void>;
   /** いま机に繋がっているか。 */
   connected(): Promise<boolean>;
+  /** この機械の名前。分からなければ null。 */
+  machine(): Promise<string | null>;
 }
 
 /** 線の出入口の移り変わりを onGateway へ渡し続ける。戻り値でやめる。 */
@@ -24,6 +26,8 @@ export async function connectDesk(
   bridge: DeskBridge,
   onGateway: (gateway: PresenceGateway | null) => void,
 ): Promise<() => void> {
+  // 機械の名前は変わらないので 1 度だけ聞く。
+  const machine = await bridge.machine().catch(() => null);
   // いま繋がっている線の受け手。切れたら空にして、古い出入口へ行が流れないようにする。
   let lineListeners = new Set<(line: string) => void>();
 
@@ -42,14 +46,17 @@ export async function connectDesk(
     }
     const listeners = lineListeners;
     onGateway(
-      createDeskGateway({
-        // 送れなかった居場所は溜めない。次の送り直しか、繋ぎ直しで追いつく。
-        write: (line) => void bridge.write(line).catch(() => {}),
-        onLine(listener) {
-          listeners.add(listener);
-          return () => listeners.delete(listener);
+      createDeskGateway(
+        {
+          // 送れなかった居場所は溜めない。次の送り直しか、繋ぎ直しで追いつく。
+          write: (line) => void bridge.write(line).catch(() => {}),
+          onLine(listener) {
+            listeners.add(listener);
+            return () => listeners.delete(listener);
+          },
         },
-      }),
+        machine,
+      ),
     );
   }
 

@@ -13,7 +13,7 @@ use tauri::{AppHandle, Emitter, Manager, State};
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, WriteHalf};
 use tokio::sync::Mutex;
 
-use crate::desk_logic::{desk_address, frame_outgoing, DeskPlatform, LineSplitter};
+use crate::desk_logic::{desk_address, frame_outgoing, machine_name, DeskPlatform, LineSplitter};
 
 /// 繋がらなかった / 切れたあと、もう一度試すまでの間。割符を後から立ち上げても拾える長さ。
 const RETRY: Duration = Duration::from_secs(3);
@@ -50,6 +50,36 @@ pub async fn desk_write(state: State<'_, DeskState>, line: String) -> Result<(),
 #[tauri::command]
 pub async fn desk_connected(state: State<'_, DeskState>) -> Result<bool, String> {
     Ok(state.writer.lock().await.is_some())
+}
+
+/// この機械の名前。机への名乗りに添えて、別の PC の md-business と見分けられるようにする。
+#[tauri::command]
+pub async fn desk_machine() -> Result<Option<String>, String> {
+    Ok(read_machine_name().as_deref().and_then(machine_name))
+}
+
+#[cfg(windows)]
+fn read_machine_name() -> Option<String> {
+    std::env::var("COMPUTERNAME").ok()
+}
+
+#[cfg(target_os = "macos")]
+fn read_machine_name() -> Option<String> {
+    // 共有の設定に出る名前。ホスト名はネットワークで変わりうる。
+    let out = std::process::Command::new("scutil")
+        .args(["--get", "ComputerName"])
+        .output()
+        .ok()?;
+    out.status
+        .success()
+        .then(|| String::from_utf8_lossy(&out.stdout).into_owned())
+}
+
+#[cfg(all(unix, not(target_os = "macos")))]
+fn read_machine_name() -> Option<String> {
+    std::fs::read_to_string("/etc/hostname")
+        .ok()
+        .or_else(|| std::env::var("HOSTNAME").ok())
 }
 
 /// 机への線を張り続ける。起動時に 1 度だけ呼ぶ。
