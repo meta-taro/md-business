@@ -32,6 +32,8 @@ export interface BookReaderOptions {
   initialPage?: number;
   /** ページが変わるたびに呼ぶ。 */
   onPage?: (state: BookPageState) => void;
+  /** 開いたときに出す、めくり方の案内。一度めくれば消す。 */
+  hint?: string;
 }
 
 export interface BookReader {
@@ -48,6 +50,7 @@ export interface BookReader {
 
 export const BOOK_CLASS = 'mdb-book';
 const PAGE_LABEL_CLASS = 'mdb-book-page';
+const HINT_CLASS = 'mdb-book-hint';
 const VARS = [
   '--book-height',
   '--book-pad-y',
@@ -83,6 +86,22 @@ export function attachBookReader(
   label.className = PAGE_LABEL_CLASS;
   label.setAttribute('aria-live', 'polite');
 
+  // 段組みは横へ続いていても、画面には 1 画面ぶんしか見えない。めくれることを端の矢印で示す。
+  function arrow(className: string, delta: number): HTMLButtonElement {
+    const button = doc.createElement('button');
+    button.type = 'button';
+    button.className = className;
+    button.setAttribute(
+      'aria-label',
+      delta < 0 ? 'previous page' : 'next page'
+    );
+    button.addEventListener('click', () => turn(delta));
+    return button;
+  }
+  const prevArrow = arrow('mdb-book-prev', -1);
+  const nextArrow = arrow('mdb-book-next', 1);
+  let hint: HTMLElement | null = null;
+
   function measure(): void {
     const width = win!.innerWidth / zoom;
     const height = win!.innerHeight / zoom;
@@ -100,6 +119,8 @@ export function attachBookReader(
     page = alignPage(next, metrics.perView, total);
     root.style.setProperty('--book-shift', String(page * metrics.stride));
     label.textContent = pageLabel(page, metrics.perView, total);
+    prevArrow.hidden = page === 0;
+    nextArrow.hidden = page + metrics.perView >= total;
     options.onPage?.({ page, perView: metrics.perView, total });
   }
 
@@ -112,6 +133,8 @@ export function attachBookReader(
   }
 
   function turn(delta: number): void {
+    hint?.remove();
+    hint = null;
     show(turnPage(page, delta, metrics.perView, total));
   }
 
@@ -209,6 +232,8 @@ export function attachBookReader(
 
   root.classList.add(BOOK_CLASS);
   root.appendChild(label);
+  root.appendChild(prevArrow);
+  root.appendChild(nextArrow);
   win.addEventListener('keydown', onKeydown);
   win.addEventListener('wheel', onWheel, { passive: false });
   win.addEventListener('pointerdown', onPointerDown);
@@ -219,6 +244,12 @@ export function attachBookReader(
 
   measure();
   show(options.initialPage ?? 0);
+  if (options.hint && total > metrics.perView) {
+    hint = doc.createElement('div');
+    hint.className = HINT_CLASS;
+    hint.textContent = options.hint;
+    root.appendChild(hint);
+  }
 
   return {
     refresh,
@@ -238,6 +269,9 @@ export function attachBookReader(
       root.classList.remove(BOOK_CLASS);
       for (const name of VARS) root.style.removeProperty(name);
       label.remove();
+      prevArrow.remove();
+      nextArrow.remove();
+      hint?.remove();
     },
   };
 }

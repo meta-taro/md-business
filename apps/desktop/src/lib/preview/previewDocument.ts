@@ -171,6 +171,31 @@ html.mdb-book .mdb-book-page {
   position: fixed; left: 50%; bottom: 6px; transform: translateX(-50%);
   font: 12px/1.4 system-ui, sans-serif; opacity: .55; pointer-events: none;
 }
+html.mdb-book .mdb-book-prev, html.mdb-book .mdb-book-next {
+  position: fixed; top: 50%; transform: translateY(-50%);
+  box-sizing: border-box; display: block; margin: 0;
+  width: 32px; height: 56px; padding: 0; border: none; border-radius: 8px;
+  background: rgba(128,128,128,.14); color: inherit; opacity: .6; cursor: pointer;
+  transition: opacity .15s, background .15s;
+}
+html.mdb-book .mdb-book-prev::before, html.mdb-book .mdb-book-next::before {
+  content: ''; position: absolute; top: 50%; left: 50%;
+  width: 10px; height: 10px; border: solid currentColor; border-width: 2px 2px 0 0;
+}
+html.mdb-book .mdb-book-prev::before { transform: translate(-30%, -50%) rotate(-135deg); }
+html.mdb-book .mdb-book-next::before { transform: translate(-70%, -50%) rotate(45deg); }
+html.mdb-book .mdb-book-prev { left: 4px; }
+html.mdb-book .mdb-book-next { right: 4px; }
+html.mdb-book .mdb-book-prev:hover, html.mdb-book .mdb-book-next:hover { opacity: 1; background: rgba(128,128,128,.28); }
+html.mdb-book .mdb-book-prev[hidden], html.mdb-book .mdb-book-next[hidden] { display: none; }
+html.mdb-book .mdb-book-hint {
+  position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%);
+  padding: 6px 14px; border-radius: 999px;
+  background: rgba(0,0,0,.72); color: #fff;
+  font: 13px/1.4 system-ui, sans-serif; pointer-events: none;
+  animation: mdb-book-hint 6s ease forwards;
+}
+@keyframes mdb-book-hint { 0%, 80% { opacity: 1; } 100% { opacity: 0; } }
 }</style>`;
 
 /**
