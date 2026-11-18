@@ -151,6 +151,38 @@ describe('attachBookReader', () => {
     expect(reader.state().page).toBe(4);
   });
 
+  it('左右の端にめくる矢印を出し、端のページでは向こう側の矢印を隠す', () => {
+    reader = attachBookReader(document, { zoom: 1 });
+    const prev = document.querySelector<HTMLButtonElement>('.mdb-book-prev')!;
+    const next = document.querySelector<HTMLButtonElement>('.mdb-book-next')!;
+    expect(prev.hidden).toBe(true);
+    expect(next.hidden).toBe(false);
+    next.click();
+    expect(reader.state().page).toBe(2);
+    expect(prev.hidden).toBe(false);
+    reader.turn(99);
+    expect(next.hidden).toBe(true);
+    prev.click();
+    expect(reader.state().page).toBe(6);
+  });
+
+  it('めくり方の案内は開いたときだけ出し、一度めくれば消す', () => {
+    reader = attachBookReader(document, { zoom: 1, hint: 'めくれます' });
+    const hint = (): Element | null => document.querySelector('.mdb-book-hint');
+    expect(hint()?.textContent).toBe('めくれます');
+    reader.turn(1);
+    expect(hint()).toBeNull();
+  });
+
+  it('1 画面に収まる短い文書には矢印も案内も出さない', () => {
+    setPages(2);
+    reader = attachBookReader(document, { zoom: 1, hint: 'めくれます' });
+    expect(
+      document.querySelector<HTMLButtonElement>('.mdb-book-next')!.hidden
+    ).toBe(true);
+    expect(document.querySelector('.mdb-book-hint')).toBeNull();
+  });
+
   it('外すと元の縦に流れる画面へ戻り、操作も受けない', () => {
     const onPage = vi.fn();
     const detached = attachBookReader(document, { zoom: 1, onPage });
@@ -158,6 +190,7 @@ describe('attachBookReader', () => {
     expect(root().classList.contains(BOOK_CLASS)).toBe(false);
     expect(root().style.getPropertyValue('--book-shift')).toBe('');
     expect(label()).toBeNull();
+    expect(document.querySelector('.mdb-book-next')).toBeNull();
     onPage.mockClear();
     key('ArrowRight');
     window.dispatchEvent(new MouseEvent('click', { clientX: 1200 }));
