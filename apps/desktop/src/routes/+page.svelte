@@ -341,6 +341,7 @@
     bookReader = attachBookReader(doc, {
       zoom: previewZoom.value,
       initialPage: lastBookPage,
+      hint: t('page.bookHint'),
       onPage: (state) => (lastBookPage = state.page),
     });
   }

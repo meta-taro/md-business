@@ -469,6 +469,7 @@ export interface Messages {
   'page.gridFullscreenBtn': string;
   'page.gridRestoreBtn': string;
   'page.previewBookTitle': string;
+  'page.bookHint': string;
   'page.previewScrollTitle': string;
   'page.previewBookBtn': string;
   'page.previewScrollBtn': string;
@@ -1199,6 +1200,7 @@ const en: Messages = {
   'page.gridFullscreenBtn': '⤢ Fullscreen',
   'page.gridRestoreBtn': '↙ Back to split',
   'page.previewBookTitle': 'Read as a book: turn pages with ← → or a click',
+  'page.bookHint': 'Turn pages with ‹ ›, the ← → keys, or a swipe',
   'page.previewScrollTitle': 'Back to the scrolling view',
   'page.previewBookBtn': '📖 Book',
   'page.previewScrollBtn': '↕ Scroll',
@@ -1924,6 +1926,7 @@ const ja: Messages = {
   'page.gridFullscreenBtn': '⤢ 全画面',
   'page.gridRestoreBtn': '↙ 分割に戻す',
   'page.previewBookTitle': '本のように読む（← → やクリックでめくる）',
+  'page.bookHint': '‹ › や ← → キー、横スワイプでめくれます',
   'page.previewScrollTitle': '縦に流れる表示へ戻す',
   'page.previewBookBtn': '📖 本',
   'page.previewScrollBtn': '↕ 縦',
@@ -2638,6 +2641,7 @@ const zh: Messages = {
   'page.gridFullscreenBtn': '⤢ 全屏',
   'page.gridRestoreBtn': '↙ 返回分屏',
   'page.previewBookTitle': '像书一样阅读（用 ← → 或点击翻页）',
+  'page.bookHint': '用 ‹ ›、← → 键或横向滑动翻页',
   'page.previewScrollTitle': '回到纵向滚动显示',
   'page.previewBookBtn': '📖 书本',
   'page.previewScrollBtn': '↕ 滚动',
@@ -3355,6 +3359,7 @@ const ko: Messages = {
   'page.gridFullscreenBtn': '⤢ 전체 화면',
   'page.gridRestoreBtn': '↙ 분할로 복귀',
   'page.previewBookTitle': '책처럼 읽기 (← → 또는 클릭으로 넘기기)',
+  'page.bookHint': '‹ ›, ← → 키 또는 가로 스와이프로 넘길 수 있습니다',
   'page.previewScrollTitle': '세로 스크롤 보기로 돌아가기',
   'page.previewBookBtn': '📖 책',
   'page.previewScrollBtn': '↕ 스크롤',
