@@ -29,6 +29,7 @@ This is not a test sheet. There is nothing to grade row by row. Open them in ord
 | [`17-logo.svg`](./17-logo.svg) | SVG — do the strokes hold up when enlarged |
 | [`18-worklog.jsonl`](./18-worklog.jsonl) | 4,200 one-record-per-line log entries — can you narrow it down without opening it whole |
 | [`19-investigation.md`](./19-investigation.md) | Investigation report over `18-worklog.jsonl`, with its evidence in [`evidence/`](./evidence/) |
+| [`20-book.md`](./20-book.md) | Book-style page-turning view. Whether ruby, tables, a tall image and code break across page edges |
 
 ## Worth watching
 

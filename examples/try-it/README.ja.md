@@ -30,6 +30,7 @@
 | [`17-logo.svg`](./17-logo.svg) | SVG。拡大しても線が保たれるか |
 | [`18-worklog.jsonl`](./18-worklog.jsonl) | 1 行 1 件のログを 4,200 行。全文を開かずに絞れるか |
 | [`19-investigation.md`](./19-investigation.md) | 調査報告書。`18-worklog.jsonl` を調べた体裁で、根拠を [`evidence/`](./evidence/) に置いている |
+| [`20-book.md`](./20-book.md) | 本のようにめくる表示。ルビ・表・縦長の画像・コードがページの境目で切れないか |
 
 ## 見るとよいところ
 
