@@ -13,6 +13,7 @@
     collectFolderPaths,
     shouldClearFilter,
     decideTreeKey,
+    treeHasFile,
   } from '$lib/workspace/workspaceLogic';
   import { git } from '$lib/git/git.svelte';
   import { diffView } from '$lib/git/diffView.svelte';
@@ -605,6 +606,14 @@
         </button>
       </div>
     </div>
+  {/if}
+
+  {#if workspace.root !== null && workspace.activePath !== null && workspace.tree.length > 0 && !treeHasFile(workspace.tree, workspace.activePath)}
+    <!-- 隠しフォルダ（.local など）やフォルダ外のファイルはツリーに行が無く、目印を付けられない。
+         在り処が分からなくならないよう、ツリーの上にパスを出す。 -->
+    <p class="outside" title={workspace.activePath}>
+      {t('tree.activeOutside')}<span class="outside-path">{workspace.activePath}</span>
+    </p>
   {/if}
 
   {#if workspace.root === null}
@@ -1417,9 +1426,27 @@
     color: var(--text-primary);
   }
 
+  /* 開いているファイルの行。地色だけでは淡くて見落とすので、左端に帯を立てる。 */
   .row.active {
     background: var(--accent-subtle);
     color: var(--accent);
+    box-shadow: inset 3px 0 0 var(--accent);
+  }
+
+  .outside {
+    margin: 0 var(--space-3) var(--space-1);
+    padding: var(--space-1) var(--space-2);
+    border-left: 3px solid var(--accent);
+    background: var(--accent-subtle);
+    color: var(--text-secondary);
+    font-size: var(--text-xs-size);
+    line-height: 1.5;
+  }
+
+  .outside-path {
+    display: block;
+    color: var(--accent);
+    overflow-wrap: anywhere;
   }
 
   /* クリック/キーボードで選択中の行。WebView 既定のフォーカス枠を打ち消し、
@@ -1629,6 +1656,7 @@
   /* 選択中はアクセント色を優先（マーク文字は色付けのまま桁だけ保つ）。 */
   .row.active .name {
     color: var(--accent);
+    font-weight: 600;
   }
 
   /* ── 右クリックコンテキストメニュー ───────────────────────────── */
