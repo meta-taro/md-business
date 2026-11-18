@@ -4,6 +4,18 @@ Changes to this app. Versions follow [Semantic Versioning](https://semver.org/).
 
 Japanese is the source of truth for this file; see [CHANGELOG.md](./CHANGELOG.md).
 
+## 0.41.0
+
+### Added
+
+- **The book view shows that pages turn sideways.** Arrows at the left and right edges turn the page when pressed (the back arrow is hidden on the first page, the forward arrow on the last). A short hint on how to turn pages appears when the view opens and goes away after the first turn. Neither is shown for a document that fits on one screen.
+
+- **The open file is easier to find in the tree.** Its row now has a bar on the left edge, so it stands out more than the background tint alone. A file the tree does not list (in a hidden folder or outside the workspace) has its location shown above the tree.
+
+### Fixed
+
+- **md-business now adds the machine name when announcing itself to the Warifu desk**, so instances on different PCs can be told apart.
+
 ## 0.40.0
 
 ### Added
