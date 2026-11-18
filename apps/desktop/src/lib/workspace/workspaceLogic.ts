@@ -257,3 +257,22 @@ export function flattenVisible(
   walk(tree, 0);
   return rows;
 }
+
+/**
+ * 開いているファイルがツリーに行として載っているか。隠しフォルダ（`.local` など）や
+ * 作業フォルダの外のファイルは走査に出ないので、ツリー側に目印を付けられない。
+ * その場合は呼び出し側が別の形で在り処を示す。
+ */
+export function treeHasFile(tree: readonly TreeNode[], relPath: string): boolean {
+  const parts = relPath.split('/');
+  let nodes: readonly TreeNode[] = tree;
+  for (let i = 0; i < parts.length; i++) {
+    const want = parts.slice(0, i + 1).join('/');
+    const hit = nodes.find((n) => n.path === want);
+    if (hit === undefined) return false;
+    if (i === parts.length - 1) return hit.kind === 'file';
+    if (hit.kind !== 'folder') return false;
+    nodes = hit.children;
+  }
+  return false;
+}

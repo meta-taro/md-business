@@ -214,6 +214,7 @@ export interface Messages {
   'tree.expandExplorer': string;
   'tree.collapseExplorer': string;
   'tree.explorer': string;
+  'tree.activeOutside': string;
   'tree.viewGrid': string;
   'tree.viewTree': string;
   'tree.gridTrail': string;
@@ -938,6 +939,7 @@ const en: Messages = {
   'tree.expandExplorer': 'Open explorer',
   'tree.collapseExplorer': 'Collapse explorer',
   'tree.explorer': 'Explorer',
+  'tree.activeOutside': 'The open file is in a folder the tree does not show:',
   'tree.viewGrid': 'Show thumbnails',
   'tree.viewTree': 'Show tree',
   'tree.gridTrail': 'Folder path',
@@ -1664,6 +1666,7 @@ const ja: Messages = {
   'tree.expandExplorer': 'エクスプローラーを開く',
   'tree.collapseExplorer': 'エクスプローラーを畳む',
   'tree.explorer': 'エクスプローラー',
+  'tree.activeOutside': '開いているファイルは、ツリーに出ないフォルダにあります:',
   'tree.viewGrid': 'サムネイルで表示',
   'tree.viewTree': 'ツリーで表示',
   'tree.gridTrail': 'フォルダの場所',
@@ -2380,6 +2383,7 @@ const zh: Messages = {
   'tree.expandExplorer': '打开资源管理器',
   'tree.collapseExplorer': '折叠资源管理器',
   'tree.explorer': '资源管理器',
+  'tree.activeOutside': '打开的文件位于树中不显示的文件夹:',
   'tree.viewGrid': '以缩略图显示',
   'tree.viewTree': '以树状显示',
   'tree.gridTrail': '文件夹位置',
@@ -3093,6 +3097,7 @@ const ko: Messages = {
   'tree.expandExplorer': '탐색기 열기',
   'tree.collapseExplorer': '탐색기 접기',
   'tree.explorer': '탐색기',
+  'tree.activeOutside': '열린 파일은 트리에 표시되지 않는 폴더에 있습니다:',
   'tree.viewGrid': '썸네일로 보기',
   'tree.viewTree': '트리로 보기',
   'tree.gridTrail': '폴더 위치',
