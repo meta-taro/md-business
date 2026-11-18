@@ -12,6 +12,7 @@ import {
   shouldClearFilter,
   decideTreeKey,
   withAncestorsExpanded,
+  treeHasFile,
   type VisibleRow,
 } from './workspaceLogic';
 
@@ -453,5 +454,24 @@ describe('decideTreeKey', () => {
   it('選択行が失われている（index が範囲外）ときは先頭へ寄せる', () => {
     expect(decideTreeKey('ArrowDown', ctx(99))).toEqual({ kind: 'move', index: 0 });
     expect(decideTreeKey('ArrowUp', ctx(-1))).toEqual({ kind: 'move', index: 0 });
+  });
+});
+
+describe('treeHasFile', () => {
+  it('ツリーに載っているファイルなら true（深い階層も辿る）', () => {
+    const tree = buildTree(entries('docs/spec/report.md', 'z.md'));
+    expect(treeHasFile(tree, 'docs/spec/report.md')).toBe(true);
+    expect(treeHasFile(tree, 'z.md')).toBe(true);
+  });
+
+  it('ツリーに出ないファイル（隠しフォルダ・フォルダ外）は false', () => {
+    const tree = buildTree(entries('docs/a.md'));
+    expect(treeHasFile(tree, '.local/books/1.md')).toBe(false);
+    expect(treeHasFile(tree, 'C:/elsewhere/b.md')).toBe(false);
+  });
+
+  it('フォルダの path はファイルとして扱わない', () => {
+    const tree = buildTree(entries('docs/a.md'));
+    expect(treeHasFile(tree, 'docs')).toBe(false);
   });
 });
