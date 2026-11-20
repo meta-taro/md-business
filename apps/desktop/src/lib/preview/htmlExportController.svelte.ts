@@ -67,6 +67,8 @@ class HtmlExportController {
     const { t } = await import('$lib/i18n/i18n.svelte');
     const { renderMermaidSvg } = await import('./renderMermaid');
     const { renderZumenSvg } = await import('./renderZumen');
+
+    const { renderAbcSvg } = await import('./renderAbc');
     const { sourceToRender } = await import('./compareSource');
     const source = await composeExportSource(sourceToRender(workspace.source, this.compareWith), {
       docPath: relPath,
@@ -75,6 +77,8 @@ class HtmlExportController {
       describeData: (problem) => dataMessage(problem, t),
       mermaid: { theme: 'light', render: renderMermaidSvg },
       zumen: { theme: 'light', render: renderZumenSvg, describe: (message) => t('zumen.failed', { detail: message }) },
+
+      abc: { theme: 'light', render: renderAbcSvg, describe: (message) => t('abc.failed', { detail: message }) },
       // 書き出す HTML は明るい配色で組む（buildExportHtml）。図の色もそちらに合わせる。
       ink: CHART_INK.light,
     });
