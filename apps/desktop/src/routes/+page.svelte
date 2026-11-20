@@ -19,6 +19,7 @@
   import { previewZoom } from '$lib/preview/previewZoomState.svelte';
   import { bookMode } from '$lib/preview/bookModeState.svelte';
   import { attachBookReader, type BookReader } from '$lib/preview/bookReader';
+  import type { BookInkOptions } from '$lib/preview/bookInk';
   import {
     frameWidth,
     nextViewport,
@@ -343,7 +344,27 @@
       initialPage: lastBookPage,
       hint: t('page.bookHint'),
       onPage: (state) => (lastBookPage = state.page),
+      ink: bookInkOptions(),
     });
+  }
+
+  // 書き込みは文書ごとに、本文の外（フォルダの .md-business/ink/）へ保存する。
+  // フォルダを開いていない文書は置き場所が決まらないので、ペンを出さない。
+  function bookInkOptions(): BookInkOptions | undefined {
+    const root = workspace.root;
+    const docRelPath = workspace.activePath;
+    if (root === null || docRelPath === null) return undefined;
+    return {
+      store: {
+        load: () => invoke<string | null>('read_ink', { root, docRelPath }),
+        save: (content) => invoke<void>('write_ink', { root, docRelPath, content }),
+      },
+      labels: {
+        pen: t('page.inkPen'),
+        highlighter: t('page.inkHighlighter'),
+        eraser: t('page.inkEraser'),
+      },
+    };
   }
 
   $effect(() => {
