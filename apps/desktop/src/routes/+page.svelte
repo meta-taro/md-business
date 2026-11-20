@@ -84,6 +84,8 @@
   import { replaceFencedBlocks } from '$lib/markdown/fencedBlocks';
   import { loadZumenImages } from '$lib/preview/zumenBlocks';
   import { renderZumenSvg } from '$lib/preview/renderZumen';
+  import { loadAbcImages } from '$lib/preview/abcBlocks';
+  import { renderAbcSvg } from '$lib/preview/renderAbc';
   import { loadInlineImages, type InlineImageFailure } from '$lib/image/loadInlineImages';
   import { formatSize } from '$lib/components/fileInfo';
   import { isDataFile, readDataDocument } from '$lib/data/dataDocument';
@@ -522,6 +524,26 @@
     });
   });
 
+  // 楽譜（`abc`）も同じ。組版の部品は大きいので、囲みが現れたときに初めて読む（renderAbc 側）。
+  let abcMarkup = $state<ReadonlyMap<string, string>>(new Map());
+  let abcGeneration = 0;
+  $effect(() => {
+    const source = debouncedSource;
+    const theme = themeController.value;
+    if (!shouldRenderPreview(paneState)) {
+      abcMarkup = new Map();
+      return;
+    }
+    const generation = ++abcGeneration;
+    void loadAbcImages(source, {
+      theme,
+      render: renderAbcSvg,
+      describe: (message) => t('abc.failed', { detail: message }),
+    }).then((result) => {
+      if (generation === abcGeneration) abcMarkup = result;
+    });
+  });
+
   // 前の版との突き合わせ。提出様式では直した箇所を赤字にする慣習があり、いまは人が手で塗って
   // いる。塗り忘れた行は「変えていない行」として相手へ渡るので、履歴から導き出して出す。
   // git を叩くので、比べると決めたときだけ読む。
@@ -544,11 +566,14 @@
   // 描くのは画像と図と表を埋めた本文。読めたものが 1 つも無ければ元の本文がそのまま返る。
   const previewSource = $derived(
     replaceFencedBlocks(
-      replaceDataBlocks(
-        replaceChartBlocks(inlineImages(sourceToRender(debouncedSource, proseCompareWith), inlineUrls), chartMarkup),
-        dataMarkup,
+      replaceFencedBlocks(
+        replaceDataBlocks(
+          replaceChartBlocks(inlineImages(sourceToRender(debouncedSource, proseCompareWith), inlineUrls), chartMarkup),
+          dataMarkup,
+        ),
+        zumenMarkup,
       ),
-      zumenMarkup,
+      abcMarkup,
     ),
   );
 

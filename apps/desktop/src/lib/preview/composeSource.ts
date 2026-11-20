@@ -23,6 +23,8 @@ import { loadMermaidImages } from './mermaidBlocks';
 import type { LoadMermaidOptions } from './mermaidBlocks';
 import { loadZumenImages } from './zumenBlocks';
 import type { LoadZumenOptions } from './zumenBlocks';
+import { loadAbcImages } from './abcBlocks';
+import type { LoadAbcOptions } from './abcBlocks';
 import { replaceFencedBlocks } from '../markdown/fencedBlocks';
 
 export interface ComposeSourceIo {
@@ -51,6 +53,8 @@ export interface ComposeSourceOptions {
   mermaid?: LoadMermaidOptions;
   /** 構成図（zumen）の描画。渡さなければ囲みのまま残る。 */
   zumen?: LoadZumenOptions;
+  /** 楽譜（abc）の描画。渡さなければ囲みのまま残る。 */
+  abc?: LoadAbcOptions;
 }
 
 export async function composeExportSource(
@@ -88,6 +92,9 @@ export async function composeExportSource(
   }
   if (options.zumen !== undefined) {
     out = replaceFencedBlocks(out, await loadZumenImages(out, options.zumen));
+  }
+  if (options.abc !== undefined) {
+    out = replaceFencedBlocks(out, await loadAbcImages(out, options.abc));
   }
   return out;
 }
