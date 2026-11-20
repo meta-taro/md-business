@@ -197,3 +197,98 @@ describe('attachBookReader', () => {
     expect(onPage).not.toHaveBeenCalled();
   });
 });
+
+describe('attachBookReader（原本のページ区切りがある文書）', () => {
+  const MARKED =
+    '<h1>題</h1>' +
+    '<div class="page">p.1</div><p>一</p>' +
+    '<div class="page">p.2</div><p>二</p>' +
+    '<div class="page">p.3</div><p id="three">三</p>';
+
+  beforeEach(() => {
+    document.body.innerHTML = MARKED;
+  });
+
+  const sheets = (): HTMLElement[] =>
+    Array.from(document.querySelectorAll<HTMLElement>('.mdb-sheet'));
+
+  it('区切りごとに 1 ページにする。区切りより前の冒頭は 1 ページ目に含める', () => {
+    reader = attachBookReader(document, { zoom: 1 });
+    expect(root().classList.contains('mdb-sheets')).toBe(true);
+    expect(sheets()).toHaveLength(3);
+    expect(sheets()[0]!.textContent).toBe('題p.1一');
+    expect(sheets()[2]!.textContent).toBe('p.3三');
+    expect(reader.state().total).toBe(3);
+    expect(label()).toBe('p.1–p.2 · 1–2 / 3');
+  });
+
+  it('はみ出すページは、そのページの中で縮めて収める', () => {
+    reader = attachBookReader(document, { zoom: 1 });
+    const sheet = sheets()[1]!;
+    const fit = sheet.querySelector<HTMLElement>('.mdb-sheet-fit')!;
+    Object.defineProperty(sheet, 'clientHeight', { configurable: true, value: 800 });
+    Object.defineProperty(fit, 'scrollHeight', { configurable: true, value: 1600 });
+    reader.refresh();
+    expect(fit.style.getPropertyValue('--sheet-scale')).toBe('0.5');
+    expect(
+      sheets()[0]!
+        .querySelector<HTMLElement>('.mdb-sheet-fit')!
+        .style.getPropertyValue('--sheet-scale')
+    ).toBe('1');
+  });
+
+  it('原本の番号を指定して開く。無い番号では動かない', () => {
+    reader = attachBookReader(document, { zoom: 1 });
+    expect(reader.goTo('p.3')).toBe(true);
+    expect(reader.state().page).toBe(2);
+    expect(reader.goTo('9')).toBe(false);
+    expect(reader.state().page).toBe(2);
+  });
+
+  it('ページ表示を押すと番号を打てる。Enter で開く', () => {
+    reader = attachBookReader(document, { zoom: 1 });
+    document.querySelector<HTMLButtonElement>('.mdb-book-page')!.click();
+    const input = document.querySelector<HTMLInputElement>('.mdb-book-jump')!;
+    expect(input.hidden).toBe(false);
+    input.value = '3';
+    input.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true })
+    );
+    expect(reader.state().page).toBe(2);
+    expect(input.hidden).toBe(true);
+  });
+
+  it('打った番号が無ければ、入力を開いたまま知らせる', () => {
+    reader = attachBookReader(document, { zoom: 1 });
+    document.querySelector<HTMLButtonElement>('.mdb-book-page')!.click();
+    const input = document.querySelector<HTMLInputElement>('.mdb-book-jump')!;
+    input.value = '99';
+    input.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true })
+    );
+    expect(input.hidden).toBe(false);
+    expect(input.getAttribute('aria-invalid')).toBe('true');
+    expect(reader.state().page).toBe(0);
+  });
+
+  it('要素が載っているページを開く', () => {
+    reader = attachBookReader(document, { zoom: 1 });
+    reader.showElement(document.getElementById('three')!);
+    expect(reader.state().page).toBe(2);
+  });
+
+  it('外すと元の並びへ戻す', () => {
+    const detached = attachBookReader(document, { zoom: 1 });
+    detached.destroy();
+    expect(document.body.innerHTML).toBe(MARKED);
+    expect(root().classList.contains('mdb-sheets')).toBe(false);
+  });
+});
+
+describe('attachBookReader（区切りの無い文書でも番号で飛べる）', () => {
+  it('通し番号で開く', () => {
+    reader = attachBookReader(document, { zoom: 1 });
+    expect(reader.goTo('5')).toBe(true);
+    expect(reader.state().page).toBe(4);
+  });
+});

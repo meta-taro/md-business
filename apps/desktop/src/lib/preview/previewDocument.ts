@@ -142,6 +142,7 @@ const PREVIEW_ZOOM_STYLE = '<style>@media screen { html { zoom: var(--preview-zo
  *
  * 文書の CSS は body に幅や余白を付けていることがあるので、ここだけ `!important` で上書きする。
  * 切り替えは class だけで済むので、モードを変えても srcdoc を組み直さない（読んでいた位置が残る）。
+ * 原本のページの区切りがある文書は `mdb-sheets` も付き、段組みをやめて区切りごとの入れ物を横へ並べる。
  * 画面の上だけに効かせる（印刷＝PDF は今までどおり縦に流す）。
  */
 const BOOK_STYLE = `<style>@media screen {
@@ -167,10 +168,36 @@ html.mdb-book img, html.mdb-book svg, html.mdb-book video, html.mdb-book canvas 
   object-fit: contain;
   break-inside: avoid;
 }
-html.mdb-book .mdb-book-page {
-  position: fixed; left: 50%; bottom: 6px; transform: translateX(-50%);
-  font: 12px/1.4 system-ui, sans-serif; opacity: .55; pointer-events: none;
+html.mdb-book.mdb-sheets body {
+  display: flex; align-items: stretch; gap: var(--book-gap);
+  column-count: auto;
 }
+html.mdb-book .mdb-sheet {
+  flex: 0 0 var(--sheet-width); width: var(--sheet-width);
+  height: 100%; overflow: hidden;
+}
+html.mdb-book .mdb-sheet-fit {
+  width: calc(100% / var(--sheet-scale, 1));
+  transform: scale(var(--sheet-scale, 1)); transform-origin: top left;
+}
+html.mdb-book .mdb-sheet div.page {
+  margin: 0 0 .6em; font: 600 12px/1.4 system-ui, sans-serif; opacity: .55;
+}
+html.mdb-book .mdb-book-page {
+  position: fixed; left: 50%; bottom: 4px; transform: translateX(-50%);
+  margin: 0; padding: 2px 10px; border: none; border-radius: 6px;
+  background: transparent; color: inherit;
+  font: 12px/1.4 system-ui, sans-serif; opacity: .55; cursor: pointer;
+}
+html.mdb-book .mdb-book-page:hover { opacity: 1; background: rgba(128,128,128,.18); }
+html.mdb-book .mdb-book-jump {
+  position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%);
+  box-sizing: border-box; width: 120px; padding: 4px 8px;
+  border: 1px solid rgba(128,128,128,.5); border-radius: 6px;
+  background: Canvas; color: CanvasText; font: 13px/1.4 system-ui, sans-serif;
+}
+html.mdb-book .mdb-book-jump[aria-invalid="true"] { border-color: #d33; }
+html.mdb-book .mdb-book-jump[hidden] { display: none; }
 html.mdb-book .mdb-book-prev, html.mdb-book .mdb-book-next {
   position: fixed; top: 50%; transform: translateY(-50%);
   box-sizing: border-box; display: block; margin: 0;
