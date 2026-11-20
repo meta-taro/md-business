@@ -6,10 +6,28 @@
  * 区切りがある文書では区切りを 1 ページとし、はみ出す分は流さずに縮めて収める。
  */
 
-/** 中身の高さを枠に収める倍率（1 以下）。寸法が取れないときは縮めない。 */
-export function fitScale(contentHeight: number, boxHeight: number): number {
-  if (contentHeight <= 0 || boxHeight <= 0) return 1;
-  return Math.min(1, boxHeight / contentHeight);
+/**
+ * 原本のページを組む幅（縮める前・CSS px）。
+ *
+ * ページの中身は窓の幅で折り返し直さず、いつもこの幅で組んでから縮める。折り返しが変わると
+ * 行の位置が動き、書き込んだ線が本文からずれる（紙は窓に合わせて組み直されない）。
+ */
+export const SHEET_BASE_WIDTH = 640;
+
+/**
+ * 組み幅で組んだ中身をページの枠に合わせる倍率。幅と高さのきつい方に合わせる。
+ *
+ * 高さに収まるページはどれも「枠の幅 ÷ 組み幅」になるので、文字の大きさが揃う。
+ * はみ出すページだけがそれより小さくなる。寸法が取れないときは 1。
+ */
+export function sheetScale(
+  baseWidth: number,
+  boxWidth: number,
+  contentHeight: number,
+  boxHeight: number
+): number {
+  if (baseWidth <= 0 || boxWidth <= 0 || contentHeight <= 0 || boxHeight <= 0) return 1;
+  return Math.min(boxWidth / baseWidth, boxHeight / contentHeight);
 }
 
 /** 打たれた番号を比べられる形にする（全角を半角に・大文字を小文字に・空白と「p.」を落とす）。 */

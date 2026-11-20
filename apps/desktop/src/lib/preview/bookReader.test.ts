@@ -2,6 +2,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { attachBookReader, BOOK_CLASS, type BookReader } from './bookReader';
 import { bookMetrics } from './bookLayout';
+import { SHEET_BASE_WIDTH } from './bookSheets';
 
 /** jsdom は組版をしないので、窓の大きさと段組みの横幅を決め打ちで与える。 */
 function setWindow(width: number, height: number): void {
@@ -226,6 +227,9 @@ describe('attachBookReader（原本のページ区切りがある文書）', () 
     reader = attachBookReader(document, { zoom: 1 });
     const sheet = sheets()[1]!;
     const fit = sheet.querySelector<HTMLElement>('.mdb-sheet-fit')!;
+    for (const s of sheets()) {
+      Object.defineProperty(s, 'clientWidth', { configurable: true, value: SHEET_BASE_WIDTH });
+    }
     Object.defineProperty(sheet, 'clientHeight', { configurable: true, value: 800 });
     Object.defineProperty(fit, 'scrollHeight', { configurable: true, value: 1600 });
     reader.refresh();
@@ -235,6 +239,8 @@ describe('attachBookReader（原本のページ区切りがある文書）', () 
         .querySelector<HTMLElement>('.mdb-sheet-fit')!
         .style.getPropertyValue('--sheet-scale')
     ).toBe('1');
+    // 中身はいつも同じ組み幅で組む（窓の幅で折り返し直さない）
+    expect(root().style.getPropertyValue('--sheet-base-width')).toBe(`${SHEET_BASE_WIDTH}px`);
   });
 
   it('原本の番号を指定して開く。無い番号では動かない', () => {
@@ -282,6 +288,62 @@ describe('attachBookReader（原本のページ区切りがある文書）', () 
     detached.destroy();
     expect(document.body.innerHTML).toBe(MARKED);
     expect(root().classList.contains('mdb-sheets')).toBe(false);
+  });
+
+  it('縮めたページでも、線を描く面がページの下端まで届くよう中身の高さを足す', () => {
+    reader = attachBookReader(document, { zoom: 1 });
+    const sheet = sheets()[0]!;
+    const fit = sheet.querySelector<HTMLElement>('.mdb-sheet-fit')!;
+    Object.defineProperty(sheet, 'clientWidth', { configurable: true, value: SHEET_BASE_WIDTH / 2 });
+    Object.defineProperty(sheet, 'clientHeight', { configurable: true, value: 400 });
+    Object.defineProperty(fit, 'scrollHeight', { configurable: true, value: 300 });
+    reader.refresh();
+    // 倍率 0.5 で 400px のページを覆うには、組み幅の側で 800px 要る
+    expect(fit.style.minHeight).toBe('800px');
+  });
+
+  it('書き込みを渡すと、ページごとに線の面と道具を置き、外すときに片付ける', async () => {
+    const saved: string[] = [];
+    const detached = attachBookReader(document, {
+      zoom: 1,
+      ink: {
+        store: { load: () => Promise.resolve(null), save: (json) => (saved.push(json), Promise.resolve()) },
+        labels: { pen: 'Pen', highlighter: 'Highlighter', eraser: 'Eraser' },
+      },
+    });
+    expect(document.querySelectorAll('.mdb-sheet-fit > svg.mdb-ink')).toHaveLength(3);
+    expect(document.querySelector('.mdb-ink-bar')).not.toBeNull();
+    detached.destroy();
+    expect(document.body.innerHTML).toBe(MARKED);
+    expect(document.querySelector('.mdb-ink-bar')).toBeNull();
+  });
+
+  it('ペンを持っている間は、押してもめくらない', async () => {
+    reader = attachBookReader(document, {
+      zoom: 1,
+      ink: {
+        store: { load: () => Promise.resolve(null), save: () => Promise.resolve() },
+        labels: { pen: 'Pen', highlighter: 'Highlighter', eraser: 'Eraser' },
+      },
+    });
+    document.querySelector<HTMLButtonElement>('.mdb-ink-bar button[title="Pen"]')!.click();
+    document.body.dispatchEvent(
+      new MouseEvent('click', { clientX: 1500, clientY: 100, bubbles: true, button: 0 })
+    );
+    expect(reader.state().page).toBe(0);
+  });
+});
+
+describe('attachBookReader（区切りの無い文書には書き込まない）', () => {
+  it('段組みで流す文書には線の面も道具も置かない', () => {
+    reader = attachBookReader(document, {
+      zoom: 1,
+      ink: {
+        store: { load: () => Promise.resolve(null), save: () => Promise.resolve() },
+        labels: { pen: 'Pen', highlighter: 'Highlighter', eraser: 'Eraser' },
+      },
+    });
+    expect(document.querySelector('.mdb-ink-bar')).toBeNull();
   });
 });
 

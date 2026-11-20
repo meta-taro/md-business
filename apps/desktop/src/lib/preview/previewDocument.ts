@@ -177,8 +177,39 @@ html.mdb-book .mdb-sheet {
   height: 100%; overflow: hidden;
 }
 html.mdb-book .mdb-sheet-fit {
-  width: calc(100% / var(--sheet-scale, 1));
+  position: relative;
+  width: var(--sheet-base-width, 640px);
   transform: scale(var(--sheet-scale, 1)); transform-origin: top left;
+}
+html.mdb-book .mdb-sheet-fit > svg.mdb-ink {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  max-width: none; max-height: none; overflow: visible; pointer-events: none;
+}
+html.mdb-book.mdb-inking .mdb-sheet-fit > svg.mdb-ink {
+  pointer-events: auto; touch-action: none; cursor: crosshair;
+}
+html.mdb-book svg.mdb-ink path { fill: none; stroke-linecap: round; stroke-linejoin: round; }
+html.mdb-book svg.mdb-ink path.mdb-ink-highlighter { opacity: .4; mix-blend-mode: multiply; }
+html.mdb-book .mdb-ink-bar {
+  position: fixed; top: 6px; right: 6px; display: flex; align-items: center; gap: 2px;
+  padding: 3px; border-radius: 8px; background: rgba(128,128,128,.14);
+  opacity: .6; transition: opacity .15s;
+}
+html.mdb-book .mdb-ink-bar:hover, html.mdb-book.mdb-inking .mdb-ink-bar { opacity: 1; }
+html.mdb-book .mdb-ink-bar button {
+  box-sizing: border-box; display: grid; place-items: center; margin: 0;
+  width: 28px; height: 28px; padding: 0; border: none; border-radius: 6px;
+  background: transparent; color: inherit; cursor: pointer;
+}
+html.mdb-book .mdb-ink-bar button:hover { background: rgba(128,128,128,.2); }
+html.mdb-book .mdb-ink-bar button[aria-pressed="true"] { background: rgba(128,128,128,.34); }
+html.mdb-book .mdb-ink-bar button svg { width: 18px; height: 18px; max-height: none; }
+html.mdb-book .mdb-ink-bar .mdb-ink-color::before {
+  content: ''; width: 14px; height: 14px; border-radius: 50%;
+  background: var(--ink-color); box-shadow: 0 0 0 1px rgba(128,128,128,.5);
+}
+html.mdb-book .mdb-ink-bar .mdb-ink-color[aria-pressed="true"]::before {
+  box-shadow: 0 0 0 2px Canvas, 0 0 0 3.5px var(--ink-color);
 }
 html.mdb-book .mdb-sheet div.page {
   margin: 0 0 .6em; font: 600 12px/1.4 system-ui, sans-serif; opacity: .55;

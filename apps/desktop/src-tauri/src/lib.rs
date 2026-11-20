@@ -14,6 +14,7 @@ mod file_assoc;
 mod fileinfo;
 mod git;
 mod image;
+mod ink;
 pub mod image_logic;
 mod logscan;
 mod mcp;
@@ -116,6 +117,8 @@ pub fn run() {
             capture::export_pdf,
             capture_window::capture_window,
             image::read_image,
+            ink::read_ink,
+            ink::write_ink,
             watch::watch_workspace,
             watch::unwatch_workspace,
             desk::desk_write,

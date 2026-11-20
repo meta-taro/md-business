@@ -1,19 +1,22 @@
 import { describe, expect, it } from 'vitest';
-import { fitScale, findPage, sheetLabel } from './bookSheets';
+import { findPage, sheetLabel, sheetScale } from './bookSheets';
 
-describe('fitScale', () => {
-  it('収まるなら縮めない', () => {
-    expect(fitScale(500, 800)).toBe(1);
-    expect(fitScale(800, 800)).toBe(1);
+describe('sheetScale', () => {
+  it('高さに収まるなら、ページの幅に合わせる（組み幅より広ければ広げる）', () => {
+    expect(sheetScale(640, 640, 500, 800)).toBe(1);
+    expect(sheetScale(640, 960, 500, 800)).toBe(1.5);
+    expect(sheetScale(640, 320, 500, 800)).toBe(0.5);
   });
 
-  it('はみ出す分だけ縮める', () => {
-    expect(fitScale(1600, 800)).toBe(0.5);
+  it('高さがはみ出すページは、その分だけさらに縮める', () => {
+    expect(sheetScale(640, 640, 1600, 800)).toBe(0.5);
+    expect(sheetScale(640, 1280, 1000, 800)).toBe(0.8);
   });
 
   it('寸法が取れないときは縮めない', () => {
-    expect(fitScale(0, 800)).toBe(1);
-    expect(fitScale(500, 0)).toBe(1);
+    expect(sheetScale(640, 900, 0, 800)).toBe(1);
+    expect(sheetScale(640, 900, 500, 0)).toBe(1);
+    expect(sheetScale(640, 0, 500, 800)).toBe(1);
   });
 });
 

@@ -470,6 +470,9 @@ export interface Messages {
   'page.gridRestoreBtn': string;
   'page.previewBookTitle': string;
   'page.bookHint': string;
+  'page.inkPen': string;
+  'page.inkHighlighter': string;
+  'page.inkEraser': string;
   'page.previewScrollTitle': string;
   'page.previewBookBtn': string;
   'page.previewScrollBtn': string;
@@ -1202,6 +1205,9 @@ const en: Messages = {
   'page.gridRestoreBtn': '↙ Back to split',
   'page.previewBookTitle': 'Read as a book: turn pages with ← → or a click',
   'page.bookHint': 'Turn pages with ‹ ›, the ← → keys, or a swipe',
+  'page.inkPen': 'Pen',
+  'page.inkHighlighter': 'Highlighter',
+  'page.inkEraser': 'Eraser',
   'page.previewScrollTitle': 'Back to the scrolling view',
   'page.previewBookBtn': '📖 Book',
   'page.previewScrollBtn': '↕ Scroll',
@@ -1929,6 +1935,9 @@ const ja: Messages = {
   'page.gridRestoreBtn': '↙ 分割に戻す',
   'page.previewBookTitle': '本のように読む（← → やクリックでめくる）',
   'page.bookHint': '‹ › や ← → キー、横スワイプでめくれます',
+  'page.inkPen': 'ペン',
+  'page.inkHighlighter': '蛍光ペン',
+  'page.inkEraser': '消しゴム',
   'page.previewScrollTitle': '縦に流れる表示へ戻す',
   'page.previewBookBtn': '📖 本',
   'page.previewScrollBtn': '↕ 縦',
@@ -2645,6 +2654,9 @@ const zh: Messages = {
   'page.gridRestoreBtn': '↙ 返回分屏',
   'page.previewBookTitle': '像书一样阅读（用 ← → 或点击翻页）',
   'page.bookHint': '用 ‹ ›、← → 键或横向滑动翻页',
+  'page.inkPen': '笔',
+  'page.inkHighlighter': '荧光笔',
+  'page.inkEraser': '橡皮擦',
   'page.previewScrollTitle': '回到纵向滚动显示',
   'page.previewBookBtn': '📖 书本',
   'page.previewScrollBtn': '↕ 滚动',
@@ -3364,6 +3376,9 @@ const ko: Messages = {
   'page.gridRestoreBtn': '↙ 분할로 복귀',
   'page.previewBookTitle': '책처럼 읽기 (← → 또는 클릭으로 넘기기)',
   'page.bookHint': '‹ ›, ← → 키 또는 가로 스와이프로 넘길 수 있습니다',
+  'page.inkPen': '펜',
+  'page.inkHighlighter': '형광펜',
+  'page.inkEraser': '지우개',
   'page.previewScrollTitle': '세로 스크롤 보기로 돌아가기',
   'page.previewBookBtn': '📖 책',
   'page.previewScrollBtn': '↕ 스크롤',

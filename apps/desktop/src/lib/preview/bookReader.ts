@@ -10,6 +10,8 @@
  *
  * 本文に原本のページの区切り（`<div class="page">p.19</div>`）があるときは、段組みで流さず、
  * 区切りごとに 1 ページの入れ物へ収める（はみ出す分は縮める）。外すときは元の並びへ戻す。
+ * そのときだけ、ページへペンで書き込める（bookInk）。段組みで流す文書はページの境目が
+ * 窓の大きさで動くので、線を付ける先が定まらない。
  */
 import {
   alignPage,
@@ -20,7 +22,8 @@ import {
   type BookMetrics,
   type PagesPerView,
 } from './bookLayout';
-import { findPage, fitScale, sheetLabel } from './bookSheets';
+import { attachBookInk, type BookInk, type BookInkOptions } from './bookInk';
+import { findPage, SHEET_BASE_WIDTH, sheetLabel, sheetScale } from './bookSheets';
 
 export interface BookPageState {
   /** 表示している先頭ページ（0 始まり）。 */
@@ -38,6 +41,8 @@ export interface BookReaderOptions {
   onPage?: (state: BookPageState) => void;
   /** 開いたときに出す、めくり方の案内。一度めくれば消す。 */
   hint?: string;
+  /** ページへの書き込み。原本のページ区切りがある文書でだけ使う。 */
+  ink?: BookInkOptions;
 }
 
 export interface BookReader {
@@ -152,15 +157,21 @@ export function attachBookReader(
   }
 
   function fitSheets(): void {
-    // 測るのは縮めていない形で。縮めた幅のまま測ると、折り返しが変わって高さを読み違える。
+    // 中身は組み幅で組んだまま縮めるだけなので、測る高さは倍率に左右されない。
+    root.style.setProperty('--sheet-base-width', `${SHEET_BASE_WIDTH}px`);
     for (const sheet of sheets) {
       const fit = sheet.firstElementChild as HTMLElement;
-      fit.style.setProperty('--sheet-scale', '1');
-    }
-    for (const sheet of sheets) {
-      const fit = sheet.firstElementChild as HTMLElement;
-      const scale = fitScale(fit.scrollHeight, sheet.clientHeight);
+      // 前に足した高さを外してから測る（足したままだと中身の高さとして数えてしまう）。
+      fit.style.minHeight = '';
+      const scale = sheetScale(
+        SHEET_BASE_WIDTH,
+        sheet.clientWidth,
+        fit.scrollHeight,
+        sheet.clientHeight
+      );
       fit.style.setProperty('--sheet-scale', String(scale));
+      // 中身が短いページでも、余白まで線を描けるようにページの下端まで伸ばす。
+      fit.style.minHeight = `${sheet.clientHeight / scale}px`;
     }
   }
 
@@ -292,6 +303,8 @@ export function attachBookReader(
   }
 
   function onClick(e: MouseEvent): void {
+    // 書いている間に押すたびめくれると、書けない。
+    if (ink?.active()) return;
     if (swiped) {
       swiped = false;
       return;
@@ -336,6 +349,15 @@ export function attachBookReader(
   doc.addEventListener('load', onLoad, true);
 
   measure();
+  const ink: BookInk | null =
+    options.ink && sheets.length > 0
+      ? attachBookInk(
+          doc,
+          sheets.map((sheet) => sheet.firstElementChild as HTMLElement),
+          labels,
+          options.ink
+        )
+      : null;
   show(options.initialPage ?? 0);
   if (options.hint && total > metrics.perView) {
     hint = doc.createElement('div');
@@ -362,6 +384,8 @@ export function attachBookReader(
         (win.cancelAnimationFrame ?? win.clearTimeout).call(win, frame);
       root.classList.remove(BOOK_CLASS);
       root.classList.remove(SHEETS_CLASS);
+      // 線の面は入れ物の中にあるので、入れ物を外す前に片付ける（本文の中へ残さない）。
+      ink?.destroy();
       unwrapSheets(sheets);
       for (const name of VARS) root.style.removeProperty(name);
       label.remove();
