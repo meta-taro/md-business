@@ -27,3 +27,5 @@ export { describeChartProblem, describeDataProblem } from './describe.js';
 export { toDataUri, toImageAlt, withExplicitSize } from './svgImage.js';
 export { loadZumenImages } from './zumen/zumenBlocks.js';
 export type { LoadZumenOptions, ZumenTheme } from './zumen/zumenBlocks.js';
+export { loadAbcImages } from './abc/abcBlocks.js';
+export type { LoadAbcOptions, AbcTheme } from './abc/abcBlocks.js';

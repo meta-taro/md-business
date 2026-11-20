@@ -605,6 +605,7 @@ export interface Messages {
   'chart.unreadableCells': string;
   // 構成図（zumen ブロック）
   'zumen.failed': string;
+  'abc.failed': string;
 
   // 本文に置いたデータの囲み（```data）。開いた .json / .xml の画面（data.*）とは別。
   'dataBlock.failed': string;
@@ -1335,6 +1336,7 @@ const en: Messages = {
   'chart.unreadableCells': '{raw} cell(s) did not read as a number and were left blank in the chart.',
   // 構成図（zumen ブロック）
   'zumen.failed': 'Could not draw the diagram. {detail}',
+  'abc.failed': 'Could not draw the sheet music. {detail}',
 
   'dataBlock.failed': 'Could not build the table. {detail}',
   'dataBlock.atLine': 'Line {line}: {detail}',
@@ -2059,6 +2061,7 @@ const ja: Messages = {
   'chart.unreadableCells': '数として読めないセルが {raw} 個ありました。その分は図では空けてあります。',
   // 構成図（zumen ブロック）
   'zumen.failed': '構成図を描けません。{detail}',
+  'abc.failed': '楽譜を描けません。{detail}',
 
   'dataBlock.failed': 'データを表にできません。{detail}',
   'dataBlock.atLine': '{line} 行目: {detail}',
@@ -2774,6 +2777,7 @@ const zh: Messages = {
   'chart.unreadableCells': '有 {raw} 个单元格无法作为数字读取，图中相应位置留空。',
   // 構成図（zumen ブロック）
   'zumen.failed': '无法绘制结构图。{detail}',
+  'abc.failed': '无法绘制乐谱。{detail}',
 
   'dataBlock.failed': '无法将数据转成表格。{detail}',
   'dataBlock.atLine': '第 {line} 行：{detail}',
@@ -3492,6 +3496,7 @@ const ko: Messages = {
   'chart.unreadableCells': '숫자로 읽지 못한 칸이 {raw}개 있어 차트에서는 비워 두었습니다.',
   // 構成図（zumen ブロック）
   'zumen.failed': '구성도를 그릴 수 없습니다. {detail}',
+  'abc.failed': '악보를 그릴 수 없습니다. {detail}',
 
   'dataBlock.failed': '데이터를 표로 만들 수 없습니다. {detail}',
   'dataBlock.atLine': '{line}번째 줄: {detail}',

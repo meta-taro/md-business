@@ -71,6 +71,30 @@ ${FENCE}`;
     expect(out).toBe(diagram);
   });
 
+  it('楽譜も画像にする', async () => {
+    const tune = [`${FENCE}abc`, 'X:1', 'K:C', 'CDEF|', FENCE].join('\n');
+    const out = await composeExportSource(tune, {
+      docPath: 'docs/練習.md',
+      io: { readText: () => Promise.resolve(TSV) },
+      describe: (problem) => `[${problem.kind}]`,
+      describeData: (problem) => `[${problem.kind}]`,
+      abc: {
+        theme: 'light',
+        render: () =>
+          Promise.resolve('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 80"></svg>'),
+        describe: (message) => `[${message}]`,
+      },
+    });
+    expect(out).toContain('](data:image/svg+xml;base64,');
+    expect(out).not.toContain(`${FENCE}abc`);
+  });
+
+  it('描き手を渡さなければ楽譜の囲みはそのまま残る', async () => {
+    const tune = [`${FENCE}abc`, 'X:1', 'K:C', 'CDEF|', FENCE].join('\n');
+    const out = await compose(tune);
+    expect(out).toBe(tune);
+  });
+
   it('画像の読み取りを渡さなければ本文の画像はそのまま（サイトはファイルで運ぶ）', async () => {
     const out = await composeExportSource('![図](./a.png)', {
       docPath: 'docs/月報.md',

@@ -207,6 +207,9 @@ importers:
       '@tauri-apps/plugin-updater':
         specifier: ^2
         version: 2.10.1
+      abcjs:
+        specifier: ^6.7.3
+        version: 6.7.3
       codemirror:
         specifier: ^6.0.2
         version: 6.0.2
@@ -1724,6 +1727,9 @@ packages:
 
   '@vitest/utils@3.2.7':
     resolution: {integrity: sha512-x6BDOd7dyo3PFLY3I9/HJ25X/6OurhGXk2/B9gOZNPF7XDVjeBK4k01lQE5uvDpbuheErh91qYuE1E2OEjK3Rw==}
+
+  abcjs@6.7.3:
+    resolution: {integrity: sha512-yAf6kPrhwJuH4Amy1ZynX01rH74wWXJRULPpn4KpBur5aUr+NzZP9OZCNsN6thfH83NXJS00WB2mrg9hXNesbQ==}
 
   accepts@2.0.0:
     resolution: {integrity: sha512-5cvg6CtKwfgdmVqY1WIiXKc3Q1bkRqGLi+2W/6ao+6Y7gu/RCwRuAhGEzh5B4KlszSuTLgZYuqFqo5bImjNKng==}
@@ -4684,6 +4690,8 @@ snapshots:
       '@vitest/pretty-format': 3.2.7
       loupe: 3.2.1
       tinyrainbow: 2.0.0
+
+  abcjs@6.7.3: {}
 
   accepts@2.0.0:
     dependencies:

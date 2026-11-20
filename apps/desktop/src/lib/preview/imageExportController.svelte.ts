@@ -120,6 +120,8 @@ class ImageExportController {
     const { t } = await import('$lib/i18n/i18n.svelte');
     const { renderMermaidSvg } = await import('./renderMermaid');
     const { renderZumenSvg } = await import('./renderZumen');
+
+    const { renderAbcSvg } = await import('./renderAbc');
     const io = workspaceIo(root);
     return {
       readText: io.readText,
@@ -132,6 +134,8 @@ class ImageExportController {
           describeData: (problem) => dataMessage(problem, t),
           mermaid: { theme: 'light', render: renderMermaidSvg },
           zumen: { theme: 'light', render: renderZumenSvg, describe: (message) => t('zumen.failed', { detail: message }) },
+
+          abc: { theme: 'light', render: renderAbcSvg, describe: (message) => t('abc.failed', { detail: message }) },
           ink: CHART_INK.light,
         });
         return buildExportHtml(composed, this.edition, this.revisions, this.orientation);
