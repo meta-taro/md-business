@@ -7,6 +7,9 @@
  *
  * 段組みの決まりそのものは buildPreviewDocument が入れてある（`html.mdb-book` のときだけ効く）。
  * ここでするのは、class を付ける・寸法を変数に入れる・めくる操作を受けることだけ。
+ *
+ * 本文に原本のページの区切り（`<div class="page">p.19</div>`）があるときは、段組みで流さず、
+ * 区切りごとに 1 ページの入れ物へ収める（はみ出す分は縮める）。外すときは元の並びへ戻す。
  */
 import {
   alignPage,
@@ -17,6 +20,7 @@ import {
   type BookMetrics,
   type PagesPerView,
 } from './bookLayout';
+import { findPage, fitScale, sheetLabel } from './bookSheets';
 
 export interface BookPageState {
   /** 表示している先頭ページ（0 始まり）。 */
@@ -43,6 +47,8 @@ export interface BookReader {
   turn(delta: number): void;
   /** その要素が載っているページを開く（検索で飛ぶとき）。 */
   showElement(el: Element): void;
+  /** 「p.19」「19」などで指したページを開く。見つからなければ動かさずに false。 */
+  goTo(query: string): boolean;
   state(): BookPageState;
   /** 取り付けたものを全部外し、縦に流れる元の画面へ戻す。 */
   destroy(): void;
@@ -51,7 +57,14 @@ export interface BookReader {
 export const BOOK_CLASS = 'mdb-book';
 const PAGE_LABEL_CLASS = 'mdb-book-page';
 const HINT_CLASS = 'mdb-book-hint';
+const JUMP_CLASS = 'mdb-book-jump';
+const SHEETS_CLASS = 'mdb-sheets';
+const SHEET_CLASS = 'mdb-sheet';
+const SHEET_FIT_CLASS = 'mdb-sheet-fit';
+/** 原本のページの区切り。本文の直下に置かれたものだけを見る（表の中などに紛れたものは区切りにしない）。 */
+const PAGE_MARKER = ':scope > div.page';
 const VARS = [
+  '--sheet-width',
   '--book-height',
   '--book-pad-y',
   '--book-pad-x',
@@ -82,9 +95,26 @@ export function attachBookReader(
   let total = 1;
   let page = 0;
 
-  const label = doc.createElement('div');
+  const label = doc.createElement('button');
+  label.type = 'button';
   label.className = PAGE_LABEL_CLASS;
   label.setAttribute('aria-live', 'polite');
+  label.addEventListener('click', openJump);
+
+  // ページ表示を押すと番号を打てる。原本の番号で開ければ、紙と並べて読める。
+  const jump = doc.createElement('input');
+  jump.type = 'text';
+  jump.className = JUMP_CLASS;
+  jump.hidden = true;
+  jump.setAttribute('aria-label', 'go to page');
+  jump.addEventListener('keydown', onJumpKeydown);
+  jump.addEventListener('blur', closeJump);
+
+  const sheets = buildSheets(doc);
+  const labels = sheets.map(
+    (sheet) =>
+      sheet.firstElementChild?.querySelector(PAGE_MARKER)?.textContent?.trim() ?? ''
+  );
 
   // 段組みは横へ続いていても、画面には 1 画面ぶんしか見えない。めくれることを端の矢印で示す。
   function arrow(className: string, delta: number): HTMLButtonElement {
@@ -112,13 +142,35 @@ export function attachBookReader(
     root.style.setProperty('--book-pad-x', `${metrics.padX}px`);
     root.style.setProperty('--book-gap', `${metrics.gap}px`);
     root.style.setProperty('--book-columns', String(metrics.perView));
-    total = pageCount(body.scrollWidth, metrics);
+    if (sheets.length === 0) {
+      total = pageCount(body.scrollWidth, metrics);
+      return;
+    }
+    root.style.setProperty('--sheet-width', `${metrics.pageWidth}px`);
+    total = sheets.length;
+    fitSheets();
+  }
+
+  function fitSheets(): void {
+    // 測るのは縮めていない形で。縮めた幅のまま測ると、折り返しが変わって高さを読み違える。
+    for (const sheet of sheets) {
+      const fit = sheet.firstElementChild as HTMLElement;
+      fit.style.setProperty('--sheet-scale', '1');
+    }
+    for (const sheet of sheets) {
+      const fit = sheet.firstElementChild as HTMLElement;
+      const scale = fitScale(fit.scrollHeight, sheet.clientHeight);
+      fit.style.setProperty('--sheet-scale', String(scale));
+    }
   }
 
   function show(next: number): void {
     page = alignPage(next, metrics.perView, total);
     root.style.setProperty('--book-shift', String(page * metrics.stride));
-    label.textContent = pageLabel(page, metrics.perView, total);
+    label.textContent =
+      sheets.length > 0
+        ? sheetLabel(page, metrics.perView, labels)
+        : pageLabel(page, metrics.perView, total);
     prevArrow.hidden = page === 0;
     nextArrow.hidden = page + metrics.perView >= total;
     options.onPage?.({ page, perView: metrics.perView, total });
@@ -139,6 +191,12 @@ export function attachBookReader(
   }
 
   function showElement(el: Element): void {
+    if (sheets.length > 0) {
+      const sheet = el.closest(`.${SHEET_CLASS}`);
+      const index = sheets.indexOf(sheet as HTMLElement);
+      if (index >= 0) show(index);
+      return;
+    }
     const rect = el.getBoundingClientRect();
     const bodyRect = body.getBoundingClientRect();
     if (bodyRect.width <= 0) return;
@@ -148,6 +206,39 @@ export function attachBookReader(
       (x - metrics.padX + metrics.gap / 2) / metrics.stride
     );
     show(column);
+  }
+
+  function goTo(query: string): boolean {
+    const index = findPage(query, labels, total);
+    if (index === null) return false;
+    hint?.remove();
+    hint = null;
+    show(index);
+    return true;
+  }
+
+  function openJump(): void {
+    jump.hidden = false;
+    jump.value = '';
+    jump.removeAttribute('aria-invalid');
+    jump.focus();
+  }
+
+  function closeJump(): void {
+    jump.hidden = true;
+  }
+
+  function onJumpKeydown(e: KeyboardEvent): void {
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      closeJump();
+      return;
+    }
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+    // 無い番号では閉じない。閉じると、打ち間違えたのか開いたのかが見分けられない。
+    if (goTo(jump.value)) closeJump();
+    else jump.setAttribute('aria-invalid', 'true');
   }
 
   function onKeydown(e: KeyboardEvent): void {
@@ -231,7 +322,9 @@ export function attachBookReader(
   }
 
   root.classList.add(BOOK_CLASS);
+  if (sheets.length > 0) root.classList.add(SHEETS_CLASS);
   root.appendChild(label);
+  root.appendChild(jump);
   root.appendChild(prevArrow);
   root.appendChild(nextArrow);
   win.addEventListener('keydown', onKeydown);
@@ -255,6 +348,7 @@ export function attachBookReader(
     refresh,
     turn,
     showElement,
+    goTo,
     state: () => ({ page, perView: metrics.perView, total }),
     destroy() {
       win.removeEventListener('keydown', onKeydown);
@@ -267,11 +361,53 @@ export function attachBookReader(
       if (frame)
         (win.cancelAnimationFrame ?? win.clearTimeout).call(win, frame);
       root.classList.remove(BOOK_CLASS);
+      root.classList.remove(SHEETS_CLASS);
+      unwrapSheets(sheets);
       for (const name of VARS) root.style.removeProperty(name);
       label.remove();
+      jump.remove();
       prevArrow.remove();
       nextArrow.remove();
       hint?.remove();
     },
   };
+}
+
+/**
+ * 本文を原本のページの区切りごとに入れ物（`.mdb-sheet > .mdb-sheet-fit`）へ移す。
+ * 区切りが無ければ何もせず空を返す（段組みで読む）。
+ * 最初の区切りより前（書名など）は 1 ページ目に含める。それだけで 1 ページにすると、
+ * 原本の番号と並びがずれる。
+ */
+function buildSheets(doc: Document): HTMLElement[] {
+  const body = doc.body;
+  if (body.querySelector(PAGE_MARKER) === null) return [];
+  const sheets: HTMLElement[] = [];
+  let fit: HTMLElement | null = null;
+  let fitHasMarker = false;
+  for (const node of Array.from(body.childNodes)) {
+    const isMarker = node instanceof doc.defaultView!.Element && node.matches('div.page');
+    if (fit === null || (isMarker && fitHasMarker)) {
+      const sheet = doc.createElement('div');
+      sheet.className = SHEET_CLASS;
+      fit = doc.createElement('div');
+      fit.className = SHEET_FIT_CLASS;
+      sheet.appendChild(fit);
+      body.insertBefore(sheet, node);
+      sheets.push(sheet);
+      fitHasMarker = false;
+    }
+    fit.appendChild(node);
+    if (isMarker) fitHasMarker = true;
+  }
+  return sheets;
+}
+
+/** 入れ物を外し、中身を元の位置へ戻す。 */
+function unwrapSheets(sheets: readonly HTMLElement[]): void {
+  for (const sheet of sheets) {
+    const fit = sheet.firstElementChild as HTMLElement;
+    while (fit.firstChild) sheet.before(fit.firstChild);
+    sheet.remove();
+  }
 }
