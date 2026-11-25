@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createFakeHub } from './fakeGateway';
-import type { PresenceGateway, PresenceUpdate } from './gateway';
+import type { InkUpdate, PresenceGateway, PresenceUpdate } from './gateway';
+import { createInkSender } from './inkShare';
 import { createPagePresence } from './pagePresence';
 
 const md = (line: number) => ({ kind: 'markdown', branch: 'main', line }) as const;
@@ -158,6 +159,79 @@ describe('createPagePresence', () => {
     presence.setRoom(R1);
     expect(presence.peers('main')).toEqual([]);
     presence.dispose();
+  });
+
+  describe('書き込み', () => {
+    const stroke = (points: number[]) => ({ tool: 'pen', color: '#222222', width: 0.004, points }) as const;
+    let inks: InkUpdate[];
+    beforeEach(() => {
+      inks = [];
+      other.subscribeInk((u) => inks.push(u));
+    });
+
+    it('部屋を選ぶまでは送らず、選んだら今の部屋・文書へ送る', async () => {
+      const presence = await start();
+      presence.open(A);
+      presence.ink.update('s1', 'p.1', stroke([0.1, 0.1]));
+      expect(inks).toEqual([]);
+      presence.setRoom(R1);
+      presence.ink.update('s1', 'p.1', stroke([0.1, 0.1, 0.2, 0.2]));
+      expect(inks.map((u) => [u.document, u.room])).toEqual([[A, R1]]);
+      expect(JSON.parse(inks[0]!.payload)).toMatchObject({ t: 'begin', id: 's1', p: [0.1, 0.1, 0.2, 0.2] });
+      presence.dispose();
+    });
+
+    it('同じ部屋・文書の相手の線だけを重ね、届いたら知らせる', async () => {
+      const presence = await start();
+      presence.open(A);
+      presence.setRoom(R1);
+      const changed = vi.fn();
+      presence.onInk(changed);
+      const theirs = createInkSender((payload) => other.sendInk(A, payload, R1));
+      theirs.update('t1', 'p.1', stroke([0.5, 0.5]));
+      createInkSender((payload) => other.sendInk(B, payload, R1)).update('t2', 'p.1', stroke([0.3, 0.3]));
+      createInkSender((payload) => other.sendInk(A, payload, R2)).update('t3', 'p.1', stroke([0.4, 0.4]));
+      expect(presence.peerStrokes('p.1')).toEqual([{ who: 'other', stroke: stroke([0.5, 0.5]) }]);
+      expect(presence.peerStrokes('p.2')).toEqual([]);
+      expect(changed).toHaveBeenCalledTimes(1);
+      presence.dispose();
+    });
+
+    it('文書や部屋を替えたら、自分の線を消すよう知らせて、相手の線を捨てる', async () => {
+      const presence = await start();
+      presence.open(A);
+      presence.setRoom(R1);
+      presence.ink.update('s1', 'p.1', stroke([0.1, 0.1]));
+      createInkSender((payload) => other.sendInk(A, payload, R1)).update('t1', 'p.1', stroke([0.5, 0.5]));
+      presence.setRoom(R2);
+      expect(JSON.parse(inks.at(-1)!.payload)).toEqual({ t: 'clear' });
+      expect(inks.at(-1)!.room).toBe(R1);
+      expect(presence.peerStrokes('p.1')).toEqual([]);
+      // 新しい部屋では書き始めから送り直す
+      presence.ink.update('s1', 'p.1', stroke([0.1, 0.1, 0.2, 0.2]));
+      expect(JSON.parse(inks.at(-1)!.payload)).toMatchObject({ t: 'begin', id: 's1' });
+      expect(inks.at(-1)!.room).toBe(R2);
+      presence.dispose();
+    });
+
+    it('何も書いていなければ、替えても消す知らせを送らない', async () => {
+      const presence = await start();
+      presence.open(A);
+      presence.setRoom(R1);
+      presence.open(B);
+      expect(inks).toEqual([]);
+      presence.dispose();
+    });
+
+    it('相手が文書を閉じたら、その相手の線を捨てる', async () => {
+      const presence = await start();
+      presence.open(A);
+      presence.setRoom(R1);
+      createInkSender((payload) => other.sendInk(A, payload, R1)).update('t1', 'p.1', stroke([0.5, 0.5]));
+      other.send(A, null, R1);
+      expect(presence.peerStrokes('p.1')).toEqual([]);
+      presence.dispose();
+    });
   });
 
   it('片付けると線もやめる（繋がる前に片付けても後でやめる）', async () => {

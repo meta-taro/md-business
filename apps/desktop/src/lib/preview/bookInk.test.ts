@@ -2,7 +2,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { attachBookInk, INK_SAVE_DELAY_MS, type BookInk, type InkStore } from './bookInk';
 import { SHEET_BASE_WIDTH } from './bookSheets';
-import { parseInk } from './inkModel';
+import { parseInk, type InkStroke } from './inkModel';
+import type { PeerStroke } from '../presence/inkShare';
 
 const LABELS = { pen: 'Pen', highlighter: 'Highlighter', eraser: 'Eraser' };
 
@@ -131,5 +132,94 @@ describe('attachBookInk', () => {
     expect(store.saved).toHaveLength(1);
     expect(document.querySelector('svg.mdb-ink')).toBeNull();
     expect(document.querySelector('.mdb-ink-bar')).toBeNull();
+  });
+});
+
+describe('attachBookInk の共有', () => {
+  function fakeShare() {
+    const calls: [string, ...unknown[]][] = [];
+    const listeners = new Set<() => void>();
+    let peers: Record<string, PeerStroke[]> = {};
+    return {
+      calls,
+      setPeers(next: Record<string, PeerStroke[]>) {
+        peers = next;
+        for (const listener of listeners) listener();
+      },
+      share: {
+        sender: {
+          update: (id: string, sheet: string, stroke: InkStroke) => calls.push(['update', id, sheet, stroke.points.length]),
+          remove: (id: string) => calls.push(['remove', id]),
+          clear: () => calls.push(['clear']),
+        },
+        peerStrokes: (sheet: string) => peers[sheet] ?? [],
+        onChange(listener: () => void) {
+          listeners.add(listener);
+          return () => listeners.delete(listener);
+        },
+      },
+    };
+  }
+  const theirs: InkStroke = { tool: 'pen', color: '#1a6fd8', width: 0.004, points: [0.5, 0.5, 0.6, 0.5] };
+
+  it('書いている途中の線を、点が増えるたびに同じ id で送る', async () => {
+    const { calls, share } = fakeShare();
+    ink = attachBookInk(document, fits, ['p.1', 'p.2'], { store: memoryStore(), labels: LABELS, share });
+    await vi.runAllTimersAsync();
+    button('Pen').click();
+    draw(fits[0]!, [[132, 66], [164, 66], [196, 66]]);
+    const updates = calls.filter((c) => c[0] === 'update');
+    expect(updates.map((c) => c[3])).toEqual([2, 4, 6, 6]);
+    expect(new Set(updates.map((c) => c[1])).size).toBe(1);
+    expect(updates[0]![2]).toBe('p.1');
+  });
+
+  it('消しゴムで消した自分の線は、消したと送る', async () => {
+    const { calls, share } = fakeShare();
+    ink = attachBookInk(document, fits, ['p.1', 'p.2'], { store: memoryStore(), labels: LABELS, share });
+    await vi.runAllTimersAsync();
+    button('Pen').click();
+    draw(fits[0]!, [[132, 66], [196, 66]]);
+    const id = calls[0]![1];
+    button('Eraser').click();
+    draw(fits[0]!, [[132, 66]]);
+    expect(calls.at(-1)).toEqual(['remove', id]);
+  });
+
+  it('相手の線を重ねて描き、変わったら描き直す。相手の線は保存しない', async () => {
+    const { setPeers, share } = fakeShare();
+    const store = memoryStore();
+    ink = attachBookInk(document, fits, ['p.1', 'p.2'], { store, labels: LABELS, share });
+    await vi.runAllTimersAsync();
+    setPeers({ 'p.2': [{ who: 'other', stroke: theirs }] });
+    expect(svgOf(fits[1]!).querySelectorAll('path.mdb-ink-peer')).toHaveLength(1);
+    expect(svgOf(fits[0]!).querySelectorAll('path')).toHaveLength(0);
+    setPeers({});
+    expect(svgOf(fits[1]!).querySelectorAll('path')).toHaveLength(0);
+    await ink.flush();
+    expect(store.saved).toHaveLength(0);
+  });
+
+  it('書いている途中に相手の線が届いても、書きかけの線を消さない', async () => {
+    const { setPeers, share } = fakeShare();
+    ink = attachBookInk(document, fits, ['p.1', 'p.2'], { store: memoryStore(), labels: LABELS, share });
+    await vi.runAllTimersAsync();
+    button('Pen').click();
+    const svg = svgOf(fits[0]!);
+    svg.dispatchEvent(new MouseEvent('pointerdown', { clientX: 132, clientY: 66, bubbles: true, button: 0 }));
+    setPeers({ 'p.1': [{ who: 'other', stroke: theirs }] });
+    expect(svg.querySelectorAll('path')).toHaveLength(2);
+    svg.dispatchEvent(new MouseEvent('pointerup', { clientX: 132, clientY: 66, bubbles: true, button: 0 }));
+  });
+
+  it('外すと相手の線の知らせを受けるのをやめる', async () => {
+    const { setPeers, share } = fakeShare();
+    ink = attachBookInk(document, fits, ['p.1', 'p.2'], { store: memoryStore(), labels: LABELS, share });
+    await vi.runAllTimersAsync();
+    const svg = svgOf(fits[1]!);
+    ink.destroy();
+    ink = null;
+    setPeers({ 'p.2': [{ who: 'other', stroke: theirs }] });
+    expect(svg.querySelectorAll('path')).toHaveLength(0);
   });
 });

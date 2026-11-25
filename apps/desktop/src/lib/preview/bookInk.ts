@@ -6,7 +6,11 @@
  * 座標は組み幅を 1 とした値で持ち、描くときだけ px（組み幅）へ戻す。
  *
  * 書いた線は文書の外へ保存する（store）。本文の Markdown には混ぜない。
+ *
+ * 共有（share）を渡すと、書いている途中の線を相手へ流し、相手の線を自分の線の下に重ねて描く。
+ * 相手の線は会議中だけのもので、保存しない。
  */
+import type { InkSender, PeerStroke } from '../presence/inkShare';
 import { SHEET_BASE_WIDTH } from './bookSheets';
 import {
   addPoint,
@@ -32,9 +36,18 @@ export interface InkLabels {
   eraser: string;
 }
 
+export interface InkShare {
+  sender: InkSender;
+  /** そのページにある相手の線。 */
+  peerStrokes(sheet: string): PeerStroke[];
+  /** 相手の線が変わったら知らせる。戻り値でやめる。 */
+  onChange(listener: () => void): () => void;
+}
+
 export interface BookInkOptions {
   store: InkStore;
   labels: InkLabels;
+  share?: InkShare;
 }
 
 export interface BookInk {
@@ -120,13 +133,21 @@ export function attachBookInk(
   let color: string = COLORS[0];
   let timer: ReturnType<typeof setTimeout> | null = null;
   let dirty = false;
+  const share = options.share;
+  // 送った自分の線の id。保存してあった線は送っていないので持たない。
+  const strokeIds = new WeakMap<InkStroke, string>();
+  const idPrefix = Math.random().toString(36).slice(2, 10);
+  let idCount = 0;
+  const nextId = (): string => `${idPrefix}-${++idCount}`;
+  // ページごとの書きかけの線。描き直しても消さないよう覚えておく。
+  const lives: (SVGPathElement | null)[] = fits.map(() => null);
 
-  function makePath(stroke: InkStroke): SVGPathElement {
+  function makePath(stroke: InkStroke, peer = false): SVGPathElement {
     const path = doc.createElementNS(SVG_NS, 'path');
     path.setAttribute('d', pathData(stroke.points));
     path.setAttribute('stroke', stroke.color);
     path.setAttribute('stroke-width', String(stroke.width * SHEET_BASE_WIDTH));
-    path.setAttribute('class', `mdb-ink-${stroke.tool}`);
+    path.setAttribute('class', peer ? `mdb-ink-${stroke.tool} mdb-ink-peer` : `mdb-ink-${stroke.tool}`);
     return path;
   }
 
@@ -141,7 +162,11 @@ export function attachBookInk(
 
   function render(index: number): void {
     const svg = svgs[index]!;
-    svg.replaceChildren(...(data.sheets[keys[index]!] ?? []).map(makePath));
+    const key = keys[index]!;
+    const peers = share ? share.peerStrokes(key).map((p) => makePath(p.stroke, true)) : [];
+    const own = (data.sheets[key] ?? []).map((stroke) => makePath(stroke));
+    const live = lives[index];
+    svg.replaceChildren(...peers, ...own, ...(live ? [live] : []));
   }
 
   function scheduleSave(): void {
@@ -169,6 +194,12 @@ export function attachBookInk(
   function bindDrawing(svg: SVGSVGElement, fit: HTMLElement, index: number): void {
     let points: number[] | null = null;
     let live: SVGPathElement | null = null;
+    let id: string | null = null;
+
+    function sendLive(): void {
+      if (!share || id === null || points === null || !tool || tool === 'eraser') return;
+      share.sender.update(id, keys[index]!, { tool, color, width: WIDTH[tool], points });
+    }
 
     // 見た目の位置から、組み幅を 1 とした座標へ戻す。縦も横と同じ単位にする（縦横比を保つ）。
     function toInk(e: MouseEvent): [number, number] | null {
@@ -184,6 +215,13 @@ export function attachBookInk(
       const before = data.sheets[key] ?? [];
       const after = eraseAt(before, p[0], p[1], ERASER_RADIUS);
       if (after === before) return;
+      if (share) {
+        const kept = new Set(after);
+        for (const stroke of before) {
+          const id = strokeIds.get(stroke);
+          if (id !== undefined && !kept.has(stroke)) share.sender.remove(id);
+        }
+      }
       data.sheets[key] = after;
       render(index);
       scheduleSave();
@@ -205,7 +243,10 @@ export function attachBookInk(
       if (!p) return;
       points = [p[0], p[1]];
       live = makePath({ tool, color, width: WIDTH[tool], points });
+      lives[index] = live;
       svg.appendChild(live);
+      id = nextId();
+      sendLive();
     }
 
     function onMove(e: MouseEvent): void {
@@ -221,6 +262,7 @@ export function attachBookInk(
       if (next === points) return;
       points = next;
       live.setAttribute('d', pathData(points));
+      sendLive();
     }
 
     function onUp(e: MouseEvent): void {
@@ -229,11 +271,15 @@ export function attachBookInk(
       if (live && tool && tool !== 'eraser') {
         const key = keys[index]!;
         const stroke: InkStroke = { tool, color, width: WIDTH[tool], points };
+        sendLive();
+        if (id !== null) strokeIds.set(stroke, id);
         data.sheets[key] = [...(data.sheets[key] ?? []), stroke];
         scheduleSave();
       }
       points = null;
       live = null;
+      id = null;
+      lives[index] = null;
     }
 
     // 書いている間の click が本モードまで届くと、ページがめくれてしまう。
@@ -309,6 +355,10 @@ export function attachBookInk(
     }
   );
 
+  const stopShare = share?.onChange(() => {
+    if (!destroyed) fits.forEach((_, index) => render(index));
+  });
+
   return {
     active: () => tool !== null,
     flush,
@@ -316,6 +366,7 @@ export function attachBookInk(
       if (destroyed) return;
       void flush();
       destroyed = true;
+      stopShare?.();
       for (const svg of svgs) svg.remove();
       bar.remove();
       root.classList.remove(INKING_CLASS);
