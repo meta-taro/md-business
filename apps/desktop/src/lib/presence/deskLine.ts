@@ -8,8 +8,9 @@
  * 送れない形のときは切らずに送らない（切ると別の文書・別の場所を指しうる）。
  */
 
-import type { DeskRoom, PresenceUpdate } from './gateway';
+import type { DeskRoom, InkUpdate, PresenceUpdate } from './gateway';
 import { MAX_NAME_BYTES } from './documentName';
+import { MAX_INK_PAYLOAD_BYTES } from './inkShare';
 import { decodePlace, encodePlace, type Place } from './place';
 
 /**
@@ -106,4 +107,40 @@ export function decodeDeskLine(text: string): PresenceUpdate | null {
   if (wire === '') return { who, document, place: null, room };
   const place = decodePlace(wire);
   return place === null ? null : { who, document, place, room };
+}
+
+/** 机が受ける 1 行の長さ（バイト）。 */
+const MAX_LINE_BYTES = 1024;
+
+function inkLine(document: string, payload: string, room: string): string {
+  return JSON.stringify({ 型: '書き込み', 文書: document, 荷: payload, room });
+}
+
+/**
+ * この文書・部屋の書き込みの行に、荷をどれだけ載せられるか（逃がした後の長さ）。送れないときは null。
+ * 文書名が長いほど行に残る余地が減るので、荷の分け方はこの値に合わせる。
+ */
+export function inkPayloadBudget(document: string, room: string): number | null {
+  if (document === '' || room === '' || !fitsDesk(document) || !fitsDesk(room)) return null;
+  const rest = MAX_LINE_BYTES - new TextEncoder().encode(inkLine(document, '', room)).length;
+  return Math.min(MAX_INK_PAYLOAD_BYTES, rest);
+}
+
+/** 書き込みの荷を机の 1 行にする。送れないときは null（切ると線が壊れる）。 */
+export function encodeInkLine(document: string, payload: string, room: string): string | null {
+  if (payload === '' || CONTROL.test(payload) || inkPayloadBudget(document, room) === null) return null;
+  const line = inkLine(document, payload, room);
+  return new TextEncoder().encode(line).length <= MAX_LINE_BYTES ? line : null;
+}
+
+/** 机から届いた 1 行を相手の書き込みとして読む。荷の中身はここでは見ない（inkShare が読む）。 */
+export function decodeInkLine(text: string): InkUpdate | null {
+  const record = parseRecord(text);
+  if (record === null || record['型'] !== '書き込み') return null;
+  const { 誰: who, 文書: document, 荷: payload, room } = record;
+  if (typeof who !== 'string' || who === '') return null;
+  if (typeof document !== 'string' || document === '') return null;
+  if (typeof payload !== 'string' || payload === '') return null;
+  if (typeof room !== 'string' || room === '') return null;
+  return { who, document, payload, room };
 }

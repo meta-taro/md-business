@@ -8,7 +8,9 @@
 import {
   decodeDeniedLine,
   decodeDeskLine,
+  decodeInkLine,
   decodeRoomsLine,
+  encodeInkLine,
   encodePresenceLine,
   ROOMS_LINE,
   seatLine,
@@ -50,6 +52,16 @@ export function createDeskGateway(transport: DeskTransport, machine: string | nu
       return transport.onLine((line) => {
         const why = decodeDeniedLine(line);
         if (why !== null) listener(why);
+      });
+    },
+    sendInk(document, payload, room) {
+      const line = encodeInkLine(document, payload, room);
+      if (line !== null) transport.write(line);
+    },
+    subscribeInk(listener) {
+      return transport.onLine((line) => {
+        const update = decodeInkLine(line);
+        if (update !== null) listener(update);
       });
     },
   };

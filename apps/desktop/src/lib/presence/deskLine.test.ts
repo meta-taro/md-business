@@ -3,11 +3,15 @@ import {
   decodeDeniedLine,
   decodeDeskLine,
   decodeRoomsLine,
+  decodeInkLine,
+  encodeInkLine,
   encodePresenceLine,
+  inkPayloadBudget,
   ROOMS_LINE,
   seatLine,
   SUBSCRIBE_LINE,
 } from './deskLine';
+import { MAX_INK_PAYLOAD_BYTES } from './inkShare';
 import type { Place } from './place';
 
 const place: Place = { kind: 'markdown', branch: 'main', line: 3 };
@@ -199,5 +203,52 @@ describe('decodeDeniedLine', () => {
     expect(decodeDeniedLine(JSON.stringify({ 型: '部屋たち', 部屋: [] }))).toBeNull();
     expect(decodeDeniedLine(JSON.stringify({ 型: 'denied' }))).toBeNull();
     expect(decodeDeniedLine('{')).toBeNull();
+  });
+});
+
+describe('書き込みの行', () => {
+  const payload = '{"t":"more","id":"a","p":[0.1,0.2]}';
+
+  it('荷を JSON 文字列のまま 1 行にする（部屋は必ず指す）', () => {
+    const line = encodeInkLine('a.md', payload, 'r1');
+    expect(line).not.toBeNull();
+    expect(JSON.parse(line!)).toEqual({ 型: '書き込み', 文書: 'a.md', 荷: payload, room: 'r1' });
+  });
+
+  it('部屋・文書・荷が空、または行が 1 KB を超えるときは送らない', () => {
+    expect(encodeInkLine('a.md', payload, '')).toBeNull();
+    expect(encodeInkLine('', payload, 'r1')).toBeNull();
+    expect(encodeInkLine('a.md', '', 'r1')).toBeNull();
+    expect(encodeInkLine('a'.repeat(500), 'x'.repeat(600), 'r1')).toBeNull();
+    expect(encodeInkLine('a\n.md', payload, 'r1')).toBeNull();
+  });
+
+  it('荷に使える大きさは、文書名と部屋の分を引いて 1 KB に収まる', () => {
+    const budget = inkPayloadBudget('a.md', 'r1');
+    expect(budget).toBe(MAX_INK_PAYLOAD_BYTES);
+    const long = 'あ'.repeat(150);
+    const small = inkPayloadBudget(long, 'r1')!;
+    expect(small).toBeLessThan(MAX_INK_PAYLOAD_BYTES);
+    expect(encodeInkLine(long, 'x'.repeat(small), 'r1')).not.toBeNull();
+    expect(encodeInkLine(long, 'x'.repeat(small + 1), 'r1')).toBeNull();
+  });
+
+  it('送れない文書名・部屋では null', () => {
+    expect(inkPayloadBudget('a'.repeat(600), 'r1')).toBeNull();
+    expect(inkPayloadBudget('a.md', '')).toBeNull();
+    expect(inkPayloadBudget('', 'r1')).toBeNull();
+  });
+
+  it('相手の書き込みを読む', () => {
+    const line = JSON.stringify({ 型: '書き込み', 誰: 'B', 文書: 'a.md', 荷: payload, room: 'r1' });
+    expect(decodeInkLine(line)).toEqual({ who: 'B', document: 'a.md', payload, room: 'r1' });
+  });
+
+  it('書き込みでない行・欄の欠けた行は null', () => {
+    expect(decodeInkLine(JSON.stringify({ 型: '居場所', 誰: 'B', 文書: 'a.md', 場所: '', room: 'r1' }))).toBeNull();
+    expect(decodeInkLine(JSON.stringify({ 型: '書き込み', 文書: 'a.md', 荷: payload, room: 'r1' }))).toBeNull();
+    expect(decodeInkLine(JSON.stringify({ 型: '書き込み', 誰: 'B', 文書: 'a.md', 荷: payload }))).toBeNull();
+    expect(decodeInkLine(JSON.stringify({ 型: '書き込み', 誰: 'B', 文書: 'a.md', 荷: 3, room: 'r1' }))).toBeNull();
+    expect(decodeInkLine('broken')).toBeNull();
   });
 });

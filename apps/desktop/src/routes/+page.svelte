@@ -63,6 +63,7 @@
   import { git } from '$lib/git/git.svelte';
   import { createPagePresence } from '$lib/presence/pagePresence';
   import { connectDesk } from '$lib/presence/deskBridge';
+  import { inkPayloadBudget } from '$lib/presence/deskLine';
   import { tauriDeskBridge } from '$lib/presence/tauriDeskBridge';
   import { documentName, type GitRemote } from '$lib/presence/documentName';
   import { loadRemotes } from '$lib/presence/gitRemotes';
@@ -366,6 +367,14 @@
         highlighter: t('page.inkHighlighter'),
         eraser: t('page.inkEraser'),
       },
+      // 部屋を選んでいれば、書いている線を同じ部屋・文書の相手へ流し、相手の線を重ねる。
+      share: presence
+        ? {
+            sender: presence.ink,
+            peerStrokes: (sheet) => presence.peerStrokes(sheet),
+            onChange: (listener) => presence.onInk(listener),
+          }
+        : undefined,
     };
   }
 
@@ -728,7 +737,11 @@
 
   // 居場所: 同じリポの同じ文書を開いている相手を、行・セルの印で見せる。
   // 置き先の無いフォルダ（git でない・remote が無い）では文書に名前が付かず、何も送らない。
-  const presence = browser ? createPagePresence((onGateway) => connectDesk(tauriDeskBridge, onGateway)) : null;
+  const presence = browser ? createPagePresence(
+        (onGateway) => connectDesk(tauriDeskBridge, onGateway),
+        Date.now,
+        inkPayloadBudget
+      ) : null;
   let remotes = $state<GitRemote[]>([]);
   let peerTick = $state(0);
   $effect(() => {
