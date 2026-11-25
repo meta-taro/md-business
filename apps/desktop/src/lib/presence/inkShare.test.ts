@@ -137,3 +137,17 @@ describe('createPeerInk', () => {
     expect(peers.strokes('p1').length).toBeLessThanOrEqual(500);
   });
 });
+
+describe('荷の大きさの上限', () => {
+  it('上限を渡すと、机の行に埋めたとき（引用符を逃がした後）の長さで収める', () => {
+    const sent: string[] = [];
+    const sender = createInkSender((payload) => sent.push(payload), 300);
+    const points = Array.from({ length: 400 }, (_, i) => i / 400);
+    sender.update('"quoted"', '#1', pen(points));
+    expect(sent.length).toBeGreaterThan(2);
+    for (const payload of sent) {
+      const escaped = JSON.stringify(payload).length - 2;
+      expect(escaped).toBeLessThanOrEqual(300);
+    }
+  });
+});

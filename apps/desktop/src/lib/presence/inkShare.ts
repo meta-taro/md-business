@@ -27,24 +27,26 @@ export type InkPayload =
 
 const round = (n: number): number => Math.round(n * DIGITS) / DIGITS;
 const byteLength = (text: string): number => new TextEncoder().encode(text).length;
+/** 机の行の文字列欄に埋めたときの長さ（引用符や \ を逃がした後）。 */
+const escapedLength = (text: string): number => byteLength(JSON.stringify(text)) - 2;
 
 /**
  * 点を上限に収まる荷に分ける。head は点の欄より前の部分（`{"t":…,"p":[` まで）。
  * 最初の荷は head、続きは more の頭で組む。
  */
-function chunk(firstHead: string, moreHead: string, numbers: readonly number[]): string[] {
+function chunk(firstHead: string, moreHead: string, numbers: readonly number[], limit: number): string[] {
   const out: string[] = [];
   let head = firstHead;
   let body: string[] = [];
-  let size = byteLength(head) + 2;
+  let size = escapedLength(head) + 2;
   for (let i = 0; i + 1 < numbers.length; i += 2) {
     const pair = `${round(numbers[i]!)},${round(numbers[i + 1]!)}`;
     const add = byteLength(pair) + (body.length > 0 ? 1 : 0);
-    if (body.length > 0 && size + add > MAX_INK_PAYLOAD_BYTES) {
+    if (body.length > 0 && size + add > limit) {
       out.push(`${head}${body.join(',')}]}`);
       head = moreHead;
       body = [];
-      size = byteLength(head) + 2;
+      size = escapedLength(head) + 2;
     }
     body.push(pair);
     size += byteLength(pair) + (body.length > 1 ? 1 : 0);
@@ -60,7 +62,11 @@ export interface InkSender {
   clear(): void;
 }
 
-export function createInkSender(send: (payload: string) => void): InkSender {
+/**
+ * limit は 1 つの荷が机の行の中で占めてよい長さ。文書名が長いと行に残る余地が減るので、
+ * 呼ぶ側が行の大きさから決めて渡す（deskLine の inkPayloadBudget）。
+ */
+export function createInkSender(send: (payload: string) => void, limit = MAX_INK_PAYLOAD_BYTES): InkSender {
   // 線ごとに、送り終えた座標の数。
   const sent = new Map<string, number>();
 
@@ -82,10 +88,10 @@ export function createInkSender(send: (payload: string) => void): InkSender {
           `{"t":"begin","id":${JSON.stringify(id)},"sheet":${JSON.stringify(sheet)},` +
           `"tool":${JSON.stringify(stroke.tool)},"color":${JSON.stringify(stroke.color)},` +
           `"width":${round(stroke.width)},"p":[`;
-        payloads = chunk(head, moreHead, stroke.points);
+        payloads = chunk(head, moreHead, stroke.points, limit);
       } else {
         if (stroke.points.length === from) return;
-        payloads = chunk(moreHead, moreHead, stroke.points.slice(from));
+        payloads = chunk(moreHead, moreHead, stroke.points.slice(from), limit);
       }
       sent.set(id, stroke.points.length);
       for (const payload of payloads) send(payload);

@@ -16,6 +16,14 @@ export interface PresenceUpdate {
   room: string;
 }
 
+/** 相手から届いた書き込みの荷 1 つ。荷の形は inkShare が読む。 */
+export interface InkUpdate {
+  who: string;
+  document: string;
+  payload: string;
+  room: string;
+}
+
 /** 自分が入っている部屋。名前の無い部屋は画面で番号を付けて見せる。 */
 export interface DeskRoom {
   id: string;
@@ -33,4 +41,8 @@ export interface PresenceGateway {
   onRooms(listener: (rooms: DeskRoom[]) => void): () => void;
   /** 運び役に断られた理由を受け取る（入っていない部屋を指した等）。 */
   onDenied(listener: (why: string) => void): () => void;
+  /** 書き込みの荷を送る。居場所と違い、運び役はまとめも捨てもせず送った順に配る。 */
+  sendInk(document: string, payload: string, room: string): void;
+  /** 相手の書き込みの荷を受け取る。戻り値で受け取りをやめる。 */
+  subscribeInk(listener: (update: InkUpdate) => void): () => void;
 }

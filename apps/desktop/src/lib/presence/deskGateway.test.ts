@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createDeskGateway, type DeskTransport } from './deskGateway';
 import { ROOMS_LINE, seatLine, SUBSCRIBE_LINE } from './deskLine';
-import type { DeskRoom, PresenceUpdate } from './gateway';
+import type { DeskRoom, InkUpdate, PresenceUpdate } from './gateway';
 
 function fakeTransport() {
   const written: string[] = [];
@@ -108,5 +108,28 @@ describe('createDeskGateway', () => {
     stop();
     t.deliver(JSON.stringify({ 型: 'denied', why: '二度目' }));
     expect(got).toEqual(['その部屋に居ません']);
+  });
+
+  it('書き込みの荷を 1 行にして机へ書き、送れない形は書かない', () => {
+    const t = fakeTransport();
+    const gateway = createDeskGateway(t.transport, null);
+    t.written.length = 0;
+    gateway.sendInk('a.md', '{"t":"clear"}', 'R1');
+    gateway.sendInk('a.md', '{"t":"clear"}', '');
+    expect(t.written.map((line) => JSON.parse(line))).toEqual([
+      { 型: '書き込み', 文書: 'a.md', 荷: '{"t":"clear"}', room: 'R1' },
+    ]);
+  });
+
+  it('机から届いた書き込みを受け手へ渡し、それ以外の行は渡さない', () => {
+    const t = fakeTransport();
+    const gateway = createDeskGateway(t.transport, null);
+    const got: InkUpdate[] = [];
+    const stop = gateway.subscribeInk((update) => got.push(update));
+    t.deliver(JSON.stringify({ 型: '書き込み', 誰: 'B', 文書: 'a.md', 荷: '{"t":"clear"}', room: 'R1' }));
+    t.deliver(JSON.stringify({ 型: '居場所', 誰: 'B', 文書: 'a.md', 場所: '', room: 'R1' }));
+    stop();
+    t.deliver(JSON.stringify({ 型: '書き込み', 誰: 'B', 文書: 'a.md', 荷: '{"t":"clear"}', room: 'R1' }));
+    expect(got).toEqual([{ who: 'B', document: 'a.md', payload: '{"t":"clear"}', room: 'R1' }]);
   });
 });

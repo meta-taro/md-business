@@ -3,7 +3,7 @@
  * 運び役と同じく、送った本人には返さず、名前（who）は配る側が付ける。
  */
 
-import type { DeskRoom, PresenceGateway, PresenceUpdate } from './gateway';
+import type { DeskRoom, InkUpdate, PresenceGateway, PresenceUpdate } from './gateway';
 
 export interface FakeHub {
   /** この名前で部屋に入った出入口を作る。 */
@@ -18,6 +18,7 @@ interface Member {
   updates: Set<(update: PresenceUpdate) => void>;
   rooms: Set<(rooms: DeskRoom[]) => void>;
   denied: Set<(why: string) => void>;
+  ink: Set<(update: InkUpdate) => void>;
 }
 
 function listen<T>(set: Set<T>, listener: T): () => void {
@@ -31,7 +32,7 @@ export function createFakeHub(): FakeHub {
 
   return {
     join(who) {
-      const member: Member = { updates: new Set(), rooms: new Set(), denied: new Set() };
+      const member: Member = { updates: new Set(), rooms: new Set(), denied: new Set(), ink: new Set() };
       members.set(who, member);
       return {
         send(document, place, room) {
@@ -46,6 +47,13 @@ export function createFakeHub(): FakeHub {
         },
         onRooms: (listener) => listen(member.rooms, listener),
         onDenied: (listener) => listen(member.denied, listener),
+        sendInk(document, payload, room) {
+          for (const [other, { ink }] of members) {
+            if (other === who) continue;
+            for (const listener of ink) listener({ who, document, payload, room });
+          }
+        },
+        subscribeInk: (listener) => listen(member.ink, listener),
       };
     },
     setRooms(next) {
