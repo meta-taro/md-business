@@ -214,6 +214,23 @@ describe('createPagePresence', () => {
       presence.dispose();
     });
 
+    it('書いている途中の線は、机の 1 秒あたりの上限に収まる間隔で送る', async () => {
+      const presence = await start();
+      presence.open(A);
+      presence.setRoom(R1);
+      let points: number[] = [];
+      for (let ms = 0; ms < 1000; ms += 16) {
+        points = [...points, 0.1, 0.1];
+        presence.ink.update('s1', 'p.1', stroke(points));
+        vi.advanceTimersByTime(16);
+      }
+      expect(inks.length).toBeLessThanOrEqual(11);
+      presence.ink.flush();
+      const total = inks.reduce((n, u) => n + (JSON.parse(u.payload) as { p: number[] }).p.length, 0);
+      expect(total).toBe(points.length);
+      presence.dispose();
+    });
+
     it('何も書いていなければ、替えても消す知らせを送らない', async () => {
       const presence = await start();
       presence.open(A);

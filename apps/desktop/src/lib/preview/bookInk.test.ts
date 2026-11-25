@@ -151,6 +151,7 @@ describe('attachBookInk の共有', () => {
           update: (id: string, sheet: string, stroke: InkStroke) => calls.push(['update', id, sheet, stroke.points.length]),
           remove: (id: string) => calls.push(['remove', id]),
           clear: () => calls.push(['clear']),
+          flush: () => calls.push(['flush']),
         },
         peerStrokes: (sheet: string) => peers[sheet] ?? [],
         onChange(listener: () => void) {
@@ -170,6 +171,8 @@ describe('attachBookInk の共有', () => {
     draw(fits[0]!, [[132, 66], [164, 66], [196, 66]]);
     const updates = calls.filter((c) => c[0] === 'update');
     expect(updates.map((c) => c[3])).toEqual([2, 4, 6, 6]);
+    // ペンを離したら、溜めていた分を待たずに送らせる
+    expect(calls.at(-1)).toEqual(['flush']);
     expect(new Set(updates.map((c) => c[1])).size).toBe(1);
     expect(updates[0]![2]).toBe('p.1');
   });

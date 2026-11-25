@@ -10,6 +10,11 @@ import type { InkStroke, InkTool } from '../preview/inkModel';
 
 /** 机が運ぶ荷の上限（バイト）。行全体の 1 KB から、外箱の欄の分を引いた値。 */
 export const MAX_INK_PAYLOAD_BYTES = 900;
+/**
+ * 書いている途中の線を送る間隔（ミリ秒）。机は 1 人の書き込みを 1 秒 20 行までしか通さず、
+ * 超えた行は送り直されずに消える。ペンの動きは 1 秒 60 回前後来るので、間隔ごとに最新の形だけを送る。
+ */
+export const INK_SEND_INTERVAL_MS = 100;
 /** 1 人分として持つ線の上限。超えたら古い線から捨てる（相手が消さずに書き続けても膨らまない）。 */
 const MAX_PEER_STROKES = 500;
 /** 1 本の線として持つ点の上限（座標の数）。超えた分は描かない。 */
@@ -60,6 +65,8 @@ export interface InkSender {
   update(id: string, sheet: string, stroke: InkStroke): void;
   remove(id: string): void;
   clear(): void;
+  /** 溜めている形があれば今すぐ送る（ペンを離したとき）。 */
+  flush(): void;
 }
 
 /**
@@ -101,6 +108,83 @@ export function createInkSender(send: (payload: string) => void, limit = MAX_INK
       sent.clear();
       send(JSON.stringify({ t: 'clear' }));
     },
+    // 渡された形はその場で送るので、溜めているものは無い。
+    flush() {},
+  };
+}
+
+export interface InkClock {
+  now(): number;
+  setTimeout(run: () => void, ms: number): unknown;
+  clearTimeout(handle: unknown): void;
+}
+
+const systemClock: InkClock = {
+  now: () => Date.now(),
+  setTimeout: (run, ms) => setTimeout(run, ms),
+  clearTimeout: (handle) => clearTimeout(handle as ReturnType<typeof setTimeout>),
+};
+
+export interface PacedInkSender extends InkSender {
+  /** 溜めている形を送らずに捨てる（送り先が替わるとき）。 */
+  cancel(): void;
+}
+
+/**
+ * update を interval に 1 回までにまとめる。間隔の内に来た形は最新のものだけを残し、間隔が来たら送る。
+ * 送る順は変えない: 消す・全部消すの前に、別の線の溜めは先に送り、同じ線の溜めは捨てる。
+ */
+export function paceInkSender(
+  inner: InkSender,
+  interval = INK_SEND_INTERVAL_MS,
+  clock: InkClock = systemClock,
+): PacedInkSender {
+  let lastAt = -Infinity;
+  let pending: { id: string; sheet: string; stroke: InkStroke } | null = null;
+  let timer: unknown = null;
+
+  function stopTimer(): void {
+    if (timer !== null) clock.clearTimeout(timer);
+    timer = null;
+  }
+
+  function cancel(): void {
+    stopTimer();
+    pending = null;
+  }
+
+  function flush(): void {
+    stopTimer();
+    if (pending === null) return;
+    const { id, sheet, stroke } = pending;
+    pending = null;
+    lastAt = clock.now();
+    inner.update(id, sheet, stroke);
+  }
+
+  return {
+    update(id, sheet, stroke) {
+      if (pending !== null && pending.id !== id) flush();
+      const wait = lastAt + interval - clock.now();
+      if (pending === null && wait <= 0) {
+        lastAt = clock.now();
+        inner.update(id, sheet, stroke);
+        return;
+      }
+      pending = { id, sheet, stroke };
+      if (timer === null) timer = clock.setTimeout(flush, Math.max(wait, 0));
+    },
+    remove(id) {
+      if (pending?.id === id) cancel();
+      else flush();
+      inner.remove(id);
+    },
+    clear() {
+      cancel();
+      inner.clear();
+    },
+    flush,
+    cancel,
   };
 }
 

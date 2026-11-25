@@ -11,7 +11,15 @@
  */
 
 import type { DeskRoom, PresenceGateway } from './gateway';
-import { createInkSender, createPeerInk, MAX_INK_PAYLOAD_BYTES, type InkSender, type PeerStroke } from './inkShare';
+import {
+  createInkSender,
+  createPeerInk,
+  MAX_INK_PAYLOAD_BYTES,
+  paceInkSender,
+  type InkSender,
+  type PacedInkSender,
+  type PeerStroke,
+} from './inkShare';
 import type { VisiblePeer } from './peers';
 import type { Place } from './place';
 import { createPresenceSession, type PresenceSession } from './session';
@@ -67,7 +75,7 @@ export function createPagePresence(
   const listeners = new Set<() => void>();
   const peerInk = createPeerInk();
   // 今の部屋・文書へ送る口。送った荷があるかを覚えておき、替えるときだけ「消した」を送る。
-  let inkSender: InkSender | null = null;
+  let inkSender: PacedInkSender | null = null;
   let inkSent = false;
 
   const notify = () => {
@@ -85,15 +93,20 @@ export function createPagePresence(
     const [r, d] = [room, document];
     const limit = inkBudget(d, r);
     if (limit === null) return null;
-    inkSender = createInkSender((payload) => {
-      inkSent = true;
-      target.sendInk(d, payload, r);
-    }, limit);
+    // 間引きも送り先ごとに持つ。替えた直後の書き始めは、前の所の間隔を待たずに送る。
+    inkSender = paceInkSender(
+      createInkSender((payload) => {
+        inkSent = true;
+        target.sendInk(d, payload, r);
+      }, limit)
+    );
     return inkSender;
   }
 
   /** 部屋・文書・出入口を替える前に呼ぶ。前の所へ自分の線を消すよう知らせ、相手の線を捨てる。 */
   function resetInk(): void {
+    // 溜めていた形は前の部屋・文書のもの。新しい送り先へは次の update で書き始めから送る。
+    inkSender?.cancel();
     if (inkSent) inkSender?.clear();
     inkSender = null;
     inkSent = false;
@@ -104,6 +117,7 @@ export function createPagePresence(
     update: (id, sheet, stroke) => inkTo()?.update(id, sheet, stroke),
     remove: (id) => inkTo()?.remove(id),
     clear: () => inkTo()?.clear(),
+    flush: () => inkSender?.flush(),
   };
 
   function setRoom(next: string | null): void {
@@ -132,6 +146,7 @@ export function createPagePresence(
     stopGateway?.();
     stopGateway = null;
     // 繋ぎ直した相手は、前の線に送った分を知らない。書き始めから送り直す。
+    inkSender?.cancel();
     inkSender = null;
     inkSent = false;
     peerInk.reset();
