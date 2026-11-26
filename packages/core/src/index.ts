@@ -67,3 +67,16 @@ export type {
   ValidationResult,
   ParseAndValidateResult,
 } from './types.js';
+export {
+  splitInk,
+  writeInk,
+  makeInkAnchor,
+  resolveInkAnchor,
+  simplifyStroke,
+  pointsToPath,
+  pathToPoints,
+  INK_MARKER,
+  MAX_INK_CHARS,
+  INK_ANCHOR_CHARS,
+} from './ink.js';
+export type { InkAnchor, InkStroke, InkProblem, InkSplit, InkPoint } from './ink.js';
