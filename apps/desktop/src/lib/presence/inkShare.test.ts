@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import type { InkStroke } from '../preview/inkModel';
-import { createInkSender, createPeerInk, decodeInkPayload, MAX_INK_PAYLOAD_BYTES } from './inkShare';
+import {
+  createInkSender,
+  createPeerInk,
+  decodeInkPayload,
+  INK_SEND_INTERVAL_MS,
+  MAX_INK_PAYLOAD_BYTES,
+  paceInkSender,
+  type InkClock,
+} from './inkShare';
 
 const pen = (points: number[]): InkStroke => ({ tool: 'pen', color: '#d33333', width: 0.004, points });
 
@@ -149,5 +157,103 @@ describe('荷の大きさの上限', () => {
       const escaped = JSON.stringify(payload).length - 2;
       expect(escaped).toBeLessThanOrEqual(300);
     }
+  });
+});
+
+describe('paceInkSender', () => {
+  function fakeClock() {
+    let time = 0;
+    let task: { at: number; run: () => void } | null = null;
+    const clock: InkClock = {
+      now: () => time,
+      setTimeout(run, ms) {
+        task = { at: time + ms, run };
+        return task;
+      },
+      clearTimeout(handle) {
+        if (handle === task) task = null;
+      },
+    };
+    return {
+      clock,
+      advance(ms: number) {
+        time += ms;
+        if (task && task.at <= time) {
+          const { run } = task;
+          task = null;
+          run();
+        }
+      },
+    };
+  }
+
+  function paced() {
+    const calls: [string, ...unknown[]][] = [];
+    const inner = {
+      update: (id: string, sheet: string, stroke: InkStroke) => calls.push(['update', id, sheet, stroke.points.length]),
+      remove: (id: string) => calls.push(['remove', id]),
+      clear: () => calls.push(['clear']),
+      flush: () => undefined,
+    };
+    const time = fakeClock();
+    return { calls, time, sender: paceInkSender(inner, INK_SEND_INTERVAL_MS, time.clock) };
+  }
+
+  it('最初の点はすぐ送り、間隔の内に来た点は溜めて、間隔が来たら最新の形を 1 回だけ送る', () => {
+    const { calls, time, sender } = paced();
+    sender.update('a', 'p1', pen([0, 0]));
+    expect(calls).toEqual([['update', 'a', 'p1', 2]]);
+    for (let i = 1; i <= 5; i++) {
+      time.advance(16);
+      sender.update('a', 'p1', pen(Array.from({ length: (i + 1) * 2 }, () => 0)));
+    }
+    expect(calls).toHaveLength(1);
+    time.advance(INK_SEND_INTERVAL_MS);
+    expect(calls).toEqual([
+      ['update', 'a', 'p1', 2],
+      ['update', 'a', 'p1', 12],
+    ]);
+  });
+
+  it('ペンを動かし続けても、送るのは間隔ごとに 1 回まで', () => {
+    const { calls, time, sender } = paced();
+    let points: number[] = [];
+    for (let ms = 0; ms < 1000; ms += 16) {
+      points = [...points, 0, 0];
+      sender.update('a', 'p1', pen(points));
+      time.advance(16);
+    }
+    expect(calls.length).toBeLessThanOrEqual(1000 / INK_SEND_INTERVAL_MS + 1);
+  });
+
+  it('flush で溜めていた形を今すぐ送る（ペンを離したとき）', () => {
+    const { calls, sender } = paced();
+    sender.update('a', 'p1', pen([0, 0]));
+    sender.update('a', 'p1', pen([0, 0, 1, 1]));
+    sender.flush();
+    expect(calls.at(-1)).toEqual(['update', 'a', 'p1', 4]);
+    sender.flush();
+    expect(calls).toHaveLength(2);
+  });
+
+  it('消した線の溜めは捨て、消したことはすぐ送る', () => {
+    const { calls, time, sender } = paced();
+    sender.update('a', 'p1', pen([0, 0]));
+    sender.update('a', 'p1', pen([0, 0, 1, 1]));
+    sender.remove('a');
+    time.advance(INK_SEND_INTERVAL_MS);
+    expect(calls).toEqual([
+      ['update', 'a', 'p1', 2],
+      ['remove', 'a'],
+    ]);
+  });
+
+  it('cancel は溜めを送らずに捨てる（部屋や文書を替えたとき）', () => {
+    const { calls, time, sender } = paced();
+    sender.update('a', 'p1', pen([0, 0]));
+    sender.update('a', 'p1', pen([0, 0, 1, 1]));
+    sender.cancel();
+    time.advance(INK_SEND_INTERVAL_MS);
+    expect(calls).toHaveLength(1);
   });
 });

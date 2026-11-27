@@ -272,6 +272,8 @@ export function attachBookInk(
         const key = keys[index]!;
         const stroke: InkStroke = { tool, color, width: WIDTH[tool], points };
         sendLive();
+        // 間引いて溜めていた残りを、次の間隔を待たずに相手へ届ける。
+        share?.sender.flush();
         if (id !== null) strokeIds.set(stroke, id);
         data.sheets[key] = [...(data.sheets[key] ?? []), stroke];
         scheduleSave();
